@@ -122,8 +122,12 @@
 						descripcion: p.descripcion || '',
 						precio: limpiarPrecio(p.precio),
 						categoria: p.categoria || '',
-						subcategoria: p.subcategoria || ''
-					})).filter(p => p.nombre && p.precio > 0);
+						subcategoria: p.subcategoria || '',
+						ocultar: p.ocultar ? p.ocultar.toLowerCase().trim() === 'si' : false
+					})).filter(p => {
+						// Filtrar: solo productos con nombre, precio > 0 y NO ocultos
+						return p.nombre && p.precio > 0 && !p.ocultar;
+					});
 					
 					console.log('âœ“ Productos cargados desde Google Sheets:', g_productos.length);
 				}
@@ -1104,12 +1108,17 @@
 							descripcion: p.descripcion || '',
 							precio: limpiarPrecio(p.precio),
 							categoria: p.categoria || '',
-							subcategoria: p.subcategoria || ''
-						})).filter(p => p.nombre && p.precio > 0);
+							subcategoria: p.subcategoria || '',
+							ocultar: p.ocultar ? p.ocultar.toLowerCase().trim() === 'si' : false
+						})).filter(p => {
+							// Aplicar el mismo filtro: nombre, precio > 0, NO oculto
+							return p.nombre && p.precio > 0 && !p.ocultar;
+						});
 						
-						// Comparar si hay cambios
+						// Comparar si hay cambios (incluye nuevos productos, eliminados, ocultos)
 						if (JSON.stringify(nuevosProductos) !== JSON.stringify(g_productos)) {
 							console.log('âœ“ Cambios detectados en Google Sheets. Actualizando...');
+							console.log('Antes:', g_productos.length, 'productos. Ahora:', nuevosProductos.length);
 							g_productos = nuevosProductos;
 							renderizar_catalogo_desde_datos();
 						}
