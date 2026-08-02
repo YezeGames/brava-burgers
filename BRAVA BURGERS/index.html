@@ -58,7 +58,7 @@
 		// Cargar datos desde Google Sheets
 		async function cargar_datos_desde_sheets() {
 			try {
-				const response = await fetch(SHEET_API_URL, {
+				const response = await fetch(CORS_PROXY + encodeURIComponent(SHEET_API_URL), {
 					method: 'GET',
 					mode: 'cors'
 				});
