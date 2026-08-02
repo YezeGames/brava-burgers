@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+	<meta name="google" content="notranslate">
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<meta name="description" content="Brava Burgers - Hamburguesas de verdad">
+	<meta name="author" content="">
+	<meta name="version" content="v1">
+	<meta name="robots" content="noindex,nofollow">
+	<meta property="og:type" content="website">
+	<meta property="og:title" content="Brava Burgers">
+	<meta property="og:url" content="https://bravaburgers.shop">
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Brava Burgers">
+	<meta name="twitter:url" content="https://bravaburgers.shop">
+	
+	<title>Brava Burgers - Hamburguesas de Verdad</title>
+
+	<!-- Custom fonts for this theme -->
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Lato:400,700,400italic,700italic" rel="stylesheet" type="text/css">
+	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,800&display=swap" rel="stylesheet">
+	
+	<!-- Bootstrap CSS -->
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+	<!-- Animate CSS -->
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.min.css">
+
+	<!-- FancyBox -->
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css" />
+
+	<!-- SweetAlert2 -->
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+	<!-- jQuery - Debe cargarse antes de cualquier script que lo use -->
+	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
+
+	<!-- Configuración de datos desde Google Sheets (sincronizado automáticamente) -->
+	<!-- Fase G: Google Sheets CSV Integration - Working Version -->
+	<script>
+		// ID de la Google Sheet pública
+		const SHEET_ID = '1ktyXsJ_0wfdp-odcvRdrJNDOqaDOozIhPZs6Q8SgUvw';
+		
+		// URL de exportación CSV desde Google Sheets (gid=0 es la hoja "Prodcutos")
+		const PRODUCTS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+		
+		// Variables globales que se llenarán desde Google Sheets
+		var g_telefono = '5491173721945';
+		var g_productos = [];
+		var g_variantes = [];
+		var g_zonas = [];
+		var g_horarios = [];
+		
+		// Parsear CSV a JSON - maneja comillas y saltos de línea
+		function parseCSV(csv) {
+			const lines = [];
+			let current = '';
+			let inQuotes = false;
+			
+			for (let i = 0; i < csv.length; i++) {
+				const char = csv[i];
+				const nextChar = csv[i + 1];
+				
+				if (char === '"') {
+					inQuotes = !inQuotes;
+				} else if (char === ',' && !inQuotes) {
+					lines.push(current);
+					current = '';
+				} else if ((char === '\n' || char === '\r') && !inQuotes) {
+					if (current.trim()) {
+						lines.push(current);
+						current = '';
+					}
+				} else {
+					current += char;
+				}
+			}
+			
+			if (current.trim()) {
+				lines.push(current);
+			}
+			
+			// Procesar como datos
+			const data = [];
+			const rawLines = csv.trim().split('\n');
+			
+			if (rawLines.length < 2) return data;
+			
+			const headers = rawLines[0].split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+			
+			for (let i = 1; i < rawLines.length; i++) {
+				const values = rawLines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+				if (!values[0]) continue;
+				
+				const obj = {};
+				headers.forEach((header, idx) => {
+					obj[header] = values[idx] || '';
+				});
+				data.push(obj);
+			}
+			return data;
+		}
+		
+		// Limpiar precio (convertir $11,000.00 a 11000)
+		function limpiarPrecio(precio) {
+			if (!precio) return 0;
+			return parseInt(String(precio).replace(/[^0-9]/g, '')) || 0;
+		}
+		
+		// Cargar CSV desde Google Sheets
+		async function loadCSV(url) {
+			try {
+				const response = await fetch(url);
+				if (!response.ok) throw new Error(`HTTP ${response.status}`);
+				return await response.text();
+			} catch (error) {
+				console.error('✗ Error cargando CSV:', error);
+				return null;
+			}
+		}
+		
+		// Cargar datos desde Google Sheets
+		async function cargar_datos_desde_sheets() {
+			try {
+				// Cargar CSV de productos (gid=0 = Prodcutos)
+				const productsCSV = await loadCSV(PRODUCTS_CSV_URL);
+				
+				// Parsear productos
+				if (productsCSV) {
+					const productsData = parseCSV(productsCSV);
+					g_productos = productsData.map((p, idx) => ({
+						id: String(idx + 1), // Generar ID basado en índice
+						nombre: p.nombre || '',
+						descripcion: p.descripcion || '',
+						precio: limpiarPrecio(p.precio),
+						categoria: p.categoria || '',
+						subcategoria: p.subcategoria || ''
+					})).filter(p => p.nombre && p.precio > 0);
+					
+					console.log('✓ Productos cargados desde Google Sheets:', g_productos.length);
+				}
+				
+				// Variantes por defecto
+				if (g_variantes.length === 0) {
+					g_variantes = [
+						{ id: '1', nombre: 'Sin Extra', precio: 0 },
+						{ id: '2', nombre: 'Extra cheddar', precio: 1000 },
+						{ id: '3', nombre: 'Extra bacon', precio: 1500 }
+					];
+				}
+				
+				// Zonas por defecto
+				if (g_zonas.length === 0) {
+					g_zonas = [
+						{ nombre: 'Zona Centro', costo: 500 },
+						{ nombre: 'Zona Norte', costo: 1000 },
+						{ nombre: 'Zona Sur', costo: 1500 }
+					];
+				}
+				
+				console.log('✓ Datos cargados desde Google Sheets');
+				return true;
+			} catch (error) {
+				console.error('✗ Error en cargar_datos_desde_sheets:', error);
+				return false;
+			}
+		}
+	</script>
+
+	<style>
+	body {
+		padding-top: 110px;
+		background-color:#1a1a1a;
+		color:#ffffff;
+	}
+	
+	@media (max-width: 980px) {
+		body {
+			padding-top: 90px;
+		}
+	}
+
+	.fancybox-close-small {
+		color:black !important;
+	}
+
+	body.tienehover .producto_fila:hover {
+		background-color: #FF6B35;
+		border-radius: .5rem;
+	}
+
+	.producto_descuento {
+		color:#ffffff;
+	}
+
+	.producto_descuento_porcentaje {
+		color:#ffffff;
+	}
+
+	.producto_pedido {
+		background-color: #FF6B35;
+		font-weight: bold;
+		border-radius: .5rem;
+		margin-bottom: 7px;
+	}
+
+	.producto_pedido .producto_cantidades {
+	}
+
+	* {
+		touch-action: manipulation;
+	}
+
+	.categoria_titulo {
+		margin-top: 10px;
+		margin-bottom: 20px;
+		font-weight:900;
+		font-size:20px;
+		color:#FF6B35;
+	}
+
+	.categoria_titulo A {
+		text-decoration: none;
+		color: #FF6B35;
+	}
+
+	.subcategoria_titulo {
+		margin-top: 10px;
+		margin-bottom: 20px;
+		font-weight:900;
+		font-size:16px;
+		color:#ffffff;
+	}
+
+	.subcategoria_titulo A {
+		text-decoration: none;
+		color: #ffffff;
+	}
+
+	.resumen_titulo {
+	}
+
+	.resumen_titulo A {
+		color: #ffffff;
+		text-decoration: none;
+		font-size: 90%;
+	}
+
+	.my-btn-primary {
+		color: #ffffff;
+		background-color: #FF6B35;
+		border-color: #FF6B35;
+	}
+
+	.my-btn-primary:hover {
+		background-color: #E55A25;
+		border-color: #E55A25;
+	}
+
+	.sidenav {
+		height: 100%;
+		width: 0;
+		position: fixed;
+		top: 0;
+		right: 0;
+		background-color:#1a1a1a !important;
+		overflow-x: hidden;
+		transition: 0.5s;
+		padding-top: 60px;
+		z-index: 1000000;
+	}
+
+	.sidenav-item {
+		padding: 8px 8px 8px 32px;
+		text-decoration: none;
+		font-size: 25px;
+		color:#ffffff;
+		display: block;
+		transition: 0.3s;
+	}
+
+	.sidenav-closebtn {
+		position: absolute;
+		top: 0;
+		right: 25px;
+		font-size: 36px;
+		margin-left: 50px;
+	}
+
+	.navbar {
+		background-color: #1a1a1a !important;
+		border-bottom: 3px solid #FF6B35;
+	}
+
+	.producto_fila {
+		background-color: #2a2a2a;
+		border-radius: .5rem;
+		margin-bottom: 10px;
+		padding: 10px;
+		border: 1px solid #333;
+	}
+
+	.footer {
+		background-color: #1a1a1a !important;
+		border-top: 3px solid #FF6B35;
+	}
+
+	.precio-box {
+		color: #FF6B35;
+		font-weight: bold;
+	}
+	</style>
+
+</head>
+
+<body id="page-top" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%231a1a1a%22 width=%22100%22 height=%22100%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22%23FF6B35%22 opacity=%220.05%22/></svg>'); background-repeat: repeat;">
+
+	<!-- Datos cargados desde config.js (ya no hardcodeados aquí) -->
+	<script>
+		// Las variables g_telefono, g_zonas, g_variantes, g_productos, etc.
+		// se cargan desde config.js que se incluye en el <head>
+	</script>
+
+	<!-- Navigation -->
+	<nav class="navbar navbar-expand-lg fixed-top" id="mainNav">
+		<div class="container" style="min-height:50px;">
+			<div id="mySidenav" class="sidenav">
+				<a href="javascript:void(0)" class="sidenav-closebtn" onclick="closeNav()">&times;</a>
+				<div id="sidenav_categorias"></div>
+			</div>
+			
+			<div style="position: absolute;">
+				<a id="link_logo" class="iframe" href="./"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E" style="border-radius: 50%;height: 50px;width: 50px;"></a>&nbsp;
+				<a id="link_titulo" style="font-size:17px;" class="navbar-brand js-scroll-trigger" href="./"><font color=#FF6B35>BRAVA BURGERS</font></a>
+			</div>
+
+			<div style="background-color: transparent; padding-left: 10px; z-index:999999;">
+				<button class="btn btn-primary helper_changuito my-btn-primary" style="display:none;" type="button" onclick="mostrar_resumen_pedido();">
+					<i id="icono_resumen_pedido" class="fas fa-shopping-cart"></i>
+					<div class="badge badge-primary pedido_productos_cantidad_total">0</div>
+				</button>
+
+				<button class="btn btn-primary my-btn-primary" id="boton_buscador" style="display:none;" type="button" onclick="mostrar_buscador();">
+					<i id="icono_buscador" class="fas fa-search"></i>
+				</button>
+
+				<button type="button" style="display:none;" onclick="openNav()" class="btn btn-primary my-btn-primary animated fadeIn" id="mobile-nav-toggle">
+					<i class="fa fa-bars"></i>
+				</button>
+			</div>
+		</div>
+	</nav>
+
+	<script>
+	// Variable que guarda el pedido actual
+	var g_pedido = {"productos":[]};
+	var g_viendo_resumen = false;
+	var g_viendo_buscador = false;
+
+	function openNav() {
+		document.getElementById("mySidenav").style.width = "250px";
+	}
+
+	function closeNav() {
+		document.getElementById("mySidenav").style.width = "0";
+	}
+
+	function mostrar_resumen_pedido() {
+		if (g_viendo_buscador) mostrar_buscador();
+		ver_todas_las_categorias();
+
+		if (!g_viendo_resumen) {
+			$('.producto_imagen').hide();
+			$('.categoria').hide();
+			$('.subcategoria').hide();
+			$('.producto').hide();
+			$('.helper_resumen').show();
+
+			g_pedido.productos.forEach(function(producto, index, mi_array) {
+				$('#producto_' + producto.id).show();
+			});
+
+			$('#icono_resumen_pedido').removeClass("fa-shopping-cart");
+			$('#icono_resumen_pedido').addClass("fa-cart-plus");
+			$('.pedido_productos_cantidad_total').hide();
+			location.href="#mipedido";
+			$(window).scrollTop(0);
+			g_viendo_resumen = true;
+		} else {
+			$('.producto_imagen').show();
+			$('.categoria').show();
+			$('.subcategoria').show();
+			$('.producto').show();
+			$('.helper_resumen').hide();
+
+			$('#icono_resumen_pedido').addClass("fa-shopping-cart");
+			$('#icono_resumen_pedido').removeClass("fa-cart-plus");
+			$('.pedido_productos_cantidad_total').show();
+			$('.categoria_titulo ').click();
+			$(window).scrollTop(0);
+			g_viendo_resumen = false;
+		}
+	}
+
+	function quitar_acentos(p_palabra) {
+		p_palabra = p_palabra.replace(/á/g, "a");
+		p_palabra = p_palabra.replace(/é/g, "e");
+		p_palabra = p_palabra.replace(/í/g, "i");
+		p_palabra = p_palabra.replace(/ó/g, "o");
+		p_palabra = p_palabra.replace(/ú/g, "u");
+		return p_palabra;
+	}
+
+	function buscar() {
+		v_palabra = $("#input_buscador").val().toLowerCase();
+		v_palabra = quitar_acentos(v_palabra);
+
+		g_productos.forEach(function(producto) {
+			v_mostrar_producto = false;
+			if (quitar_acentos(producto.nombre.toLowerCase()).indexOf(v_palabra)>=0) v_mostrar_producto = true;
+			if (quitar_acentos(producto.descripcion.toLowerCase()).indexOf(v_palabra)>=0) v_mostrar_producto = true;
+			if (v_palabra=="") v_mostrar_producto = false;
+
+			if (v_mostrar_producto) {
+				$('#producto_' + producto.id).show();
+			} else {
+				$('#producto_' + producto.id).hide();
+			}
+		});
+	}
+
+	function mostrar_buscador() {
+		if (g_viendo_resumen) mostrar_resumen_pedido();
+		ver_todas_las_categorias();
+
+		if (!g_viendo_buscador) {
+			$('.producto_imagen').hide();
+			$('.categoria').hide();
+			$('.subcategoria').hide();
+			$('.producto').hide();
+			$('.helper_buscador').show();
+
+			$(window).scrollTop(0);
+			$("#input_buscador").focus();
+			$("#input_buscador").select();
+			buscar();
+			g_viendo_buscador = true;
+		} else {
+			$('.producto_imagen').show();
+			$('.categoria').show();
+			$('.subcategoria').show();
+			$('.producto').show();
+			$('.helper_buscador').hide();
+			$('.categoria_titulo ').click();
+			$(window).scrollTop(0);
+			g_viendo_buscador = false;
+		}
+	}
+
+	function mostrar_categoria(p_categoria) {
+		if($('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono').hasClass("fa-angle-down")){
+			abrir_categoria(p_categoria);
+		} else {
+			cerrar_categoria(p_categoria);
+		}
+	}
+
+	function abrir_categoria(p_categoria) {
+		$('.producto[data-categoria="' + p_categoria + '"]').show();
+		$('.subcategoria[data-categoria="' + p_categoria + '"]').show();
+		$('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono').removeClass("fa-angle-down");
+		$('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono').addClass("fa-angle-up");
+	}
+
+	function cerrar_categoria(p_categoria) {
+		$('.producto[data-categoria="' + p_categoria + '"]').hide();
+		$('.subcategoria[data-categoria="' + p_categoria + '"]').hide();
+		$('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono').removeClass("fa-angle-up");
+		$('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono').addClass("fa-angle-down");
+	}
+
+	function ver_todas_las_categorias() {
+		$('.producto').show();
+		$('.subcategoria').show();
+		$('.categoria_titulo .categoria_icono').removeClass("fa-angle-down");
+		$('.categoria_titulo .categoria_icono').addClass("fa-angle-up");
+	}
+
+	var g_producto_actual = null;
+	// Líneas de variantes seleccionadas dentro del panel actual (todas se agregan juntas al carrito, igual que BR Burgers)
+	var g_variantes_panel = [];
+
+	function agregar_al_pedido(p_id, p_variedad) {
+		if (!g_telefono) {
+			console.log('NO tiene teléfono');
+			return false;
+		}
+
+		// Limpiar cualquier modal o panel anterior
+		$('#modal_variantes').modal('hide');
+		$('#modal_variantes').remove();
+		$('.panel_producto_expandido').slideUp(300, function() {
+			$(this).remove();
+		});
+
+		// Guardar producto actual y mostrar modal de variantes
+		var producto = dame_producto(p_id);
+		g_producto_actual = producto;
+		g_variantes_panel = [];
+
+		abrir_modal_variantes('nuevo');
+	}
+
+	// Construye y muestra el modal de selección de variantes.
+	// p_modo=='nuevo': la variante elegida inicia un panel nuevo (mostrar_panel_producto).
+	// p_modo=='agregar': la variante elegida se suma como una línea más al panel ya abierto.
+	function abrir_modal_variantes(p_modo) {
+		setTimeout(function() {
+			var producto = g_producto_actual;
+
+			// Crear modal con opciones de variantes
+			var html_modal = '<div class="modal fade" id="modal_variantes" tabindex="-1" role="dialog" aria-hidden="true" style="background-color: rgba(0,0,0,0.8);">';
+			html_modal += '<div class="modal-dialog" role="document" style="margin-top: 100px;">';
+			html_modal += '<div class="modal-content" style="background-color: #1a1a1a; border: 2px solid #FF6B35; border-radius: 10px;">';
+			html_modal += '<div class="modal-header" style="border-bottom: 2px solid #FF6B35;">';
+			html_modal += '<h5 class="modal-title" style="color: #FF6B35; font-weight: bold; width: 100%; text-align: center;">Elige una opción</h5>';
+			html_modal += '<button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #FF6B35; position: absolute; right: 20px;">';
+			html_modal += '<span aria-hidden="true">&times;</span>';
+			html_modal += '</button>';
+			html_modal += '</div>';
+			html_modal += '<div class="modal-body" style="padding: 0; display: flex; flex-direction: column; gap: 0;">';
+
+			g_variantes.forEach(function(variante) {
+				var precio_total = parseInt(producto.precio) + variante.precio_extra;
+				html_modal += '<button type="button" class="btn btn-dark btn-variante" data-variante-id="' + variante.id + '" data-variante-nombre="' + variante.nombre + '" data-variante-precio="' + variante.precio_extra + '" style="background-color: #2a2a2a; color: #fff; border: 1px solid #333; border-radius: 0; padding: 15px; text-align: left; margin: 0; display: flex; justify-content: space-between; align-items: center; font-weight: 500;">';
+				html_modal += '<span>' + variante.nombre + '</span>';
+				html_modal += '<span style="color: #FF6B35; font-weight: bold;">$' + formatear_moneda(precio_total) + '</span>';
+				html_modal += '</button>';
+			});
+
+			html_modal += '</div>';
+			html_modal += '</div>';
+			html_modal += '</div>';
+			html_modal += '</div>';
+
+			// Agregar modal al DOM
+			$('body').append(html_modal);
+			
+			// Agregar event listeners a los botones de variantes
+			$('.btn-variante').on('click', function() {
+				var variante_id = $(this).data('variante-id');
+				var variante_nombre = $(this).data('variante-nombre');
+				var variante_precio = $(this).data('variante-precio');
+				if (p_modo == 'agregar') {
+					agregar_variante_al_panel(variante_id, variante_nombre, variante_precio);
+				} else {
+					seleccionar_variante(variante_id, variante_nombre, variante_precio);
+				}
+			});
+			
+			$('#modal_variantes').modal('show');
+
+			// Limpiar modal cuando se cierre
+			$('#modal_variantes').on('hidden.bs.modal', function() {
+				$(this).remove();
+			});
+		}, 100);
+	}
+
+	function seleccionar_variante(p_variante_id, p_variante_nombre, p_precio_extra) {
+		// Guardar la primera línea del panel
+		g_variantes_panel = [{ nombre: p_variante_nombre, precio_extra: p_precio_extra, cantidad: 1 }];
+
+		// Cerrar modal de variantes
+		$('#modal_variantes').modal('hide');
+
+		// Mostrar panel inline
+		setTimeout(function() {
+			mostrar_panel_producto();
+		}, 300);
+	}
+
+	// Agrega una nueva línea al panel (o suma 1 a una ya existente con la misma variante), sin cerrar el panel
+	function agregar_variante_al_panel(p_variante_id, p_variante_nombre, p_precio_extra) {
+		var encontrada = false;
+		g_variantes_panel.forEach(function(linea) {
+			if (linea.nombre == p_variante_nombre) {
+				linea.cantidad += 1;
+				encontrada = true;
+			}
+		});
+		if (!encontrada) {
+			g_variantes_panel.push({ nombre: p_variante_nombre, precio_extra: p_precio_extra, cantidad: 1 });
+		}
+
+		$('#modal_variantes').modal('hide');
+
+		setTimeout(function() {
+			$('#lineas_panel').html(dame_html_lineas_panel());
+		}, 300);
+	}
+
+	function mostrar_panel_producto() {
+		// Ocultar cualquier panel abierto anteriormente
+		$('.panel_producto_expandido').slideUp(300, function() {
+			$(this).remove();
+		});
+
+		var producto = g_producto_actual;
+
+		var html_panel = '<div class="panel_producto_expandido" style="background-color: #FF6B35; padding: 15px; margin-top: 10px; border-radius: 8px; display: none;">';
+		html_panel += '<div style="color: #000; font-weight: bold; margin-bottom: 10px; font-size: 16px;">' + producto.nombre + '</div>';
+		html_panel += '<div style="color: #333; font-size: 13px; margin-bottom: 10px; line-height: 1.4;">' + producto.descripcion + '</div>';
+
+		html_panel += '<div id="lineas_panel">' + dame_html_lineas_panel() + '</div>';
+
+		html_panel += '<button type="button" class="btn btn-dark btn-sm" style="width: 100%; margin-bottom: 10px; background-color: #333; color: #FF6B35; font-weight: 500;" onclick="agregar_otra_opcion()">Agregar otra opción</button>';
+
+		html_panel += '<input type="text" class="form-control" id="aclaraciones_panel" placeholder="Agregar aclaraciones" style="background-color: rgba(0,0,0,0.2); color: #000; border: 1px solid rgba(0,0,0,0.3); margin-bottom: 10px; padding: 10px; border-radius: 4px;">';
+
+		html_panel += '<button type="button" class="btn btn-dark" style="width: 100%; background-color: #1a1a1a; color: #FF6B35; font-weight: bold;" onclick="agregar_producto_panel()">Agregar al carrito</button>';
+		html_panel += '</div>';
+
+		$("#fila_" + producto.id).after(html_panel);
+		$('.panel_producto_expandido').slideDown(300);
+	}
+
+	// Construye el HTML de todas las líneas de variantes del panel actual (una por cada variante elegida)
+	function dame_html_lineas_panel() {
+		var producto = g_producto_actual;
+		var html = "";
+
+		g_variantes_panel.forEach(function(linea, idx) {
+			var precio_total = parseInt(producto.precio) + linea.precio_extra;
+
+			var v_html_boton = "<div class='btn-group float-right'>";
+			v_html_boton += "<button type='button' class='btn btn-dark btn-sm' onclick='cambiar_cantidad_panel(" + idx + ", -1)' style='background-color:#333;color:#fff;'>−</button>";
+			v_html_boton += "<button type='button' class='btn btn-dark btn-sm' style='background-color:#333;color:#fff;'>" + linea.cantidad + "</button>";
+			v_html_boton += "<button type='button' class='btn btn-dark btn-sm' onclick='cambiar_cantidad_panel(" + idx + ", 1)' style='background-color:#333;color:#fff;'>+</button>";
+			v_html_boton += "</div>";
+
+			var v_html_texto = "<span style='float-left;padding-top:8px;'>" + linea.cantidad + " x " + linea.nombre + " = $" + formatear_moneda(linea.cantidad * precio_total) + "</span>";
+
+			html += "<div style='background-color: #1a1a1a; padding: 10px; border-radius: 5px; margin-bottom: 10px; color: #FF6B35; font-weight: bold;' class='clearfix'>" + v_html_boton + v_html_texto + "</div>";
+		});
+
+		return html;
+	}
+
+	function agregar_otra_opcion() {
+		abrir_modal_variantes('agregar');
+	}
+
+	function cambiar_cantidad_panel(idx, delta) {
+		g_variantes_panel[idx].cantidad += delta;
+
+		// Si la cantidad llega a 0, se quita esa línea del panel
+		if (g_variantes_panel[idx].cantidad <= 0) {
+			g_variantes_panel.splice(idx, 1);
+		}
+
+		// Si no queda ninguna línea, cerramos el panel directamente
+		if (g_variantes_panel.length == 0) {
+			$('.panel_producto_expandido').slideUp(300, function() {
+				$(this).remove();
+			});
+			return;
+		}
+
+		$('#lineas_panel').html(dame_html_lineas_panel());
+	}
+
+	// Agrupa con una línea existente (mismo id + variedad + aclaraciones) o crea una línea nueva
+	function agregar_producto_a_carrito(p_variedad_nombre, p_precio_extra, p_cantidad, p_aclaraciones) {
+		var producto = {
+			id: g_producto_actual.id,
+			nombre: g_producto_actual.nombre,
+			descripcion: g_producto_actual.descripcion,
+			precio: g_producto_actual.precio,
+			categoria: g_producto_actual.categoria,
+			subcategoria: g_producto_actual.subcategoria,
+			cantidad: p_cantidad,
+			aclaraciones: p_aclaraciones,
+			variedad: p_variedad_nombre,
+			precio_extra: p_precio_extra
+		};
+
+		var agrupado = false;
+		g_pedido.productos.forEach(function(prod_carrito) {
+			if (prod_carrito.id==producto.id && prod_carrito.variedad==producto.variedad && (prod_carrito.aclaraciones || "") == (p_aclaraciones || "")) {
+				prod_carrito.cantidad += p_cantidad;
+				agrupado = true;
+			}
+		});
+
+		if (!agrupado) {
+			g_pedido.productos.push(producto);
+		}
+	}
+
+	function agregar_producto_panel() {
+		var aclaraciones = $('#aclaraciones_panel').val().trim();
+
+		// Se agregan todas las líneas del panel (una por cada variante elegida) al carrito
+		g_variantes_panel.forEach(function(linea) {
+			agregar_producto_a_carrito(linea.nombre, linea.precio_extra, linea.cantidad, aclaraciones);
+		});
+
+		$('.panel_producto_expandido').slideUp(300, function() {
+			$(this).remove();
+		});
+		calcular_total();
+	}
+
+	function agregar_cantidad_simple(p_id, p_variedad, p_aclaraciones) {
+		// Agregar cantidad sin abrir panel
+		agrupado = false;
+		g_pedido.productos.forEach(function(prod_carrito) {
+			if (prod_carrito.id==p_id && prod_carrito.variedad==p_variedad && (prod_carrito.aclaraciones || "") == (p_aclaraciones || "")) {
+				prod_carrito.cantidad += 1;
+				agrupado = true;
+			}
+		});
+		calcular_total();
+	}
+
+	function quitar_del_pedido(p_id, p_variedad, p_aclaraciones) {
+		g_pedido.productos = g_pedido.productos.filter(function(producto) {
+			return !(producto.id==p_id && producto.variedad==p_variedad && (producto.aclaraciones || "") == (p_aclaraciones || ""));
+		});
+		calcular_total();
+	}
+
+	function dame_producto(p_id) {
+		var resultado = null;
+		g_productos.forEach(function(producto) {
+			if (producto.id==p_id) {
+				resultado = JSON.parse(JSON.stringify(producto));
+			}
+		});
+		return resultado;
+	}
+
+	function formatear_moneda(x) {
+		if (Number.parseFloat(x)==Number.parseInt(x)) {
+			return Number.parseInt(x);
+		} else {
+			return Number.parseFloat(x).toFixed(2);
+		}
+	}
+
+	function calcular_total() {
+		localStorage.setItem('pedido-bravaburgers', JSON.stringify(g_pedido));
+
+		total = 0;
+		total_cantidad_de_productos = 0;
+
+		$(".producto_fila").removeClass("producto_pedido");
+		$(".producto_cantidades").text("");
+		$(".producto_cantidades").hide();
+
+		// Acumular el HTML de todas las líneas por id de producto antes de pintarlo (un producto puede tener varias variantes en el carrito)
+		var html_por_producto = {};
+
+		g_pedido.productos.forEach(function(producto) {
+			id = producto.id;
+			$("#fila_" + id).addClass("producto_pedido");
+
+			var aclaraciones_escape = (producto.aclaraciones || "").replace(/"/g, "&quot;");
+			var v_html_boton = "<div class='btn-group float-right'>";
+			v_html_boton += "<button class='btn btn-dark btn-sm' onclick='quitar_del_pedido(\"" + producto.id + "\", \"" + producto.variedad + "\", \"" + aclaraciones_escape + "\")'style=''>-</button>";
+			v_html_boton += "<button class='btn btn-dark btn-sm' style='background-color:#333;'>" + producto.cantidad + "</button>";
+			v_html_boton += "<button class='btn btn-dark btn-sm' onclick='agregar_cantidad_simple(\"" + producto.id + "\", \"" + producto.variedad + "\", \"" + aclaraciones_escape + "\")''>+</button>";
+			v_html_boton += "</div>";
+
+			var precio_extra = producto.precio_extra || 0;
+			var precio_total = parseInt(producto.precio) + precio_extra;
+			var variedad_mostrar = producto.variedad ? " (" + producto.variedad + ")" : "";
+			var aclaraciones_mostrar = producto.aclaraciones ? "<br><small style='color:#FF6B35;'>📝 " + producto.aclaraciones + "</small>" : "";
+			var v_html_texto = "<div style='float-left;padding-top: 8px;'>" + producto.cantidad + "x" + variedad_mostrar + " = $" + formatear_moneda(producto.cantidad * precio_total) + aclaraciones_mostrar +"</div>";
+
+			var v_html = "<div style='margin-top:5px;' class='clearfix'>" + v_html_boton + v_html_texto + "</div>";
+
+			html_por_producto[id] = (html_por_producto[id] || "") + v_html;
+
+			total += (precio_total * parseFloat(producto.cantidad));
+			total_cantidad_de_productos += parseFloat(producto.cantidad);
+		});
+
+		for (var id_producto in html_por_producto) {
+			$("#cantidades_" + id_producto).html(html_por_producto[id_producto]);
+			$("#cantidades_" + id_producto).show();
+		}
+
+		var pedido = "*PEDIDO BRAVA BURGERS*\n\n";
+
+		g_pedido.productos.forEach(function(producto) {
+			var precio_extra = producto.precio_extra || 0;
+			var precio_total = parseInt(producto.precio) + precio_extra;
+			pedido += "*" + producto.cantidad + "x* " + producto.nombre;
+			if (producto.variedad) pedido += " (" + producto.variedad + ")";
+			pedido += " = $" + formatear_moneda(producto.cantidad * precio_total) + "\n";
+		});
+
+		pedido += "\n*TOTAL: $" + formatear_moneda(total) + "*";
+		pedido += "\n\n_Enviado desde Brava Burgers 🔥_";
+
+		var url_pedido = "https://wa.me/"+ g_telefono +"?text=" + encodeURIComponent(pedido);
+
+		$("#form_order_text").val(pedido);
+		$("#form_url").val(url_pedido);
+		$('.pedido_productos_cantidad_total').html(total_cantidad_de_productos);
+
+		if (g_pedido.productos.length==0) {
+			$("#footer_enviar").slideUp();
+			$('.helper_footer_padding').hide();
+			$('.helper_changuito').hide();
+		} else {
+			$("#boton_enviar").html("<i class='fab fa-whatsapp'></i> <b>Enviar por WhatsApp - $" + formatear_moneda(total) + "</b>");
+			$("#footer_enviar").slideDown();
+			$('.helper_footer_padding').show();
+			$('.helper_changuito').show();
+		}
+	}
+
+	function enviar_pedido() {
+		// Limpiar los campos antes de mostrar el modal
+		$('#input_nombre').val('');
+		$('#input_direccion').val('');
+		$('#input_localidad').val('');
+		$('#input_piso').val('');
+		$('#input_pago').val('');
+		$('#input_turno').val('');
+		$('#input_zona').val('');
+		$('#resumen_envio').hide();
+		
+		// Llenar las opciones de zona
+		var opciones_html = '<option value="">-- Selecciona --</option>';
+		g_zonas.forEach(function(zona) {
+			opciones_html += '<option value="' + zona.nombre + '|' + zona.costo + '">' + zona.nombre + ' ($' + formatear_moneda(zona.costo) + ')</option>';
+		});
+		$('#input_zona').html(opciones_html);
+		
+		// Mostrar el modal
+		$('#modal_datos_pedido').modal('show');
+	}
+
+	function actualizar_total_con_envio() {
+		var zona_seleccionada = $('#input_zona').val();
+		if (zona_seleccionada === '') {
+			$('#resumen_envio').hide();
+			return;
+		}
+		
+		var partes = zona_seleccionada.split('|');
+		var costo_envio = parseInt(partes[1]);
+		var subtotal = calcular_total_pedido();
+		var total_con_envio = subtotal + costo_envio;
+		
+		$('#subtotal_show').html(formatear_moneda(subtotal));
+		$('#envio_show').html(formatear_moneda(costo_envio));
+		$('#total_show').html(formatear_moneda(total_con_envio));
+		$('#resumen_envio').show();
+	}
+
+	function calcular_total_pedido() {
+		var total = 0;
+		g_pedido.productos.forEach(function(producto) {
+			var precio_base = parseInt(producto.precio);
+			var precio_extra = producto.precio_extra || 0;
+			var precio_total = precio_base + precio_extra;
+			total += parseInt(producto.cantidad) * precio_total;
+		});
+		return total;
+	}
+
+	function enviar_pedido_confirmado() {
+		// Obtener los datos ingresados
+		var nombre = $('#input_nombre').val().trim();
+		var direccion = $('#input_direccion').val().trim();
+		var localidad = $('#input_localidad').val().trim();
+		var piso = $('#input_piso').val().trim();
+		var pago = $('#input_pago').val().trim();
+		var turno = $('#input_turno').val().trim();
+		var zona_valor = $('#input_zona').val().trim();
+		
+		// Validar campos requeridos
+		if (nombre === '') {
+			alert('Por favor completa tu nombre');
+			return;
+		}
+		if (direccion === '') {
+			alert('Por favor completa tu dirección');
+			return;
+		}
+		if (localidad === '') {
+			alert('Por favor completa tu localidad');
+			return;
+		}
+		if (pago === '') {
+			alert('Por favor selecciona una forma de pago');
+			return;
+		}
+		if (turno === '') {
+			alert('Por favor selecciona un turno');
+			return;
+		}
+		if (zona_valor === '') {
+			alert('Por favor selecciona una zona de envío');
+			return;
+		}
+		
+		// Parsear zona y costo de envío
+		var partes = zona_valor.split('|');
+		var zona = partes[0];
+		var costo_envio = parseInt(partes[1]);
+		
+		// Agregar los datos del cliente al mensaje de WhatsApp
+		var subtotal = calcular_total_pedido();
+		var total_con_envio = subtotal + costo_envio;
+		
+		var texto_original = $('#form_order_text').val();
+		
+		// Nuevo formato similar a BR Burgers
+		var texto_con_datos = "Nombre\n";
+		texto_con_datos += nombre + "\n\n";
+		
+		texto_con_datos += "Dirección/Entre que calles?\n";
+		texto_con_datos += direccion + "\n\n";
+		
+		texto_con_datos += "Localidad\n";
+		texto_con_datos += localidad + "\n\n";
+		
+		texto_con_datos += "Piso/Dpto\n";
+		texto_con_datos += (piso !== '' ? piso : "—") + "\n\n";
+		
+		texto_con_datos += "Como va a abonar?:\n";
+		texto_con_datos += pago + "\n\n";
+		
+		texto_con_datos += "Selecciona el turno:\n";
+		texto_con_datos += turno + "\n\n";
+		
+		texto_con_datos += "Lo enviamos a (seleccione la zona):\n";
+		texto_con_datos += zona + " ($" + formatear_moneda(costo_envio) + ")\n\n";
+		
+		texto_con_datos += "Pedido:\n\n";
+		
+		// Agregar productos del pedido, cada uno con su propio subtotal (igual que BR Burgers)
+		g_pedido.productos.forEach(function(producto) {
+			var precio_extra = producto.precio_extra || 0;
+			var precio_total = parseInt(producto.precio) + precio_extra;
+			var subtotal_producto = producto.cantidad * precio_total;
+
+			texto_con_datos += producto.cantidad + " x " + producto.nombre;
+			if (producto.variedad) texto_con_datos += " (" + producto.variedad + ")";
+			texto_con_datos += "\n";
+			if (producto.aclaraciones) {
+				texto_con_datos += "Aclaración: " + producto.aclaraciones + "\n";
+			}
+			texto_con_datos += "Subtotal = $" + formatear_moneda(subtotal_producto) + "\n\n";
+		});
+		
+		texto_con_datos += "Total pedido: $" + formatear_moneda(total_con_envio) + "\n";
+		texto_con_datos += "BRAVA BURGERS 🔥";
+		
+		// Actualizar la URL con los nuevos datos
+		var url_pedido = "https://wa.me/"+ g_telefono +"?text=" + encodeURIComponent(texto_con_datos);
+		
+		// Cerrar el modal
+		$('#modal_datos_pedido').modal('hide');
+		
+		// Enviar a WhatsApp
+		window.location.href = url_pedido;
+	}
+
+	$( document ).ready(function() {
+		actualizar_url_carrito();
+
+		if (localStorage.getItem('pedido-bravaburgers') != "" && localStorage.getItem('pedido-bravaburgers') != undefined) {
+			g_pedido = JSON.parse(localStorage['pedido-bravaburgers']);
+			calcular_total();
+		}
+
+		if(g_telefono != '') {
+			$(".product-add-icon").show();
+		}
+	});
+
+	function actualizar_url_carrito() {
+		$('#link_logo').attr("href", "./");
+		$('#link_titulo').attr("href", "./");
+	}
+	</script>
+
+	<div class="container" style="max-width: 600px;">
+		<div class="row" id="productos" style="margin-top: 10px;">
+
+<!-- Catálogo dinámico: se genera desde g_productos (config.js) vía renderizar_catalogo_desde_datos() -->
+		<div id="catalogo_dinamico"></div>
+
+		</div>
+	</div>
+
+	<form id="form_pedido" style="display:none;">
+		<input id="form_alias" name="alias" value="bravaburgers">
+		<input id="form_url" name="url">
+		<textarea id="form_order_text" name="order_text"></textarea>
+	</form>
+
+	<!-- FUNCIONES PARA SINCRONIZAR CON GOOGLE SHEETS VÍA config.js -->
+	<script>
+		// Renderiza dinámicamente el catálogo de productos basado en g_productos
+		// Genera categorías, subcategorías y productos en HTML
+		function renderizar_catalogo_desde_datos() {
+			if (!g_productos || g_productos.length === 0) {
+				console.warn('No hay productos definidos en g_productos');
+				return;
+			}
+
+			var html_catalogo = '';
+			var categorias_vistas = {};
+			var subcategorias_vistas = {};
+
+			// Agrupar productos por categoría/subcategoría
+			var productos_por_cat = {};
+			g_productos.forEach(function(producto) {
+				var cat_key = producto.categoria || 'Sin Categoría';
+				var subcat_key = producto.subcategoria || 'Sin Subcategoría';
+				if (!productos_por_cat[cat_key]) {
+					productos_por_cat[cat_key] = {};
+				}
+				if (!productos_por_cat[cat_key][subcat_key]) {
+					productos_por_cat[cat_key][subcat_key] = [];
+				}
+				productos_por_cat[cat_key][subcat_key].push(producto);
+			});
+
+			// Generar HTML por categoría y subcategoría
+			var cat_index = 1;
+			Object.keys(productos_por_cat).forEach(function(categoria) {
+				// Crear div de categoría
+				html_catalogo += '<div class="col-md-12 categoria" data-categoria="' + cat_index + '" id="categoria_' + cat_index + '">';
+				html_catalogo += '<div class="categoria_titulo" onclick="mostrar_categoria(\'' + cat_index + '\');">';
+				html_catalogo += '<i class="fas fa-angle-down float-right icono_' + cat_index + ' categoria_icono" style="margin-top: 4px;"></i>';
+				html_catalogo += '🍔 ' + categoria.toUpperCase();
+				html_catalogo += '</div>';
+				html_catalogo += '</div>';
+
+				// Subcategorías dentro de esta categoría
+				var subcat_index = 1;
+				Object.keys(productos_por_cat[categoria]).forEach(function(subcategoria) {
+					// Crear div de subcategoría
+					html_catalogo += '<div class="col-md-12 subcategoria" data-categoria="' + cat_index + '" data-subcategoria="' + subcat_index + '" style="display:none;">';
+					html_catalogo += '<div class="subcategoria_titulo" onclick="mostrar_subcategoria(\'' + subcat_index + '\');">';
+					html_catalogo += '<i class="fas fa-angle-down float-right icono_' + subcat_index + ' subcategoria_icono" style="margin-top: 4px;"></i>';
+					html_catalogo += subcategoria.toUpperCase();
+					html_catalogo += '</div>';
+					html_catalogo += '</div>';
+
+					// Productos dentro de esta subcategoría
+					productos_por_cat[categoria][subcategoria].forEach(function(producto) {
+						var precio_formateado = formatear_moneda(parseInt(producto.precio));
+						html_catalogo += '<div class="col-md-12 producto" data-categoria="' + cat_index + '" data-subcategoria="' + subcat_index + '" style="display:none;" id="producto_' + producto.id + '">';
+						html_catalogo += '<div class="producto_fila" id="fila_' + producto.id + '">';
+						html_catalogo += '<div onclick="agregar_al_pedido(\'' + producto.id + '\');" style="cursor:pointer;display: flow-root; padding:7px; min-height:50px;">';
+						html_catalogo += '<div style="display:none; float: left; font-weight:900" class="animated fadeIn product-add-icon">';
+						html_catalogo += '<span class="fa fa-plus-circle" style="margin-right: 5px;"></span>';
+						html_catalogo += '</div>';
+						html_catalogo += '<div class="precio-box" style="float: right;">';
+						html_catalogo += '$' + precio_formateado;
+						html_catalogo += '</div>';
+						html_catalogo += '<div style="float: left;">';
+						html_catalogo += '<span id="producto_titulo_' + producto.id + '"><b>' + producto.nombre + '</b></span>';
+						html_catalogo += '<br><small>' + producto.descripcion + '</small>';
+						html_catalogo += '</div>';
+						html_catalogo += '</div>';
+						html_catalogo += '<div class="producto_cantidades" id="cantidades_' + producto.id + '" style="display:none;margin-top:5px;padding:7px;border-top:1px solid #333;background:#2a2a2a;font-weight: bold;"></div>';
+						html_catalogo += '</div>';
+						html_catalogo += '</div>';
+					});
+
+					subcat_index++;
+				});
+
+				cat_index++;
+			});
+
+			// Insertar HTML generado en el contenedor
+			$('#catalogo_dinamico').html(html_catalogo);
+		}
+
+		// Initializer: carga datos desde Google Sheet y renderiza el catálogo
+		async function inicializar_desde_sheets() {
+			try {
+				// Cargar datos desde Google Sheets (CSV)
+				await cargar_datos_desde_sheets();
+			} catch (error) {
+				console.error('✗ Error en inicialización:', error);
+			}
+			
+			// Renderizar el catálogo con los datos disponibles
+			renderizar_catalogo_desde_datos();
+		}
+
+		// Ejecutar inicialización cuando el documento esté listo
+		// Si jQuery ya está disponible, usar ready(); si no, usar addEventListener
+		if (typeof jQuery !== 'undefined') {
+			$(document).ready(inicializar_desde_sheets);
+		} else {
+			document.addEventListener('DOMContentLoaded', inicializar_desde_sheets);
+		}
+	</script>
+
+	<!-- MODAL PARA COMPLETAR DATOS DEL PEDIDO -->
+	<div class="modal fade" id="modal_datos_pedido" tabindex="-1" role="dialog" aria-labelledby="exampleModalLabel" aria-hidden="true" style="background-color: rgba(0,0,0,0.8);">
+		<div class="modal-dialog" role="document" style="margin-top: 50px;">
+			<div class="modal-content" style="background-color: #1a1a1a; border: 2px solid #FF6B35; border-radius: 10px;">
+				<div class="modal-header" style="border-bottom: 2px solid #FF6B35;">
+					<h5 class="modal-title" id="exampleModalLabel" style="color: #FF6B35; font-weight: bold; width: 100%; text-align: center;">¡Completá los datos para que preparemos tu pedido!</h5>
+					<button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #FF6B35;">
+						<span aria-hidden="true">&times;</span>
+					</button>
+				</div>
+				<div class="modal-body" style="padding: 20px;">
+					<div class="form-group">
+						<label for="input_nombre" style="color: #FF6B35; font-weight: bold;">Nombre*</label>
+						<input type="text" class="form-control" id="input_nombre" placeholder="Tu nombre" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
+					</div>
+
+					<div class="form-group">
+						<label for="input_direccion" style="color: #FF6B35; font-weight: bold;">Dirección/Entre que calles?*</label>
+						<input type="text" class="form-control" id="input_direccion" placeholder="Ej: Acoyte 1500" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
+					</div>
+
+					<div class="form-group">
+						<label for="input_localidad" style="color: #FF6B35; font-weight: bold;">Localidad*</label>
+						<input type="text" class="form-control" id="input_localidad" placeholder="Ej: Olivos" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
+					</div>
+
+					<div class="form-group">
+						<label for="input_piso" style="color: #FF6B35; font-weight: bold;">Piso/Dpto</label>
+						<input type="text" class="form-control" id="input_piso" placeholder="Ej: 2B" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
+					</div>
+
+					<div class="form-group">
+						<label for="input_pago" style="color: #FF6B35; font-weight: bold;">Como va a abonar?*</label>
+						<select class="form-control" id="input_pago" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
+							<option value="">-- Selecciona --</option>
+							<option value="Efectivo">Efectivo</option>
+						<option value="Mercado Pago">Mercado Pago</option>
+					</select>
+				</div>
+
+				<div class="form-group">
+					<label for="input_turno" style="color: #FF6B35; font-weight: bold;">Selecciona el turno*</label>
+					<select class="form-control" id="input_turno" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
+						<option value="">-- Selecciona --</option>
+						<option value="Turno Noche 1: 20:00 a 21:00">Turno Noche 1: 20:00 a 21:00</option>
+						<option value="Turno Noche 2: 21:00 a 22:00">Turno Noche 2: 21:00 a 22:00</option>
+						<option value="Turno Noche 3: 22:00 a 23:00">Turno Noche 3: 22:00 a 23:00</option>
+					</select>
+				</div>
+				<div class="form-group">
+					<label for="input_zona" style="color: #FF6B35; font-weight: bold;">Lo enviamos a (seleccione la zona)*</label>
+					<select class="form-control" id="input_zona" onchange="actualizar_total_con_envio()" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
+						<option value="">-- Selecciona --</option>
+					</select>
+					<div id="resumen_envio" style="margin-top: 10px; padding: 10px; background-color: #2a2a2a; border-left: 3px solid #FF6B35; display: none;">
+						<div style="color: #FF6B35; font-size: 12px;">
+							Subtotal: $<span id="subtotal_show">0</span>
+							<br>
+							Envío: $<span id="envio_show">0</span>
+							<br>
+							<b style="font-size: 14px;">Total: $<span id="total_show">0</span></b>
+						</div>
+					</div>
+				</div>
+
+			<div style="text-align: center; margin-top: 15px; color: #FF6B35; font-weight: bold;">
+				🔥 Gracias por elegir Brava Burgers
+			</div>
+		</div>
+		<div class="modal-footer" style="border-top: 2px solid #FF6B35;">
+			<button type="button" class="btn btn-secondary" data-dismiss="modal" style="background-color: #2a2a2a; border: 1px solid #FF6B35; color: #FF6B35;">Cancelar</button>
+			<button type="button" class="btn btn-primary" onclick="enviar_pedido_confirmado()" style="background-color: #FF6B35; color: #1a1a1a; font-weight: bold;">Enviar Pedido</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<footer class="footer text-center" style="margin-top:30px;padding-top:2rem; padding-bottom: 0px;">
+		<div class="container">
+			<div class="row">
+				<div class="col-lg-12">
+					<p class="lead mb-0">
+						<span style="color:#FF6B35; font-weight: bold;">
+							🔥 BRAVA BURGERS 🔥
+							<br>
+							Hamburguesas de Verdad
+							<br><br>
+							⏰ Abierto Sábados 20:00 a 23:00
+							<br>
+							<span class="fab fa-instagram">&nbsp;</span><a href="https://www.instagram.com/bravaburgers.ok/" target="_blank" style="color:#FF6B35">@bravaburgers.ok</a>
+							<br>
+							<a href="https://wa.me/5491173721945" target="_blank" style="color:#FF6B35"><i class="fab fa-whatsapp"></i> Escribinos</a>
+						</span>
+						<div style="margin-top:70px;padding-bottom:70px;opacity: 0.4;">
+							Sistema de Pedidos - Brava Burgers 2026
+						</div>
+					</p>
+				</div>
+			</div>
+		</div>
+	</footer>
+
+	<!-- FOOTER PARA EL BOTON DE ENVIAR PEDIDO -->
+	<div style="display:none; position: fixed; padding-top: 15px; padding-bottom: 15px; left: 0; bottom: 0; width: 100%; text-align: center; background-color: #1a1a1a; border-top: 3px solid #FF6B35;" id="footer_enviar">
+		<center>
+			<a href="javascript:void(0)" onclick="enviar_pedido()" class="btn animated my-btn-primary" id="boton_enviar">Enviar pedido</a>
+		</center>
+	</div>
+
+	<!-- Resumen del pedido -->
+	<div class="helper_resumen resumen_titulo col-md-12" style="margin-top: 10px; margin-bottom: 10px; font-weight: 900; font-size: 20px; display: none;">
+		<a href="javascript:void(0)" onclick="mostrar_resumen_pedido();" class="btn btn-link" style="position:absolute; left:5px; margin-top: -5px; color:#FF6B35;"><i class="fas fa-arrow-left"></i></a>
+		<center style="color:#FF6B35;">
+			Tu Pedido
+		</center>
+	</div>
+
+	<!-- Bootstrap core JavaScript -->
+	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
+
+	<script>
+	function hasTouch() {
+		return 'ontouchstart' in document.documentElement || navigator.maxTouchPoints > 0;
+	}
+
+	function mostrar_subcategoria(p_subcategoria) {
+		$('.producto[data-subcategoria="' + p_subcategoria + '"]').toggle();
+		$('.subcategoria[data-subcategoria="' + p_subcategoria + '"] .subcategoria_icono').toggleClass("fa-angle-down fa-angle-up");
+	}
+
+	$( document ).ready(function() {
+		if (!hasTouch()) {
+			document.body.className += ' tienehover';
+		}
+
+		// Abrir primera categoría
+		abrir_categoria('1');
+	});
+	</script>
+
+</body>
+
+</html>
