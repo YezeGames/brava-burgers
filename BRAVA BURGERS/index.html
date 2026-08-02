@@ -44,6 +44,9 @@
 	<script>
 		// URL del Apps Script que expone los datos de la Google Sheet
 		const SHEET_API_URL = 'https://script.google.com/macros/s/AKfycbwVk7AQ9NVy-PM08UBhMVsS42Van_P5meBqvw-1CBM-syBQJsc-OeKd_CNRaDaEJItS/exec';
+
+		// Proxy CORS para evitar problemas de seguridad del navegador
+		const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
 		
 		// Variables globales que se llenarán desde la Google Sheet
 		var g_telefono = '';
