@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -44,34 +44,34 @@
 	<!-- Papa Parse - CSV parsing library -->
 	<script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
-	<!-- Configuración de datos desde Google Sheets (sincronizado automáticamente) -->
+	<!-- ConfiguraciÃ³n de datos desde Google Sheets (sincronizado automÃ¡ticamente) -->
 	<!-- Fase G: Google Sheets CSV Integration - Working Version -->
 	<!-- Deploy timestamp: 2026-08-02 -->
 	<script>
-		// ID de la Google Sheet pública
+		// ID de la Google Sheet pÃºblica
 		const SHEET_ID = '1ktyXsJ_0wfdp-odcvRdrJNDOqaDOozIhPZs6Q8SgUvw';
 		
-		// URL de exportación CSV desde Google Sheets (gid=0 es la hoja "Prodcutos")
+		// URL de exportaciÃ³n CSV desde Google Sheets (gid=0 es la hoja "Prodcutos")
 		const PRODUCTS_CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
 		
-		// Variables globales que se llenarán desde Google Sheets
+		// Variables globales que se llenarÃ¡n desde Google Sheets
 		var g_telefono = '5491173721945';
 		var g_productos = [];
 		var g_variantes = [];
 		var g_zonas = [];
 		var g_horarios = [];
 		
-		// Parsear CSV a JSON usando Papa Parse - maneja comillas y saltos de línea correctamente
+		// Parsear CSV a JSON usando Papa Parse - maneja comillas y saltos de lÃ­nea correctamente
 		// v2: Usando unpkg CDN
 		function parseCSV(csv) {
 			try {
 				const result = Papa.parse(csv, {
 					header: true,           // Usar primera fila como headers
-					skipEmptyLines: true,   // Ignorar líneas vacías
+					skipEmptyLines: true,   // Ignorar lÃ­neas vacÃ­as
 					dynamicTyping: false    // Mantener todo como string
 				});
 				
-				// Convertir headers a minúsculas para consistencia
+				// Convertir headers a minÃºsculas para consistencia
 				const data = result.data.map(row => {
 					const newRow = {};
 					for (let key in row) {
@@ -82,7 +82,7 @@
 				
 				return data;
 			} catch (error) {
-				console.error('✗ Error parseando CSV con Papa Parse:', error);
+				console.error('âœ— Error parseando CSV con Papa Parse:', error);
 				return [];
 			}
 		}
@@ -93,14 +93,16 @@
 			return parseInt(String(precio).replace(/[^0-9]/g, '')) || 0;
 		}
 		
-		// Cargar CSV desde Google Sheets
+		// Cargar CSV desde Google Sheets (con bypass de cache)
 		async function loadCSV(url) {
 			try {
-				const response = await fetch(url);
+				// Agregar timestamp para bypassear cache de Google Sheets
+				const urlConTimestamp = url + (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+				const response = await fetch(urlConTimestamp);
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);
 				return await response.text();
 			} catch (error) {
-				console.error('✗ Error cargando CSV:', error);
+				console.error('âœ— Error cargando CSV:', error);
 				return null;
 			}
 		}
@@ -115,7 +117,7 @@
 				if (productsCSV) {
 					const productsData = parseCSV(productsCSV);
 					g_productos = productsData.map((p, idx) => ({
-						id: String(idx + 1), // Generar ID basado en índice
+						id: String(idx + 1), // Generar ID basado en Ã­ndice
 						nombre: p.nombre || '',
 						descripcion: p.descripcion || '',
 						precio: limpiarPrecio(p.precio),
@@ -123,7 +125,7 @@
 						subcategoria: p.subcategoria || ''
 					})).filter(p => p.nombre && p.precio > 0);
 					
-					console.log('✓ Productos cargados desde Google Sheets:', g_productos.length);
+					console.log('âœ“ Productos cargados desde Google Sheets:', g_productos.length);
 				}
 				
 				// Variantes por defecto
@@ -144,10 +146,10 @@
 					];
 				}
 				
-				console.log('✓ Datos cargados desde Google Sheets');
+				console.log('âœ“ Datos cargados desde Google Sheets');
 				return true;
 			} catch (error) {
-				console.error('✗ Error en cargar_datos_desde_sheets:', error);
+				console.error('âœ— Error en cargar_datos_desde_sheets:', error);
 				return false;
 			}
 		}
@@ -301,7 +303,7 @@
 
 <body id="page-top" style="background-image: url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%231a1a1a%22 width=%22100%22 height=%22100%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22%23FF6B35%22 opacity=%220.05%22/></svg>'); background-repeat: repeat;">
 
-	<!-- Datos cargados desde config.js (ya no hardcodeados aquí) -->
+	<!-- Datos cargados desde config.js (ya no hardcodeados aquÃ­) -->
 	<script>
 		// Las variables g_telefono, g_zonas, g_variantes, g_productos, etc.
 		// se cargan desde config.js que se incluye en el <head>
@@ -389,11 +391,11 @@
 	}
 
 	function quitar_acentos(p_palabra) {
-		p_palabra = p_palabra.replace(/á/g, "a");
-		p_palabra = p_palabra.replace(/é/g, "e");
-		p_palabra = p_palabra.replace(/í/g, "i");
-		p_palabra = p_palabra.replace(/ó/g, "o");
-		p_palabra = p_palabra.replace(/ú/g, "u");
+		p_palabra = p_palabra.replace(/Ã¡/g, "a");
+		p_palabra = p_palabra.replace(/Ã©/g, "e");
+		p_palabra = p_palabra.replace(/Ã­/g, "i");
+		p_palabra = p_palabra.replace(/Ã³/g, "o");
+		p_palabra = p_palabra.replace(/Ãº/g, "u");
 		return p_palabra;
 	}
 
@@ -473,12 +475,12 @@
 	}
 
 	var g_producto_actual = null;
-	// Líneas de variantes seleccionadas dentro del panel actual (todas se agregan juntas al carrito, igual que BR Burgers)
+	// LÃ­neas de variantes seleccionadas dentro del panel actual (todas se agregan juntas al carrito, igual que BR Burgers)
 	var g_variantes_panel = [];
 
 	function agregar_al_pedido(p_id, p_variedad) {
 		if (!g_telefono) {
-			console.log('NO tiene teléfono');
+			console.log('NO tiene telÃ©fono');
 			return false;
 		}
 
@@ -497,9 +499,9 @@
 		abrir_modal_variantes('nuevo');
 	}
 
-	// Construye y muestra el modal de selección de variantes.
+	// Construye y muestra el modal de selecciÃ³n de variantes.
 	// p_modo=='nuevo': la variante elegida inicia un panel nuevo (mostrar_panel_producto).
-	// p_modo=='agregar': la variante elegida se suma como una línea más al panel ya abierto.
+	// p_modo=='agregar': la variante elegida se suma como una lÃ­nea mÃ¡s al panel ya abierto.
 	function abrir_modal_variantes(p_modo) {
 		setTimeout(function() {
 			var producto = g_producto_actual;
@@ -509,7 +511,7 @@
 			html_modal += '<div class="modal-dialog" role="document" style="margin-top: 100px;">';
 			html_modal += '<div class="modal-content" style="background-color: #1a1a1a; border: 2px solid #FF6B35; border-radius: 10px;">';
 			html_modal += '<div class="modal-header" style="border-bottom: 2px solid #FF6B35;">';
-			html_modal += '<h5 class="modal-title" style="color: #FF6B35; font-weight: bold; width: 100%; text-align: center;">Elige una opción</h5>';
+			html_modal += '<h5 class="modal-title" style="color: #FF6B35; font-weight: bold; width: 100%; text-align: center;">Elige una opciÃ³n</h5>';
 			html_modal += '<button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #FF6B35; position: absolute; right: 20px;">';
 			html_modal += '<span aria-hidden="true">&times;</span>';
 			html_modal += '</button>';
@@ -554,7 +556,7 @@
 	}
 
 	function seleccionar_variante(p_variante_id, p_variante_nombre, p_precio_extra) {
-		// Guardar la primera línea del panel
+		// Guardar la primera lÃ­nea del panel
 		g_variantes_panel = [{ nombre: p_variante_nombre, precio_extra: p_precio_extra, cantidad: 1 }];
 
 		// Cerrar modal de variantes
@@ -566,7 +568,7 @@
 		}, 300);
 	}
 
-	// Agrega una nueva línea al panel (o suma 1 a una ya existente con la misma variante), sin cerrar el panel
+	// Agrega una nueva lÃ­nea al panel (o suma 1 a una ya existente con la misma variante), sin cerrar el panel
 	function agregar_variante_al_panel(p_variante_id, p_variante_nombre, p_precio_extra) {
 		var encontrada = false;
 		g_variantes_panel.forEach(function(linea) {
@@ -600,7 +602,7 @@
 
 		html_panel += '<div id="lineas_panel">' + dame_html_lineas_panel() + '</div>';
 
-		html_panel += '<button type="button" class="btn btn-dark btn-sm" style="width: 100%; margin-bottom: 10px; background-color: #333; color: #FF6B35; font-weight: 500;" onclick="agregar_otra_opcion()">Agregar otra opción</button>';
+		html_panel += '<button type="button" class="btn btn-dark btn-sm" style="width: 100%; margin-bottom: 10px; background-color: #333; color: #FF6B35; font-weight: 500;" onclick="agregar_otra_opcion()">Agregar otra opciÃ³n</button>';
 
 		html_panel += '<input type="text" class="form-control" id="aclaraciones_panel" placeholder="Agregar aclaraciones" style="background-color: rgba(0,0,0,0.2); color: #000; border: 1px solid rgba(0,0,0,0.3); margin-bottom: 10px; padding: 10px; border-radius: 4px;">';
 
@@ -611,7 +613,7 @@
 		$('.panel_producto_expandido').slideDown(300);
 	}
 
-	// Construye el HTML de todas las líneas de variantes del panel actual (una por cada variante elegida)
+	// Construye el HTML de todas las lÃ­neas de variantes del panel actual (una por cada variante elegida)
 	function dame_html_lineas_panel() {
 		var producto = g_producto_actual;
 		var html = "";
@@ -620,7 +622,7 @@
 			var precio_total = parseInt(producto.precio) + linea.precio_extra;
 
 			var v_html_boton = "<div class='btn-group float-right'>";
-			v_html_boton += "<button type='button' class='btn btn-dark btn-sm' onclick='cambiar_cantidad_panel(" + idx + ", -1)' style='background-color:#333;color:#fff;'>−</button>";
+			v_html_boton += "<button type='button' class='btn btn-dark btn-sm' onclick='cambiar_cantidad_panel(" + idx + ", -1)' style='background-color:#333;color:#fff;'>âˆ’</button>";
 			v_html_boton += "<button type='button' class='btn btn-dark btn-sm' style='background-color:#333;color:#fff;'>" + linea.cantidad + "</button>";
 			v_html_boton += "<button type='button' class='btn btn-dark btn-sm' onclick='cambiar_cantidad_panel(" + idx + ", 1)' style='background-color:#333;color:#fff;'>+</button>";
 			v_html_boton += "</div>";
@@ -640,12 +642,12 @@
 	function cambiar_cantidad_panel(idx, delta) {
 		g_variantes_panel[idx].cantidad += delta;
 
-		// Si la cantidad llega a 0, se quita esa línea del panel
+		// Si la cantidad llega a 0, se quita esa lÃ­nea del panel
 		if (g_variantes_panel[idx].cantidad <= 0) {
 			g_variantes_panel.splice(idx, 1);
 		}
 
-		// Si no queda ninguna línea, cerramos el panel directamente
+		// Si no queda ninguna lÃ­nea, cerramos el panel directamente
 		if (g_variantes_panel.length == 0) {
 			$('.panel_producto_expandido').slideUp(300, function() {
 				$(this).remove();
@@ -656,7 +658,7 @@
 		$('#lineas_panel').html(dame_html_lineas_panel());
 	}
 
-	// Agrupa con una línea existente (mismo id + variedad + aclaraciones) o crea una línea nueva
+	// Agrupa con una lÃ­nea existente (mismo id + variedad + aclaraciones) o crea una lÃ­nea nueva
 	function agregar_producto_a_carrito(p_variedad_nombre, p_precio_extra, p_cantidad, p_aclaraciones) {
 		var producto = {
 			id: g_producto_actual.id,
@@ -687,7 +689,7 @@
 	function agregar_producto_panel() {
 		var aclaraciones = $('#aclaraciones_panel').val().trim();
 
-		// Se agregan todas las líneas del panel (una por cada variante elegida) al carrito
+		// Se agregan todas las lÃ­neas del panel (una por cada variante elegida) al carrito
 		g_variantes_panel.forEach(function(linea) {
 			agregar_producto_a_carrito(linea.nombre, linea.precio_extra, linea.cantidad, aclaraciones);
 		});
@@ -745,7 +747,7 @@
 		$(".producto_cantidades").text("");
 		$(".producto_cantidades").hide();
 
-		// Acumular el HTML de todas las líneas por id de producto antes de pintarlo (un producto puede tener varias variantes en el carrito)
+		// Acumular el HTML de todas las lÃ­neas por id de producto antes de pintarlo (un producto puede tener varias variantes en el carrito)
 		var html_por_producto = {};
 
 		g_pedido.productos.forEach(function(producto) {
@@ -762,7 +764,7 @@
 			var precio_extra = producto.precio_extra || 0;
 			var precio_total = parseInt(producto.precio) + precio_extra;
 			var variedad_mostrar = producto.variedad ? " (" + producto.variedad + ")" : "";
-			var aclaraciones_mostrar = producto.aclaraciones ? "<br><small style='color:#FF6B35;'>📝 " + producto.aclaraciones + "</small>" : "";
+			var aclaraciones_mostrar = producto.aclaraciones ? "<br><small style='color:#FF6B35;'>ðŸ“ " + producto.aclaraciones + "</small>" : "";
 			var v_html_texto = "<div style='float-left;padding-top: 8px;'>" + producto.cantidad + "x" + variedad_mostrar + " = $" + formatear_moneda(producto.cantidad * precio_total) + aclaraciones_mostrar +"</div>";
 
 			var v_html = "<div style='margin-top:5px;' class='clearfix'>" + v_html_boton + v_html_texto + "</div>";
@@ -789,7 +791,7 @@
 		});
 
 		pedido += "\n*TOTAL: $" + formatear_moneda(total) + "*";
-		pedido += "\n\n_Enviado desde Brava Burgers 🔥_";
+		pedido += "\n\n_Enviado desde Brava Burgers ðŸ”¥_";
 
 		var url_pedido = "https://wa.me/"+ g_telefono +"?text=" + encodeURIComponent(pedido);
 
@@ -876,7 +878,7 @@
 			return;
 		}
 		if (direccion === '') {
-			alert('Por favor completa tu dirección');
+			alert('Por favor completa tu direcciÃ³n');
 			return;
 		}
 		if (localidad === '') {
@@ -892,11 +894,11 @@
 			return;
 		}
 		if (zona_valor === '') {
-			alert('Por favor selecciona una zona de envío');
+			alert('Por favor selecciona una zona de envÃ­o');
 			return;
 		}
 		
-		// Parsear zona y costo de envío
+		// Parsear zona y costo de envÃ­o
 		var partes = zona_valor.split('|');
 		var zona = partes[0];
 		var costo_envio = parseInt(partes[1]);
@@ -911,14 +913,14 @@
 		var texto_con_datos = "Nombre\n";
 		texto_con_datos += nombre + "\n\n";
 		
-		texto_con_datos += "Dirección/Entre que calles?\n";
+		texto_con_datos += "DirecciÃ³n/Entre que calles?\n";
 		texto_con_datos += direccion + "\n\n";
 		
 		texto_con_datos += "Localidad\n";
 		texto_con_datos += localidad + "\n\n";
 		
 		texto_con_datos += "Piso/Dpto\n";
-		texto_con_datos += (piso !== '' ? piso : "—") + "\n\n";
+		texto_con_datos += (piso !== '' ? piso : "â€”") + "\n\n";
 		
 		texto_con_datos += "Como va a abonar?:\n";
 		texto_con_datos += pago + "\n\n";
@@ -941,13 +943,13 @@
 			if (producto.variedad) texto_con_datos += " (" + producto.variedad + ")";
 			texto_con_datos += "\n";
 			if (producto.aclaraciones) {
-				texto_con_datos += "Aclaración: " + producto.aclaraciones + "\n";
+				texto_con_datos += "AclaraciÃ³n: " + producto.aclaraciones + "\n";
 			}
 			texto_con_datos += "Subtotal = $" + formatear_moneda(subtotal_producto) + "\n\n";
 		});
 		
 		texto_con_datos += "Total pedido: $" + formatear_moneda(total_con_envio) + "\n";
-		texto_con_datos += "BRAVA BURGERS 🔥";
+		texto_con_datos += "BRAVA BURGERS ðŸ”¥";
 		
 		// Actualizar la URL con los nuevos datos
 		var url_pedido = "https://wa.me/"+ g_telefono +"?text=" + encodeURIComponent(texto_con_datos);
@@ -981,7 +983,7 @@
 	<div class="container" style="max-width: 600px;">
 		<div class="row" id="productos" style="margin-top: 10px;">
 
-<!-- Catálogo dinámico: se genera desde g_productos (config.js) vía renderizar_catalogo_desde_datos() -->
+<!-- CatÃ¡logo dinÃ¡mico: se genera desde g_productos (config.js) vÃ­a renderizar_catalogo_desde_datos() -->
 		<div id="catalogo_dinamico"></div>
 
 		</div>
@@ -993,10 +995,10 @@
 		<textarea id="form_order_text" name="order_text"></textarea>
 	</form>
 
-	<!-- FUNCIONES PARA SINCRONIZAR CON GOOGLE SHEETS VÍA config.js -->
+	<!-- FUNCIONES PARA SINCRONIZAR CON GOOGLE SHEETS VÃA config.js -->
 	<script>
-		// Renderiza dinámicamente el catálogo de productos basado en g_productos
-		// Genera categorías, subcategorías y productos en HTML
+		// Renderiza dinÃ¡micamente el catÃ¡logo de productos basado en g_productos
+		// Genera categorÃ­as, subcategorÃ­as y productos en HTML
 		function renderizar_catalogo_desde_datos() {
 			if (!g_productos || g_productos.length === 0) {
 				console.warn('No hay productos definidos en g_productos');
@@ -1007,11 +1009,11 @@
 			var categorias_vistas = {};
 			var subcategorias_vistas = {};
 
-			// Agrupar productos por categoría/subcategoría
+			// Agrupar productos por categorÃ­a/subcategorÃ­a
 			var productos_por_cat = {};
 			g_productos.forEach(function(producto) {
-				var cat_key = producto.categoria || 'Sin Categoría';
-				var subcat_key = producto.subcategoria || 'Sin Subcategoría';
+				var cat_key = producto.categoria || 'Sin CategorÃ­a';
+				var subcat_key = producto.subcategoria || 'Sin SubcategorÃ­a';
 				if (!productos_por_cat[cat_key]) {
 					productos_por_cat[cat_key] = {};
 				}
@@ -1021,21 +1023,21 @@
 				productos_por_cat[cat_key][subcat_key].push(producto);
 			});
 
-			// Generar HTML por categoría y subcategoría
+			// Generar HTML por categorÃ­a y subcategorÃ­a
 			var cat_index = 1;
 			Object.keys(productos_por_cat).forEach(function(categoria) {
-				// Crear div de categoría
+				// Crear div de categorÃ­a
 				html_catalogo += '<div class="col-md-12 categoria" data-categoria="' + cat_index + '" id="categoria_' + cat_index + '">';
 				html_catalogo += '<div class="categoria_titulo" onclick="mostrar_categoria(\'' + cat_index + '\');">';
 				html_catalogo += '<i class="fas fa-angle-down float-right icono_' + cat_index + ' categoria_icono" style="margin-top: 4px;"></i>';
-				html_catalogo += '🍔 ' + categoria.toUpperCase();
+				html_catalogo += 'ðŸ” ' + categoria.toUpperCase();
 				html_catalogo += '</div>';
 				html_catalogo += '</div>';
 
-				// Subcategorías dentro de esta categoría
+				// SubcategorÃ­as dentro de esta categorÃ­a
 				var subcat_index = 1;
 				Object.keys(productos_por_cat[categoria]).forEach(function(subcategoria) {
-					// Crear div de subcategoría
+					// Crear div de subcategorÃ­a
 					html_catalogo += '<div class="col-md-12 subcategoria" data-categoria="' + cat_index + '" data-subcategoria="' + subcat_index + '" style="display:none;">';
 					html_catalogo += '<div class="subcategoria_titulo" onclick="mostrar_subcategoria(\'' + subcat_index + '\');">';
 					html_catalogo += '<i class="fas fa-angle-down float-right icono_' + subcat_index + ' subcategoria_icono" style="margin-top: 4px;"></i>';
@@ -1043,7 +1045,7 @@
 					html_catalogo += '</div>';
 					html_catalogo += '</div>';
 
-					// Productos dentro de esta subcategoría
+					// Productos dentro de esta subcategorÃ­a
 					productos_por_cat[categoria][subcategoria].forEach(function(producto) {
 						var precio_formateado = formatear_moneda(parseInt(producto.precio));
 						html_catalogo += '<div class="col-md-12 producto" data-categoria="' + cat_index + '" data-subcategoria="' + subcat_index + '" style="display:none;" id="producto_' + producto.id + '">';
@@ -1075,25 +1077,61 @@
 			$('#catalogo_dinamico').html(html_catalogo);
 		}
 
-		// Initializer: carga datos desde Google Sheet y renderiza el catálogo
+		// Initializer: carga datos desde Google Sheet y renderiza el catÃ¡logo
 		async function inicializar_desde_sheets() {
 			try {
 				// Cargar datos desde Google Sheets (CSV)
 				await cargar_datos_desde_sheets();
 			} catch (error) {
-				console.error('✗ Error en inicialización:', error);
+				console.error('âœ— Error en inicializaciÃ³n:', error);
 			}
 			
-			// Renderizar el catálogo con los datos disponibles
+			// Renderizar el catÃ¡logo con los datos disponibles
 			renderizar_catalogo_desde_datos();
 		}
 
-		// Ejecutar inicialización cuando el documento esté listo
-		// Si jQuery ya está disponible, usar ready(); si no, usar addEventListener
+		// Auto-refresh: verificar cambios cada 5 segundos
+		async function auto_actualizar_desde_sheets() {
+			const intervalo = 5000; // 5 segundos
+			
+			setInterval(async function() {
+				try {
+					const productsCSV = await loadCSV(PRODUCTS_CSV_URL);
+					if (productsCSV) {
+						const nuevosProductos = parseCSV(productsCSV).map((p, idx) => ({
+							id: String(idx + 1),
+							nombre: p.nombre || '',
+							descripcion: p.descripcion || '',
+							precio: limpiarPrecio(p.precio),
+							categoria: p.categoria || '',
+							subcategoria: p.subcategoria || ''
+						})).filter(p => p.nombre && p.precio > 0);
+						
+						// Comparar si hay cambios
+						if (JSON.stringify(nuevosProductos) !== JSON.stringify(g_productos)) {
+							console.log('âœ“ Cambios detectados en Google Sheets. Actualizando...');
+							g_productos = nuevosProductos;
+							renderizar_catalogo_desde_datos();
+						}
+					}
+				} catch (error) {
+					// Silenciar errores de red
+				}
+			}, intervalo);
+		}
+
+		// Ejecutar inicializaciÃ³n cuando el documento estÃ© listo
+		// Si jQuery ya estÃ¡ disponible, usar ready(); si no, usar addEventListener
 		if (typeof jQuery !== 'undefined') {
-			$(document).ready(inicializar_desde_sheets);
+			$(document).ready(function() {
+				inicializar_desde_sheets();
+				auto_actualizar_desde_sheets();
+			});
 		} else {
-			document.addEventListener('DOMContentLoaded', inicializar_desde_sheets);
+			document.addEventListener('DOMContentLoaded', function() {
+				inicializar_desde_sheets();
+				auto_actualizar_desde_sheets();
+			});
 		}
 	</script>
 
@@ -1102,7 +1140,7 @@
 		<div class="modal-dialog" role="document" style="margin-top: 50px;">
 			<div class="modal-content" style="background-color: #1a1a1a; border: 2px solid #FF6B35; border-radius: 10px;">
 				<div class="modal-header" style="border-bottom: 2px solid #FF6B35;">
-					<h5 class="modal-title" id="exampleModalLabel" style="color: #FF6B35; font-weight: bold; width: 100%; text-align: center;">¡Completá los datos para que preparemos tu pedido!</h5>
+					<h5 class="modal-title" id="exampleModalLabel" style="color: #FF6B35; font-weight: bold; width: 100%; text-align: center;">Â¡CompletÃ¡ los datos para que preparemos tu pedido!</h5>
 					<button type="button" class="close" data-dismiss="modal" aria-label="Close" style="color: #FF6B35;">
 						<span aria-hidden="true">&times;</span>
 					</button>
@@ -1114,7 +1152,7 @@
 					</div>
 
 					<div class="form-group">
-						<label for="input_direccion" style="color: #FF6B35; font-weight: bold;">Dirección/Entre que calles?*</label>
+						<label for="input_direccion" style="color: #FF6B35; font-weight: bold;">DirecciÃ³n/Entre que calles?*</label>
 						<input type="text" class="form-control" id="input_direccion" placeholder="Ej: Acoyte 1500" style="background-color: #2a2a2a; color: #fff; border: 1px solid #FF6B35;">
 					</div>
 
@@ -1155,7 +1193,7 @@
 						<div style="color: #FF6B35; font-size: 12px;">
 							Subtotal: $<span id="subtotal_show">0</span>
 							<br>
-							Envío: $<span id="envio_show">0</span>
+							EnvÃ­o: $<span id="envio_show">0</span>
 							<br>
 							<b style="font-size: 14px;">Total: $<span id="total_show">0</span></b>
 						</div>
@@ -1163,7 +1201,7 @@
 				</div>
 
 			<div style="text-align: center; margin-top: 15px; color: #FF6B35; font-weight: bold;">
-				🔥 Gracias por elegir Brava Burgers
+				ðŸ”¥ Gracias por elegir Brava Burgers
 			</div>
 		</div>
 		<div class="modal-footer" style="border-top: 2px solid #FF6B35;">
@@ -1180,11 +1218,11 @@
 				<div class="col-lg-12">
 					<p class="lead mb-0">
 						<span style="color:#FF6B35; font-weight: bold;">
-							🔥 BRAVA BURGERS 🔥
+							ðŸ”¥ BRAVA BURGERS ðŸ”¥
 							<br>
 							Hamburguesas de Verdad
 							<br><br>
-							⏰ Abierto Sábados 20:00 a 23:00
+							â° Abierto SÃ¡bados 20:00 a 23:00
 							<br>
 							<span class="fab fa-instagram">&nbsp;</span><a href="https://www.instagram.com/bravaburgers.ok/" target="_blank" style="color:#FF6B35">@bravaburgers.ok</a>
 							<br>
@@ -1233,7 +1271,7 @@
 			document.body.className += ' tienehover';
 		}
 
-		// Abrir primera categoría
+		// Abrir primera categorÃ­a
 		abrir_categoria('1');
 	});
 	</script>
