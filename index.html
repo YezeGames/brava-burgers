@@ -61,6 +61,7 @@
 		var g_horarios = [];
 		
 		// Parsear CSV a JSON usando Papa Parse - maneja comillas y saltos de línea correctamente
+		// v2: Usando unpkg CDN
 		function parseCSV(csv) {
 			try {
 				const result = Papa.parse(csv, {
