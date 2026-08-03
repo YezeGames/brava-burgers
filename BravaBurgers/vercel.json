@@ -5,9 +5,13 @@
       "has": [{ "type": "host", "value": "www.brava-burgers.vercel.app" }],
       "destination": "https://brava-burgers.vercel.app/:path*",
       "permanent": true
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin/",
+      "permanent": false
     }
   ],
-  "headers": [
     {
       "source": "/",
       "headers": [
@@ -21,11 +25,7 @@
       ]
     }
   ],
-  "rewrites": [
-    {
-      "source": "/admin",
-      "destination": "/admin/index.html"
-    },
+  "headers": [
     {
       "source": "/admin/",
       "destination": "/admin/index.html"

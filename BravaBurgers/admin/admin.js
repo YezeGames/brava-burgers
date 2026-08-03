@@ -21,7 +21,13 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).then(function (r) {
-      return r.json().then(function (d) {
+      return r.text().then(function (text) {
+        var d;
+        try {
+          d = JSON.parse(text);
+        } catch (e) {
+          d = { ok: false, error: 'invalid_response', raw: text.slice(0, 120) };
+        }
         return { status: r.status, data: d };
       });
     });
@@ -177,31 +183,50 @@
     });
   }
 
-  $('login-btn').onclick = function () {
+  function doLogin() {
+    var btn = $('login-btn');
     $('login-err').hidden = true;
+    btn.disabled = true;
+    btn.textContent = 'Entrando…';
     api({
       action: 'login',
       user: $('login-user').value.trim(),
       password: $('login-pass').value,
-    }).then(function (res) {
-      if (!res.data.ok) {
-        var msg =
-          res.data.error === 'admin_not_configured'
-            ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Apps Script'
-            : 'Usuario o contraseña incorrectos';
-        $('login-err').textContent = msg;
+    })
+      .then(function (res) {
+        if (!res.data.ok) {
+          var msg =
+            res.data.error === 'admin_not_configured'
+              ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Apps Script'
+              : res.data.error === 'invalid_gas_response' || res.data.error === 'invalid_response'
+                ? 'Error al conectar con Google. Probá en unos minutos.'
+                : 'Usuario o contraseña incorrectos';
+          $('login-err').textContent = msg;
+          $('login-err').hidden = false;
+          return;
+        }
+        token = res.data.token;
+        sessionStorage.setItem('brava_admin_token', token);
+        knownOrns = new Set();
+        showApp();
+      })
+      .catch(function () {
+        $('login-err').textContent = 'Error de conexión. Probá de nuevo.';
         $('login-err').hidden = false;
-        return;
-      }
-      token = res.data.token;
-      sessionStorage.setItem('brava_admin_token', token);
-      knownOrns = new Set();
-      showApp();
-    }).catch(function () {
-      $('login-err').textContent = 'Error de conexión. Probá de nuevo.';
-      $('login-err').hidden = false;
-    });
-  };
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      });
+  }
+
+  $('login-btn').onclick = doLogin;
+  $('login-pass').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') doLogin();
+  });
+  $('login-user').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') doLogin();
+  });
 
   $('logout-btn').onclick = function () {
     sessionStorage.removeItem('brava_admin_token');
