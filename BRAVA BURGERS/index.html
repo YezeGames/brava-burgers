@@ -60,7 +60,32 @@
 			display: none; position: fixed; padding: 15px 0; left: 0; bottom: 0; width: 100%;
 			text-align: center; z-index: 999;
 		}
+		#sync_status,
+		.brava-dev-sync-footer {
+			display: none !important;
+		}
 	</style>
+	<script>
+		(function () {
+			function quitarAvisoPedilo() {
+				var sync = document.getElementById('sync_status');
+				if (sync && sync.parentElement) {
+					sync.parentElement.remove();
+					return;
+				}
+				document.querySelectorAll('footer .container > div').forEach(function (div) {
+					if (/Pedilo-compatible|sincronizado con Google Sheets/i.test(div.textContent || '')) {
+						div.remove();
+					}
+				});
+			}
+			if (document.readyState === 'loading') {
+				document.addEventListener('DOMContentLoaded', quitarAvisoPedilo);
+			} else {
+				quitarAvisoPedilo();
+			}
+		})();
+	</script>
 	<style id="pedilo-theme"></style>
 </head>
 
@@ -179,6 +204,6 @@
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-	<script src="pedilo-shop.js?v=8"></script>
+	<script src="pedilo-shop.js?v=9"></script>
 </body>
 </html>

@@ -760,35 +760,21 @@
 		}
 	}
 
-	function actualizar_sync_status(ok, errMsg) {
-		var el = $('#sync_status');
-		if (!el.length) return;
-		var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-		if (ok) {
-			el.text('Menú sincronizado con Google Sheets · ' + t + ' · ' + (g_productos ? g_productos.length : 0) + ' productos');
-		} else {
-			el.text('No se pudo leer el Sheet. ¿Está público (Lector)? ' + (errMsg || ''));
-		}
-	}
-
 	window.refrescar_desde_sheets = async function (silent) {
 		try {
 			await PediloData.cargar_datos_desde_sheets();
 			aplicarPreguntasCheckout();
 			renderizar_catalogo_desde_datos();
 			calcular_total();
-			if (!silent) actualizar_sync_status(true);
 			return true;
 		} catch (e) {
 			console.error('Sync Sheet:', e);
-			actualizar_sync_status(false, e.message);
 			return false;
 		}
 	};
 
 	window.inicializar_tienda = async function () {
 		await refrescar_desde_sheets(true);
-		actualizar_sync_status(true);
 
 		$('#boton_buscador,#mobile-nav-toggle').show();
 		if (g_telefono) $('.product-add-icon').show();
@@ -816,12 +802,10 @@
 		inicializar_tienda();
 		setInterval(function () {
 			refrescar_desde_sheets(true);
-			actualizar_sync_status(true);
 		}, 30000);
 		document.addEventListener('visibilitychange', function () {
 			if (document.visibilityState === 'visible') {
 				refrescar_desde_sheets(true);
-				actualizar_sync_status(true);
 			}
 		});
 	});
