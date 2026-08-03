@@ -144,39 +144,37 @@ body.tienehover .producto_fila:hover small {
 	max-width: 100%;
 }
 
-/* Modales Fancybox */
-.fancybox-container.brava-fancybox-modal .fancybox-content:has(.brava-checkout-form),
-.fancybox-content:has(.brava-checkout-form) {
-	width: 440px !important;
-	max-width: min(440px, calc(100vw - 48px)) !important;
+/*
+ * Modales checkout + extras: mismas medidas que pedilo.shop/brburgers
+ * (.fancybox-content ~319px + padding 44px → ~350px total; campos ~261px)
+ */
+.fancybox-container.brava-fancybox-modal .fancybox-content {
+	padding: 44px !important;
+	width: auto !important;
+	max-width: min(350px, calc(100vw - 20px)) !important;
 	overflow: visible !important;
-}
-
-.fancybox-container.brava-fancybox-modal .fancybox-content:has(.brava-variedades-form),
-.fancybox-content:has(.brava-variedades-form) {
-	width: 460px !important;
-	max-width: min(460px, calc(100vw - 48px)) !important;
-	overflow: visible !important;
+	box-sizing: border-box !important;
 }
 
 .fancybox-container.brava-fancybox-modal .fancybox-close-small {
-	right: 10px !important;
-	top: 8px !important;
+	right: 8px !important;
+	top: 6px !important;
 	padding: 4px !important;
 }
 
-/* Checkout — tamaño y layout como Brava Burgers original */
 #preguntas_pedido.brava-checkout-form {
-	background-color: var(--brava-bg);
+	background-color: transparent;
 	color: var(--brava-text);
-	padding: 22px 26px 20px;
+	padding: 0;
 	width: 100%;
+	max-width: 262px;
 	box-sizing: border-box;
+	margin: 0 auto;
 }
 
 .brava-checkout-head {
-	padding: 0 28px 14px 0;
-	margin-bottom: 14px;
+	padding: 0 24px 12px 0;
+	margin-bottom: 12px;
 	border-bottom: 1px solid var(--brava-accent);
 }
 
@@ -193,11 +191,11 @@ body.tienehover .producto_fila:hover small {
 #preguntas_pedido_encabezado {
 	color: var(--brava-accent) !important;
 	text-align: center;
-	font-size: 16px;
+	font-size: 18px;
 	font-weight: 700;
 	line-height: 1.35;
 	margin: 0;
-	padding: 0 8px;
+	padding: 0 4px;
 }
 
 #preguntas_pedido_pie.brava-checkout-pie {
@@ -226,9 +224,9 @@ body.tienehover .producto_fila:hover small {
 	border: 1px solid #555 !important;
 	border-radius: 4px;
 	font-size: 14px;
-	padding: 7px 11px;
-	height: auto;
-	min-height: 38px;
+	padding: 6px 12px;
+	height: 40px;
+	min-height: 40px;
 	box-sizing: border-box;
 	width: 100%;
 }
@@ -240,6 +238,7 @@ body.tienehover .producto_fila:hover small {
 }
 
 #preguntas_pedido select.brava-input.form-control {
+	height: 40px;
 	padding-right: 28px;
 }
 
@@ -274,11 +273,13 @@ body.tienehover .producto_fila:hover small {
 }
 
 #pregunta_variedades.brava-variedades-form {
-	background-color: var(--brava-bg);
+	background-color: transparent;
 	color: var(--brava-text);
-	padding: 22px 26px 20px;
+	padding: 0;
 	width: 100%;
+	max-width: 262px;
 	box-sizing: border-box;
+	margin: 0 auto;
 }
 
 #pregunta_variedades_titulo {
