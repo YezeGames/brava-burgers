@@ -121,12 +121,22 @@
 	};
 
 	window.abrir_categoria = function (p_categoria) {
-		$('.producto[data-categoria="' + p_categoria + '"]').show();
 		$('.subcategoria[data-categoria="' + p_categoria + '"]').show();
+		$('.producto[data-categoria="' + p_categoria + '"]').hide();
+		$('.subcategoria[data-categoria="' + p_categoria + '"] .subcategoria_icono')
+			.removeClass('fa-angle-up')
+			.addClass('fa-angle-down');
 		$('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono')
 			.removeClass('fa-angle-down')
 			.addClass('fa-angle-up');
 	};
+
+	function colapsar_catalogo_inicial() {
+		$('.producto').hide();
+		$('.subcategoria').hide();
+		$('.categoria_titulo .categoria_icono').removeClass('fa-angle-up').addClass('fa-angle-down');
+		$('.subcategoria_titulo .subcategoria_icono').removeClass('fa-angle-up').addClass('fa-angle-down');
+	}
 
 	window.cerrar_categoria = function (p_categoria) {
 		$('.producto[data-categoria="' + p_categoria + '"]').hide();
@@ -137,12 +147,16 @@
 	};
 
 	window.mostrar_subcategoria = function (p_subcategoria, p_categoria) {
-		var sel = '.producto[data-subcategoria="' + p_subcategoria + '"]';
-		if (p_categoria) sel += '[data-categoria="' + p_categoria + '"]';
-		$(sel).toggle();
+		var selProd = '.producto[data-subcategoria="' + p_subcategoria + '"]';
 		var selSub = '.subcategoria[data-subcategoria="' + p_subcategoria + '"]';
-		if (p_categoria) selSub += '[data-categoria="' + p_categoria + '"]';
-		$(selSub + ' .subcategoria_icono').toggleClass('fa-angle-down fa-angle-up');
+		if (p_categoria) {
+			selProd += '[data-categoria="' + p_categoria + '"]';
+			selSub += '[data-categoria="' + p_categoria + '"]';
+		}
+		var $icono = $(selSub + ' .subcategoria_icono');
+		var abrir = $icono.hasClass('fa-angle-down');
+		$(selProd).toggle(abrir);
+		$icono.toggleClass('fa-angle-down', !abrir).toggleClass('fa-angle-up', abrir);
 	};
 
 	window.mostrar_resumen_pedido = function () {
@@ -722,7 +736,7 @@
 
 		$('#catalogo_dinamico').html(html);
 		poblar_sidenav();
-		abrir_categoria('1');
+		colapsar_catalogo_inicial();
 	};
 
 	function aplicarPreguntasCheckout() {
