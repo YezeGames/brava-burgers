@@ -2,7 +2,7 @@ Nombre,Valor
 Titulo,"<font color=#FF6B35>BRAVA BURGERS</font>"
 Logo,https://i.imgur.com/BAL4ZFV.png
 Whatsapp pedidos,5491173721945
-Pie de página,"<div class=""brava-footer-pie""><div class=""brava-footer-brand"">BRAVA BURGERS</div><p>Hamburguesas de verdad</p><p>Abierto Sábados 20:00 a 23:00</p><p class=""brava-footer-ig"">Instagram <a href=""https://www.instagram.com/bravaburgers.ok/"" target=""_blank"" rel=""noopener"">@bravaburgers.ok</a></p><p class=""brava-footer-wa""><a href=""https://wa.me/5491173721945"" target=""_blank"" rel=""noopener"">Escribinos por WhatsApp</a></p></div>"
+Pie de página,"<span style=""color:#FF6B35; font-weight: bold;""><br>BRAVA BURGERS<BR><br>🍔 Hamburguesas de verdad<br>⏰ Abierto Sábados 20:00 a 23:00<br><span class=""fab fa-instagram"">&nbsp;</span><a href=""https://www.instagram.com/bravaburgers.ok/"" target=_blank style=""color:#FF6B35"">@bravaburgers.ok</a><br><br><a href=""https://wa.me/5491173721945"" target=_blank style=""color:#FF6B35"">Escribinos por WhatsApp</a></span>"
 Columnas,1
 Color de la cabecera,#1a1a1a
 Color del pie,#1a1a1a
