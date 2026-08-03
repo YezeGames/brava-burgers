@@ -3,24 +3,12 @@ async function gasPost(payload) {
   if (!url) {
     return { ok: false, error: 'gas_not_configured', status: 503 };
   }
-  const body = JSON.stringify(payload);
-  let res = await fetch(url, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body,
-    redirect: 'manual',
+    body: JSON.stringify(payload),
+    redirect: 'follow',
   });
-  if (res.status >= 300 && res.status < 400) {
-    const loc = res.headers.get('location');
-    if (loc) {
-      res = await fetch(loc, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body,
-        redirect: 'follow',
-      });
-    }
-  }
   const text = await res.text();
   let data;
   try {
