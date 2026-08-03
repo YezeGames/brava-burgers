@@ -328,14 +328,14 @@
 		global.g_pedido_storage_key = 'pedido-' + global.g_pedido_storage_key;
 
 		global.g_tema = {
-			titulo: configGet(cfg, 'Titulo') || 'Brava Burgers',
+			titulo: configGet(cfg, 'Titulo') || '<font color=#FF6B35>BRAVA BURGERS</font>',
 			logo: configGet(cfg, 'Logo'),
-			colorCabecera: configGet(cfg, 'Color de la cabecera') || '#e4e4e4',
-			colorPie: configGet(cfg, 'Color del pie') || '#e4e4e4',
-			colorFondo: configGet(cfg, 'Color del fondo') || '#e4e4e4',
-			colorLetra: configGet(cfg, 'Color de la letra de los productos') || '#000000',
-			colorBotones: configGet(cfg, 'Color de fondo de los botones') || '#000000',
-			colorSeleccionado: configGet(cfg, 'Color del producto seleccionado') || '#f7af38',
+			colorCabecera: configGet(cfg, 'Color de la cabecera') || '#1a1a1a',
+			colorPie: configGet(cfg, 'Color del pie') || '#1a1a1a',
+			colorFondo: configGet(cfg, 'Color del fondo') || '#1a1a1a',
+			colorLetra: configGet(cfg, 'Color de la letra de los productos') || '#ffffff',
+			colorBotones: configGet(cfg, 'Color de fondo de los botones') || '#FF6B35',
+			colorSeleccionado: configGet(cfg, 'Color del producto seleccionado') || '#FF6B35',
 			imagenFondo: configGet(cfg, 'Imagen de fondo'),
 			pieHtml: configGet(cfg, 'Pie de página') || configGet(cfg, 'Pie de pagina'),
 			columnas: parseInt(configGet(cfg, 'Columnas'), 10) || 1,
@@ -346,31 +346,18 @@
 
 	function injectThemeCss() {
 		const t = global.g_tema || {};
+		const bg = t.colorFondo || '#1a1a1a';
+		const accent = t.colorSeleccionado || t.colorBotones || '#FF6B35';
+		const text = t.colorLetra || '#ffffff';
+		const card = '#2a2a2a';
+
+		document.documentElement.style.setProperty('--brava-bg', bg);
+		document.documentElement.style.setProperty('--brava-accent', accent);
+		document.documentElement.style.setProperty('--brava-text', text);
+		document.documentElement.style.setProperty('--brava-card', card);
+
 		const css =
-			'body{padding-top:110px;background-color:' +
-			(t.colorFondo || '#e4e4e4') +
-			'!important;color:' +
-			(t.colorLetra || '#000') +
-			'!important;}' +
-			'@media (max-width:980px){body{padding-top:90px;}}' +
-			'body.tienehover .producto_fila:hover{background-color:' +
-			(t.colorSeleccionado || '#f7af38') +
-			';border-radius:.5rem;}' +
-			'.producto_pedido{background-color:' +
-			(t.colorSeleccionado || '#f7af38') +
-			';font-weight:bold;border-radius:.5rem;margin-bottom:7px;}' +
-			'.categoria_titulo,.categoria_titulo a{color:' +
-			(t.colorLetra || '#000') +
-			'!important;}' +
-			'.my-btn-primary{color:#fff;background-color:' +
-			(t.colorBotones || '#000') +
-			';border-color:' +
-			(t.colorBotones || '#000') +
-			';}' +
-			'.navbar,.sidenav,.footer{background-color:' +
-			(t.colorCabecera || '#e4e4e4') +
-			'!important;}' +
-			'.precio-box{font-weight:900;}';
+			'body{background-color:' + bg + '!important;color:' + text + '!important;}';
 
 		let el = document.getElementById('pedilo-theme');
 		if (!el) {
@@ -380,15 +367,22 @@
 		}
 		el.textContent = css;
 
+		const pattern =
+			"url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%231a1a1a%22 width=%22100%22 height=%22100%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22%23FF6B35%22 opacity=%220.05%22/></svg>')";
 		if (t.imagenFondo) {
 			document.body.style.backgroundImage = "url('" + t.imagenFondo + "')";
-			document.body.style.backgroundRepeat = 'repeat';
+		} else {
+			document.body.style.backgroundImage = pattern;
 		}
-		if (t.logo) {
-			$('#link_logo img').attr('src', t.logo);
-		}
+		document.body.style.backgroundRepeat = 'repeat';
+
+		var logoSrc =
+			t.logo ||
+			"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E";
+		$('#link_logo img').attr('src', logoSrc).show();
+
 		if (t.titulo) {
-			$('#link_titulo font, #link_titulo').html(t.titulo);
+			$('#link_titulo').html(t.titulo.indexOf('<') >= 0 ? t.titulo : '<font color=#FF6B35>' + t.titulo + '</font>');
 		}
 		if (t.pieHtml) {
 			$('#footer_pedilo_contenido').html(t.pieHtml);
@@ -410,17 +404,22 @@
 			}),
 		]);
 
+		if (!productsCSV) {
+			throw new Error('No se pudo descargar la hoja productos');
+		}
+
 		if (configCSV) {
 			const cfg = parseConfigCSV(configCSV);
 			applyConfigToGlobals(cfg);
-			injectThemeCss();
+		} else {
+			applyConfigToGlobals({});
 		}
+		injectThemeCss();
 
-		if (productsCSV) {
-			const rows = parseCSV(productsCSV);
-			global.g_productos = buildProductsFromPediloRows(rows);
-			console.log('✓ Productos (Pedilo):', global.g_productos.length);
-		}
+		const rows = parseCSV(productsCSV);
+		global.g_productos = buildProductsFromPediloRows(rows);
+		global.g_ultima_sync_sheets = Date.now();
+		console.log('✓ Productos (Pedilo):', global.g_productos.length, 'Sheet:', SHEET_ID);
 
 		return true;
 	}

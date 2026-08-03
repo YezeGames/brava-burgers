@@ -1,0 +1,202 @@
+/* Tema visual Brava Burgers (original) — prioridad sobre estilos Pedilo genéricos */
+:root {
+	--brava-bg: #1a1a1a;
+	--brava-card: #2a2a2a;
+	--brava-accent: #FF6B35;
+	--brava-accent-hover: #E55A25;
+	--brava-text: #ffffff;
+	--brava-muted: #cccccc;
+	--brava-border: #333333;
+}
+
+body {
+	padding-top: 110px;
+	background-color: var(--brava-bg) !important;
+	color: var(--brava-text) !important;
+}
+
+@media (max-width: 980px) {
+	body { padding-top: 90px; }
+}
+
+.navbar {
+	background-color: var(--brava-bg) !important;
+	border-bottom: 3px solid var(--brava-accent) !important;
+}
+
+.sidenav {
+	background-color: var(--brava-bg) !important;
+}
+
+.sidenav-item,
+.sidenav-closebtn {
+	color: var(--brava-text) !important;
+}
+
+#link_titulo,
+#link_titulo font {
+	color: var(--brava-accent) !important;
+}
+
+.categoria_titulo {
+	color: var(--brava-accent) !important;
+}
+
+.subcategoria_titulo {
+	color: var(--brava-text) !important;
+}
+
+.producto_fila {
+	background-color: var(--brava-card);
+	border-radius: 0.5rem;
+	margin-bottom: 10px;
+	padding: 10px;
+	border: 1px solid var(--brava-border);
+}
+
+body.tienehover .producto_fila:hover {
+	background-color: var(--brava-accent);
+	border-radius: 0.5rem;
+}
+
+body.tienehover .producto_fila:hover,
+body.tienehover .producto_fila:hover .precio-box,
+body.tienehover .producto_fila:hover small {
+	color: #000 !important;
+}
+
+.producto_pedido {
+	background-color: var(--brava-accent) !important;
+	font-weight: bold;
+	border-radius: 0.5rem;
+	margin-bottom: 7px;
+}
+
+.producto_pedido .precio-box,
+.producto_pedido small {
+	color: #000 !important;
+}
+
+.precio-box {
+	color: var(--brava-accent);
+	font-weight: bold;
+}
+
+.my-btn-primary {
+	color: #ffffff !important;
+	background-color: var(--brava-accent) !important;
+	border-color: var(--brava-accent) !important;
+}
+
+.my-btn-primary:hover {
+	background-color: var(--brava-accent-hover) !important;
+	border-color: var(--brava-accent-hover) !important;
+}
+
+.footer {
+	background-color: var(--brava-bg) !important;
+	border-top: 3px solid var(--brava-accent);
+	color: var(--brava-text);
+}
+
+#footer_enviar {
+	background-color: var(--brava-bg) !important;
+	border-top: 3px solid var(--brava-accent) !important;
+}
+
+.helper_resumen,
+.resumen_titulo center {
+	color: var(--brava-accent) !important;
+}
+
+.resumen_titulo .btn-link {
+	color: var(--brava-accent) !important;
+}
+
+.badge-light.pedido_productos_cantidad_total {
+	background-color: var(--brava-accent) !important;
+	color: #fff !important;
+}
+
+/* Fancybox: modales oscuros estilo Brava */
+.fancybox-bg {
+	background: rgba(0, 0, 0, 0.85) !important;
+}
+
+.fancybox-content {
+	background: var(--brava-bg) !important;
+	border: 2px solid var(--brava-accent);
+	border-radius: 10px;
+	padding: 0 !important;
+}
+
+.fancybox-close-small {
+	color: var(--brava-accent) !important;
+}
+
+#preguntas_pedido,
+#pregunta_variedades,
+#pregunta_vaciar_pedido,
+#popup_control_horario,
+#popup_monto_minimo {
+	background-color: var(--brava-bg);
+	color: var(--brava-text);
+	padding: 20px;
+	min-width: 280px;
+	max-width: 100%;
+}
+
+#preguntas_pedido_encabezado,
+#preguntas_pedido_pie {
+	color: var(--brava-accent) !important;
+}
+
+#preguntas_pedido label,
+#pregunta_variedades_titulo {
+	color: var(--brava-accent) !important;
+	font-weight: bold;
+}
+
+#preguntas_pedido .form-control,
+#pregunta_variedades .btn-dark {
+	background-color: var(--brava-card) !important;
+	color: var(--brava-text) !important;
+	border: 1px solid var(--brava-accent) !important;
+}
+
+#preguntas_pedido .form-control:focus {
+	box-shadow: 0 0 0 0.2rem rgba(255, 107, 53, 0.25);
+}
+
+#pregunta_variedades .btn-dark {
+	border-color: var(--brava-border) !important;
+	margin-bottom: 8px;
+}
+
+#pregunta_variedades .btn-dark:hover {
+	background-color: var(--brava-accent) !important;
+	color: #000 !important;
+}
+
+.producto_cantidades {
+	border-top: 1px solid var(--brava-border) !important;
+	background: var(--brava-card) !important;
+}
+
+.helper_aclaracion .form-control {
+	background-color: var(--brava-card);
+	color: var(--brava-text);
+	border: 1px solid var(--brava-border);
+}
+
+#input_buscador {
+	background-color: var(--brava-card);
+	color: var(--brava-text);
+	border: 1px solid var(--brava-border);
+}
+
+#pregunta_vaciar_pedido .brava-modal-title,
+#popup_control_horario_contenido,
+#popup_monto_minimo_texto {
+	color: var(--brava-text) !important;
+}

@@ -31,25 +31,22 @@
 		var g_productos = [];
 		var g_telefono = '';
 	</script>
-	<script src="pedilo-data.js"></script>
+	<script src="pedilo-data.js?v=3"></script>
+	<link href="brava-brand.css?v=3" rel="stylesheet">
 
 	<style>
-		.fancybox-close-small { color: black !important; }
 		* { touch-action: manipulation; }
 		.categoria_titulo { margin: 10px 0 20px; font-weight: 900; font-size: 20px; cursor: pointer; }
 		.subcategoria_titulo { margin: 10px 0 20px; font-weight: 900; font-size: 16px; cursor: pointer; }
-		.producto_fila { border-radius: .5rem; margin-bottom: 10px; padding: 4px; }
 		.sidenav {
 			height: 100%; width: 0; position: fixed; top: 0; right: 0;
 			overflow-x: hidden; transition: 0.5s; padding-top: 60px; z-index: 1000000;
 		}
 		.sidenav-item { padding: 8px 8px 8px 32px; text-decoration: none; font-size: 22px; display: block; }
 		.sidenav-closebtn { position: absolute; top: 0; right: 25px; font-size: 36px; }
-		.navbar { border-bottom: 2px solid rgba(0,0,0,.1); }
-		.footer { margin-top: 30px; padding-top: 2rem; }
 		#footer_enviar {
 			display: none; position: fixed; padding: 15px 0; left: 0; bottom: 0; width: 100%;
-			text-align: center; border-top: 2px solid rgba(0,0,0,.15); z-index: 999;
+			text-align: center; z-index: 999;
 		}
 	</style>
 	<style id="pedilo-theme"></style>
@@ -64,8 +61,8 @@
 				<div id="sidenav_categorias"></div>
 			</div>
 			<div style="position:absolute;">
-				<a id="link_logo" href="./"><img src="" alt="" style="border-radius:50%;height:50px;width:50px;display:none;" onload="this.style.display='inline-block'"></a>
-				<a id="link_titulo" class="navbar-brand" href="./" style="font-size:17px;"><font color="#000">Brava Burgers</font></a>
+				<a id="link_logo" href="./"><img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E" alt="Brava Burgers" style="border-radius:50%;height:50px;width:50px;"></a>
+				<a id="link_titulo" class="navbar-brand" href="./" style="font-size:17px;"><font color="#FF6B35">BRAVA BURGERS</font></a>
 			</div>
 			<div style="padding-left:10px;z-index:999999;margin-left:auto;">
 				<button class="btn btn-primary helper_changuito my-btn-primary" style="display:none;" type="button" onclick="mostrar_resumen_pedido();">
@@ -118,14 +115,14 @@
 
 	<div id="pregunta_vaciar_pedido" style="display:none;border-radius:.5rem;">
 		<center>
-			<h5 class="mb-3" style="color:black">¿Vaciar carrito?</h5>
+			<h5 class="mb-3 brava-modal-title">¿Vaciar carrito?</h5>
 			<button class="btn btn-danger" onclick="window.g_pedido.productos=[];g_viendo_resumen=true;mostrar_resumen_pedido();calcular_total();$.fancybox.close();">Si</button>
 			<button class="btn btn-primary my-btn-primary" onclick="$.fancybox.close();">No</button>
 		</center>
 	</div>
 
 	<div id="preguntas_pedido" style="display:none;border-radius:.5rem;">
-		<div id="preguntas_pedido_encabezado" style="color:#000;text-align:center;font-size:18px;margin-bottom:20px;">¡Completá los datos para que preparemos tu pedido!</div>
+		<div id="preguntas_pedido_encabezado" style="text-align:center;font-size:18px;margin-bottom:20px;">¡Completá los datos para que preparemos tu pedido!</div>
 		<form onsubmit="finalizar_pedido(); return false;">
 			<p><label id="pregunta_1_label">Nombre*</label><input type="text" id="pregunta_1_respuesta" class="form-control" required></p>
 			<p><label id="pregunta_2_label">Dirección/Entre que calles?*</label><input type="text" id="pregunta_2_respuesta" class="form-control" required></p>
@@ -134,20 +131,23 @@
 			<p><label id="pregunta_5_label">Como va a abonar?*</label><select id="pregunta_5_respuesta" class="form-control" required></select></p>
 			<p><label id="pregunta_6_label">Selecciona el turno*</label><select id="pregunta_6_respuesta" class="form-control" required></select></p>
 			<p><label id="pregunta_10_label">Lo enviamos a (seleccione la zona)*</label><select id="pregunta_10_respuesta" class="form-control" required onchange="calcular_total()"></select></p>
-			<div id="preguntas_pedido_pie" style="color:#000;text-align:center;font-size:16px;margin:15px 0;"></div>
+			<div id="preguntas_pedido_pie" style="text-align:center;font-size:16px;margin:15px 0;"></div>
 			<p class="text-center mb-0"><input type="submit" class="btn btn-primary my-btn-primary" value="Enviar Pedido"></p>
 		</form>
 	</div>
 
 	<div id="pregunta_variedades" style="display:none;border-radius:.5rem;">
-		<h5 class="mb-3" style="color:black" id="pregunta_variedades_titulo">Elija una opción</h5>
+		<h5 class="mb-3" id="pregunta_variedades_titulo">Elija una opción</h5>
 		<span id="pregunta_variedades_opciones"></span>
 	</div>
 
 	<footer class="footer text-center">
 		<div class="container">
 			<div id="footer_pedilo_contenido" class="py-4"></div>
-			<div style="opacity:.4;padding-bottom:70px;">Sistema Pedilo-compatible · Brava Burgers</div>
+			<div style="opacity:.4;padding-bottom:70px;">
+				Sistema Pedilo-compatible · Brava Burgers
+				<span id="sync_status" style="display:block;font-size:11px;margin-top:4px;"></span>
+			</div>
 		</div>
 	</footer>
 
@@ -158,6 +158,6 @@
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-	<script src="pedilo-shop.js"></script>
+	<script src="pedilo-shop.js?v=3"></script>
 </body>
 </html>
