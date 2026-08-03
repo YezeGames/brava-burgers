@@ -75,6 +75,30 @@
 		}
 	}
 
+	function parsePediloSelectTitulo(url) {
+		if (!url || url.indexOf('titulo=') === -1) return '';
+		try {
+			const m = url.match(/titulo=([^&]+)/);
+			if (!m) return '';
+			let t = decodeURIComponent(m[1].replace(/\+/g, ' ')).trim();
+			t = t.replace(/:\*$/, '*').replace(/:$/, '');
+			return t;
+		} catch (e) {
+			return '';
+		}
+	}
+
+	function labelFromPreguntaConfig(val, fallback) {
+		if (!val || String(val).trim() === '') return fallback;
+		const s = String(val);
+		if (s.indexOf('titulo=') !== -1) {
+			const t = parsePediloSelectTitulo(s);
+			return t || fallback;
+		}
+		if (s.indexOf('select.php') !== -1) return fallback;
+		return s;
+	}
+
 	function configGet(cfg, key) {
 		if (!cfg) return '';
 		if (cfg[key] !== undefined) return cfg[key];
@@ -300,12 +324,12 @@
 			pie: configGet(cfg, 'Preguntas pie'),
 			zonaTitulo: configGet(cfg, 'Zona de envío - Título') || configGet(cfg, 'Zona de envio - Titulo'),
 			labels: [
-				configGet(cfg, 'Pregunta previa al pedido 1') || 'Nombre*',
-				configGet(cfg, 'Pregunta previa al pedido 2') || 'Dirección/Entre que calles?*',
-				configGet(cfg, 'Pregunta previa al pedido 3') || 'Localidad*',
-				configGet(cfg, 'Pregunta previa al pedido 4') || 'Piso/Dpto',
-				configGet(cfg, 'Pregunta previa al pedido 5') || 'Como va a abonar?:*',
-				configGet(cfg, 'Pregunta previa al pedido 6') || 'Selecciona el turno:',
+				labelFromPreguntaConfig(configGet(cfg, 'Pregunta previa al pedido 1'), 'Nombre*'),
+				labelFromPreguntaConfig(configGet(cfg, 'Pregunta previa al pedido 2'), 'Dirección/Entre que calles?*'),
+				labelFromPreguntaConfig(configGet(cfg, 'Pregunta previa al pedido 3'), 'Localidad*'),
+				labelFromPreguntaConfig(configGet(cfg, 'Pregunta previa al pedido 4'), 'Piso/Dpto'),
+				labelFromPreguntaConfig(configGet(cfg, 'Pregunta previa al pedido 5'), 'Como va a abonar?*'),
+				labelFromPreguntaConfig(configGet(cfg, 'Pregunta previa al pedido 6'), 'Selecciona el turno*'),
 			],
 			opcionesPago: parsePediloSelectUrl(configGet(cfg, 'Pregunta previa al pedido 5')),
 			opcionesTurno: parsePediloSelectUrl(configGet(cfg, 'Pregunta previa al pedido 6')),

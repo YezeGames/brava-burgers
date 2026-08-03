@@ -528,7 +528,13 @@
 			return;
 		}
 		pre_abrir_preguntas();
-		$.fancybox.open({ src: '#preguntas_pedido' });
+		$.fancybox.open({
+			src: '#preguntas_pedido',
+			type: 'inline',
+			touch: false,
+			smallBtn: true,
+			baseClass: 'brava-fancybox-checkout',
+		});
 	};
 
 	window.pre_abrir_preguntas = function () {
@@ -559,7 +565,8 @@
 		return false;
 	};
 
-	window.controlar_horario = function () {
+	window.controlar_horario = function (mostrarPopup) {
+		if (mostrarPopup === undefined) mostrarPopup = true;
 		if (!g_control_horario) return true;
 		var horario_string = (g_horarios_por_dia || {})[new Date().getDay()] || '';
 		if (!horario_string.trim()) {
@@ -580,7 +587,7 @@
 			if (minutos_ahora >= minDesde && minutos_ahora <= minHasta) abierto = true;
 		});
 		if (!abierto) {
-			mostrarPopupCerrado();
+			if (mostrarPopup) mostrarPopupCerrado();
 			return false;
 		}
 		return true;
@@ -738,10 +745,35 @@
 		}
 	}
 
+	function actualizar_sync_status(ok, errMsg) {
+		var el = $('#sync_status');
+		if (!el.length) return;
+		var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+		if (ok) {
+			el.text('Menú sincronizado con Google Sheets · ' + t + ' · ' + (g_productos ? g_productos.length : 0) + ' productos');
+		} else {
+			el.text('No se pudo leer el Sheet. ¿Está público (Lector)? ' + (errMsg || ''));
+		}
+	}
+
+	window.refrescar_desde_sheets = async function (silent) {
+		try {
+			await PediloData.cargar_datos_desde_sheets();
+			aplicarPreguntasCheckout();
+			renderizar_catalogo_desde_datos();
+			calcular_total();
+			if (!silent) actualizar_sync_status(true);
+			return true;
+		} catch (e) {
+			console.error('Sync Sheet:', e);
+			actualizar_sync_status(false, e.message);
+			return false;
+		}
+	};
+
 	window.inicializar_tienda = async function () {
-		await PediloData.cargar_datos_desde_sheets();
-		aplicarPreguntasCheckout();
-		renderizar_catalogo_desde_datos();
+		await refrescar_desde_sheets(true);
+		actualizar_sync_status(true);
 
 		$('#boton_buscador,#mobile-nav-toggle').show();
 		if (g_telefono) $('.product-add-icon').show();
@@ -757,7 +789,8 @@
 				g_pedido = { productos: [] };
 			}
 		}
-		controlar_horario();
+		// Horario: no bloquear la vista del menú al entrar; sí al enviar pedido
+		controlar_horario(false);
 	};
 
 	$(document).ready(function () {
@@ -767,11 +800,15 @@
 		}
 		inicializar_tienda();
 		setInterval(function () {
-			PediloData.cargar_datos_desde_sheets().then(function () {
-				renderizar_catalogo_desde_datos();
-				calcular_total();
-			});
-		}, 60000);
+			refrescar_desde_sheets(true);
+			actualizar_sync_status(true);
+		}, 30000);
+		document.addEventListener('visibilitychange', function () {
+			if (document.visibilityState === 'visible') {
+				refrescar_desde_sheets(true);
+				actualizar_sync_status(true);
+			}
+		});
 	});
 
 	function hasTouch() {
