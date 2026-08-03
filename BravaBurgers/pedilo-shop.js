@@ -656,19 +656,36 @@
 			$submit.prop('disabled', false);
 		}
 
+		var waAbierto = false;
+		function abrirWhatsApp(orn) {
+			if (waAbierto) return;
+			waAbierto = true;
+			irWhatsApp(orn || null);
+		}
+
+		// No bloquear WhatsApp: máx ~600 ms esperando ORN; el guardado sigue en segundo plano
+		var WA_ESPERA_MS = 400;
+		var tLimite = setTimeout(function () {
+			abrirWhatsApp(null);
+		}, WA_ESPERA_MS);
+
 		fetch('/api/pedido', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(payload),
+			keepalive: true,
 		})
 			.then(function (r) {
 				return r.json();
 			})
 			.then(function (data) {
-				irWhatsApp(data.ok && data.orn ? data.orn : null);
+				clearTimeout(tLimite);
+				if (!waAbierto && data.ok && data.orn) abrirWhatsApp(data.orn);
+				else if (!waAbierto) abrirWhatsApp(null);
 			})
 			.catch(function () {
-				irWhatsApp(null);
+				clearTimeout(tLimite);
+				if (!waAbierto) abrirWhatsApp(null);
 			});
 
 		return false;

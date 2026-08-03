@@ -12,7 +12,7 @@ async function gasPost(payload) {
   const body = JSON.stringify(payload);
   let last = { ok: false, error: 'gas_failed' };
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const res = await fetch(url, {
         method: 'POST',
@@ -36,7 +36,7 @@ async function gasPost(payload) {
     } catch (e) {
       last = { ok: false, error: 'gas_network_error', message: String(e.message || e) };
     }
-    if (attempt < 2) await sleep(350 * (attempt + 1));
+    if (attempt < 1) await sleep(200);
   }
   return last;
 }

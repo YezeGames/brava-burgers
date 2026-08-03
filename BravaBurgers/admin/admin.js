@@ -192,8 +192,9 @@
   }
 
   function fetchOrdersFromServer() {
+    if (fetchInFlight) return fetchInFlight;
     $('app-err').hidden = true;
-    return api({ action: 'listOrders', token: token, estadoFilter: '' })
+    fetchInFlight = api({ action: 'listOrders', token: token, estadoFilter: '' })
       .then(function (res) {
         if (!res.data.ok) {
           if (res.status === 401 || res.data.error === 'unauthorized') {
@@ -218,7 +219,11 @@
         $('app-err').textContent = 'Sin conexión al servidor. Revisá internet e intentá otra vez.';
         $('app-err').hidden = false;
         return false;
+      })
+      .finally(function () {
+        fetchInFlight = null;
       });
+    return fetchInFlight;
   }
 
   function loadOrders() {
