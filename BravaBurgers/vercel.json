@@ -27,8 +27,8 @@
       "destination": "/admin/index.html"
     },
     {
-      "source": "/((?!pedilo-data\\.js|pedilo-shop\\.js|brava-brand\\.css|favicon\\.ico).*)",
-      "destination": "/index.html"
+      "source": "/admin/",
+      "destination": "/admin/index.html"
     }
   ]
 }
