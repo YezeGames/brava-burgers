@@ -164,6 +164,29 @@
 		return extractImageUrl(raw);
 	}
 
+	function buildDefaultBravaPieHtml(telefono) {
+		const wa = normalizarTelefono(telefono) || '5491173721945';
+		return (
+			'<div class="brava-footer-pie">' +
+			'<div class="brava-footer-brand">BRAVA BURGERS</div>' +
+			'<p>Hamburguesas de verdad</p>' +
+			'<p>Abierto Sábados 20:00 a 23:00</p>' +
+			'<p class="brava-footer-ig">Instagram ' +
+			'<a href="https://www.instagram.com/bravaburgers.ok/" target="_blank" rel="noopener">@bravaburgers.ok</a></p>' +
+			'<p class="brava-footer-wa"><a href="https://wa.me/' +
+			wa +
+			'" target="_blank" rel="noopener">Escribinos por WhatsApp</a></p>' +
+			'</div>'
+		);
+	}
+
+	function normalizePieHtml(html, telefono) {
+		if (!html || !String(html).trim()) {
+			return buildDefaultBravaPieHtml(telefono);
+		}
+		return String(html).replace(/<BR>/gi, '<br>');
+	}
+
 	function parseMergedConfigBootstrap(k, v, cfg) {
 		const kl = k.toLowerCase();
 		const blob = String(v).replace(/^valor\s*/i, '').trim();
@@ -428,7 +451,11 @@
 			colorBotones: configGet(cfg, 'Color de fondo de los botones') || '#FF6B35',
 			colorSeleccionado: configGet(cfg, 'Color del producto seleccionado') || '#FF6B35',
 			imagenFondo: configGet(cfg, 'Imagen de fondo'),
-			pieHtml: configGet(cfg, 'Pie de página') || configGet(cfg, 'Pie de pagina'),
+			pieHtml:
+				normalizePieHtml(
+					configGet(cfg, 'Pie de página') || configGet(cfg, 'Pie de pagina'),
+					global.g_telefono
+				),
 			columnas: parseInt(configGet(cfg, 'Columnas'), 10) || 1,
 		};
 
@@ -489,7 +516,9 @@
 			$('#link_titulo').html(t.titulo.indexOf('<') >= 0 ? t.titulo : '<font color=#FF6B35>' + t.titulo + '</font>');
 		}
 		if (t.pieHtml) {
-			$('#footer_pedilo_contenido').html(t.pieHtml);
+			$('#footer_pedilo_contenido').html(normalizePieHtml(t.pieHtml, global.g_telefono));
+		} else {
+			$('#footer_pedilo_contenido').html(buildDefaultBravaPieHtml(global.g_telefono));
 		}
 	}
 

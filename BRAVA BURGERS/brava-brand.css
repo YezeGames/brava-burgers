@@ -99,6 +99,39 @@ body.tienehover .producto_fila:hover small {
 	color: var(--brava-text);
 }
 
+#footer_pedilo_contenido,
+#footer_pedilo_contenido .brava-footer-pie {
+	color: var(--brava-accent) !important;
+	font-weight: 700;
+	font-size: 15px;
+	line-height: 1.65;
+	text-align: center;
+}
+
+.brava-footer-pie .brava-footer-brand {
+	font-size: 17px;
+	margin: 0 0 16px;
+	letter-spacing: 0.04em;
+}
+
+.brava-footer-pie p {
+	margin: 0 0 6px;
+}
+
+.brava-footer-pie .brava-footer-wa {
+	margin-top: 16px;
+	margin-bottom: 0;
+}
+
+.brava-footer-pie a {
+	color: var(--brava-accent) !important;
+	text-decoration: none;
+}
+
+.brava-footer-pie a:hover {
+	text-decoration: underline;
+}
+
 #footer_enviar {
 	background-color: var(--brava-bg) !important;
 	border-top: 3px solid var(--brava-accent) !important;
