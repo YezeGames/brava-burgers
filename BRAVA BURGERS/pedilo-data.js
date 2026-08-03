@@ -109,6 +109,61 @@
 		return '';
 	}
 
+	function convertGoogleDriveToDirect(url) {
+		if (!url) return url;
+		let m = url.match(/drive\.google\.com\/file\/d\/([^/]+)/i);
+		if (m) return 'https://drive.google.com/uc?export=view&id=' + m[1];
+		m = url.match(/drive\.google\.com\/open\?id=([^&]+)/i);
+		if (m) return 'https://drive.google.com/uc?export=view&id=' + m[1];
+		m = url.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+		if (/drive\.google\.com/i.test(url) && m) {
+			return 'https://drive.google.com/uc?export=view&id=' + m[1];
+		}
+		return url;
+	}
+
+	function normalizeImgurUrl(url) {
+		if (!url || !/imgur\.com/i.test(url)) return url;
+		let m = url.match(/imgur\.com\/(?:gallery\/|a\/)?([a-zA-Z0-9]{5,8})/i);
+		if (m && url.indexOf('i.imgur.com') === -1) {
+			return 'https://i.imgur.com/' + m[1] + '.png';
+		}
+		m = url.match(/i\.imgur\.com\/([a-zA-Z0-9]{5,8})(?:\.[a-zA-Z]+)?/i);
+		if (m) return 'https://i.imgur.com/' + m[1] + '.png';
+		return url;
+	}
+
+	/** Acepta URL suelta, HTML, hipervínculo de Sheets o enlace de Drive. */
+	function extractImageUrl(raw) {
+		if (raw === undefined || raw === null) return '';
+		let s = String(raw).trim();
+		if (!s) return '';
+		const srcMatch = s.match(/src=["']([^"']+)["']/i);
+		if (srcMatch) s = srcMatch[1].trim();
+		const urlMatch = s.match(/https?:\/\/[^\s<>"']+/i);
+		if (!urlMatch) return '';
+		let url = urlMatch[0].replace(/[.,;)]+$/, '');
+		url = convertGoogleDriveToDirect(url);
+		return normalizeImgurUrl(url);
+	}
+
+	function resolveLogoFromConfig(cfg) {
+		let raw =
+			configGet(cfg, 'Logo') ||
+			configGet(cfg, 'logo') ||
+			configGet(cfg, 'LOGO') ||
+			configGet(cfg, 'Imagen logo') ||
+			configGet(cfg, 'Url logo');
+		if (!raw) {
+			const tituloLogo = configGet(cfg, 'Titulo Logo') || configGet(cfg, 'Titulo logo');
+			if (tituloLogo) {
+				const parts = String(tituloLogo).trim().split(/\s+(?=https?:\/\/)/);
+				raw = parts[1] || tituloLogo;
+			}
+		}
+		return extractImageUrl(raw);
+	}
+
 	function parseMergedConfigBootstrap(k, v, cfg) {
 		const kl = k.toLowerCase();
 		if (kl.indexOf('whatsapp') === -1 && kl.indexOf('titulo') === -1 && kl.indexOf('pie de p') === -1) {
@@ -154,6 +209,10 @@
 				const parts = String(v).trim().split(/\s+(?=https?:\/\/)/);
 				cfg['Titulo'] = parts[0] || '';
 				if (parts[1]) cfg['Logo'] = parts[1].trim();
+				continue;
+			}
+			if (k.toLowerCase() === 'logo' && v) {
+				cfg['Logo'] = extractImageUrl(v) || String(v).trim();
 				continue;
 			}
 			cfg[k] = v;
@@ -353,7 +412,7 @@
 
 		global.g_tema = {
 			titulo: configGet(cfg, 'Titulo') || '<font color=#FF6B35>BRAVA BURGERS</font>',
-			logo: configGet(cfg, 'Logo'),
+			logo: resolveLogoFromConfig(cfg),
 			colorCabecera: configGet(cfg, 'Color de la cabecera') || '#1a1a1a',
 			colorPie: configGet(cfg, 'Color del pie') || '#1a1a1a',
 			colorFondo: configGet(cfg, 'Color del fondo') || '#1a1a1a',
@@ -400,10 +459,23 @@
 		}
 		document.body.style.backgroundRepeat = 'repeat';
 
-		var logoSrc =
-			t.logo ||
+		const DEFAULT_LOGO_SVG =
 			"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E";
-		$('#link_logo img').attr('src', logoSrc).show();
+
+		var logoSrc = extractImageUrl(t.logo) || DEFAULT_LOGO_SVG;
+		var $logoImg = $('#link_logo img');
+		$logoImg
+			.off('error.bravaLogo')
+			.on('error.bravaLogo', function () {
+				console.warn('No se pudo cargar el logo del Sheet:', t.logo);
+				$(this).attr('src', DEFAULT_LOGO_SVG);
+			})
+			.attr('referrerpolicy', 'no-referrer')
+			.attr('src', logoSrc)
+			.show();
+		if (extractImageUrl(t.logo)) {
+			console.log('✓ Logo:', extractImageUrl(t.logo));
+		}
 
 		if (t.titulo) {
 			$('#link_titulo').html(t.titulo.indexOf('<') >= 0 ? t.titulo : '<font color=#FF6B35>' + t.titulo + '</font>');

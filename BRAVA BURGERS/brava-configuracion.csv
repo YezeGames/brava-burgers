@@ -1,0 +1,62 @@
+Nombre,Valor
+Titulo,"<font color=#FF6B35>BRAVA BURGERS</font>"
+Logo,https://i.imgur.com/BAL4ZFV.png
+Whatsapp pedidos,5491173721945
+Pie de página,"<span style=""color:#FF6B35; font-weight: bold;""><br>BRAVA BURGERS<BR><br>Hamburguesas de verdad<br>Abierto Sábados 20:00 a 23:00<br><span class=""fab fa-instagram"">&nbsp;</span><a href=""https://www.instagram.com/bravaburgers.ok/"" target=_blank style=""color:#FF6B35"">@bravaburgers.ok</a><br><a href=""https://wa.me/5491173721945"" target=_blank style=""color:#FF6B35"">Escribinos por WhatsApp</a></span>"
+Columnas,1
+Color de la cabecera,#1a1a1a
+Color del pie,#1a1a1a
+Color del fondo,#1a1a1a
+Color de la letra de los productos,#ffffff
+Imagen de fondo,
+Color de fondo de los botones,#FF6B35
+Color del producto seleccionado,#FF6B35
+Agrupar categorías,SI
+Pregunta previa al pedido 1,Nombre*
+Pregunta previa al pedido 2,Dirección/Entre que calles?*
+Pregunta previa al pedido 3,Localidad*
+Pregunta previa al pedido 4,Piso/Dpto
+Pregunta previa al pedido 5,https://pidorapido.com/scripts/genericos/select.php?numero=5&titulo=Como%20va%20a%20abonar?:*&valores=Efectivo;Mercado%20Pago;&requerida=1
+Pregunta previa al pedido 6,https://pidorapido.com/scripts/genericos/select.php?numero=6&titulo=Selecciona%20el%20turno:&valores=Turno%20Noche%201%3A%2020.00%20a%2021.00%3BTurno%20Noche%202%3A%2021.00%20a%2022.00%3BTurno%20Noche%203%3A%2022.00%20a%2023.00&requerida=1
+Preguntas encabezado,"¡Completá los datos para que <BR> preparemos tu pedido!"
+Preguntas pie,"Gracias por elegir Brava Burgers 🔥<BR> <BR>"
+Ventana inicial,
+Extra al pedido 1 - Monto,
+Monto mínimo del pedido,0
+Control horario,SI
+Mensaje si está CERRADO,"¡Estamos cerrados! <BR>Horario: Sábados de 20:00 a 23:00 🔥"
+Horario abierto LUNES,
+Horario abierto MARTES,
+Horario abierto MIERCOLES,
+Horario abierto JUEVES,
+Horario abierto VIERNES,
+Horario abierto SABADO,20:00-23:00
+Horario abierto DOMINGO,
+Moneda signo,$
+Defina zonas y costos del envío,
+Modelo del pedido en Whatsapp,"*CANTIDAD* x *NOMBRE* *VARIEDAD* *ACLARACION*\nSubtotal = $*SUBTOTAL*\n"
+Zona de envío - Título,Lo enviamos a (seleccione la zona): *
+Zona 1 - Nombre,Retiro por el local
+Zona 1 - Costo de envío,0
+Zona 2 - Nombre,V. López / Florida
+Zona 2 - Costo de envío,500
+Zona 3 - Nombre,Olivos
+Zona 3 - Costo de envío,800
+Zona 4 - Nombre,Martinez
+Zona 4 - Costo de envío,1000
+Zona 5 - Nombre,Villa Adelina
+Zona 5 - Costo de envío,800
+Zona 6 - Nombre,Carapachay
+Zona 6 - Costo de envío,1000
+Zona 7 - Nombre,La Lucila
+Zona 7 - Costo de envío,1000
+Zona 8 - Nombre,Munro / F. Oeste
+Zona 8 - Costo de envío,800
+Zona 9 - Nombre,
+Zona 9- Costo de envío,
+Zona 10 - Nombre,
+Zona 10- Costo de envío,
+Alias pedido,bravaburgers
+Texto al final del mensaje,BRAVA BURGERS 🔥
+Agregar link con el pedido,NO
+Aceptar MercadoPago,
