@@ -184,7 +184,16 @@
 		if (!html || !String(html).trim()) {
 			return buildDefaultBravaPieHtml(telefono);
 		}
-		return String(html).replace(/<BR>/gi, '<br>');
+		const h = String(html).replace(/<BR>/gi, '<br>');
+		if (h.indexOf('brava-footer-pie') === -1) {
+			return buildDefaultBravaPieHtml(telefono);
+		}
+		return h;
+	}
+
+	function resolveBravaPieHtml(cfg, telefono) {
+		const raw = configGet(cfg, 'Pie de página') || configGet(cfg, 'Pie de pagina');
+		return normalizePieHtml(raw, telefono);
 	}
 
 	function parseMergedConfigBootstrap(k, v, cfg) {
@@ -204,8 +213,6 @@
 		} else if (/brava/i.test(blob)) {
 			cfg['Titulo'] = '<font color=#FF6B35>BRAVA BURGERS</font>';
 		}
-		const span = blob.match(/(<span[\s\S]+)$/i);
-		if (span) cfg['Pie de página'] = span[1];
 		const logoUrl = extractImageUrl(blob);
 		if (logoUrl) cfg['Logo'] = logoUrl;
 		return true;
@@ -451,11 +458,7 @@
 			colorBotones: configGet(cfg, 'Color de fondo de los botones') || '#FF6B35',
 			colorSeleccionado: configGet(cfg, 'Color del producto seleccionado') || '#FF6B35',
 			imagenFondo: configGet(cfg, 'Imagen de fondo'),
-			pieHtml:
-				normalizePieHtml(
-					configGet(cfg, 'Pie de página') || configGet(cfg, 'Pie de pagina'),
-					global.g_telefono
-				),
+			pieHtml: resolveBravaPieHtml(cfg, global.g_telefono),
 			columnas: parseInt(configGet(cfg, 'Columnas'), 10) || 1,
 		};
 
@@ -515,11 +518,10 @@
 		if (t.titulo) {
 			$('#link_titulo').html(t.titulo.indexOf('<') >= 0 ? t.titulo : '<font color=#FF6B35>' + t.titulo + '</font>');
 		}
-		if (t.pieHtml) {
-			$('#footer_pedilo_contenido').html(normalizePieHtml(t.pieHtml, global.g_telefono));
-		} else {
-			$('#footer_pedilo_contenido').html(buildDefaultBravaPieHtml(global.g_telefono));
-		}
+		$('#footer_pedilo_contenido').html(
+			resolveBravaPieHtml(global.g_config || {}, global.g_telefono) ||
+				buildDefaultBravaPieHtml(global.g_telefono)
+		);
 	}
 
 	async function loadCSV(url) {

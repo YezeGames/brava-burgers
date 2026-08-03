@@ -97,6 +97,7 @@ body.tienehover .producto_fila:hover small {
 	background-color: var(--brava-bg) !important;
 	border-top: 3px solid var(--brava-accent);
 	color: var(--brava-text);
+	padding-bottom: 16px;
 }
 
 #footer_pedilo_contenido,
