@@ -166,17 +166,23 @@
 
 	function buildDefaultBravaPieHtml(telefono) {
 		const wa = normalizarTelefono(telefono) || '5491173721945';
+		const accent = '#FF6B35';
 		return (
-			'<div class="brava-footer-pie">' +
-			'<div class="brava-footer-brand">BRAVA BURGERS</div>' +
-			'<p>Hamburguesas de verdad</p>' +
-			'<p>Abierto Sábados 20:00 a 23:00</p>' +
-			'<p class="brava-footer-ig">Instagram ' +
-			'<a href="https://www.instagram.com/bravaburgers.ok/" target="_blank" rel="noopener">@bravaburgers.ok</a></p>' +
-			'<p class="brava-footer-wa"><a href="https://wa.me/' +
+			'<span class="brava-footer-pedilo" style="color:' +
+			accent +
+			'; font-weight: bold;">' +
+			'<br>BRAVA BURGERS<BR><br>' +
+			'🍔 Hamburguesas de verdad<br>' +
+			'⏰ Abierto Sábados 20:00 a 23:00<br>' +
+			'<span class="fab fa-instagram">&nbsp;</span>' +
+			'<a href="https://www.instagram.com/bravaburgers.ok/" target="_blank" rel="noopener" style="color:' +
+			accent +
+			'">@bravaburgers.ok</a><br>' +
+			'<br><a href="https://wa.me/' +
 			wa +
-			'" target="_blank" rel="noopener">Escribinos por WhatsApp</a></p>' +
-			'</div>'
+			'" target="_blank" rel="noopener" style="color:' +
+			accent +
+			'">Escribinos por WhatsApp</a></span>'
 		);
 	}
 
@@ -185,7 +191,7 @@
 			return buildDefaultBravaPieHtml(telefono);
 		}
 		const h = String(html).replace(/<BR>/gi, '<br>');
-		if (h.indexOf('brava-footer-pie') === -1) {
+		if (!/BRAVA BURGERS|bravaburgers\.ok|brava-footer-pie|brava-footer-pedilo/i.test(h)) {
 			return buildDefaultBravaPieHtml(telefono);
 		}
 		return h;
