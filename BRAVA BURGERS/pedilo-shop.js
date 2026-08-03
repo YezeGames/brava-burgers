@@ -228,7 +228,7 @@
 					'</span>';
 			}
 			html +=
-				"<button type='button' class='btn btn-dark btn-block' style='margin-bottom:8px;text-align:left;' onclick=\"pre_agregar_al_pedido('" +
+				"<button type='button' class='btn btn-dark btn-block brava-variante-btn' onclick=\"pre_agregar_al_pedido('" +
 				escapeAttr(p_id) +
 				"', '" +
 				escapeAttr(variedad.nombre) +
@@ -279,7 +279,13 @@
 			$('#pregunta_variedades_opciones').html(
 				dame_html_variantes(producto.variedades, p_id, 0, g_moneda_signo)
 			);
-			$.fancybox.open({ src: '#pregunta_variedades' });
+			$.fancybox.open({
+				src: '#pregunta_variedades',
+				type: 'inline',
+				touch: false,
+				smallBtn: true,
+				baseClass: 'brava-fancybox-modal',
+			});
 			return;
 		}
 
@@ -533,7 +539,7 @@
 			type: 'inline',
 			touch: false,
 			smallBtn: true,
-			baseClass: 'brava-fancybox-checkout',
+			baseClass: 'brava-fancybox-modal',
 		});
 	};
 
