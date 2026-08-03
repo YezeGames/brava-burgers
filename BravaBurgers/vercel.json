@@ -1,34 +1,42 @@
-{
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [{ "type": "host", "value": "www.brava-burgers.vercel.app" }],
-      "destination": "https://brava-burgers.vercel.app/:path*",
-      "permanent": true
-    },
-    {
-      "source": "/admin",
-      "destination": "/admin/",
-      "permanent": false
-    }
-  ],
-    {
-      "source": "/",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
-      ]
-    },
-    {
-      "source": "/(index.html|pedilo-data.js|pedilo-shop.js)",
-      "headers": [
-        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
-      ]
-    }
-  ],
-  "headers": [
-    {
-      "source": "/admin/",
-      "destination": "/admin/index.html"
-    }
-  ]
-}
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.brava-burgers.vercel.app" }],
+      "destination": "https://brava-burgers.vercel.app/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin/",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(index.html|pedilo-data.js|pedilo-shop.js|brava-brand.css)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/admin/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/admin/",
+      "destination": "/admin/index.html"
+    }
+  ]
+}
+

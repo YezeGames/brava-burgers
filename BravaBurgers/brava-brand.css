@@ -378,3 +378,38 @@ body.tienehover .producto_fila:hover small {
 #popup_monto_minimo_texto {
 	color: var(--brava-text) !important;
 }
+
+/* Panel /admin — legible (evita texto blanco heredado del tema tienda) */
+body:has(#app-view),
+body:has(#login-view) {
+	background-color: #f5f5f5 !important;
+	color: #333 !important;
+	padding-top: 24px !important;
+}
+body:has(#app-view) .card,
+body:has(#login-view) .card {
+	background: #fff !important;
+	color: #333 !important;
+}
+body:has(#app-view) h1,
+body:has(#login-view) h1,
+body:has(#app-view) label,
+body:has(#login-view) label,
+body:has(#app-view) th,
+body:has(#app-view) td,
+body:has(#app-view) table,
+body:has(#app-view) .tab,
+body:has(#app-view) .btn-sm,
+body:has(#app-view) .sound-bar {
+	color: #333 !important;
+}
+body:has(#app-view) .tab {
+	background: #fff !important;
+}
+body:has(#app-view) .tab.active {
+	color: #1a1a1a !important;
+	border-color: #ff6b35 !important;
+}
+body:has(#app-view) #poll-status {
+	color: #666 !important;
+}

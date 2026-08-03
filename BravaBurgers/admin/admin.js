@@ -78,6 +78,13 @@
   function renderRows(orders) {
     var tb = $('tbody');
     tb.innerHTML = '';
+    if (!orders.length) {
+      var empty = document.createElement('tr');
+      empty.innerHTML =
+        '<td colspan="7" style="padding:24px;text-align:center;color:#666;">No hay pedidos en esta pestaña.</td>';
+      tb.appendChild(empty);
+      return;
+    }
     orders.forEach(function (o) {
       var tr = document.createElement('tr');
       var fecha = o.fecha_creado ? new Date(o.fecha_creado).toLocaleString('es-AR') : '';
