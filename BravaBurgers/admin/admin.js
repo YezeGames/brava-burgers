@@ -6,6 +6,12 @@
   var soundOn = false;
   var audioCtx = null;
   var pollTimer = null;
+  var POLL_MS = 4000;
+
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(pollNewOrders, POLL_MS);
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -43,7 +49,7 @@
     $('login-view').classList.add('hidden');
     $('app-view').classList.remove('hidden');
     loadOrders();
-    pollTimer = setInterval(pollNewOrders, 20000);
+    startPolling();
   }
 
   function playDing() {
@@ -234,22 +240,20 @@
   }
 
   function pollNewOrders() {
-    api({ action: 'listOrders', token: token, estadoFilter: '' }).then(function (res) {
-      if (!res.data.ok) return;
-      var list = res.data.orders || [];
+    var prevActivas = new Set();
+    allOrdersCache.forEach(function (o) {
+      if (String(o.estado || '').trim().toLowerCase() === 'activa' && o.orn) {
+        prevActivas.add(o.orn);
+      }
+    });
+    fetchOrdersFromServer().then(function (ok) {
+      if (!ok) return;
       var neu = false;
-      list.forEach(function (o) {
+      allOrdersCache.forEach(function (o) {
         var e = String(o.estado || '').trim().toLowerCase();
-        if (e === 'activa' && o.orn && !knownOrns.has(o.orn)) {
-          knownOrns.add(o.orn);
-          neu = true;
-        }
+        if (e === 'activa' && o.orn && !prevActivas.has(o.orn)) neu = true;
       });
-      allOrdersCache = list;
-      renderTabCounts(allOrdersCache);
-      applyTabView();
       if (neu) playDing();
-      $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
     });
   }
 
@@ -342,6 +346,12 @@
     playDing();
     $('btn-sound').textContent = 'Sonido activado ✓';
   };
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && token && !$('app-view').classList.contains('hidden')) {
+      fetchOrdersFromServer();
+    }
+  });
 
   if (token) showApp();
   else showLogin();
