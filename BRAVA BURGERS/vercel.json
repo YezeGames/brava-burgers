@@ -1,0 +1,30 @@
+{
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.brava-burgers.vercel.app" }],
+      "destination": "https://brava-burgers.vercel.app/:path*",
+      "permanent": true
+    }
+  ],
+  "headers": [
+    {
+      "source": "/",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/(index.html|pedilo-data.js|pedilo-shop.js)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/((?!api/|admin/|pedilo-data\\.js|pedilo-shop\\.js|brava-brand\\.css|favicon\\.ico).*)",
+      "destination": "/index.html"
+    }
+  ]
+}
