@@ -148,15 +148,20 @@ body.tienehover .producto_fila:hover small {
 /* Modal checkout compacto (como Brava original) */
 .fancybox-container.brava-fancybox-checkout .fancybox-content,
 .fancybox-content:has(.brava-checkout-form) {
-	width: 420px !important;
-	max-width: calc(100vw - 24px) !important;
+	width: 440px !important;
+	max-width: calc(100vw - 32px) !important;
 	overflow: visible !important;
+}
+
+.fancybox-container.brava-fancybox-checkout .fancybox-close-small {
+	right: 12px !important;
+	top: 8px !important;
 }
 
 #preguntas_pedido.brava-checkout-form {
 	background-color: var(--brava-bg);
 	color: var(--brava-text);
-	padding: 18px 20px 16px;
+	padding: 24px 28px 20px;
 	width: 100%;
 	box-sizing: border-box;
 }
@@ -168,6 +173,7 @@ body.tienehover .producto_fila:hover small {
 	font-weight: 700;
 	line-height: 1.35;
 	margin-bottom: 14px;
+	padding: 0 4px;
 }
 
 #preguntas_pedido_pie {
