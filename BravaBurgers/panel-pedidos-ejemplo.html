@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Brava Burgers — Órdenes (prueba)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+			padding: 24px 16px 48px;
+		}
+		.demo-banner {
+			max-width: 1180px;
+			margin: 0 auto 16px;
+			padding: 10px 14px;
+			background: #1a1a1a;
+			color: #fff;
+			border-radius: 8px;
+			border-left: 4px solid #FF6B35;
+			font-size: 0.85rem;
+		}
+		.demo-banner strong { color: #FF6B35; }
+		.layout {
+			max-width: 1180px;
+			margin: 0 auto;
+			display: grid;
+			grid-template-columns: 1fr 240px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 900px) {
+			.layout { grid-template-columns: 1fr; }
+		}
+		.wrap {
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0,0,0,.08);
+			padding: 28px 24px 16px;
+		}
+		.caja-box {
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0,0,0,.08);
+			padding: 20px 16px;
+			font-size: 0.85rem;
+		}
+		.caja-box h2 {
+			margin: 0 0 12px;
+			font-size: 1rem;
+			color: #444;
+			border-bottom: 2px solid #FF6B35;
+			padding-bottom: 8px;
+		}
+		.caja-row {
+			display: flex;
+			justify-content: space-between;
+			margin: 6px 0;
+		}
+		.caja-row.muted { color: #888; font-size: 0.8rem; }
+		.caja-row.negative { color: #c62828; }
+		.caja-row.total {
+			font-weight: 700;
+			font-size: 1rem;
+			margin-top: 10px;
+			padding-top: 10px;
+			border-top: 1px solid #eee;
+		}
+		h1 {
+			margin: 0 0 16px;
+			font-size: 1.75rem;
+			font-weight: 400;
+			color: #444;
+		}
+		.tabs {
+			display: flex;
+			gap: 4px;
+			margin-bottom: 20px;
+			border-bottom: 1px solid #eee;
+			flex-wrap: wrap;
+		}
+		.tab {
+			padding: 10px 16px;
+			border: none;
+			background: none;
+			cursor: pointer;
+			font-size: 0.9rem;
+			color: #666;
+			border-bottom: 2px solid transparent;
+			margin-bottom: -1px;
+		}
+		.tab.active {
+			color: #111;
+			font-weight: 600;
+			border-bottom-color: #FF6B35;
+		}
+		.tab .count {
+			display: inline-block;
+			min-width: 1.25rem;
+			padding: 0 6px;
+			margin-left: 4px;
+			background: #eee;
+			border-radius: 10px;
+			font-size: 0.75rem;
+			text-align: center;
+		}
+		.tab.active .count { background: #ffe8df; color: #c44; }
+		.filters {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+			gap: 16px 20px;
+			align-items: end;
+			margin-bottom: 20px;
+			padding-bottom: 20px;
+			border-bottom: 1px solid #eee;
+		}
+		.filters label {
+			display: block;
+			font-size: 0.75rem;
+			color: #666;
+			margin-bottom: 4px;
+		}
+		.filters input,
+		.filters select {
+			width: 100%;
+			padding: 8px 10px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			font-size: 0.9rem;
+		}
+		.filter-actions {
+			grid-column: 1 / -1;
+			display: flex;
+			justify-content: center;
+			gap: 12px;
+			margin-top: 8px;
+		}
+		.btn {
+			padding: 8px 20px;
+			border-radius: 4px;
+			font-size: 0.8rem;
+			font-weight: 600;
+			cursor: pointer;
+			border: 1px solid #ccc;
+			background: #fff;
+		}
+		.btn-primary { background: #333; color: #fff; border-color: #333; }
+		.table-scroll { overflow-x: auto; }
+		table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+		th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eee; }
+		th { font-weight: 600; color: #555; font-size: 0.8rem; }
+		td.total { font-weight: 600; }
+		.actions {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 6px;
+		}
+		.btn-ticket {
+			padding: 6px 10px;
+			font-size: 0.7rem;
+			white-space: nowrap;
+		}
+		.btn-wa {
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			padding: 6px 10px;
+			background: #25D366;
+			color: #fff;
+			border: none;
+			border-radius: 6px;
+			font-size: 0.75rem;
+			font-weight: 600;
+			text-decoration: none;
+		}
+		.btn-wa:hover { background: #1da851; color: #fff; }
+		.btn-icon {
+			width: 34px;
+			height: 34px;
+			border-radius: 6px;
+			border: 2px solid;
+			background: #fff;
+			cursor: pointer;
+			font-weight: 700;
+			font-size: 1rem;
+			line-height: 1;
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.btn-icon.deliver {
+			border-color: #2e7d32;
+			color: #2e7d32;
+		}
+		.btn-icon.deliver:hover { background: #e8f5e9; }
+		.btn-icon.cancel {
+			border-color: #c62828;
+			color: #c62828;
+		}
+		.btn-icon.cancel:hover { background: #ffebee; }
+		.empty {
+			text-align: center;
+			padding: 32px;
+			color: #999;
+			font-size: 0.9rem;
+		}
+		.badge-cancel {
+			font-size: 0.75rem;
+			color: #c62828;
+		}
+		.pagination {
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			gap: 16px;
+			padding: 16px 0 8px;
+			font-size: 0.8rem;
+			color: #666;
+		}
+		.btn-edit {
+			padding: 6px 10px;
+			font-size: 0.7rem;
+			border-color: #FF6B35;
+			color: #c44;
+		}
+		.badge-mod {
+			display: inline-block;
+			font-size: 0.65rem;
+			background: #fff3e0;
+			color: #e65100;
+			padding: 2px 6px;
+			border-radius: 4px;
+			margin-left: 4px;
+		}
+		.modal-backdrop {
+			position: fixed;
+			inset: 0;
+			background: rgba(0,0,0,.45);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			z-index: 100;
+		}
+		.modal-backdrop[hidden] { display: none; }
+		.modal {
+			background: #fff;
+			border-radius: 8px;
+			max-width: 480px;
+			width: 100%;
+			max-height: 90vh;
+			overflow: auto;
+			padding: 20px;
+			box-shadow: 0 8px 32px rgba(0,0,0,.2);
+		}
+		.modal h2 { margin: 0 0 4px; font-size: 1.15rem; }
+		.modal .sub { font-size: 0.8rem; color: #666; margin-bottom: 16px; }
+		.modal-items { border: 1px solid #eee; border-radius: 6px; margin-bottom: 12px; }
+		.modal-item {
+			display: grid;
+			grid-template-columns: 1fr auto auto;
+			gap: 8px;
+			align-items: center;
+			padding: 10px 12px;
+			border-bottom: 1px solid #eee;
+			font-size: 0.85rem;
+		}
+		.modal-item:last-child { border-bottom: none; }
+		.modal-item small { display: block; color: #666; }
+		.modal-qty { display: flex; align-items: center; gap: 6px; }
+		.modal-qty button {
+			width: 28px;
+			height: 28px;
+			border: 1px solid #ccc;
+			background: #fff;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+		.modal-foot {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			margin-top: 16px;
+			padding-top: 12px;
+			border-top: 1px solid #eee;
+		}
+		.modal-total { font-weight: 700; font-size: 1.1rem; }
+		.add-line {
+			display: flex;
+			gap: 8px;
+			margin-top: 8px;
+		}
+		.add-line select { flex: 1; padding: 8px; }
+		.sound-bar {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 10px;
+			margin-bottom: 16px;
+			padding: 12px 14px;
+			background: #f9f9f9;
+			border: 1px solid #eee;
+			border-radius: 8px;
+			font-size: 0.85rem;
+		}
+		.sound-bar .status {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			color: #666;
+		}
+		.sound-bar .dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: #ccc;
+		}
+		.sound-bar .dot.on { background: #25D366; box-shadow: 0 0 0 2px rgba(37,211,102,.3); }
+		.btn-sound-on { border-color: #FF6B35; color: #c44; }
+		tr.row-new { animation: rowFlash 1.2s ease; }
+		@keyframes rowFlash {
+			0%, 100% { background: transparent; }
+			25% { background: #fff3e0; }
+			50% { background: #ffe0b2; }
+		}
+	</style>
+</head>
+<body>
+	<p class="demo-banner"><strong>Prueba interactiva</strong> — Primero <strong>Activar sonido</strong>, después <strong>Simular pedido nuevo</strong> para escuchar el aviso.</p>
+
+	<div class="layout">
+		<div class="wrap">
+			<h1>Órdenes</h1>
+
+			<div class="sound-bar">
+				<span class="status"><span class="dot" id="sound-dot"></span> <span id="sound-label">Sonido desactivado</span></span>
+				<button type="button" class="btn btn-sound-on" id="btn-enable-sound">Activar sonido</button>
+				<button type="button" class="btn" id="btn-test-sound" disabled>Probar sonido</button>
+				<button type="button" class="btn btn-primary" id="btn-sim-order" disabled>Simular pedido nuevo</button>
+			</div>
+
+			<div class="tabs" role="tablist">
+				<button type="button" class="tab active" data-tab="activa" role="tab">Activas <span class="count" id="count-activa">0</span></button>
+				<button type="button" class="tab" data-tab="entregada" role="tab">Entregados <span class="count" id="count-entregada">0</span></button>
+				<button type="button" class="tab" data-tab="cancelada" role="tab">Cancelados <span class="count" id="count-cancelada">0</span></button>
+			</div>
+
+			<div class="filters">
+				<div>
+					<label for="desde">Desde</label>
+					<input type="date" id="desde" value="2026-08-03">
+				</div>
+				<div>
+					<label for="hasta">Hasta</label>
+					<input type="date" id="hasta" value="2026-08-03">
+				</div>
+				<div>
+					<label for="tipo">Tipo</label>
+					<select id="tipo">
+						<option value="">Todos</option>
+						<option>delivery</option>
+						<option>retiro</option>
+					</select>
+				</div>
+				<div>
+					<label for="pago">Pago</label>
+					<select id="pago">
+						<option value="">Todos</option>
+						<option>Efectivo</option>
+						<option>Mercado Pago</option>
+					</select>
+				</div>
+				<div class="filter-actions">
+					<button type="button" class="btn btn-primary" onclick="render()">APLICAR</button>
+					<button type="button" class="btn">RESTABLECER</button>
+				</div>
+			</div>
+
+			<div class="table-scroll">
+				<table>
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th>Cliente</th>
+							<th>Teléfono</th>
+							<th>Método de pago</th>
+							<th>Tipo</th>
+							<th>Total</th>
+							<th>Acciones</th>
+						</tr>
+					</thead>
+					<tbody id="tbody"></tbody>
+				</table>
+				<p class="empty" id="empty" hidden>No hay pedidos en esta lista.</p>
+			</div>
+
+			<div class="pagination">
+				<span id="page-info">—</span>
+			</div>
+		</div>
+
+		<aside class="caja-box">
+			<h2>Caja del día</h2>
+			<div class="caja-row"><span>Efectivo (entregados)</span><span id="caja-ef">$0</span></div>
+			<div class="caja-row"><span>Mercado Pago (entregados)</span><span id="caja-mp">$0</span></div>
+			<div class="caja-row total"><span>Total caja (ventas)</span><span id="caja-neto">$0</span></div>
+			<div class="caja-row negative" style="margin-top:12px;"><span>Cancelados (descontado)</span><span id="caja-cancel">−$0</span></div>
+			<p class="muted" style="margin:12px 0 0;font-size:0.75rem;color:#888;">Solo <strong>✓</strong> suma caja. <strong>✕</strong> registra cancelación y ese monto figura descontado (no es venta). Activas no suman hasta entregar.</p>
+		</aside>
+	</div>
+
+	<div class="modal-backdrop" id="edit-modal" hidden role="dialog" aria-labelledby="edit-title">
+		<div class="modal">
+			<h2 id="edit-title">Editar comanda</h2>
+			<p class="sub" id="edit-sub"></p>
+			<div class="modal-items" id="edit-items"></div>
+			<div class="add-line">
+				<select id="edit-add-select"></select>
+				<button type="button" class="btn btn-primary" style="padding:8px 12px;" onclick="addCatalogLine()">+ Agregar</button>
+			</div>
+			<div class="modal-foot">
+				<span class="modal-total" id="edit-total"></span>
+				<div>
+					<button type="button" class="btn" onclick="closeEdit()">Cerrar</button>
+					<button type="button" class="btn btn-primary" onclick="saveEdit()">Guardar y reimprimir</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		function fmt(n) {
+			return n.toLocaleString('es-AR');
+		}
+
+		var catalog = [
+			{ key: 'cs', nombre: 'Cheeseburger Simple', variedad: 'Sin Extra', precio: 17000 },
+			{ key: 'cs-bacon', nombre: 'Cheeseburger Simple', variedad: 'Extra bacon', precio: 18500 },
+			{ key: 'cd', nombre: 'Cheeseburger Doble', variedad: 'Sin Extra', precio: 22000 },
+			{ key: 'papas', nombre: 'Papas Brava', variedad: '', precio: 6500 }
+		];
+
+		function defaultItems(seed) {
+			if (seed === '2') {
+				return [{ nombre: 'Cheeseburger Simple', variedad: 'Sin Extra', acl: '', qty: 1, precio: 17000 }];
+			}
+			if (seed === '1') {
+				return [
+					{ nombre: 'Cheeseburger Simple', variedad: 'Extra bacon', acl: 'sin salsa', qty: 1, precio: 18500 },
+					{ nombre: 'Cheeseburger Doble', variedad: 'Sin Extra', acl: '', qty: 1, precio: 22000 },
+					{ nombre: 'Papas Brava', variedad: '', acl: '', qty: 1, precio: 6500 }
+				];
+			}
+			return [{ nombre: 'Cheeseburger Simple', variedad: 'Sin Extra', acl: '', qty: 1, precio: 17000 }];
+		}
+
+		var orders = [
+			{ id: '1', orn: 'ORN-DEL-0014', fecha: '03/08/2026 20:47', cliente: 'María González', tel: '11 6234-5678', wa: '5491162345678', pago: 'Mercado Pago', tipo: 'delivery', envio: 800, estado: 'activa', items: defaultItems('1') },
+			{ id: '2', orn: 'ORN-DEL-0015', fecha: '03/08/2026 21:12', cliente: 'Lucas Pérez', tel: '11 5555-1234', wa: '5491155551234', pago: 'Efectivo', tipo: 'delivery', envio: 500, estado: 'activa', items: defaultItems('2') },
+			{ id: '3', orn: 'ORN-DEL-0016', fecha: '03/08/2026 22:05', cliente: 'Camila Ruiz', tel: '11 7372-1945', wa: '5491173721945', pago: 'Efectivo', tipo: 'delivery', envio: 800, estado: 'activa', items: defaultItems('3') },
+			{ id: '4', orn: 'ORN-DEL-0017', fecha: '03/08/2026 22:38', cliente: 'Tomás Acosta', tel: '11 6012-8899', wa: '5491160128899', pago: 'Mercado Pago', tipo: 'delivery', envio: 800, estado: 'activa', items: defaultItems('4') }
+		];
+
+		orders.forEach(function (o) { recalcOrder(o); });
+
+		var editingId = null;
+		var audioCtx = null;
+		var soundEnabled = false;
+		var nextSimOrn = 18;
+		var nextSimId = 5;
+		var lastNewRowId = null;
+
+		function ensureAudioContext() {
+			if (!audioCtx) {
+				audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			}
+			if (audioCtx.state === 'suspended') {
+				return audioCtx.resume();
+			}
+			return Promise.resolve();
+		}
+
+		function playNewOrderSound() {
+			if (!soundEnabled) return;
+			return ensureAudioContext().then(function () {
+				var ctx = audioCtx;
+				var start = ctx.currentTime;
+				[880, 1318].forEach(function (freq, i) {
+					var osc = ctx.createOscillator();
+					var gain = ctx.createGain();
+					osc.type = 'sine';
+					osc.frequency.value = freq;
+					osc.connect(gain);
+					gain.connect(ctx.destination);
+					var t0 = start + i * 0.18;
+					gain.gain.setValueAtTime(0.001, t0);
+					gain.gain.exponentialRampToValueAtTime(0.35, t0 + 0.03);
+					gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+					osc.start(t0);
+					osc.stop(t0 + 0.4);
+				});
+			}).catch(function () {});
+		}
+
+		function setSoundUi(on) {
+			soundEnabled = on;
+			document.getElementById('sound-dot').classList.toggle('on', on);
+			document.getElementById('sound-label').textContent = on ? 'Sonido activado' : 'Sonido desactivado';
+			document.getElementById('btn-test-sound').disabled = !on;
+			document.getElementById('btn-sim-order').disabled = !on;
+			document.getElementById('btn-enable-sound').textContent = on ? 'Sonido OK ✓' : 'Activar sonido';
+		}
+
+		document.getElementById('btn-enable-sound').addEventListener('click', function () {
+			setSoundUi(true);
+			playNewOrderSound();
+		});
+		document.getElementById('btn-test-sound').addEventListener('click', function () {
+			playNewOrderSound();
+		});
+		document.getElementById('btn-sim-order').addEventListener('click', function () {
+			simulateIncomingOrder();
+		});
+
+		function simulateIncomingOrder() {
+			var n = nextSimOrn++;
+			var orn = 'ORN-DEL-' + String(n).padStart(4, '0');
+			var id = String(nextSimId++);
+			var now = new Date();
+			var fecha =
+				String(now.getDate()).padStart(2, '0') + '/' +
+				String(now.getMonth() + 1).padStart(2, '0') + '/' +
+				now.getFullYear() + ' ' +
+				String(now.getHours()).padStart(2, '0') + ':' +
+				String(now.getMinutes()).padStart(2, '0');
+			var names = ['Sofía Lema', 'Nico Brava', 'Valentina Díaz', 'Pedro M.', 'Juana Test'];
+			var name = names[Math.floor(Math.random() * names.length)];
+			var suffix = String(Math.floor(10000000 + Math.random() * 89999999));
+			var tel = '11 ' + suffix.slice(0, 4) + '-' + suffix.slice(4);
+			var wa = '54911' + suffix;
+			var pago = Math.random() > 0.5 ? 'Efectivo' : 'Mercado Pago';
+			var order = {
+				id: id,
+				orn: orn,
+				fecha: fecha,
+				cliente: name,
+				tel: tel,
+				wa: wa,
+				pago: pago,
+				tipo: 'delivery',
+				envio: 800,
+				estado: 'activa',
+				items: [{ nombre: 'Cheeseburger Simple', variedad: 'Sin Extra', acl: '', qty: 2, precio: 17000 }]
+			};
+			recalcOrder(order);
+			orders.unshift(order);
+			lastNewRowId = id;
+			currentTab = 'activa';
+			document.querySelectorAll('.tab').forEach(function (t) {
+				t.classList.toggle('active', t.dataset.tab === 'activa');
+			});
+			playNewOrderSound();
+			if (document.hidden) {
+				document.title = '🔔 Pedido nuevo — Órdenes';
+			}
+			render();
+			setTimeout(function () {
+				if (document.title.indexOf('🔔') === 0) document.title = 'Brava Burgers — Órdenes (prueba)';
+			}, 4000);
+		}
+
+		function lineKey(it) {
+			return it.nombre + '|' + it.variedad + '|' + (it.acl || '');
+		}
+
+		function recalcOrder(o) {
+			var sub = 0;
+			(o.items || []).forEach(function (it) {
+				sub += it.qty * it.precio;
+			});
+			o.subtotal = sub;
+			o.total = sub + (o.envio || 0);
+		}
+
+		function fillAddSelect() {
+			var sel = document.getElementById('edit-add-select');
+			sel.innerHTML = catalog.map(function (c) {
+				var label = c.nombre + (c.variedad ? ' (' + c.variedad + ')' : '') + ' — $' + fmt(c.precio);
+				return '<option value="' + c.key + '">' + label + '</option>';
+			}).join('');
+		}
+
+		function openEdit(id) {
+			editingId = id;
+			var o = orders.find(function (x) { return x.id === id; });
+			if (!o) return;
+			document.getElementById('edit-sub').textContent = o.orn + ' · ' + o.cliente + ' — Cliente pidió más por WhatsApp? Ajustá acá sin nuevo pedido web.';
+			fillAddSelect();
+			renderEditItems();
+			document.getElementById('edit-modal').hidden = false;
+		}
+
+		function closeEdit() {
+			editingId = null;
+			document.getElementById('edit-modal').hidden = true;
+		}
+
+		function renderEditItems() {
+			var o = orders.find(function (x) { return x.id === editingId; });
+			if (!o) return;
+			var html = '';
+			o.items.forEach(function (it, idx) {
+				var det = it.variedad ? it.variedad : '';
+				if (it.acl) det += (det ? ' · ' : '') + 'Acl.: ' + it.acl;
+				html += '<div class="modal-item">' +
+					'<div><strong>' + it.nombre + '</strong>' + (det ? '<small>' + det + '</small>' : '') + '</div>' +
+					'<div class="modal-qty">' +
+					'<button type="button" onclick="changeQty(' + idx + ',-1)">−</button>' +
+					'<span>' + it.qty + '</span>' +
+					'<button type="button" onclick="changeQty(' + idx + ',1)">+</button>' +
+					'</div>' +
+					'<span>$' + fmt(it.qty * it.precio) + '</span></div>';
+			});
+			html += '<div class="modal-item" style="background:#fafafa;"><div>Envío</div><div></div><span>$' + fmt(o.envio || 0) + '</span></div>';
+			document.getElementById('edit-items').innerHTML = html;
+			recalcOrder(o);
+			document.getElementById('edit-total').textContent = 'Total: $' + fmt(o.total);
+		}
+
+		function changeQty(idx, delta) {
+			var o = orders.find(function (x) { return x.id === editingId; });
+			if (!o) return;
+			o.items[idx].qty += delta;
+			if (o.items[idx].qty <= 0) o.items.splice(idx, 1);
+			renderEditItems();
+		}
+
+		function addCatalogLine() {
+			var o = orders.find(function (x) { return x.id === editingId; });
+			if (!o) return;
+			var key = document.getElementById('edit-add-select').value;
+			var c = catalog.find(function (x) { return x.key === key; });
+			if (!c) return;
+			var found = o.items.find(function (it) {
+				return it.nombre === c.nombre && it.variedad === c.variedad && !it.acl;
+			});
+			if (found) found.qty += 1;
+			else o.items.push({ nombre: c.nombre, variedad: c.variedad, acl: '', qty: 1, precio: c.precio });
+			renderEditItems();
+		}
+
+		function saveEdit() {
+			var o = orders.find(function (x) { return x.id === editingId; });
+			if (!o) return;
+			o.modificado = true;
+			o.modificadoAt = new Date().toLocaleString('es-AR');
+			recalcOrder(o);
+			closeEdit();
+			render();
+			alert('Comanda actualizada. Total nuevo: $' + fmt(o.total) + '. Reimprimí ticket para cocina.');
+		}
+
+		var currentTab = 'activa';
+
+		document.querySelectorAll('.tab').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				currentTab = btn.dataset.tab;
+				document.querySelectorAll('.tab').forEach(function (t) { t.classList.toggle('active', t.dataset.tab === currentTab); });
+				render();
+			});
+		});
+
+		function setEstado(id, estado) {
+			var o = orders.find(function (x) { return x.id === id; });
+			if (!o) return;
+			if (estado === 'cancelada') {
+				if (!confirm('¿Cancelar pedido ' + o.orn + ' de ' + o.cliente + '? Se registrará la cancelación y se descontará de la caja del día.')) return;
+				o.canceladoAt = new Date().toLocaleString('es-AR');
+			}
+			if (estado === 'entregada') {
+				o.entregadoAt = new Date().toLocaleString('es-AR');
+			}
+			o.estado = estado;
+			render();
+		}
+
+		function updateCaja() {
+			var ef = 0, mp = 0, cancel = 0;
+			orders.forEach(function (o) {
+				if (o.estado === 'entregada') {
+					if (o.pago === 'Efectivo') ef += o.total;
+					else mp += o.total;
+				}
+				if (o.estado === 'cancelada') cancel += o.total;
+			});
+			document.getElementById('caja-ef').textContent = '$' + fmt(ef);
+			document.getElementById('caja-mp').textContent = '$' + fmt(mp);
+			document.getElementById('caja-neto').textContent = '$' + fmt(ef + mp);
+			document.getElementById('caja-cancel').textContent = '−$' + fmt(cancel);
+		}
+
+		function updateCounts() {
+			['activa', 'entregada', 'cancelada'].forEach(function (s) {
+				var n = orders.filter(function (o) { return o.estado === s; }).length;
+				document.getElementById('count-' + s).textContent = n;
+			});
+		}
+
+		function render() {
+			var list = orders.filter(function (o) { return o.estado === currentTab; });
+			var tbody = document.getElementById('tbody');
+			var empty = document.getElementById('empty');
+			tbody.innerHTML = '';
+
+			if (list.length === 0) {
+				empty.hidden = false;
+				document.getElementById('page-info').textContent = '0 pedidos';
+			} else {
+				empty.hidden = true;
+				document.getElementById('page-info').textContent = '1–' + list.length + ' of ' + list.length;
+			}
+
+			list.forEach(function (o) {
+				var tr = document.createElement('tr');
+				var fechaCell = o.fecha;
+				if (o.estado === 'cancelada' && o.canceladoAt) {
+					fechaCell += '<br><span class="badge-cancel">Cancelado: ' + o.canceladoAt + '</span>';
+				}
+				if (o.estado === 'entregada' && o.entregadoAt) {
+					fechaCell += '<br><span style="font-size:0.75rem;color:#2e7d32;">Entregado: ' + o.entregadoAt + '</span>';
+				}
+
+				var actions = '<div class="actions">';
+				if (o.estado === 'activa') {
+					actions += '<button type="button" class="btn btn-edit" title="Modificar ítems" onclick="openEdit(\'' + o.id + '\')">Editar</button>';
+				}
+				actions += '<button type="button" class="btn btn-ticket" onclick="window.open(\'comanda-ejemplo.html\',\'_blank\')">Imprimir Ticket</button>' +
+					'<a class="btn-wa" href="https://wa.me/' + o.wa + '?text=' + encodeURIComponent('Hola ' + o.cliente.split(' ')[0] + ', sobre tu pedido ' + o.orn) + '" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>';
+
+				if (o.estado === 'activa') {
+					actions += '<button type="button" class="btn-icon deliver" title="Marcar entregado" onclick="setEstado(\'' + o.id + '\',\'entregada\')">✓</button>';
+					actions += '<button type="button" class="btn-icon cancel" title="Cancelar pedido" onclick="setEstado(\'' + o.id + '\',\'cancelada\')">✕</button>';
+				}
+				actions += '</div>';
+
+				tr.innerHTML =
+					'<td>' + fechaCell + '</td>' +
+					'<td>' + o.cliente + '</td>' +
+					'<td>' + o.tel + '</td>' +
+					'<td>' + o.pago + '</td>' +
+					'<td>' + o.tipo + '</td>' +
+					'<td class="total">' + fmt(o.total) + (o.modificado ? '<span class="badge-mod">editado</span>' : '') + '</td>' +
+					'<td>' + actions + '</td>';
+				if (o.id === lastNewRowId) {
+					tr.className = 'row-new';
+					lastNewRowId = null;
+				}
+				tbody.appendChild(tr);
+			});
+
+			updateCounts();
+			updateCaja();
+		}
+
+		render();
+	</script>
+</body>
+</html>

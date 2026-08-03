@@ -1,0 +1,7 @@
+{
+  "name": "brava-burgers",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  }
+}
