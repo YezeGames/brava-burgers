@@ -75,13 +75,43 @@
     return '54911' + d;
   }
 
+  var allOrdersCache = [];
+
+  function renderTabCounts(orders) {
+    var counts = { activa: 0, entregada: 0, cancelada: 0 };
+    orders.forEach(function (o) {
+      var e = String(o.estado || '').trim().toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(counts, e)) counts[e]++;
+    });
+    document.querySelectorAll('.tab').forEach(function (btn) {
+      var est = btn.dataset.estado;
+      var label = btn.getAttribute('data-label');
+      if (!label) {
+        label = btn.textContent.replace(/\s*\(\d+\)\s*$/, '').trim();
+        btn.setAttribute('data-label', label);
+      }
+      var n = counts[est] || 0;
+      btn.textContent = n ? label + ' (' + n + ')' : label;
+    });
+  }
+
+  function ordersForTab(orders) {
+    return orders.filter(function (o) {
+      return String(o.estado || '').trim().toLowerCase() === currentEstado;
+    });
+  }
+
   function renderRows(orders) {
     var tb = $('tbody');
     tb.innerHTML = '';
     if (!orders.length) {
       var empty = document.createElement('tr');
+      var hint =
+        currentEstado === 'activa'
+          ? 'No hay pedidos activos. Si ya los entregaste, mirá la pestaña <strong>Entregados</strong>.'
+          : 'No hay pedidos en esta pestaña.';
       empty.innerHTML =
-        '<td colspan="7" style="padding:24px;text-align:center;color:#666;">No hay pedidos en esta pestaña.</td>';
+        '<td colspan="7" style="padding:24px;text-align:center;color:#666;">' + hint + '</td>';
       tb.appendChild(empty);
       return;
     }
@@ -158,7 +188,7 @@
 
   function loadOrders() {
     $('app-err').hidden = true;
-    api({ action: 'listOrders', token: token, estadoFilter: currentEstado })
+    api({ action: 'listOrders', token: token, estadoFilter: '' })
       .then(function (res) {
         if (!res.data.ok) {
           if (res.status === 401 || res.data.error === 'unauthorized') {
@@ -170,9 +200,11 @@
           renderRows([]);
           return;
         }
-        renderRows(res.data.orders || []);
+        allOrdersCache = res.data.orders || [];
+        renderTabCounts(allOrdersCache);
+        renderRows(ordersForTab(allOrdersCache));
         if (currentEstado === 'activa') {
-          (res.data.orders || []).forEach(function (o) {
+          ordersForTab(allOrdersCache).forEach(function (o) {
             if (o.orn) knownOrns.add(o.orn);
           });
         }
