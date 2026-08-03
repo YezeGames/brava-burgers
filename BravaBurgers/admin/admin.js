@@ -6,7 +6,7 @@
   var soundOn = false;
   var audioCtx = null;
   var pollTimer = null;
-  var POLL_MS = 4000;
+  var POLL_MS = 2000;
 
   function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
