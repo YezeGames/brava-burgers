@@ -186,62 +186,86 @@
     showLogin();
   }
 
-  function loadOrders() {
+  function applyTabView() {
+    renderTabCounts(allOrdersCache);
+    renderRows(ordersForTab(allOrdersCache));
+  }
+
+  function fetchOrdersFromServer() {
     $('app-err').hidden = true;
-    api({ action: 'listOrders', token: token, estadoFilter: '' })
+    return api({ action: 'listOrders', token: token, estadoFilter: '' })
       .then(function (res) {
         if (!res.data.ok) {
           if (res.status === 401 || res.data.error === 'unauthorized') {
             handleAuthFailure();
-            return;
+            return false;
           }
           $('app-err').textContent = listErrorMessage(res.data.error);
           $('app-err').hidden = false;
-          renderRows([]);
-          return;
+          return false;
         }
         allOrdersCache = res.data.orders || [];
-        renderTabCounts(allOrdersCache);
-        renderRows(ordersForTab(allOrdersCache));
         if (currentEstado === 'activa') {
           ordersForTab(allOrdersCache).forEach(function (o) {
             if (o.orn) knownOrns.add(o.orn);
           });
         }
+        applyTabView();
         $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
+        return true;
       })
       .catch(function () {
         $('app-err').textContent = 'Sin conexión al servidor. Revisá internet e intentá otra vez.';
         $('app-err').hidden = false;
-        renderRows([]);
+        return false;
       });
   }
 
+  function loadOrders() {
+    fetchOrdersFromServer().then(function (ok) {
+      if (!ok && !allOrdersCache.length) renderRows([]);
+    });
+  }
+
   function pollNewOrders() {
-    api({ action: 'listOrders', token: token, estadoFilter: 'activa' }).then(function (res) {
+    api({ action: 'listOrders', token: token, estadoFilter: '' }).then(function (res) {
       if (!res.data.ok) return;
       var list = res.data.orders || [];
       var neu = false;
       list.forEach(function (o) {
-        if (o.orn && !knownOrns.has(o.orn)) {
+        var e = String(o.estado || '').trim().toLowerCase();
+        if (e === 'activa' && o.orn && !knownOrns.has(o.orn)) {
           knownOrns.add(o.orn);
           neu = true;
         }
       });
-      if (neu && currentEstado === 'activa') {
-        playDing();
-        loadOrders();
-      }
+      allOrdersCache = list;
+      renderTabCounts(allOrdersCache);
+      applyTabView();
+      if (neu) playDing();
+      $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
     });
   }
 
+  function patchOrderEstadoInCache(orn, estado) {
+    for (var i = 0; i < allOrdersCache.length; i++) {
+      if (allOrdersCache[i].orn === orn) {
+        allOrdersCache[i].estado = estado;
+        break;
+      }
+    }
+    applyTabView();
+  }
+
   function updateEstado(orn, estado) {
+    patchOrderEstadoInCache(orn, estado);
     api({ action: 'updateOrder', token: token, orn: orn, estado: estado }).then(function (res) {
-      if (res.data.ok) loadOrders();
+      if (res.data.ok) fetchOrdersFromServer();
       else if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
       else {
         $('app-err').textContent = listErrorMessage(res.data.error);
         $('app-err').hidden = false;
+        fetchOrdersFromServer();
       }
     });
   }
@@ -303,7 +327,7 @@
         b.classList.toggle('active', b === btn);
       });
       currentEstado = btn.dataset.estado;
-      loadOrders();
+      applyTabView();
     };
   });
 
