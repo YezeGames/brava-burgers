@@ -517,9 +517,6 @@
 			.attr('referrerpolicy', 'no-referrer')
 			.attr('src', logoSrc)
 			.show();
-		if (extractImageUrl(t.logo)) {
-			console.log('✓ Logo:', extractImageUrl(t.logo));
-		}
 
 		if (t.titulo) {
 			$('#link_titulo').html(t.titulo.indexOf('<') >= 0 ? t.titulo : '<font color=#FF6B35>' + t.titulo + '</font>');
@@ -560,7 +557,6 @@
 		const rows = parseCSV(productsCSV);
 		global.g_productos = buildProductsFromPediloRows(rows);
 		global.g_ultima_sync_sheets = Date.now();
-		console.log('✓ Productos (Pedilo):', global.g_productos.length, 'Sheet:', SHEET_ID);
 
 		return true;
 	}

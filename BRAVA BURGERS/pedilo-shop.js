@@ -814,14 +814,6 @@
 			return;
 		}
 		inicializar_tienda();
-		setInterval(function () {
-			refrescar_desde_sheets(true);
-		}, 30000);
-		document.addEventListener('visibilitychange', function () {
-			if (document.visibilityState === 'visible') {
-				refrescar_desde_sheets(true);
-			}
-		});
 	});
 
 	function hasTouch() {
