@@ -32,7 +32,7 @@
 		var g_telefono = '';
 	</script>
 	<script src="pedilo-data.js?v=4"></script>
-	<link href="brava-brand.css?v=6" rel="stylesheet">
+	<link href="brava-brand.css?v=7" rel="stylesheet">
 
 	<style>
 		* { touch-action: manipulation; }
@@ -122,19 +122,23 @@
 	</div>
 
 	<div id="preguntas_pedido" class="brava-checkout-form" style="display:none;border-radius:.5rem;">
-		<div id="preguntas_pedido_encabezado">¡Completá los datos para que preparemos tu pedido!</div>
-		<form onsubmit="finalizar_pedido(); return false;">
-			<p class="brava-field"><label id="pregunta_1_label">Nombre*</label><input type="text" id="pregunta_1_respuesta" class="form-control" placeholder="Tu nombre" required></p>
-			<p class="brava-field"><label id="pregunta_2_label">Dirección/Entre que calles?*</label><input type="text" id="pregunta_2_respuesta" class="form-control" placeholder="Ej: Acoyte 1500" required></p>
-			<p class="brava-field"><label id="pregunta_3_label">Localidad*</label><input type="text" id="pregunta_3_respuesta" class="form-control" placeholder="Ej: Olivos" required></p>
-			<p class="brava-field"><label id="pregunta_4_label">Piso/Dpto</label><input type="text" id="pregunta_4_respuesta" class="form-control" placeholder="Ej: 2B"></p>
-			<p class="brava-field"><label id="pregunta_5_label">Como va a abonar?*</label><select id="pregunta_5_respuesta" class="form-control" required></select></p>
-			<p class="brava-field"><label id="pregunta_6_label">Selecciona el turno*</label><select id="pregunta_6_respuesta" class="form-control" required></select></p>
-			<p class="brava-field"><label id="pregunta_10_label">Lo enviamos a (seleccione la zona)*</label><select id="pregunta_10_respuesta" class="form-control" required onchange="calcular_total()"></select></p>
-			<div id="preguntas_pedido_pie"></div>
-			<div class="brava-checkout-actions">
-				<button type="button" class="btn btn-outline-brava" onclick="$.fancybox.close();">Cancelar</button>
-				<input type="submit" class="btn btn-primary my-btn-primary" value="Enviar Pedido">
+		<div class="brava-checkout-head">
+			<div id="preguntas_pedido_encabezado">¡Completá los datos para que preparemos tu pedido!</div>
+		</div>
+		<form class="brava-checkout-body" onsubmit="finalizar_pedido(); return false;">
+			<p class="brava-field"><label id="pregunta_1_label">Nombre*</label><input type="text" id="pregunta_1_respuesta" class="form-control brava-input" placeholder="Tu nombre" required></p>
+			<p class="brava-field"><label id="pregunta_2_label">Dirección/Entre que calles?*</label><input type="text" id="pregunta_2_respuesta" class="form-control brava-input" placeholder="Ej: Acoyte 1500" required></p>
+			<p class="brava-field"><label id="pregunta_3_label">Localidad*</label><input type="text" id="pregunta_3_respuesta" class="form-control brava-input" placeholder="Ej: Olivos" required></p>
+			<p class="brava-field"><label id="pregunta_4_label">Piso/Dpto</label><input type="text" id="pregunta_4_respuesta" class="form-control brava-input" placeholder="Ej: 2B"></p>
+			<p class="brava-field"><label id="pregunta_5_label">Como va a abonar?*</label><select id="pregunta_5_respuesta" class="form-control brava-input" required></select></p>
+			<p class="brava-field"><label id="pregunta_6_label">Selecciona el turno*</label><select id="pregunta_6_respuesta" class="form-control brava-input" required></select></p>
+			<p class="brava-field"><label id="pregunta_10_label">Lo enviamos a (seleccione la zona)*</label><select id="pregunta_10_respuesta" class="form-control brava-input" required onchange="calcular_total()"></select></p>
+			<div id="preguntas_pedido_pie" class="brava-checkout-pie">🔥 Gracias por elegir Brava Burgers</div>
+			<div class="brava-checkout-foot">
+				<div class="brava-checkout-actions">
+					<button type="button" class="btn btn-outline-brava" onclick="$.fancybox.close();">Cancelar</button>
+					<input type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" value="Enviar Pedido">
+				</div>
 			</div>
 		</form>
 	</div>
@@ -161,6 +165,6 @@
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-	<script src="pedilo-shop.js?v=5"></script>
+	<script src="pedilo-shop.js?v=6"></script>
 </body>
 </html>

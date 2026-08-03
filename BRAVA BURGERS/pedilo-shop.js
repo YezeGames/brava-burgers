@@ -284,6 +284,7 @@
 				type: 'inline',
 				touch: false,
 				smallBtn: true,
+				autoSize: false,
 				baseClass: 'brava-fancybox-modal',
 			});
 			return;
@@ -539,6 +540,7 @@
 			type: 'inline',
 			touch: false,
 			smallBtn: true,
+			autoSize: false,
 			baseClass: 'brava-fancybox-modal',
 		});
 	};
