@@ -166,11 +166,13 @@
 
 	function parseMergedConfigBootstrap(k, v, cfg) {
 		const kl = k.toLowerCase();
-		if (kl.indexOf('whatsapp') === -1 && kl.indexOf('titulo') === -1 && kl.indexOf('pie de p') === -1) {
+		const blob = String(v).replace(/^valor\s*/i, '').trim();
+		const isMegaRow =
+			(kl.indexOf('whatsapp') !== -1 && kl.indexOf('titulo') !== -1) ||
+			(kl.indexOf('nombre') !== -1 && kl.indexOf('logo') !== -1 && blob.length > 80);
+		if (!isMegaRow) {
 			return false;
 		}
-		if (kl.indexOf('whatsapp') === -1) return false;
-		const blob = String(v);
 		const phone = blob.match(/549\d{9,12}/);
 		if (phone) cfg['Whatsapp pedidos'] = phone[0];
 		const fontTit = blob.match(/<font[^>]*>([^<]+)<\/font>/i);
@@ -181,6 +183,8 @@
 		}
 		const span = blob.match(/(<span[\s\S]+)$/i);
 		if (span) cfg['Pie de página'] = span[1];
+		const logoUrl = extractImageUrl(blob);
+		if (logoUrl) cfg['Logo'] = logoUrl;
 		return true;
 	}
 
@@ -202,7 +206,7 @@
 		}
 		for (let i = start; i < rows.length; i++) {
 			const k = (rows[i][0] != null ? String(rows[i][0]) : '').trim();
-			const v = rows[i][1] != null ? String(rows[i][1]).trim() : '';
+			let v = rows[i][1] != null ? String(rows[i][1]).trim() : '';
 			if (!k) continue;
 			if (parseMergedConfigBootstrap(k, v, cfg)) continue;
 			if (k.toLowerCase() === 'titulo logo' && v) {
@@ -216,6 +220,10 @@
 				continue;
 			}
 			cfg[k] = v;
+		}
+		if (!extractImageUrl(cfg['Logo'])) {
+			const fromTituloLogo = extractImageUrl(configGet(cfg, 'Titulo Logo'));
+			if (fromTituloLogo) cfg['Logo'] = fromTituloLogo;
 		}
 		return cfg;
 	}
