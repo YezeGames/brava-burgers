@@ -29,6 +29,27 @@
 		return escapeHtml(s).replace(/'/g, '&#39;');
 	}
 
+	/** Mismo tamaño que pedilo.shop/brburgers (~350px, padding 44px). Fancybox pisa width por JS. */
+	function bravaModalPediloOpts(src) {
+		return {
+			src: src,
+			type: 'inline',
+			touch: false,
+			smallBtn: true,
+			autoSize: false,
+			baseClass: 'brava-fancybox-modal',
+			afterShow: function (_instance, current) {
+				if (!current || !current.$content) return;
+				current.$content.css({
+					width: '350px',
+					maxWidth: 'calc(100vw - 24px)',
+					padding: '44px',
+					boxSizing: 'border-box',
+				});
+			},
+		};
+	}
+
 	window.formatear_moneda = function (x) {
 		if (Number.parseFloat(x) == Number.parseInt(x, 10)) {
 			return Number.parseInt(x, 10);
@@ -279,13 +300,7 @@
 			$('#pregunta_variedades_opciones').html(
 				dame_html_variantes(producto.variedades, p_id, 0, g_moneda_signo)
 			);
-			$.fancybox.open({
-				src: '#pregunta_variedades',
-				type: 'inline',
-				touch: false,
-				smallBtn: true,
-				baseClass: 'brava-fancybox-modal',
-			});
+			$.fancybox.open(bravaModalPediloOpts('#pregunta_variedades'));
 			return;
 		}
 
@@ -534,13 +549,7 @@
 			return;
 		}
 		pre_abrir_preguntas();
-		$.fancybox.open({
-			src: '#preguntas_pedido',
-			type: 'inline',
-			touch: false,
-			smallBtn: true,
-			baseClass: 'brava-fancybox-modal',
-		});
+		$.fancybox.open(bravaModalPediloOpts('#preguntas_pedido'));
 	};
 
 	window.pre_abrir_preguntas = function () {

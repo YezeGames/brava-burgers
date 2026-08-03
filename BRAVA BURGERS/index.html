@@ -32,7 +32,19 @@
 		var g_telefono = '';
 	</script>
 	<script src="pedilo-data.js?v=4"></script>
-	<link href="brava-brand.css?v=8" rel="stylesheet">
+	<link href="brava-brand.css?v=9" rel="stylesheet">
+	<style>
+		#preguntas_pedido.fancybox-content,
+		#pregunta_variedades.fancybox-content {
+			width: 350px !important;
+			max-width: calc(100vw - 24px) !important;
+			padding: 44px !important;
+			box-sizing: border-box !important;
+			overflow-x: hidden !important;
+			overflow-y: auto !important;
+			max-height: 92vh !important;
+		}
+	</style>
 
 	<style>
 		* { touch-action: manipulation; }
@@ -121,7 +133,8 @@
 		</center>
 	</div>
 
-	<div id="preguntas_pedido" class="brava-checkout-form" style="display:none;border-radius:.5rem;">
+	<div id="preguntas_pedido" style="display:none;">
+		<div class="brava-checkout-inner">
 		<div class="brava-checkout-head">
 			<div id="preguntas_pedido_encabezado">¡Completá los datos para que preparemos tu pedido!</div>
 		</div>
@@ -141,11 +154,14 @@
 				</div>
 			</div>
 		</form>
+		</div>
 	</div>
 
-	<div id="pregunta_variedades" class="brava-variedades-form" style="display:none;border-radius:.5rem;">
+	<div id="pregunta_variedades" style="display:none;">
+		<div class="brava-variedades-inner">
 		<h5 class="mb-0" id="pregunta_variedades_titulo">Elija una opción</h5>
 		<div id="pregunta_variedades_opciones" class="brava-variedades-list"></div>
+		</div>
 	</div>
 
 	<footer class="footer text-center">
@@ -165,6 +181,6 @@
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-	<script src="pedilo-shop.js?v=7"></script>
+	<script src="pedilo-shop.js?v=8"></script>
 </body>
 </html>

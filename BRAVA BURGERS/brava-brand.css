@@ -127,6 +127,9 @@ body.tienehover .producto_fila:hover small {
 	background: var(--brava-bg) !important;
 	border: 2px solid var(--brava-accent);
 	border-radius: 10px;
+}
+
+.fancybox-content:not(#preguntas_pedido):not(#pregunta_variedades) {
 	padding: 0 !important;
 }
 
@@ -144,16 +147,27 @@ body.tienehover .producto_fila:hover small {
 	max-width: 100%;
 }
 
-/*
- * Modales checkout + extras: mismas medidas que pedilo.shop/brburgers
- * (.fancybox-content ~319px + padding 44px → ~350px total; campos ~261px)
- */
-.fancybox-container.brava-fancybox-modal .fancybox-content {
+/* Igual que pedilo.shop/brburgers: caja ~350px, padding 44px, campos ~262px */
+#preguntas_pedido.fancybox-content,
+#pregunta_variedades.fancybox-content,
+.fancybox-container.brava-fancybox-modal #preguntas_pedido.fancybox-content,
+.fancybox-container.brava-fancybox-modal #pregunta_variedades.fancybox-content {
+	width: 350px !important;
+	max-width: calc(100vw - 24px) !important;
+	min-width: 0 !important;
 	padding: 44px !important;
-	width: auto !important;
-	max-width: min(350px, calc(100vw - 20px)) !important;
-	overflow: visible !important;
 	box-sizing: border-box !important;
+	overflow-x: hidden !important;
+	overflow-y: auto !important;
+	max-height: 92vh !important;
+}
+
+.brava-checkout-inner,
+.brava-variedades-inner {
+	width: 100%;
+	max-width: 262px;
+	margin: 0 auto;
+	box-sizing: border-box;
 }
 
 .fancybox-container.brava-fancybox-modal .fancybox-close-small {
@@ -162,14 +176,10 @@ body.tienehover .producto_fila:hover small {
 	padding: 4px !important;
 }
 
-#preguntas_pedido.brava-checkout-form {
-	background-color: transparent;
+#preguntas_pedido,
+#pregunta_variedades {
+	background-color: var(--brava-bg);
 	color: var(--brava-text);
-	padding: 0;
-	width: 100%;
-	max-width: 262px;
-	box-sizing: border-box;
-	margin: 0 auto;
 }
 
 .brava-checkout-head {
@@ -270,16 +280,6 @@ body.tienehover .producto_fila:hover small {
 	padding: 7px 18px;
 	border-radius: 4px;
 	color: #ffffff !important;
-}
-
-#pregunta_variedades.brava-variedades-form {
-	background-color: transparent;
-	color: var(--brava-text);
-	padding: 0;
-	width: 100%;
-	max-width: 262px;
-	box-sizing: border-box;
-	margin: 0 auto;
 }
 
 #pregunta_variedades_titulo {
