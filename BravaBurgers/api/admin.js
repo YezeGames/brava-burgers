@@ -28,7 +28,14 @@ module.exports = async function handler(req, res) {
 
   const data = await gasPost(payload);
   if (!data.ok) {
-    const code = data.error === 'unauthorized' ? 401 : data.error === 'gas_not_configured' ? 503 : 502;
+    const authErrors = ['unauthorized', 'invalid_credentials', 'admin_not_configured'];
+    const code = authErrors.includes(data.error)
+      ? data.error === 'admin_not_configured'
+        ? 503
+        : 401
+      : data.error === 'gas_not_configured'
+        ? 503
+        : 502;
     return res.status(code).json(data);
   }
   return res.status(200).json(data);

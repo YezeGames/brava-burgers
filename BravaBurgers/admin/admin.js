@@ -185,7 +185,11 @@
       password: $('login-pass').value,
     }).then(function (res) {
       if (!res.data.ok) {
-        $('login-err').textContent = 'Usuario o contraseña incorrectos';
+        var msg =
+          res.data.error === 'admin_not_configured'
+            ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Apps Script'
+            : 'Usuario o contraseña incorrectos';
+        $('login-err').textContent = msg;
         $('login-err').hidden = false;
         return;
       }
@@ -193,6 +197,9 @@
       sessionStorage.setItem('brava_admin_token', token);
       knownOrns = new Set();
       showApp();
+    }).catch(function () {
+      $('login-err').textContent = 'Error de conexión. Probá de nuevo.';
+      $('login-err').hidden = false;
     });
   };
 
