@@ -684,9 +684,7 @@
 					'</div></div>';
 
 				productos_por_cat[categoria].subs[subcategoria].forEach(function (producto) {
-					var precioLabel = producto.tiene_precios_diferentes
-						? 'Desde $' + formatear_moneda(producto.precio)
-						: '$' + formatear_moneda(producto.precio);
+					var precioLabel = 'Desde $' + formatear_moneda(producto.precio);
 					html +=
 						'<div class="col-md-12 producto" data-categoria="' +
 						cat_index +
