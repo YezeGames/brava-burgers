@@ -76,6 +76,7 @@
   }
 
   var allOrdersCache = [];
+  var fetchInFlight = null;
 
   function renderTabCounts(orders) {
     var counts = { activa: 0, entregada: 0, cancelada: 0 };
