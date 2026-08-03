@@ -1,22 +1,44 @@
+function sleep(ms) {
+  return new Promise(function (resolve) {
+    setTimeout(resolve, ms);
+  });
+}
+
 async function gasPost(payload) {
   const url = (process.env.BRAVA_GAS_URL || '').trim();
   if (!url) {
     return { ok: false, error: 'gas_not_configured', status: 503 };
   }
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    redirect: 'follow',
-  });
-  const text = await res.text();
-  let data;
-  try {
-    data = JSON.parse(text);
-  } catch {
-    data = { ok: false, error: 'invalid_gas_response', raw: text.slice(0, 200) };
+  const body = JSON.stringify(payload);
+  let last = { ok: false, error: 'gas_failed' };
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body,
+        redirect: 'follow',
+        cache: 'no-store',
+      });
+      const text = await res.text();
+      try {
+        const data = JSON.parse(text);
+        return { ...data, httpStatus: res.status };
+      } catch {
+        last = {
+          ok: false,
+          error: 'invalid_gas_response',
+          raw: text.slice(0, 200),
+          httpStatus: res.status,
+        };
+      }
+    } catch (e) {
+      last = { ok: false, error: 'gas_network_error', message: String(e.message || e) };
+    }
+    if (attempt < 2) await sleep(350 * (attempt + 1));
   }
-  return { ...data, httpStatus: res.status };
+  return last;
 }
 
 function cors(res) {

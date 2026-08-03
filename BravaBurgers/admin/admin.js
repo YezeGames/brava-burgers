@@ -143,27 +143,46 @@
     });
   }
 
+  function listErrorMessage(err) {
+    if (err === 'invalid_gas_response' || err === 'gas_network_error' || err === 'gas_failed') {
+      return 'No se pudo conectar con Google. Esperá unos segundos y tocá Activas de nuevo.';
+    }
+    return err || 'Error al cargar pedidos';
+  }
+
+  function handleAuthFailure() {
+    sessionStorage.removeItem('brava_admin_token');
+    token = '';
+    showLogin();
+  }
+
   function loadOrders() {
     $('app-err').hidden = true;
-    api({ action: 'listOrders', token: token, estadoFilter: currentEstado }).then(function (res) {
-      if (!res.data.ok) {
-        if (res.status === 401) {
-          sessionStorage.removeItem('brava_admin_token');
-          showLogin();
+    api({ action: 'listOrders', token: token, estadoFilter: currentEstado })
+      .then(function (res) {
+        if (!res.data.ok) {
+          if (res.status === 401 || res.data.error === 'unauthorized') {
+            handleAuthFailure();
+            return;
+          }
+          $('app-err').textContent = listErrorMessage(res.data.error);
+          $('app-err').hidden = false;
+          renderRows([]);
           return;
         }
-        $('app-err').textContent = res.data.error || 'Error al cargar';
+        renderRows(res.data.orders || []);
+        if (currentEstado === 'activa') {
+          (res.data.orders || []).forEach(function (o) {
+            if (o.orn) knownOrns.add(o.orn);
+          });
+        }
+        $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
+      })
+      .catch(function () {
+        $('app-err').textContent = 'Sin conexión al servidor. Revisá internet e intentá otra vez.';
         $('app-err').hidden = false;
-        return;
-      }
-      renderRows(res.data.orders || []);
-      if (currentEstado === 'activa') {
-        (res.data.orders || []).forEach(function (o) {
-          if (o.orn) knownOrns.add(o.orn);
-        });
-      }
-      $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
-    });
+        renderRows([]);
+      });
   }
 
   function pollNewOrders() {
@@ -187,6 +206,11 @@
   function updateEstado(orn, estado) {
     api({ action: 'updateOrder', token: token, orn: orn, estado: estado }).then(function (res) {
       if (res.data.ok) loadOrders();
+      else if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
+      else {
+        $('app-err').textContent = listErrorMessage(res.data.error);
+        $('app-err').hidden = false;
+      }
     });
   }
 
