@@ -664,6 +664,7 @@
 
 		var waAbierto = false;
 		var serverAck = false;
+		var ornListo = null;
 
 		function abrirWhatsApp(orn) {
 			if (waAbierto) return;
@@ -672,37 +673,35 @@
 				var blob = new Blob([payloadJson], { type: 'application/json' });
 				navigator.sendBeacon('/api/pedido', blob);
 			}
-			irWhatsApp(orn || null);
+			irWhatsApp(orn || ornListo || null);
 		}
 
-		var WA_MAX_MS = 2500;
-		var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+		// WhatsApp primero (~450 ms): el guardado sigue en fetch keepalive + sendBeacon si hace falta
+		var WA_ORN_ESPERA_MS = 450;
 		var tLimite = setTimeout(function () {
-			if (controller) controller.abort();
 			abrirWhatsApp(null);
-		}, WA_MAX_MS);
+		}, WA_ORN_ESPERA_MS);
 
-		var fetchOpts = {
+		fetch('/api/pedido', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: payloadJson,
 			keepalive: true,
-		};
-		if (controller) fetchOpts.signal = controller.signal;
-
-		fetch('/api/pedido', fetchOpts)
+		})
 			.then(function (r) {
 				return r.json();
 			})
 			.then(function (data) {
-				clearTimeout(tLimite);
-				if (data && data.ok) serverAck = true;
-				if (!waAbierto) abrirWhatsApp(data && data.ok && data.orn ? data.orn : null);
+				if (data && data.ok) {
+					serverAck = true;
+					if (data.orn) ornListo = data.orn;
+				}
+				if (!waAbierto && data && data.ok && data.orn) {
+					clearTimeout(tLimite);
+					abrirWhatsApp(data.orn);
+				}
 			})
-			.catch(function () {
-				clearTimeout(tLimite);
-				if (!waAbierto) abrirWhatsApp(null);
-			});
+			.catch(function () {});
 
 		return false;
 	};

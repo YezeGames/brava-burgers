@@ -6,7 +6,7 @@
   var soundOn = false;
   var audioCtx = null;
   var pollTimer = null;
-  var POLL_MS = 2000;
+  var POLL_MS = 800;
 
   var allOrdersCache = [];
   var fetchInFlight = null;
@@ -18,6 +18,7 @@
   function startPolling() {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(pollNewOrders, POLL_MS);
+    pollNewOrders();
   }
 
   function $(id) {

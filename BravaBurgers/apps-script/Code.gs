@@ -177,12 +177,15 @@ function validateToken_(token) {
 
 function listOrders_(opts) {
   var sh = getPedidosSheet_();
-  var data = sh.getDataRange().getValues();
-  if (data.length < 2) return { ok: true, orders: [] };
-  var headers = data[0];
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return { ok: true, orders: [] };
+  var lastCol = sh.getLastColumn();
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+  var startRow = Math.max(2, lastRow - 249);
+  var data = sh.getRange(startRow, 1, lastRow, lastCol).getValues();
   var estadoFilter = opts.estado || '';
   var orders = [];
-  for (var i = 1; i < data.length; i++) {
+  for (var i = 0; i < data.length; i++) {
     var row = data[i];
     var o = rowToOrder_(headers, row);
     if (!o.orn || String(o.orn).trim() === '') continue;
