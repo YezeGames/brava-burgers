@@ -639,6 +639,11 @@
 		calcular_total();
 		var url = $('#form_url').val();
 		var payload = buildBravaOrderPayload();
+		payload.idempotencyKey =
+			'brava-' +
+			Date.now().toString(36) +
+			'-' +
+			Math.random().toString(36).slice(2, 12);
 		var payloadJson = JSON.stringify(payload);
 		var $submit = $('.brava-btn-submit');
 		$submit.prop('disabled', true);
@@ -658,14 +663,14 @@
 		}
 
 		var waAbierto = false;
-		var orderSaved = false;
+		var serverAck = false;
 
 		function abrirWhatsApp(orn) {
 			if (waAbierto) return;
 			waAbierto = true;
-			if (!orderSaved && typeof navigator.sendBeacon === 'function') {
+			if (!serverAck && typeof navigator.sendBeacon === 'function') {
 				var blob = new Blob([payloadJson], { type: 'application/json' });
-				if (navigator.sendBeacon('/api/pedido', blob)) orderSaved = true;
+				navigator.sendBeacon('/api/pedido', blob);
 			}
 			irWhatsApp(orn || null);
 		}
@@ -691,7 +696,7 @@
 			})
 			.then(function (data) {
 				clearTimeout(tLimite);
-				if (data && data.ok) orderSaved = true;
+				if (data && data.ok) serverAck = true;
 				if (!waAbierto) abrirWhatsApp(data && data.ok && data.orn ? data.orn : null);
 			})
 			.catch(function () {

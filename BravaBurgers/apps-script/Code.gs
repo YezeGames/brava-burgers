@@ -100,7 +100,26 @@ function nextOrn_() {
   return 'ORN-DEL-' + ('0000' + n).slice(-4);
 }
 
+function headerIndex_(headers, key) {
+  var want = String(key).trim().toLowerCase();
+  for (var h = 0; h < headers.length; h++) {
+    if (String(headers[h] || '').trim().toLowerCase() === want) return h;
+  }
+  return -1;
+}
+
 function createOrder_(order) {
+  var idem = order.idempotencyKey ? String(order.idempotencyKey).slice(0, 120) : '';
+  if (idem) {
+    var cached = CacheService.getScriptCache().get('idem_' + idem);
+    if (cached) {
+      try {
+        var again = JSON.parse(cached);
+        if (again && again.ok) return again;
+      } catch (ignore) {}
+    }
+  }
+
   var sh = getPedidosSheet_();
   var orn = nextOrn_();
   var now = new Date();
@@ -130,7 +149,11 @@ function createOrder_(order) {
     '',
   ];
   sh.appendRow(row);
-  return { ok: true, orn: orn, total: total };
+  var result = { ok: true, orn: orn, total: total };
+  if (idem) {
+    CacheService.getScriptCache().put('idem_' + idem, JSON.stringify(result), 600);
+  }
+  return result;
 }
 
 function login_(user, password) {
@@ -198,11 +221,11 @@ function updateOrder_(body) {
   var sh = getPedidosSheet_();
   var data = sh.getDataRange().getValues();
   var headers = data[0];
-  var ornCol = headers.indexOf('orn');
+  var ornCol = headerIndex_(headers, 'orn');
   if (ornCol < 0) return { ok: false, error: 'bad_sheet' };
 
   for (var i = 1; i < data.length; i++) {
-    if (data[i][ornCol] !== orn) continue;
+    if (String(data[i][ornCol] || '').trim() !== String(orn).trim()) continue;
     var rowNum = i + 1;
     if (body.estado) {
       setCell_(sh, headers, rowNum, 'estado', body.estado);
@@ -226,6 +249,6 @@ function updateOrder_(body) {
 }
 
 function setCell_(sh, headers, rowNum, key, value) {
-  var col = headers.indexOf(key);
+  var col = headerIndex_(headers, key);
   if (col >= 0) sh.getRange(rowNum, col + 1).setValue(value);
 }

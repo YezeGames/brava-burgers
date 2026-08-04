@@ -310,8 +310,8 @@
   function updateEstado(orn, estado) {
     patchOrderEstadoInCache(orn, estado);
     api({ action: 'updateOrder', token: token, orn: orn, estado: estado }).then(function (res) {
-      if (res.data.ok) fetchOrdersFromServer();
-      else if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
+      if (res.data.ok) return;
+      if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
       else {
         $('app-err').textContent = listErrorMessage(res.data.error);
         $('app-err').hidden = false;
