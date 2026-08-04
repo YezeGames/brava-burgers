@@ -270,6 +270,10 @@
     fetchInFlight = api({ action: action, token: token, estadoFilter: '' })
       .then(function (res) {
         if (!res.data.ok) {
+          if (action === 'listOrdersRecent') {
+            fetchInFlight = null;
+            return fetchOrdersFromServer(true);
+          }
           if (res.status === 401 || res.data.error === 'unauthorized') {
             handleAuthFailure();
             return false;
