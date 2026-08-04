@@ -33,7 +33,7 @@ var HEADERS = [
 ];
 
 function doGet(e) {
-  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 3 });
+  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 4 });
 }
 
 function doPost(e) {
@@ -108,18 +108,7 @@ function headerIndex_(headers, key) {
   return -1;
 }
 
-function createOrder_(order) {
-  var idem = order.idempotencyKey ? String(order.idempotencyKey).slice(0, 120) : '';
-  if (idem) {
-    var cached = CacheService.getScriptCache().get('idem_' + idem);
-    if (cached) {
-      try {
-        var again = JSON.parse(cached);
-        if (again && again.ok) return again;
-      } catch (ignore) {}
-    }
-  }
-
+function appendOrderRow_(order) {
   var sh = getPedidosSheet_();
   var orn = nextOrn_();
   var now = new Date();
@@ -149,11 +138,39 @@ function createOrder_(order) {
     '',
   ];
   sh.appendRow(row);
-  var result = { ok: true, orn: orn, total: total };
-  if (idem) {
-    CacheService.getScriptCache().put('idem_' + idem, JSON.stringify(result), 600);
+  return { ok: true, orn: orn, total: total };
+}
+
+function createOrder_(order) {
+  var idem = order.idempotencyKey ? String(order.idempotencyKey).slice(0, 120) : '';
+  if (!idem) return appendOrderRow_(order);
+
+  var cache = CacheService.getScriptCache();
+  var cacheKey = 'idem_' + idem;
+  var cached = cache.get(cacheKey);
+  if (cached) {
+    try {
+      var hit = JSON.parse(cached);
+      if (hit && hit.ok) return hit;
+    } catch (ignore) {}
   }
-  return result;
+
+  var lock = LockService.getScriptLock();
+  lock.waitLock(25000);
+  try {
+    cached = cache.get(cacheKey);
+    if (cached) {
+      try {
+        hit = JSON.parse(cached);
+        if (hit && hit.ok) return hit;
+      } catch (ignore2) {}
+    }
+    var result = appendOrderRow_(order);
+    cache.put(cacheKey, JSON.stringify(result), 600);
+    return result;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function login_(user, password) {

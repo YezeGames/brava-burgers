@@ -669,14 +669,16 @@
 		function abrirWhatsApp(orn) {
 			if (waAbierto) return;
 			waAbierto = true;
-			if (!serverAck && typeof navigator.sendBeacon === 'function') {
-				var blob = new Blob([payloadJson], { type: 'application/json' });
-				navigator.sendBeacon('/api/pedido', blob);
-			}
 			irWhatsApp(orn || ornListo || null);
 		}
 
-		// WhatsApp primero (~450 ms): el guardado sigue en fetch keepalive + sendBeacon si hace falta
+		function beaconRespaldo() {
+			if (serverAck || typeof navigator.sendBeacon !== 'function') return;
+			var blob = new Blob([payloadJson], { type: 'application/json' });
+			navigator.sendBeacon('/api/pedido', blob);
+		}
+
+		// WhatsApp ~450 ms; un solo fetch keepalive (sin beacon al abrir WA — evita duplicados)
 		var WA_ORN_ESPERA_MS = 450;
 		var tLimite = setTimeout(function () {
 			abrirWhatsApp(null);
@@ -701,7 +703,9 @@
 					abrirWhatsApp(data.orn);
 				}
 			})
-			.catch(function () {});
+			.catch(function () {
+				beaconRespaldo();
+			});
 
 		return false;
 	};
