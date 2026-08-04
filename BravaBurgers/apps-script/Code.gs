@@ -174,12 +174,8 @@ function listOrders_(opts) {
 function rowToOrder_(headers, row) {
   var o = {};
   for (var c = 0; c < headers.length; c++) {
-    var key = String(headers[c] || '')
-      .trim()
-      .toLowerCase();
-    if (key) o[key] = row[c];
+    o[headers[c]] = row[c];
   }
-  if (o.estado != null) o.estado = String(o.estado).trim().toLowerCase();
   if (o.fecha_creado instanceof Date) {
     o.fecha_creado = o.fecha_creado.toISOString();
   }
