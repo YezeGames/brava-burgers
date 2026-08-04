@@ -639,6 +639,7 @@
 		calcular_total();
 		var url = $('#form_url').val();
 		var payload = buildBravaOrderPayload();
+		var payloadJson = JSON.stringify(payload);
 		var $submit = $('.brava-btn-submit');
 		$submit.prop('disabled', true);
 
@@ -656,19 +657,46 @@
 			$submit.prop('disabled', false);
 		}
 
-		fetch('/api/pedido', {
+		var waAbierto = false;
+		var orderSaved = false;
+
+		function abrirWhatsApp(orn) {
+			if (waAbierto) return;
+			waAbierto = true;
+			if (!orderSaved && typeof navigator.sendBeacon === 'function') {
+				var blob = new Blob([payloadJson], { type: 'application/json' });
+				if (navigator.sendBeacon('/api/pedido', blob)) orderSaved = true;
+			}
+			irWhatsApp(orn || null);
+		}
+
+		var WA_MAX_MS = 2500;
+		var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+		var tLimite = setTimeout(function () {
+			if (controller) controller.abort();
+			abrirWhatsApp(null);
+		}, WA_MAX_MS);
+
+		var fetchOpts = {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(payload),
-		})
+			body: payloadJson,
+			keepalive: true,
+		};
+		if (controller) fetchOpts.signal = controller.signal;
+
+		fetch('/api/pedido', fetchOpts)
 			.then(function (r) {
 				return r.json();
 			})
 			.then(function (data) {
-				irWhatsApp(data.ok && data.orn ? data.orn : null);
+				clearTimeout(tLimite);
+				if (data && data.ok) orderSaved = true;
+				if (!waAbierto) abrirWhatsApp(data && data.ok && data.orn ? data.orn : null);
 			})
 			.catch(function () {
-				irWhatsApp(null);
+				clearTimeout(tLimite);
+				if (!waAbierto) abrirWhatsApp(null);
 			});
 
 		return false;

@@ -6,24 +6,57 @@
 	<meta name="robots" content="noindex,nofollow">
 	<title>Brava — Órdenes</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-	<link href="../brava-brand.css?v=14" rel="stylesheet">
 	<style>
-		body { padding: 24px 16px; background: #f5f5f5; color: #333; }
-		.card { max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
-		h1 { font-size: 1.5rem; margin-bottom: 16px; }
+		/* Panel admin: sin brava-brand.css (evita texto blanco sobre fondo blanco) */
+		body {
+			margin: 0;
+			padding: 24px 16px !important;
+			background: #f5f5f5 !important;
+			color: #333 !important;
+		}
+		.card { max-width: 1100px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.08); color: #333; }
+		h1 { font-size: 1.5rem; margin-bottom: 16px; color: #1a1a1a; }
+		label { color: #333; }
 		.login { max-width: 360px; margin: 80px auto; }
+		.brava-input {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 10px 12px;
+			border: 1px solid #ccc;
+			border-radius: 6px;
+			font-size: 1rem;
+			color: #333;
+			background: #fff;
+		}
+		#login-btn {
+			margin-top: 8px;
+			width: 100%;
+			padding: 10px 16px;
+			font-size: 1rem;
+			font-weight: 600;
+			color: #fff !important;
+			background: #FF6B35;
+			border: none;
+			border-radius: 6px;
+			cursor: pointer;
+		}
+		#login-btn:hover { background: #E55A25; }
+		#login-btn:disabled { opacity: 0.7; cursor: wait; }
 		.tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
-		.tab { padding: 8px 14px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 6px; }
-		.tab.active { border-color: #FF6B35; font-weight: 600; }
-		table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-		th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; }
+		.tab { padding: 8px 14px; border: 1px solid #ddd; background: #fff; color: #333; cursor: pointer; border-radius: 6px; }
+		.tab.active { border-color: #FF6B35; font-weight: 600; color: #1a1a1a; }
+		table { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #333; }
+		th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; color: #333; }
+		th { color: #1a1a1a; font-weight: 600; }
 		.actions { display: flex; flex-wrap: wrap; gap: 6px; }
-		.btn-sm { padding: 6px 10px; font-size: 0.75rem; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+		.btn-sm { padding: 6px 10px; font-size: 0.75rem; cursor: pointer; border: 1px solid #ccc; border-radius: 4px; background: #fff; color: #333; }
 		.btn-wa { background: #25D366; color: #fff; border: none; padding: 6px 10px; border-radius: 4px; text-decoration: none; }
 		.btn-ok { color: #2e7d32; border-color: #2e7d32; font-weight: 700; }
 		.btn-x { color: #c62828; border-color: #c62828; font-weight: 700; }
-		.err { color: #c62828; font-size: 0.85rem; margin-top: 8px; }
-		.sound-bar { margin-bottom: 16px; padding: 10px; background: #f9f9f9; border-radius: 6px; font-size: 0.85rem; }
+		.err { font-size: 0.85rem; margin-top: 8px; }
+		#app-err, #login-err { color: #c62828 !important; font-weight: 600; }
+		.sound-bar { margin-bottom: 16px; padding: 10px; background: #f9f9f9; border-radius: 6px; font-size: 0.85rem; color: #333; }
+		#poll-status { color: #666 !important; }
 		.hidden { display: none !important; }
 	</style>
 </head>
@@ -32,7 +65,7 @@
 		<h1>Brava — Admin</h1>
 		<p><label>Usuario<br><input type="text" id="login-user" class="form-control brava-input" autocomplete="username"></label></p>
 		<p><label>Contraseña<br><input type="password" id="login-pass" class="form-control brava-input" autocomplete="current-password"></label></p>
-		<button type="button" class="btn btn-primary my-btn-primary" id="login-btn">Entrar</button>
+		<button type="button" id="login-btn">Entrar</button>
 		<p class="err" id="login-err" hidden></p>
 	</div>
 
@@ -41,7 +74,7 @@
 			<h1>Órdenes <button type="button" class="btn-sm float-right" id="logout-btn">Salir</button></h1>
 			<div class="sound-bar">
 				<button type="button" class="btn-sm" id="btn-sound">Activar sonido</button>
-				<span id="poll-status" style="margin-left:8px;color:#666;"></span>
+				<span id="poll-status" style="margin-left:8px;color:#666;">Actualiza cada 2 s</span>
 			</div>
 			<div class="tabs">
 				<button type="button" class="tab active" data-estado="activa">Activas</button>
@@ -49,7 +82,7 @@
 				<button type="button" class="tab" data-estado="cancelada">Cancelados</button>
 			</div>
 			<div style="overflow-x:auto">
-				<table>
+				<table id="orders-table">
 					<thead>
 						<tr>
 							<th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Pago</th><th>Total</th><th>ORN</th><th>Acciones</th>
@@ -62,6 +95,6 @@
 		</div>
 	</div>
 
-	<script src="admin.js?v=1"></script>
+	<script src="/admin/admin.js?v=12"></script>
 </body>
 </html>

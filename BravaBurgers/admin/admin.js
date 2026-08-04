@@ -6,6 +6,19 @@
   var soundOn = false;
   var audioCtx = null;
   var pollTimer = null;
+  var POLL_MS = 2000;
+
+  var allOrdersCache = [];
+  var fetchInFlight = null;
+  var cacheSignature = '';
+  var TAB_ESTADOS = ['activa', 'entregada', 'cancelada'];
+  /** @type {Record<string, DocumentFragment>} */
+  var panelFrags = { activa: null, entregada: null, cancelada: null };
+
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(pollNewOrders, POLL_MS);
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -21,7 +34,13 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).then(function (r) {
-      return r.json().then(function (d) {
+      return r.text().then(function (text) {
+        var d;
+        try {
+          d = JSON.parse(text);
+        } catch (e) {
+          d = { ok: false, error: 'invalid_response', raw: text.slice(0, 120) };
+        }
         return { status: r.status, data: d };
       });
     });
@@ -36,8 +55,9 @@
   function showApp() {
     $('login-view').classList.add('hidden');
     $('app-view').classList.remove('hidden');
+    paintCurrentTab();
     loadOrders();
-    pollTimer = setInterval(pollNewOrders, 20000);
+    startPolling();
   }
 
   function playDing() {
@@ -69,28 +89,75 @@
     return '54911' + d;
   }
 
-  function renderRows(orders) {
-    var tb = $('tbody');
-    tb.innerHTML = '';
+  function ordersForEstado(orders, estado) {
+    return orders.filter(function (o) {
+      if (!o.orn || String(o.orn).trim() === '') return false;
+      return String(o.estado || '').trim().toLowerCase() === estado;
+    });
+  }
+
+  function buildCacheSignature(orders) {
+    return orders
+      .map(function (o) {
+        return (o.orn || '') + ':' + String(o.estado || '').toLowerCase();
+      })
+      .join('|');
+  }
+
+  function renderTabCounts(orders) {
+    var counts = { activa: 0, entregada: 0, cancelada: 0 };
+    orders.forEach(function (o) {
+      var e = String(o.estado || '').trim().toLowerCase();
+      if (Object.prototype.hasOwnProperty.call(counts, e)) counts[e]++;
+    });
+    document.querySelectorAll('.tab').forEach(function (btn) {
+      var est = btn.dataset.estado;
+      var label = btn.getAttribute('data-label');
+      if (!label) {
+        label = btn.textContent.replace(/\s*\(\d+\)\s*$/, '').trim();
+        btn.setAttribute('data-label', label);
+      }
+      var n = counts[est] || 0;
+      btn.textContent = n ? label + ' (' + n + ')' : label;
+    });
+  }
+
+  function appendEmptyRow(parent, panelEstado) {
+    var empty = document.createElement('tr');
+    var hint =
+      panelEstado === 'activa'
+        ? 'No hay pedidos activos. Si ya los entregaste, mirá la pestaña <strong>Entregados</strong>.'
+        : 'No hay pedidos en esta pestaña.';
+    empty.innerHTML =
+      '<td colspan="7" style="padding:24px;text-align:center;color:#666;">' + hint + '</td>';
+    parent.appendChild(empty);
+  }
+
+  function buildPanelFragment(orders, panelEstado) {
+    var frag = document.createDocumentFragment();
+    if (!orders.length) {
+      appendEmptyRow(frag, panelEstado);
+      return frag;
+    }
     orders.forEach(function (o) {
       var tr = document.createElement('tr');
       var fecha = o.fecha_creado ? new Date(o.fecha_creado).toLocaleString('es-AR') : '';
       var wa = telWa(o.telefono);
       var actions = document.createElement('div');
       actions.className = 'actions';
-      if (currentEstado === 'activa') {
+      if (panelEstado === 'activa') {
         var ok = document.createElement('button');
+        ok.type = 'button';
         ok.className = 'btn-sm btn-ok';
         ok.textContent = '✓';
-        ok.onclick = function () {
-          updateEstado(o.orn, 'entregada');
-        };
+        ok.dataset.action = 'deliver';
+        ok.dataset.orn = o.orn;
         var x = document.createElement('button');
+        x.type = 'button';
         x.className = 'btn-sm btn-x';
         x.textContent = '✕';
-        x.onclick = function () {
-          if (confirm('¿Cancelar ' + o.orn + '?')) updateEstado(o.orn, 'cancelada');
-        };
+        x.dataset.action = 'cancel';
+        x.dataset.orn = o.orn;
         actions.appendChild(ok);
         actions.appendChild(x);
       }
@@ -102,11 +169,10 @@
       a.innerHTML = '<i class="fab fa-whatsapp"></i>';
       actions.appendChild(a);
       var print = document.createElement('button');
+      print.type = 'button';
       print.className = 'btn-sm';
       print.textContent = 'Ticket';
-      print.onclick = function () {
-        window.open('../comanda-ejemplo.html', '_blank');
-      };
+      print.dataset.action = 'ticket';
       actions.appendChild(print);
 
       tr.innerHTML =
@@ -126,75 +192,202 @@
       var td = document.createElement('td');
       td.appendChild(actions);
       tr.appendChild(td);
-      tb.appendChild(tr);
+      frag.appendChild(tr);
     });
+    return frag;
+  }
+
+  function rebuildAllPanelFrags() {
+    TAB_ESTADOS.forEach(function (est) {
+      panelFrags[est] = buildPanelFragment(ordersForEstado(allOrdersCache, est), est);
+    });
+    renderTabCounts(allOrdersCache);
+  }
+
+  function paintCurrentTab() {
+    var tb = $('tbody');
+    if (!tb) return;
+    tb.replaceChildren();
+    var frag = panelFrags[currentEstado];
+    if (frag) tb.appendChild(frag.cloneNode(true));
+    else appendEmptyRow(tb, currentEstado);
+  }
+
+  function listErrorMessage(err) {
+    if (err === 'invalid_gas_response' || err === 'gas_network_error' || err === 'gas_failed') {
+      return 'No se pudo conectar con Google. Los pedidos en pantalla siguen siendo los últimos cargados.';
+    }
+    return err || 'Error al cargar pedidos';
+  }
+
+  function handleAuthFailure() {
+    sessionStorage.removeItem('brava_admin_token');
+    token = '';
+    showLogin();
+  }
+
+  function applyCacheFromServer(orders) {
+    allOrdersCache = orders || [];
+    ordersForEstado(allOrdersCache, 'activa').forEach(function (o) {
+      if (o.orn) knownOrns.add(o.orn);
+    });
+    var sig = buildCacheSignature(allOrdersCache);
+    if (sig !== cacheSignature) {
+      cacheSignature = sig;
+      rebuildAllPanelFrags();
+      paintCurrentTab();
+    }
+    $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
+  }
+
+  function fetchOrdersFromServer() {
+    if (fetchInFlight) return fetchInFlight;
+    fetchInFlight = api({ action: 'listOrders', token: token, estadoFilter: '' })
+      .then(function (res) {
+        if (!res.data.ok) {
+          if (res.status === 401 || res.data.error === 'unauthorized') {
+            handleAuthFailure();
+            return false;
+          }
+          $('app-err').textContent = listErrorMessage(res.data.error);
+          $('app-err').hidden = false;
+          return false;
+        }
+        $('app-err').hidden = true;
+        applyCacheFromServer(res.data.orders || []);
+        return true;
+      })
+      .catch(function () {
+        $('app-err').textContent = 'Sin conexión. Mostrando últimos pedidos cargados.';
+        $('app-err').hidden = false;
+        return false;
+      })
+      .finally(function () {
+        fetchInFlight = null;
+      });
+    return fetchInFlight;
   }
 
   function loadOrders() {
-    $('app-err').hidden = true;
-    api({ action: 'listOrders', token: token, estadoFilter: currentEstado }).then(function (res) {
-      if (!res.data.ok) {
-        if (res.status === 401) {
-          sessionStorage.removeItem('brava_admin_token');
-          showLogin();
-          return;
-        }
-        $('app-err').textContent = res.data.error || 'Error al cargar';
-        $('app-err').hidden = false;
-        return;
+    fetchOrdersFromServer().then(function (ok) {
+      if (!ok && !allOrdersCache.length) {
+        rebuildAllPanelFrags();
+        paintCurrentTab();
       }
-      renderRows(res.data.orders || []);
-      if (currentEstado === 'activa') {
-        (res.data.orders || []).forEach(function (o) {
-          if (o.orn) knownOrns.add(o.orn);
-        });
-      }
-      $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
     });
   }
 
   function pollNewOrders() {
-    api({ action: 'listOrders', token: token, estadoFilter: 'activa' }).then(function (res) {
-      if (!res.data.ok) return;
-      var list = res.data.orders || [];
+    var prevActivas = new Set();
+    allOrdersCache.forEach(function (o) {
+      if (String(o.estado || '').trim().toLowerCase() === 'activa' && o.orn) {
+        prevActivas.add(o.orn);
+      }
+    });
+    fetchOrdersFromServer().then(function (ok) {
+      if (!ok) return;
       var neu = false;
-      list.forEach(function (o) {
-        if (o.orn && !knownOrns.has(o.orn)) {
-          knownOrns.add(o.orn);
-          neu = true;
-        }
+      allOrdersCache.forEach(function (o) {
+        var e = String(o.estado || '').trim().toLowerCase();
+        if (e === 'activa' && o.orn && !prevActivas.has(o.orn)) neu = true;
       });
-      if (neu && currentEstado === 'activa') {
-        playDing();
-        loadOrders();
+      if (neu) playDing();
+    });
+  }
+
+  function patchOrderEstadoInCache(orn, estado) {
+    for (var i = 0; i < allOrdersCache.length; i++) {
+      if (allOrdersCache[i].orn === orn) {
+        allOrdersCache[i].estado = estado;
+        break;
+      }
+    }
+    cacheSignature = buildCacheSignature(allOrdersCache);
+    rebuildAllPanelFrags();
+    paintCurrentTab();
+  }
+
+  function updateEstado(orn, estado) {
+    patchOrderEstadoInCache(orn, estado);
+    api({ action: 'updateOrder', token: token, orn: orn, estado: estado }).then(function (res) {
+      if (res.data.ok) fetchOrdersFromServer();
+      else if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
+      else {
+        $('app-err').textContent = listErrorMessage(res.data.error);
+        $('app-err').hidden = false;
+        fetchOrdersFromServer();
       }
     });
   }
 
-  function updateEstado(orn, estado) {
-    api({ action: 'updateOrder', token: token, orn: orn, estado: estado }).then(function (res) {
-      if (res.data.ok) loadOrders();
-    });
+  function switchTab(estado) {
+    currentEstado = estado;
+    paintCurrentTab();
   }
 
-  $('login-btn').onclick = function () {
+  function doLogin() {
+    var btn = $('login-btn');
     $('login-err').hidden = true;
+    btn.disabled = true;
+    btn.textContent = 'Entrando…';
     api({
       action: 'login',
       user: $('login-user').value.trim(),
       password: $('login-pass').value,
-    }).then(function (res) {
-      if (!res.data.ok) {
-        $('login-err').textContent = 'Usuario o contraseña incorrectos';
+    })
+      .then(function (res) {
+        if (!res.data.ok) {
+          var msg =
+            res.data.error === 'admin_not_configured'
+              ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Apps Script'
+              : res.data.error === 'invalid_gas_response' || res.data.error === 'invalid_response'
+                ? 'Error al conectar con Google. Probá en unos minutos.'
+                : 'Usuario o contraseña incorrectos';
+          $('login-err').textContent = msg;
+          $('login-err').hidden = false;
+          return;
+        }
+        token = res.data.token;
+        sessionStorage.setItem('brava_admin_token', token);
+        knownOrns = new Set();
+        allOrdersCache = [];
+        cacheSignature = '';
+        panelFrags = { activa: null, entregada: null, cancelada: null };
+        showApp();
+      })
+      .catch(function () {
+        $('login-err').textContent = 'Error de conexión. Probá de nuevo.';
         $('login-err').hidden = false;
-        return;
-      }
-      token = res.data.token;
-      sessionStorage.setItem('brava_admin_token', token);
-      knownOrns = new Set();
-      showApp();
-    });
-  };
+      })
+      .finally(function () {
+        btn.disabled = false;
+        btn.textContent = 'Entrar';
+      });
+  }
+
+  $('orders-table').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    var action = btn.dataset.action;
+    if (action === 'ticket') {
+      window.open('../comanda-ejemplo.html', '_blank');
+      return;
+    }
+    var orn = btn.dataset.orn;
+    if (!orn) return;
+    if (action === 'deliver') updateEstado(orn, 'entregada');
+    if (action === 'cancel') {
+      if (confirm('¿Cancelar ' + orn + '?')) updateEstado(orn, 'cancelada');
+    }
+  });
+
+  $('login-btn').onclick = doLogin;
+  $('login-pass').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') doLogin();
+  });
+  $('login-user').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') doLogin();
+  });
 
   $('logout-btn').onclick = function () {
     sessionStorage.removeItem('brava_admin_token');
@@ -207,8 +400,7 @@
       document.querySelectorAll('.tab').forEach(function (b) {
         b.classList.toggle('active', b === btn);
       });
-      currentEstado = btn.dataset.estado;
-      loadOrders();
+      switchTab(btn.dataset.estado);
     };
   });
 
@@ -217,6 +409,12 @@
     playDing();
     $('btn-sound').textContent = 'Sonido activado ✓';
   };
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible' && token && !$('app-view').classList.contains('hidden')) {
+      fetchOrdersFromServer();
+    }
+  });
 
   if (token) showApp();
   else showLogin();
