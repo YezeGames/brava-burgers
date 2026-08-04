@@ -66,3 +66,25 @@ curl -X POST "TU_URL_EXEC" \
 ```
 
 Deberías ver `{ "ok": true, "orn": "ORN-DEL-0001", ... }` y una fila nueva en `pedidos`.
+
+GET a la misma URL (sin POST) debe responder `"version": 2` cuando el código nuevo está publicado.
+
+## 6. Publicar desde Windows (1 clic)
+
+En PowerShell, desde la carpeta del proyecto:
+
+```powershell
+.\scripts\publicar-apps-script.ps1
+```
+
+Copia `Code.gs` al portapapeles y abre el Sheet. Solo pegás en Apps Script y **nueva versión** de la implementación web.
+
+## 7. Publicar con clasp (opcional, para automatizar)
+
+1. Instalá [Node.js](https://nodejs.org/) y `npm i -g @google/clasp`
+2. `clasp login`
+3. En Apps Script → ⚙ → **ID del script** → copiá el ID
+4. Copiá `apps-script/.clasp.json.example` a `apps-script/.clasp.json` y pegá el ID
+5. Desde `apps-script/`: `clasp push` y luego nueva versión web en la consola de Google
+
+Cursor no puede entrar a tu Google sin `clasp login` en tu PC o que pegues el código una vez.

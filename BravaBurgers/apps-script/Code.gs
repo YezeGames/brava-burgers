@@ -33,7 +33,7 @@ var HEADERS = [
 ];
 
 function doGet(e) {
-  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 1 });
+  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 2 });
 }
 
 function doPost(e) {
