@@ -6,12 +6,6 @@
   var soundOn = false;
   var audioCtx = null;
   var pollTimer = null;
-  var POLL_MS = 2000;
-
-  function startPolling() {
-    if (pollTimer) clearInterval(pollTimer);
-    pollTimer = setInterval(pollNewOrders, POLL_MS);
-  }
 
   function $(id) {
     return document.getElementById(id);
@@ -27,13 +21,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }).then(function (r) {
-      return r.text().then(function (text) {
-        var d;
-        try {
-          d = JSON.parse(text);
-        } catch (e) {
-          d = { ok: false, error: 'invalid_response', raw: text.slice(0, 120) };
-        }
+      return r.json().then(function (d) {
         return { status: r.status, data: d };
       });
     });
@@ -49,7 +37,7 @@
     $('login-view').classList.add('hidden');
     $('app-view').classList.remove('hidden');
     loadOrders();
-    startPolling();
+    pollTimer = setInterval(pollNewOrders, 20000);
   }
 
   function playDing() {
@@ -81,47 +69,9 @@
     return '54911' + d;
   }
 
-  var allOrdersCache = [];
-  var fetchInFlight = null;
-
-  function renderTabCounts(orders) {
-    var counts = { activa: 0, entregada: 0, cancelada: 0 };
-    orders.forEach(function (o) {
-      var e = String(o.estado || '').trim().toLowerCase();
-      if (Object.prototype.hasOwnProperty.call(counts, e)) counts[e]++;
-    });
-    document.querySelectorAll('.tab').forEach(function (btn) {
-      var est = btn.dataset.estado;
-      var label = btn.getAttribute('data-label');
-      if (!label) {
-        label = btn.textContent.replace(/\s*\(\d+\)\s*$/, '').trim();
-        btn.setAttribute('data-label', label);
-      }
-      var n = counts[est] || 0;
-      btn.textContent = n ? label + ' (' + n + ')' : label;
-    });
-  }
-
-  function ordersForTab(orders) {
-    return orders.filter(function (o) {
-      return String(o.estado || '').trim().toLowerCase() === currentEstado;
-    });
-  }
-
   function renderRows(orders) {
     var tb = $('tbody');
     tb.innerHTML = '';
-    if (!orders.length) {
-      var empty = document.createElement('tr');
-      var hint =
-        currentEstado === 'activa'
-          ? 'No hay pedidos activos. Si ya los entregaste, mirá la pestaña <strong>Entregados</strong>.'
-          : 'No hay pedidos en esta pestaña.';
-      empty.innerHTML =
-        '<td colspan="7" style="padding:24px;text-align:center;color:#666;">' + hint + '</td>';
-      tb.appendChild(empty);
-      return;
-    }
     orders.forEach(function (o) {
       var tr = document.createElement('tr');
       var fecha = o.fecha_creado ? new Date(o.fecha_creado).toLocaleString('es-AR') : '';
@@ -180,150 +130,71 @@
     });
   }
 
-  function listErrorMessage(err) {
-    if (err === 'invalid_gas_response' || err === 'gas_network_error' || err === 'gas_failed') {
-      return 'No se pudo conectar con Google. Esperá unos segundos y tocá Activas de nuevo.';
-    }
-    return err || 'Error al cargar pedidos';
-  }
-
-  function handleAuthFailure() {
-    sessionStorage.removeItem('brava_admin_token');
-    token = '';
-    showLogin();
-  }
-
-  function applyTabView() {
-    renderTabCounts(allOrdersCache);
-    renderRows(ordersForTab(allOrdersCache));
-  }
-
-  function fetchOrdersFromServer() {
-    if (fetchInFlight) return fetchInFlight;
-    $('app-err').hidden = true;
-    fetchInFlight = api({ action: 'listOrders', token: token, estadoFilter: '' })
-      .then(function (res) {
-        if (!res.data.ok) {
-          if (res.status === 401 || res.data.error === 'unauthorized') {
-            handleAuthFailure();
-            return false;
-          }
-          $('app-err').textContent = listErrorMessage(res.data.error);
-          $('app-err').hidden = false;
-          return false;
-        }
-        allOrdersCache = res.data.orders || [];
-        if (currentEstado === 'activa') {
-          ordersForTab(allOrdersCache).forEach(function (o) {
-            if (o.orn) knownOrns.add(o.orn);
-          });
-        }
-        applyTabView();
-        $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
-        return true;
-      })
-      .catch(function () {
-        $('app-err').textContent = 'Sin conexión al servidor. Revisá internet e intentá otra vez.';
-        $('app-err').hidden = false;
-        return false;
-      })
-      .finally(function () {
-        fetchInFlight = null;
-      });
-    return fetchInFlight;
-  }
-
   function loadOrders() {
-    fetchOrdersFromServer().then(function (ok) {
-      if (!ok && !allOrdersCache.length) renderRows([]);
+    $('app-err').hidden = true;
+    api({ action: 'listOrders', token: token, estadoFilter: currentEstado }).then(function (res) {
+      if (!res.data.ok) {
+        if (res.status === 401) {
+          sessionStorage.removeItem('brava_admin_token');
+          showLogin();
+          return;
+        }
+        $('app-err').textContent = res.data.error || 'Error al cargar';
+        $('app-err').hidden = false;
+        return;
+      }
+      renderRows(res.data.orders || []);
+      if (currentEstado === 'activa') {
+        (res.data.orders || []).forEach(function (o) {
+          if (o.orn) knownOrns.add(o.orn);
+        });
+      }
+      $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
     });
   }
 
   function pollNewOrders() {
-    var prevActivas = new Set();
-    allOrdersCache.forEach(function (o) {
-      if (String(o.estado || '').trim().toLowerCase() === 'activa' && o.orn) {
-        prevActivas.add(o.orn);
-      }
-    });
-    fetchOrdersFromServer().then(function (ok) {
-      if (!ok) return;
+    api({ action: 'listOrders', token: token, estadoFilter: 'activa' }).then(function (res) {
+      if (!res.data.ok) return;
+      var list = res.data.orders || [];
       var neu = false;
-      allOrdersCache.forEach(function (o) {
-        var e = String(o.estado || '').trim().toLowerCase();
-        if (e === 'activa' && o.orn && !prevActivas.has(o.orn)) neu = true;
+      list.forEach(function (o) {
+        if (o.orn && !knownOrns.has(o.orn)) {
+          knownOrns.add(o.orn);
+          neu = true;
+        }
       });
-      if (neu) playDing();
-    });
-  }
-
-  function patchOrderEstadoInCache(orn, estado) {
-    for (var i = 0; i < allOrdersCache.length; i++) {
-      if (allOrdersCache[i].orn === orn) {
-        allOrdersCache[i].estado = estado;
-        break;
+      if (neu && currentEstado === 'activa') {
+        playDing();
+        loadOrders();
       }
-    }
-    applyTabView();
+    });
   }
 
   function updateEstado(orn, estado) {
-    patchOrderEstadoInCache(orn, estado);
     api({ action: 'updateOrder', token: token, orn: orn, estado: estado }).then(function (res) {
-      if (res.data.ok) fetchOrdersFromServer();
-      else if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
-      else {
-        $('app-err').textContent = listErrorMessage(res.data.error);
-        $('app-err').hidden = false;
-        fetchOrdersFromServer();
-      }
+      if (res.data.ok) loadOrders();
     });
   }
 
-  function doLogin() {
-    var btn = $('login-btn');
+  $('login-btn').onclick = function () {
     $('login-err').hidden = true;
-    btn.disabled = true;
-    btn.textContent = 'Entrando…';
     api({
       action: 'login',
       user: $('login-user').value.trim(),
       password: $('login-pass').value,
-    })
-      .then(function (res) {
-        if (!res.data.ok) {
-          var msg =
-            res.data.error === 'admin_not_configured'
-              ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Apps Script'
-              : res.data.error === 'invalid_gas_response' || res.data.error === 'invalid_response'
-                ? 'Error al conectar con Google. Probá en unos minutos.'
-                : 'Usuario o contraseña incorrectos';
-          $('login-err').textContent = msg;
-          $('login-err').hidden = false;
-          return;
-        }
-        token = res.data.token;
-        sessionStorage.setItem('brava_admin_token', token);
-        knownOrns = new Set();
-        showApp();
-      })
-      .catch(function () {
-        $('login-err').textContent = 'Error de conexión. Probá de nuevo.';
+    }).then(function (res) {
+      if (!res.data.ok) {
+        $('login-err').textContent = 'Usuario o contraseña incorrectos';
         $('login-err').hidden = false;
-      })
-      .finally(function () {
-        btn.disabled = false;
-        btn.textContent = 'Entrar';
-      });
-  }
-
-  $('login-btn').onclick = doLogin;
-  $('login-pass').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') doLogin();
-  });
-  $('login-user').addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') doLogin();
-  });
+        return;
+      }
+      token = res.data.token;
+      sessionStorage.setItem('brava_admin_token', token);
+      knownOrns = new Set();
+      showApp();
+    });
+  };
 
   $('logout-btn').onclick = function () {
     sessionStorage.removeItem('brava_admin_token');
@@ -337,7 +208,7 @@
         b.classList.toggle('active', b === btn);
       });
       currentEstado = btn.dataset.estado;
-      applyTabView();
+      loadOrders();
     };
   });
 
@@ -346,12 +217,6 @@
     playDing();
     $('btn-sound').textContent = 'Sonido activado ✓';
   };
-
-  document.addEventListener('visibilitychange', function () {
-    if (document.visibilityState === 'visible' && token && !$('app-view').classList.contains('hidden')) {
-      fetchOrdersFromServer();
-    }
-  });
 
   if (token) showApp();
   else showLogin();
