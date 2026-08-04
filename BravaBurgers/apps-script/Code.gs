@@ -33,7 +33,7 @@ var HEADERS = [
 ];
 
 function doGet(e) {
-  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 4 });
+  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 5 });
 }
 
 function doPost(e) {
@@ -56,6 +56,11 @@ function doPost(e) {
     if (action === 'listOrders') {
       if (!validateToken_(body.token)) return jsonOut({ ok: false, error: 'unauthorized' });
       return jsonOut(listOrders_(body));
+    }
+
+    if (action === 'listOrdersRecent') {
+      if (!validateToken_(body.token)) return jsonOut({ ok: false, error: 'unauthorized' });
+      return jsonOut(listOrdersRecent_(body));
     }
 
     if (action === 'updateOrder') {
@@ -138,6 +143,7 @@ function appendOrderRow_(order) {
     '',
   ];
   sh.appendRow(row);
+  clearOrdersListCache_();
   return { ok: true, orn: orn, total: total };
 }
 
@@ -187,18 +193,42 @@ function login_(user, password) {
   return { ok: true, token: token, expiresIn: 43200 };
 }
 
+function clearOrdersListCache_() {
+  CacheService.getScriptCache().remove('orders_full_v1');
+}
+
 function validateToken_(token) {
   if (!token) return false;
   return CacheService.getScriptCache().get('tok_' + token) === '1';
 }
 
 function listOrders_(opts) {
+  opts = opts || {};
+  var cache = CacheService.getScriptCache();
+  if (!opts.skipCache) {
+    var cached = cache.get('orders_full_v1');
+    if (cached) {
+      try {
+        return JSON.parse(cached);
+      } catch (ignore) {}
+    }
+  }
+  var result = buildListOrders_(opts, 250);
+  cache.put('orders_full_v1', JSON.stringify(result), 2);
+  return result;
+}
+
+function listOrdersRecent_(opts) {
+  return buildListOrders_(opts || {}, 35);
+}
+
+function buildListOrders_(opts, maxRows) {
   var sh = getPedidosSheet_();
   var lastRow = sh.getLastRow();
   if (lastRow < 2) return { ok: true, orders: [] };
   var lastCol = sh.getLastColumn();
   var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
-  var startRow = Math.max(2, lastRow - 249);
+  var startRow = Math.max(2, lastRow - (maxRows - 1));
   var data = sh.getRange(startRow, 1, lastRow, lastCol).getValues();
   var estadoFilter = opts.estado || '';
   var orders = [];
@@ -263,6 +293,7 @@ function updateOrder_(body) {
     }
     if (body.subtotal != null) setCell_(sh, headers, rowNum, 'subtotal', Number(body.subtotal));
     if (body.total != null) setCell_(sh, headers, rowNum, 'total', Number(body.total));
+    clearOrdersListCache_();
     return { ok: true, orn: orn };
   }
   return { ok: false, error: 'not_found' };

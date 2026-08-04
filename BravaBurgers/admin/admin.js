@@ -6,7 +6,10 @@
   var soundOn = false;
   var audioCtx = null;
   var pollTimer = null;
-  var POLL_MS = 800;
+  var POLL_MS = 400;
+  var pollTick = 0;
+  var fetchStartedAt = 0;
+  var FETCH_STALE_MS = 7000;
 
   var allOrdersCache = [];
   var fetchInFlight = null;
@@ -241,9 +244,30 @@
     $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
   }
 
-  function fetchOrdersFromServer() {
-    if (fetchInFlight) return fetchInFlight;
-    fetchInFlight = api({ action: 'listOrders', token: token, estadoFilter: '' })
+  function mergeOrdersIntoCache(incoming) {
+    var map = {};
+    allOrdersCache.forEach(function (o) {
+      if (o.orn) map[o.orn] = o;
+    });
+    (incoming || []).forEach(function (o) {
+      if (o.orn) map[o.orn] = o;
+    });
+    var merged = Object.keys(map).map(function (k) {
+      return map[k];
+    });
+    merged.sort(function (a, b) {
+      return new Date(b.fecha_creado) - new Date(a.fecha_creado);
+    });
+    applyCacheFromServer(merged);
+  }
+
+  function fetchOrdersFromServer(fullSync) {
+    var now = Date.now();
+    if (fetchInFlight && now - fetchStartedAt < FETCH_STALE_MS) return fetchInFlight;
+    pollTick += 1;
+    var action = fullSync || pollTick % 10 === 0 ? 'listOrders' : 'listOrdersRecent';
+    fetchStartedAt = now;
+    fetchInFlight = api({ action: action, token: token, estadoFilter: '' })
       .then(function (res) {
         if (!res.data.ok) {
           if (res.status === 401 || res.data.error === 'unauthorized') {
@@ -255,7 +279,8 @@
           return false;
         }
         $('app-err').hidden = true;
-        applyCacheFromServer(res.data.orders || []);
+        if (action === 'listOrdersRecent') mergeOrdersIntoCache(res.data.orders || []);
+        else applyCacheFromServer(res.data.orders || []);
         return true;
       })
       .catch(function () {
@@ -270,7 +295,7 @@
   }
 
   function loadOrders() {
-    fetchOrdersFromServer().then(function (ok) {
+    fetchOrdersFromServer(true).then(function (ok) {
       if (!ok && !allOrdersCache.length) {
         rebuildAllPanelFrags();
         paintCurrentTab();

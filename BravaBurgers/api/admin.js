@@ -16,7 +16,7 @@ module.exports = async function handler(req, res) {
     payload.password = password;
   } else {
     payload.token = token;
-    if (action === 'listOrders') payload.estado = estadoFilter || '';
+    if (action === 'listOrders' || action === 'listOrdersRecent') payload.estado = estadoFilter || '';
     if (action === 'updateOrder') {
       payload.orn = orn;
       if (estado) payload.estado = estado;
