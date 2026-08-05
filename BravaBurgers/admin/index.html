@@ -223,6 +223,55 @@
 			cursor: pointer;
 			color: var(--text);
 		}
+		details.edit-extras-fold {
+			margin-top: 8px;
+			font-size: 0.8rem;
+		}
+		details.edit-extras-fold summary {
+			cursor: pointer;
+			color: var(--text);
+			list-style: none;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+		details.edit-extras-fold summary::-webkit-details-marker { display: none; }
+		details.edit-extras-fold summary::before {
+			content: "▸";
+			font-size: 0.7rem;
+			color: var(--text-muted);
+		}
+		details.edit-extras-fold[open] summary::before { content: "▾"; }
+		.edit-extras-summary { color: var(--text-muted); font-size: 0.75rem; }
+		.edit-acl { margin-top: 8px; }
+		.edit-acl-label {
+			display: block;
+			font-size: 0.68rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--text-muted);
+			margin-bottom: 4px;
+		}
+		.edit-acl-input {
+			width: 100%;
+			box-sizing: border-box;
+			min-height: 52px;
+			padding: 8px 10px;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			font: inherit;
+			font-size: 0.8rem;
+			line-height: 1.35;
+			resize: vertical;
+			background: var(--input-bg);
+			color: var(--text);
+		}
+		.edit-acl-readonly {
+			display: block;
+			margin-top: 4px;
+			color: var(--text-muted);
+		}
 		.modal-item small { display: block; color: var(--text-muted); margin-top: 2px; }
 		.modal-item.modal-item-muted { background: var(--bg-surface-alt); }
 		.modal-qty { display: flex; align-items: center; gap: 6px; }
@@ -837,7 +886,7 @@
 				<select id="edit-add-select" aria-label="Agregar producto del menú"></select>
 				<button type="button" class="btn-sm btn-accent" id="edit-add-btn">+ Agregar</button>
 			</div>
-			<p class="sub" style="margin:-4px 0 10px;font-size:0.75rem;">Un producto por línea; marcá extras abajo de cada ítem.</p>
+			<p class="sub" style="margin:-4px 0 10px;font-size:0.75rem;">Agregá productos con + Agregar. Extras colapsables; aclaración solo en ítems nuevos de esta edición.</p>
 			<p class="modal-total" id="edit-total"></p>
 			<div class="modal-foot">
 				<button type="button" class="btn-sm" id="edit-close">Cancelar</button>
@@ -889,6 +938,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
-	<script src="/admin/admin.js?v=56"></script>
+	<script src="/admin/admin.js?v=57"></script>
 </body>
 </html>

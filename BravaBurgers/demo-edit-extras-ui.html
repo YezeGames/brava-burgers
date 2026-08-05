@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — extras al editar pedido</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 24px 16px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+		}
+		.wrap { max-width: 1100px; margin: 0 auto; }
+		.banner {
+			background: #1a1a1a;
+			color: #fff;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 0.85rem;
+			margin-bottom: 20px;
+			line-height: 1.45;
+		}
+		.banner strong { color: #ff6b35; }
+		h1 { font-size: 1.35rem; margin: 0 0 8px; }
+		.lead { font-size: 0.9rem; color: #666; margin: 0 0 20px; line-height: 1.45; }
+		.note {
+			background: #e3f2fd;
+			border: 1px solid #90caf9;
+			color: #0d47a1;
+			padding: 10px 12px;
+			border-radius: 8px;
+			font-size: 0.85rem;
+			margin-bottom: 20px;
+		}
+		.grid {
+			display: grid;
+			grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+			gap: 16px;
+		}
+		.demo-card {
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+			overflow: hidden;
+			display: flex;
+			flex-direction: column;
+		}
+		.demo-card-head {
+			padding: 12px 14px;
+			border-bottom: 1px solid #eee;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+		.demo-card-head h2 {
+			margin: 0;
+			font-size: 0.95rem;
+			flex: 1;
+		}
+		.badge {
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			padding: 3px 8px;
+			border-radius: 999px;
+			background: #eee;
+			color: #555;
+		}
+		.badge.rec { background: #e8f5e9; color: #2e7d32; }
+		.demo-card-body {
+			padding: 12px 14px;
+			font-size: 0.85rem;
+			flex: 1;
+		}
+		.demo-hint {
+			font-size: 0.78rem;
+			color: #666;
+			margin: 0 0 10px;
+			line-height: 1.4;
+		}
+		.mock-modal {
+			border: 1px solid #ddd;
+			border-radius: 8px;
+			overflow: hidden;
+			background: #fafafa;
+		}
+		.mock-modal-title {
+			padding: 10px 12px;
+			background: #fff;
+			border-bottom: 1px solid #eee;
+			font-weight: 700;
+			font-size: 0.88rem;
+		}
+		.mock-modal-sub {
+			padding: 0 12px 8px;
+			background: #fff;
+			font-size: 0.75rem;
+			color: #666;
+			border-bottom: 1px solid #eee;
+		}
+		.modal-items {
+			border-top: 1px solid #eee;
+			max-height: 320px;
+			overflow-y: auto;
+			background: #fff;
+		}
+		.modal-item {
+			padding: 10px 12px;
+			border-bottom: 1px solid #eee;
+		}
+		.modal-item-top {
+			display: grid;
+			grid-template-columns: 1fr auto auto;
+			gap: 8px;
+			align-items: start;
+		}
+		.modal-item strong { display: block; font-size: 0.88rem; }
+		.modal-item small {
+			display: block;
+			color: #666;
+			font-size: 0.75rem;
+			margin-top: 4px;
+		}
+		.modal-qty {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			font-size: 0.8rem;
+		}
+		.modal-qty button {
+			width: 26px;
+			height: 26px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			background: #fff;
+			cursor: pointer;
+		}
+		.price { font-weight: 700; white-space: nowrap; font-size: 0.85rem; }
+		.edit-extras-open {
+			margin-top: 8px;
+			padding-top: 8px;
+			border-top: 1px dashed #ccc;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px 12px;
+		}
+		.edit-extras-open label {
+			font-size: 0.72rem;
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			cursor: pointer;
+		}
+		details.edit-extras-fold {
+			margin-top: 8px;
+			font-size: 0.8rem;
+		}
+		details.edit-extras-fold summary {
+			cursor: pointer;
+			color: #444;
+			list-style: none;
+			display: flex;
+			align-items: center;
+			gap: 6px;
+		}
+		details.edit-extras-fold summary::-webkit-details-marker { display: none; }
+		details.edit-extras-fold summary::before {
+			content: "▸";
+			font-size: 0.7rem;
+			color: #888;
+		}
+		details.edit-extras-fold[open] summary::before { content: "▾"; }
+		.summary-muted { color: #888; font-size: 0.75rem; }
+		.extras-panel {
+			margin-top: 8px;
+			padding: 8px;
+			background: #f5f5f5;
+			border-radius: 6px;
+		}
+		.chip-row {
+			margin-top: 8px;
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			align-items: center;
+		}
+		.chip {
+			font-size: 0.72rem;
+			padding: 4px 10px;
+			border-radius: 999px;
+			background: #eee;
+			color: #333;
+		}
+		.chip.on { background: #fff3e0; color: #e65100; border: 1px solid #ffb74d; }
+		.btn-sm {
+			padding: 5px 10px;
+			font-size: 0.75rem;
+			border-radius: 4px;
+			border: 1px solid #ccc;
+			background: #fff;
+			cursor: pointer;
+			font-weight: 600;
+		}
+		.btn-sm.primary { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+		.line-pick {
+			display: block;
+			width: 100%;
+			text-align: left;
+			padding: 8px 10px;
+			margin-bottom: 4px;
+			border-radius: 6px;
+			border: 1px solid #ddd;
+			background: #fff;
+			cursor: pointer;
+			font: inherit;
+		}
+		.line-pick.selected {
+			border-color: #ff6b35;
+			background: #fff8f5;
+		}
+		.line-pick span.meta {
+			display: block;
+			font-size: 0.72rem;
+			color: #666;
+			margin-top: 2px;
+		}
+		.panel-d {
+			margin-top: 10px;
+			padding-top: 10px;
+			border-top: 1px dashed #ccc;
+		}
+		.panel-d h3 {
+			margin: 0 0 8px;
+			font-size: 0.8rem;
+			color: #555;
+		}
+		.hero {
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+			margin-bottom: 24px;
+			overflow: hidden;
+		}
+		.hero-head {
+			padding: 14px 16px;
+			border-bottom: 1px solid #eee;
+			background: #fff8f5;
+		}
+		.hero-head h2 { margin: 0 0 4px; font-size: 1.05rem; }
+		.hero-head p { margin: 0; font-size: 0.82rem; color: #666; line-height: 1.45; }
+		.hero-body { padding: 16px; }
+		.mock-modal-final { max-width: 520px; margin: 0 auto; }
+		.edit-acl {
+			margin-top: 8px;
+		}
+		.edit-acl label {
+			display: block;
+			font-size: 0.68rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: #888;
+			margin-bottom: 4px;
+		}
+		.edit-acl textarea {
+			width: 100%;
+			min-height: 52px;
+			max-height: 88px;
+			padding: 8px 10px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			font: inherit;
+			font-size: 0.8rem;
+			line-height: 1.35;
+			resize: vertical;
+		}
+		.edit-acl-readonly {
+			display: block;
+			margin-top: 4px;
+			color: #666;
+			font-size: 0.75rem;
+		}
+		.mock-foot {
+			padding: 10px 12px;
+			border-top: 1px solid #eee;
+			background: #fff;
+		}
+		.mock-add {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 8px;
+		}
+		.mock-add select { flex: 1; font-size: 0.8rem; padding: 6px; }
+		.mock-total { font-weight: 700; font-size: 0.9rem; margin: 8px 0; }
+		.mock-actions { display: flex; justify-content: flex-end; gap: 8px; }
+		.btn-accent {
+			background: #ff6b35;
+			border: 1px solid #ff6b35;
+			color: #fff;
+			padding: 8px 14px;
+			border-radius: 4px;
+			font-weight: 600;
+			font-size: 0.85rem;
+		}
+		.compare-title {
+			font-size: 0.95rem;
+			margin: 8px 0 12px;
+			color: #666;
+		}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="banner">
+			<strong>Demo local</strong> — Abrí este archivo en el navegador (doble clic o arrastrá a Chrome).
+			No afecta producción. Pedido ejemplo: ORN-DEL-0019 · EZEQUIEL.
+		</div>
+		<h1>Editar comanda — propuesta B + aclaración</h1>
+		<p class="lead">
+			Extras colapsables por ítem y un cuadro de texto para cocina (bien cocida, sin X, etc.), útil cuando sumás una hamburguesa por WhatsApp.
+		</p>
+
+		<section class="hero">
+			<div class="hero-head">
+				<h2>Opción B (elegida) + aclaración por ítem</h2>
+				<p>
+					La aclaración editable solo aparece en hamburguesas que sumás con <strong>+ Agregar</strong>.
+					Los ítems del pedido original muestran su aclaración en solo lectura (si tenían).
+				</p>
+			</div>
+			<div class="hero-body">
+				<div class="mock-modal mock-modal-final">
+					<div class="mock-modal-title">Editar comanda</div>
+					<div class="mock-modal-sub">ORN-DEL-0019 · EZEQUIEL — Si pidieron más por WhatsApp, ajustá acá.</div>
+					<div class="modal-items" id="demo-final"></div>
+					<div class="mock-foot">
+						<div class="mock-add">
+							<select aria-label="Agregar producto">
+								<option>Cheeseburger Doble — 22.000</option>
+								<option>Crispy Vegan — 12.000</option>
+							</select>
+							<button type="button" class="btn-sm primary">+ Agregar</button>
+						</div>
+						<p class="mock-total">Total: 54.300 (productos 53.500 + envío 800)</p>
+						<div class="mock-actions">
+							<button type="button" class="btn-sm">Cancelar</button>
+							<button type="button" class="btn-accent">Guardar cambios</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<p class="compare-title">Comparación rápida con otras opciones (sin aclaración editable)</p>
+		<p class="note" style="margin-top:0">
+			Abajo quedaron A / C / D solo como referencia. Lo que iría al admin es el bloque de arriba.
+		</p>
+
+		<div class="grid">
+			<!-- A -->
+			<div class="demo-card">
+				<div class="demo-card-head">
+					<h2>A · Como ahora</h2>
+					<span class="badge">Mucho scroll</span>
+				</div>
+				<div class="demo-card-body">
+					<p class="demo-hint">Checkboxes siempre visibles bajo cada ítem.</p>
+					<div class="mock-modal">
+						<div class="mock-modal-title">Editar comanda</div>
+						<div class="mock-modal-sub">ORN-DEL-0019 · EZEQUIEL</div>
+						<div class="modal-items" id="demo-a"></div>
+					</div>
+				</div>
+			</div>
+
+			<!-- B -->
+			<div class="demo-card">
+				<div class="demo-card-head">
+					<h2>B · Colapsable</h2>
+					<span class="badge rec">Base</span>
+				</div>
+				<div class="demo-card-body">
+					<p class="demo-hint">Versión chica; la propuesta completa está arriba.</p>
+					<div class="mock-modal">
+						<div class="mock-modal-title">Editar comanda</div>
+						<div class="mock-modal-sub">ORN-DEL-0019 · EZEQUIEL</div>
+						<div class="modal-items" id="demo-b"></div>
+					</div>
+				</div>
+			</div>
+
+			<!-- C -->
+			<div class="demo-card">
+				<div class="demo-card-head">
+					<h2>C · Resumen + botón</h2>
+					<span class="badge">Compacta</span>
+				</div>
+				<div class="demo-card-body">
+					<p class="demo-hint">«Cambiar extras» abre el panel de esa línea.</p>
+					<div class="mock-modal">
+						<div class="mock-modal-title">Editar comanda</div>
+						<div class="mock-modal-sub">ORN-DEL-0019 · EZEQUIEL</div>
+						<div class="modal-items" id="demo-c"></div>
+					</div>
+				</div>
+			</div>
+
+			<!-- D -->
+			<div class="demo-card">
+				<div class="demo-card-head">
+					<h2>D · Panel único abajo</h2>
+					<span class="badge">Tipo POS</span>
+				</div>
+				<div class="demo-card-body">
+					<p class="demo-hint">Elegí la hamburguesa; los extras se editan abajo.</p>
+					<div class="mock-modal">
+						<div class="mock-modal-title">Editar comanda</div>
+						<div class="mock-modal-sub">ORN-DEL-0019 · EZEQUIEL</div>
+						<div class="modal-items" id="demo-d-list"></div>
+						<div class="modal-item panel-d">
+							<h3 id="demo-d-title">Extras — Cheeseburger Simple</h3>
+							<div class="edit-extras-open" id="demo-d-extras"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var EXTRAS = [
+			{ id: "bacon", label: "Extra bacon", price: 1500 },
+			{ id: "cheddar", label: "Extra cheddar", price: 1000 },
+			{ id: "pep", label: "Extra Pepinillos", price: 500 },
+		];
+		var ITEMS = [
+			{
+				id: "1",
+				name: "Cheeseburger Simple",
+				acl: "Sin: Cebolla, Salsa mil islas · SOLO QUESO",
+				qty: 1,
+				total: 19500,
+				picked: ["bacon", "cheddar"],
+			},
+			{
+				id: "2",
+				name: "Crispy Vegan",
+				acl: "",
+				qty: 1,
+				total: 12000,
+				picked: [],
+			},
+			{
+				id: "3",
+				name: "Cheeseburger Doble",
+				acl: "Bien cocida",
+				qty: 1,
+				total: 22000,
+				picked: [],
+				manualAdd: true,
+				aclPlaceholder: "Ej: Bien cocida, punto medio, sin sal…",
+			},
+		];
+
+		var ITEMS_COMPARE = ITEMS.slice(0, 2);
+
+		function fmt(n) {
+			return "$" + n.toLocaleString("es-AR", { maximumFractionDigits: 0 });
+		}
+
+		function extrasSummary(ids) {
+			if (!ids.length) return "Sin extras";
+			return ids
+				.map(function (id) {
+					var ex = EXTRAS.find(function (e) {
+						return e.id === id;
+					});
+					return ex ? ex.label.replace(/^Extra /i, "") : id;
+				})
+				.join(", ");
+		}
+
+		function itemTopHtml(it, showAclReadonly) {
+			var acl =
+				showAclReadonly && it.acl ? "<small>Acl.: " + it.acl + "</small>" : "";
+			return (
+				'<div class="modal-item-top">' +
+				"<div><strong>" +
+				it.name +
+				"</strong>" +
+				acl +
+				"</div>" +
+				'<div class="modal-qty"><button type="button" aria-hidden="true">−</button><span>' +
+				it.qty +
+				'</span><button type="button" aria-hidden="true">+</button></div>' +
+				'<span class="price">' +
+				fmt(it.total) +
+				"</span></div>"
+			);
+		}
+
+		function aclFieldHtml(it, idPrefix) {
+			var ph =
+				it.aclPlaceholder ||
+				"Ej: Bien cocida, sin cebolla crispy, punto medio…";
+			return (
+				'<div class="edit-acl">' +
+				'<label for="' +
+				idPrefix +
+				'-acl">Aclaración (cocina)</label>' +
+				'<textarea id="' +
+				idPrefix +
+				'-acl" rows="2" placeholder="' +
+				ph.replace(/"/g, "&quot;") +
+				'">' +
+				(it.acl || "") +
+				"</textarea></div>"
+			);
+		}
+
+		function itemBlockB(it, idx, idPrefix) {
+			var aclReadonly =
+				!it.manualAdd && it.acl
+					? '<small class="edit-acl-readonly">Acl.: ' + it.acl + "</small>"
+					: "";
+			var html =
+				'<div class="modal-item">' +
+				'<div class="modal-item-top">' +
+				"<div><strong>" +
+				it.name +
+				"</strong>" +
+				aclReadonly +
+				"</div>" +
+				'<div class="modal-qty"><button type="button">−</button><span>' +
+				it.qty +
+				'</span><button type="button">+</button></div>' +
+				'<span class="price">' +
+				fmt(it.total) +
+				"</span></div>" +
+				(it.manualAdd ? aclFieldHtml(it, idPrefix) : "") +
+				'<details class="edit-extras-fold">' +
+				"<summary>Extras <span class=\"summary-muted\">· " +
+				extrasSummary(it.picked) +
+				"</span></summary>" +
+				'<div class="edit-extras-open">' +
+				checksHtml(it.picked, idPrefix) +
+				"</div></details></div>";
+			return html;
+		}
+
+		function checksHtml(picked, namePrefix) {
+			var html = "";
+			EXTRAS.forEach(function (ex, i) {
+				var checked = picked.indexOf(ex.id) >= 0 ? " checked" : "";
+				var id = namePrefix + "-" + ex.id;
+				html +=
+					"<label><input type=\"checkbox\" id=\"" +
+					id +
+					"\"" +
+					checked +
+					"> " +
+					ex.label +
+					" (+" +
+					fmt(ex.price) +
+					")</label>";
+			});
+			return html;
+		}
+
+		// Final B + acl
+		var fin = document.getElementById("demo-final");
+		ITEMS.forEach(function (it, idx) {
+			fin.innerHTML += itemBlockB(it, idx, "f" + idx);
+		});
+		fin.innerHTML +=
+			'<div class="modal-item" style="background:#fafafa;color:#666;font-size:0.8rem">Envío · 800</div>';
+
+		// A
+		var a = document.getElementById("demo-a");
+		ITEMS_COMPARE.forEach(function (it, idx) {
+			a.innerHTML +=
+				'<div class="modal-item">' +
+				itemTopHtml(it, true) +
+				'<div class="edit-extras-open"><strong style="width:100%;font-size:0.68rem;color:#888">EXTRAS</strong>' +
+				checksHtml(it.picked, "a" + idx) +
+				"</div></div>";
+		});
+
+		// B (compare)
+		var b = document.getElementById("demo-b");
+		ITEMS_COMPARE.forEach(function (it, idx) {
+			b.innerHTML += itemBlockB(it, idx, "b" + idx);
+		});
+
+		// C
+		var cRoot = document.getElementById("demo-c");
+		var cOpen = null;
+		ITEMS_COMPARE.forEach(function (it) {
+			var wrap = document.createElement("div");
+			wrap.className = "modal-item";
+			wrap.dataset.id = it.id;
+			wrap.innerHTML =
+				itemTopHtml(it) +
+				'<div class="chip-row">' +
+				'<span class="chip' +
+				(it.picked.length ? " on" : "") +
+				'" data-chip>' +
+				extrasSummary(it.picked) +
+				"</span>" +
+				'<button type="button" class="btn-sm" data-toggle>Cambiar extras</button>' +
+				"</div>" +
+				'<div class="extras-panel hidden" data-panel style="display:none">' +
+				checksHtml(it.picked, "c" + it.id) +
+				"</div>";
+			cRoot.appendChild(wrap);
+		});
+		cRoot.addEventListener("click", function (e) {
+			var btn = e.target.closest("[data-toggle]");
+			if (!btn) return;
+			var item = btn.closest(".modal-item");
+			var panel = item.querySelector("[data-panel]");
+			var opening = panel.style.display === "none";
+			cRoot.querySelectorAll("[data-panel]").forEach(function (p) {
+				p.style.display = "none";
+			});
+			cRoot.querySelectorAll("[data-toggle]").forEach(function (b) {
+				b.textContent = "Cambiar extras";
+				b.classList.remove("primary");
+			});
+			if (opening) {
+				panel.style.display = "block";
+				btn.textContent = "Cerrar";
+				btn.classList.add("primary");
+			}
+		});
+
+		// D
+		var dList = document.getElementById("demo-d-list");
+		var dExtras = document.getElementById("demo-d-extras");
+		var dTitle = document.getElementById("demo-d-title");
+		var dActive = "1";
+
+		function renderDExtras() {
+			var it = ITEMS.find(function (x) {
+				return x.id === dActive;
+			});
+			if (!it) return;
+			dTitle.textContent = "Extras — " + it.name;
+			dExtras.innerHTML = checksHtml(it.picked, "d");
+		}
+
+		ITEMS_COMPARE.forEach(function (it) {
+			var btn = document.createElement("button");
+			btn.type = "button";
+			btn.className = "line-pick" + (it.id === dActive ? " selected" : "");
+			btn.dataset.id = it.id;
+			btn.innerHTML =
+				"<strong>" +
+				it.name +
+				" · " +
+				fmt(it.total) +
+				'</strong><span class="meta">' +
+				extrasSummary(it.picked) +
+				"</span>";
+			btn.addEventListener("click", function () {
+				dActive = it.id;
+				dList.querySelectorAll(".line-pick").forEach(function (el) {
+					el.classList.toggle("selected", el.dataset.id === dActive);
+				});
+				renderDExtras();
+			});
+			dList.appendChild(btn);
+		});
+		renderDExtras();
+	</script>
+</body>
+</html>

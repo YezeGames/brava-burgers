@@ -2315,6 +2315,62 @@
 
 
 
+  function editItemIsManual(it) {
+
+    return it && it.addedInEdit === true;
+
+  }
+
+
+
+  function escapeEditHtml(s) {
+
+    return String(s || '')
+
+      .replace(/&/g, '&amp;')
+
+      .replace(/</g, '&lt;')
+
+      .replace(/>/g, '&gt;')
+
+      .replace(/"/g, '&quot;');
+
+  }
+
+
+
+  function syncEditManualAcls() {
+
+    var box = $('edit-items');
+
+    if (!box) return;
+
+    editItems.forEach(function (it, idx) {
+
+      if (!editItemIsManual(it)) return;
+
+      var ta = box.querySelector('[data-edit-acl][data-idx="' + idx + '"]');
+
+      if (ta) it.acl = ta.value.trim();
+
+    });
+
+  }
+
+
+
+  function applyEditItemAcl(idx) {
+
+    var it = editItems[idx];
+
+    if (!it || !editItemIsManual(it)) return;
+
+    syncEditManualAcls();
+
+  }
+
+
+
   function editItemPrecio(it) {
 
     return editItemLineUnit(it);
@@ -2661,7 +2717,11 @@
 
       '\x1e' +
 
-      String((it.acl || it.aclaraciones || '').trim())
+      String((it.acl || it.aclaraciones || '').trim()) +
+
+      '\x1e' +
+
+      (editItemIsManual(it) ? 'm' : 'o')
 
     );
 
@@ -2839,13 +2899,19 @@
 
     var picked = parseExtrasFromVariedad(it.variedad);
 
-    var html = '<div class="edit-extras"><div class="edit-extras-title">Extras</div>';
+    var summary = picked.length
+
+      ? picked.join(', ')
+
+      : 'Sin extras';
+
+    var inner = '';
 
     list.forEach(function (ex) {
 
       var checked = picked.indexOf(ex.nombre) >= 0 ? ' checked' : '';
 
-      html +=
+      inner +=
 
         '<label><input type="checkbox" data-edit-extra data-idx="' +
 
@@ -2853,7 +2919,7 @@
 
         '" data-extra-name="' +
 
-        String(ex.nombre).replace(/"/g, '&quot;') +
+        escapeEditHtml(ex.nombre) +
 
         '"' +
 
@@ -2861,7 +2927,7 @@
 
         '> ' +
 
-        ex.nombre +
+        escapeEditHtml(ex.nombre) +
 
         (ex.precio > 0 ? ' (+' + fmt(ex.precio) + ')' : '') +
 
@@ -2869,15 +2935,73 @@
 
     });
 
-    html += '</div>';
+    return (
 
-    return html;
+      '<details class="edit-extras-fold">' +
+
+      '<summary>Extras <span class="edit-extras-summary">· ' +
+
+      escapeEditHtml(summary) +
+
+      '</span></summary>' +
+
+      '<div class="edit-extras">' +
+
+      inner +
+
+      '</div></details>'
+
+    );
+
+  }
+
+
+
+  function renderEditAclHtml(idx, it) {
+
+    var acl = (it.acl || it.aclaraciones || '').trim();
+
+    if (editItemIsManual(it)) {
+
+      return (
+
+        '<div class="edit-acl">' +
+
+        '<label class="edit-acl-label" for="edit-acl-' +
+
+        idx +
+
+        '">Aclaración (cocina)</label>' +
+
+        '<textarea id="edit-acl-' +
+
+        idx +
+
+        '" class="edit-acl-input" data-edit-acl data-idx="' +
+
+        idx +
+
+        '" rows="2" placeholder="Ej: Bien cocida, sin cebolla crispy…">' +
+
+        escapeEditHtml(acl) +
+
+        '</textarea></div>'
+
+      );
+
+    }
+
+    if (acl) return '<small class="edit-acl-readonly">Acl.: ' + escapeEditHtml(acl) + '</small>';
+
+    return '';
 
   }
 
 
 
   function renderEditModalItems() {
+
+    syncEditManualAcls();
 
     var box = $('edit-items');
 
@@ -2886,10 +3010,6 @@
     var html = '';
 
     editItems.forEach(function (it, idx) {
-
-      var acl = (it.acl || it.aclaraciones || '').trim();
-
-      var aclHtml = acl ? '<small>Acl.: ' + acl + '</small>' : '';
 
       html +=
 
@@ -2903,7 +3023,7 @@
 
         '</strong>' +
 
-        aclHtml +
+        (!editItemIsManual(it) ? renderEditAclHtml(idx, it) : '') +
 
         '</div>' +
 
@@ -2934,6 +3054,8 @@
         fmt(editItemQty(it) * editItemLineUnit(it)) +
 
         '</span></div>' +
+
+        (editItemIsManual(it) ? renderEditAclHtml(idx, it) : '') +
 
         renderEditExtrasHtml(idx, it) +
 
@@ -2984,6 +3106,12 @@
     editOrn = orn;
 
     editItems = normalizeItemsForSave(parseOrderItems(o));
+
+    editItems.forEach(function (it) {
+
+      it.addedInEdit = false;
+
+    });
 
     editEnvio = Number(o.envio) || 0;
 
@@ -3097,6 +3225,8 @@
 
       adicionales: 0,
 
+      addedInEdit: true,
+
     };
 
     var key = editItemExtrasKey(newLine);
@@ -3118,6 +3248,8 @@
 
 
   function saveEditModal() {
+
+    syncEditManualAcls();
 
     if (!editOrn || !editItems.length) {
 
@@ -3755,6 +3887,16 @@
       applyEditItemExtras(parseInt(cb.getAttribute('data-idx'), 10));
 
       renderEditModalItems();
+
+    });
+
+    $('edit-items').addEventListener('input', function (e) {
+
+      var ta = e.target.closest('[data-edit-acl]');
+
+      if (!ta) return;
+
+      applyEditItemAcl(parseInt(ta.getAttribute('data-idx'), 10));
 
     });
 
