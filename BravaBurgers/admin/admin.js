@@ -1118,30 +1118,75 @@
     document.body.classList.remove('printing-cierre-caja');
   }
 
-  function printCierreResumenModal() {
-    document.documentElement.classList.add('printing-cierre-caja');
-    document.body.classList.add('printing-cierre-caja');
-    var done = function () {
-      document.documentElement.classList.remove('printing-cierre-caja');
-      document.body.classList.remove('printing-cierre-caja');
-    };
-    if (window.matchMedia) {
-      window.matchMedia('print').addEventListener(
-        'change',
-        function m(e) {
-          if (!e.matches) {
-            done();
-            window.matchMedia('print').removeEventListener('change', m);
-          }
-        },
-        { once: true }
-      );
+  function getCierreThermalPrintCss() {
+    return (
+      '@page { size: 80mm auto; margin: 0; }' +
+      'html, body { margin: 0; padding: 0; width: 80mm; max-width: 80mm; height: auto; min-height: 0; overflow: visible; box-sizing: border-box; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '.resumen.resumen-cierre { width: 100%; max-width: 100%; margin: 0; padding: 0 2mm; box-sizing: border-box; border: none; border-radius: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '.resumen-cierre .resumen-top { background: #000; color: #fff; padding: 8px 4px; text-align: center; }' +
+      '.resumen-cierre .resumen-top .brand { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; color: #fff; }' +
+      '.resumen-cierre .resumen-top .meta { font-size: 10px; margin-top: 4px; line-height: 1.4; color: #fff; opacity: 1; }' +
+      '.resumen-cierre .resumen-block { padding: 6px 4px; border-bottom: 1px solid #ddd; background: #fff; }' +
+      '.resumen-cierre .resumen-block h3 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }' +
+      '.resumen-cierre .resumen-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }' +
+      '.resumen-cierre .res-l { width: 58%; text-align: left; vertical-align: top; padding: 2px 0; word-break: break-word; font-size: 11px; color: #000; }' +
+      '.resumen-cierre .res-r { width: 42%; text-align: right; vertical-align: top; padding: 2px 0; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; color: #000; }' +
+      '.resumen-cierre tr.res-total .res-l, .resumen-cierre tr.res-total .res-r { font-weight: 700; border-top: 1px dashed #000; padding-top: 5px; }' +
+      '.resumen-cierre tr.res-muted .res-l, .resumen-cierre tr.res-muted .res-r { color: #777; font-size: 10px; }' +
+      '.resumen-cierre tr.res-result .res-l, .resumen-cierre tr.res-result .res-r { font-weight: 700; font-size: 12px; color: #000; }' +
+      '.resumen-cierre .productos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; margin: 4px 0 8px; font-size: 10px; width: 100%; }' +
+      '.resumen-cierre .producto-cell { display: flex; justify-content: space-between; gap: 4px; min-width: 0; }' +
+      '.resumen-cierre .producto-cell .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000; }' +
+      '.resumen-cierre .producto-cell .q { font-weight: 700; flex-shrink: 0; color: #000; }' +
+      '.resumen-cierre .resumen-foot { padding: 8px 4px; font-size: 9px; color: #fff; background: #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+    );
+  }
+
+  function printCierreResumenThermal(resumenOuterHtml) {
+    if (!resumenOuterHtml) return false;
+    var iframe = document.createElement('iframe');
+    iframe.setAttribute('title', 'Impresión cierre de caja');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText =
+      'position:fixed;width:0;height:0;border:0;margin:0;padding:0;left:0;top:0;opacity:0;pointer-events:none';
+    document.body.appendChild(iframe);
+    var win = iframe.contentWindow;
+    var doc = iframe.contentDocument || (win && win.document);
+    if (!doc || !win) {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      return false;
     }
-    window.onafterprint = function () {
-      done();
-      window.onafterprint = null;
+    doc.open();
+    doc.write(
+      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Cierre de caja</title><style>' +
+        getCierreThermalPrintCss() +
+        '</style></head><body>' +
+        resumenOuterHtml +
+        '</body></html>'
+    );
+    doc.close();
+    var cleanup = function () {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
     };
-    window.print();
+    win.onafterprint = function () {
+      cleanup();
+      win.onafterprint = null;
+    };
+    setTimeout(function () {
+      try {
+        win.focus();
+        win.print();
+      } catch (e) {
+        cleanup();
+      }
+    }, 200);
+    return true;
+  }
+
+  function printCierreResumenModal() {
+    var content = $('cierre-resumen-content');
+    if (!content || !content.innerHTML.trim()) return;
+    printCierreResumenThermal(content.outerHTML);
   }
 
   function printCierreResumenCompleto() {
