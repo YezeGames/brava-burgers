@@ -1065,12 +1065,10 @@
       ]) +
       '</div>' +
       '<div class="resumen-block"><h3>Gastos</h3>' +
-      resumenTblRows(gastosRows.concat([{ l: 'Total gastos', r: '−$' + fmt(st.gTotal), c: 'res-total' }])) +
-      '</div>' +
-      '<div class="resultado-inline' +
-      (neg ? ' neg' : '') +
-      '">' +
-      resumenTblRows([{ l: 'Resultado turno', r: resultadoStr, c: 'res-result' }]) +
+      resumenTblRows(gastosRows.concat([
+        { l: 'Total gastos', r: '−$' + fmt(st.gTotal), c: 'res-total' },
+        { l: 'Resultado turno', r: resultadoStr, c: 'res-total res-result' },
+      ])) +
       '</div>' +
       '<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
       cierreProductosGridHtml(productos) +
