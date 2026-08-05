@@ -519,14 +519,32 @@
     };
   }
 
+  function productoNombreEsDoble(nombre) {
+    var t = String(nombre || '').toLowerCase();
+    return t.indexOf('doble') >= 0 || t.indexOf('triple') >= 0;
+  }
+
+  function sortProductosVentasLista(list) {
+    var simples = [];
+    var dobles = [];
+    (list || []).forEach(function (x) {
+      if (productoNombreEsDoble(x.nombre)) dobles.push(x);
+      else simples.push(x);
+    });
+    simples.sort(function (a, b) {
+      return a.nombre.localeCompare(b.nombre, 'es');
+    });
+    dobles.sort(function (a, b) {
+      return a.nombre.localeCompare(b.nombre, 'es');
+    });
+    return simples.concat(dobles);
+  }
+
   function buildProductosVentasList(porProducto) {
-    return Object.keys(porProducto || {})
-      .sort(function (a, b) {
-        return a.localeCompare(b, 'es');
-      })
-      .map(function (nombre) {
-        return { nombre: nombre, qty: porProducto[nombre] };
-      });
+    var list = Object.keys(porProducto || {}).map(function (nombre) {
+      return { nombre: nombre, qty: porProducto[nombre] };
+    });
+    return sortProductosVentasLista(list);
   }
 
   function computeSesionStats() {

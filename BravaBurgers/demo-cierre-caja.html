@@ -314,13 +314,22 @@
 		}
 
 		function productosDesdeComandas(soloConVentas) {
-			var list = Object.keys(DEMO.conteoComandas)
-				.map(function (nombre) {
-					return { nombre: nombre, qty: DEMO.conteoComandas[nombre] || 0 };
-				})
-				.sort(function (a, b) {
-					return a.nombre.localeCompare(b.nombre, 'es');
-				});
+			var list = Object.keys(DEMO.conteoComandas).map(function (nombre) {
+				return { nombre: nombre, qty: DEMO.conteoComandas[nombre] || 0 };
+			});
+			var simples = [];
+			var dobles = [];
+			list.forEach(function (x) {
+				if (esDobleNombre(x.nombre)) dobles.push(x);
+				else simples.push(x);
+			});
+			simples.sort(function (a, b) {
+				return a.nombre.localeCompare(b.nombre, 'es');
+			});
+			dobles.sort(function (a, b) {
+				return a.nombre.localeCompare(b.nombre, 'es');
+			});
+			list = simples.concat(dobles);
 			if (soloConVentas) {
 				list = list.filter(function (x) {
 					return x.qty > 0;
@@ -500,7 +509,7 @@
 				' Hamburguesas</strong></div></div>' +
 				'<div class="resumen-block"><h3>Comandas — hamburguesas vendidas</h3>' +
 				productosHtml +
-				'<p class="line muted" style="margin:8px 0 0;font-size:0.75rem;">Orden alfabético. Solo ítems de pedidos entregados ✓ en el turno.</p></div>' +
+				'<p class="line muted" style="margin:8px 0 0;font-size:0.75rem;">Simples A–Z, luego dobles A–Z (comandas entregadas ✓).</p></div>' +
 				'<div class="resumen-block"><h3>Gastos del turno</h3>' +
 				gastosHtml +
 				'<div class="line" style="margin-top:10px;font-weight:600;"><span>Total gastos</span><span>−$' +
