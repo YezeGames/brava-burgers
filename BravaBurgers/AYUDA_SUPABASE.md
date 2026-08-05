@@ -137,11 +137,11 @@ Proyecto **brava-burgers** → **Settings** → **Environment Variables**.
 | Gastos y caja | Supabase `gastos` (panel) |
 | Cierre de caja + conteo hamburguesas | Supabase `cierres_caja` (panel) |
 
-**Cierre de caja:** ejecutá `cierres_caja_migration.sql` (y si la tabla ya existía, también `cierres_caja_turnos_migration.sql`).
+**Cierre de caja:** ejecutá `cierres_caja_migration.sql` en Supabase si el cierre falla al guardar.
 
-- **Varios turnos el mismo día:** elegí Mañana / Tarde / Noche y cerrá cada turno. Cada cierre suma solo ventas **entregadas desde el cierre anterior** (o desde medianoche en el primer turno).
-- Arriba en **Caja** sigue el **día completo**; **Este turno** es lo que entra en el próximo cierre.
-- Los cierres quedan listados en el panel y en Supabase (`cierres_caja`). Para borrar uno a mano: Table Editor (no hay «reabrir» en el panel).
+- **Abrir caja** → empezás el turno (en este navegador).
+- **Cierre de caja** → un cierre por período de fechas; queda en `cierres_caja`.
+- Si ya cerraste y querés seguir el mismo día: **Abrir caja** (borra ese cierre en Supabase para volver a operar).
 
 ---
 

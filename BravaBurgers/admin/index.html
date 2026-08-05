@@ -53,11 +53,9 @@
 		.caja-row.resultado.pos { color: #2e7d32; }
 		.caja-row.resultado.neg { color: #c62828; }
 		.caja-hint, .range-label { font-size: 0.72rem; color: #888; margin: 8px 0 0; line-height: 1.4; }
-		.caja-estado { font-weight: 600; color: #555; margin-top: 10px; }
-		.cierre-turno-lbl { font-size: 0.72rem; color: #666; margin: 10px 0 4px; display: block; }
-		.cierre-turno-select { width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ddd; font-size: 0.85rem; }
-		.cierre-hoy-list { list-style: none; padding: 0; margin: 8px 0 0; font-size: 0.72rem; color: #666; line-height: 1.5; }
-		.cierre-hoy-list li { margin: 4px 0; }
+		.caja-estado { font-weight: 600; margin-top: 10px; color: #666; }
+		.caja-estado.abierta { color: #2e7d32; }
+		.caja-estado.cerrada { color: #e65100; }
 		.ventas-box h2 { margin: 0 0 12px; font-size: 1rem; color: #444; border-bottom: 2px solid #FF6B35; padding-bottom: 8px; }
 		.range-label { margin-bottom: 8px; }
 		.gasto-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 180px; overflow-y: auto; }
@@ -233,19 +231,11 @@
 					<div class="caja-row negative"><span>Gastos</span><span id="caja-gastos">−$0</span></div>
 					<div class="caja-row resultado pos" id="row-resultado"><span>Resultado</span><span id="caja-resultado">$0</span></div>
 					<p class="caja-hint">Resultado = ventas entregadas − gastos. Usá los filtros de fecha arriba.</p>
-					<div class="caja-row section">Este turno (desde último cierre)</div>
-					<div class="caja-row"><span>Ventas turno</span><span id="turno-ventas">$0</span></div>
-					<div class="caja-row"><span>Hamb. turno</span><span id="turno-hamb">0</span></div>
-					<p class="range-label" id="turno-desde-lbl">—</p>
-					<label class="field cierre-turno-lbl" for="cierre-turno">Turno a cerrar</label>
-					<select id="cierre-turno" class="cierre-turno-select" aria-label="Turno a cerrar">
-						<option value="Mañana">Mañana</option>
-						<option value="Tarde">Tarde</option>
-						<option value="Noche">Noche</option>
-					</select>
-					<ul class="cierre-hoy-list" id="cierres-hoy-list" hidden></ul>
 					<p class="range-label caja-estado" id="caja-estado">—</p>
-					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja del turno</button>
+					<p class="range-label" id="caja-cierre-detalle" hidden></p>
+					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-abrir-caja">Abrir caja</button>
+					<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja</button>
+					<p class="caja-hint">1) Abrir caja → 2) operás → 3) Cierre (opcional).</p>
 				</aside>
 				<aside class="sidebar-block ventas-box">
 					<h2>Registro de ventas</h2>
@@ -344,6 +334,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=3"></script>
-	<script src="/admin/admin.js?v=29"></script>
+	<script src="/admin/admin.js?v=30"></script>
 </body>
 </html>
