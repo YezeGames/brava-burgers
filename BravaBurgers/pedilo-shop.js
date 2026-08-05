@@ -552,6 +552,7 @@
 		var s = String(text || 'BRAVA BURGERS')
 			.replace(/\uFFFD/g, '')
 			.replace(/\?\?/g, '')
+			.replace(/[\uD800-\uDFFF]/g, '')
 			.replace(/\*+$/g, '')
 			.trim();
 		if (!s) s = 'BRAVA BURGERS';
@@ -563,7 +564,10 @@
 		if (producto.variedad && !isSinExtraVariedad(producto.variedad)) {
 			variedadTxt = '\nExtras: ' + producto.variedad;
 		}
-		var acl = producto.aclaraciones ? '\nAclaraciones: ' + producto.aclaraciones : '';
+		var acl = '';
+		if (producto.aclaraciones) {
+			acl = '\nAclaraciones: ' + producto.aclaraciones;
+		}
 		var subtotal =
 			parseFloat(producto.cantidad) * (parseFloat(producto.precio) + parseFloat(producto.adicionales || 0));
 		var linea = modelo || g_modelo_linea_whatsapp;
@@ -573,7 +577,7 @@
 		linea = linea.replace(/\*VARIEDAD\*/gi, variedadTxt);
 		linea = linea.replace(/\*ACLARACION\*/gi, acl);
 		linea = linea.replace(/\*SUBTOTAL\*/gi, formatear_moneda(subtotal));
-		return linea;
+		return linea.trim() + '\n';
 	}
 
 	window.calcular_total = function () {
@@ -684,9 +688,10 @@
 				'_\n\n';
 		}
 		pedido += preguntas_whatsapp;
-		pedido += '*Pedido:*\n';
+		pedido += '*Pedido:*\n\n';
 
-		g_pedido.productos.forEach(function (producto) {
+		g_pedido.productos.forEach(function (producto, idx) {
+			if (idx > 0) pedido += '\n';
 			pedido += buildLineaPedido(producto, g_modelo_linea_whatsapp);
 		});
 

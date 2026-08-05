@@ -530,7 +530,7 @@
 		global.g_texto_final_whatsapp = configGet(cfg, 'Texto al final del mensaje') || 'BRAVA BURGERS';
 		global.g_modelo_linea_whatsapp =
 			configGet(cfg, 'Modelo del pedido en Whatsapp') ||
-			'*CANTIDAD* x *NOMBRE* *VARIEDAD* *ACLARACION*\\nSubtotal = $*SUBTOTAL*\\n';
+			'*CANTIDAD* x *NOMBRE* *VARIEDAD* *ACLARACION*\nSubtotal = $*SUBTOTAL*';
 
 		global.g_pedido_zona_envio_ignorar_monto = limpiarPrecio(configGet(cfg, 'Extra al pedido 1 - Monto'));
 		if (global.g_pedido_zona_envio_ignorar_monto === 0) global.g_pedido_zona_envio_ignorar_monto = -1;
