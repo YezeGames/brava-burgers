@@ -306,6 +306,139 @@
 			body.printing-comanda .ticket { width: 80mm; padding: 4mm; font-size: 11px; }
 			@page { size: 80mm auto; margin: 0; }
 		}
+		.cierre-confirm-text { font-size: 0.88rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
+		.cierre-resumen-modal-box { max-width: 420px; }
+		.cierre-resumen-wrap { margin-top: 4px; }
+		.resumen { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+		.resumen.resumen-ticket { max-width: 320px; margin: 0 auto; font-size: 0.8rem; }
+		.resumen-top {
+			background: linear-gradient(135deg, #ff6b35 0%, #e55a25 100%);
+			color: #fff;
+			padding: 10px 12px;
+			text-align: center;
+		}
+		.resumen-top .brand { font-size: 1rem; font-weight: 800; letter-spacing: 0.04em; }
+		.resumen-top .meta { font-size: 0.68rem; opacity: 0.95; margin-top: 4px; line-height: 1.35; }
+		.resumen-block { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+		.resumen-block:last-child { border-bottom: none; }
+		.resumen-block h3 {
+			margin: 0 0 4px;
+			font-size: 0.65rem;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: var(--text-muted);
+		}
+		.resumen-block .line {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 8px;
+			font-size: 0.78rem;
+			margin: 2px 0;
+			color: var(--text);
+		}
+		.resumen-block .line > span:first-child { flex: 1 1 auto; min-width: 0; }
+		.resumen-block .line strong,
+		.resumen-block .line .amt {
+			flex: 0 0 auto;
+			font-weight: 600;
+			white-space: nowrap;
+			text-align: right;
+		}
+		.resumen-block .line.muted { color: var(--text-muted); font-size: 0.72rem; }
+		.resumen-block .line.line-total {
+			margin-top: 4px;
+			padding-top: 4px;
+			border-top: 1px dashed var(--border);
+			font-weight: 700;
+		}
+		.resumen .gasto-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 6px;
+			font-size: 0.75rem;
+			margin: 2px 0;
+			color: var(--text);
+		}
+		.resumen .gasto-item > span:first-child { flex: 1 1 auto; min-width: 0; }
+		.resumen .gasto-item > span:last-child { flex: 0 0 auto; white-space: nowrap; }
+		.resumen .productos-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 2px 8px;
+			margin: 4px 0 6px;
+			font-size: 0.7rem;
+		}
+		.resumen .producto-cell { display: flex; justify-content: space-between; gap: 4px; min-width: 0; }
+		.resumen .producto-cell .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.resumen .producto-cell .q { font-weight: 700; flex-shrink: 0; }
+		.resumen .resultado-inline {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 8px;
+			padding: 6px 10px;
+			border-top: 2px solid var(--text-strong);
+			border-bottom: 2px solid var(--text-strong);
+			font-weight: 800;
+			font-size: 0.88rem;
+			color: var(--text);
+		}
+		.resumen .resultado-inline .amt { color: #2e7d32; white-space: nowrap; }
+		.resumen .resultado-inline.neg .amt { color: #c62828; }
+		.resumen-foot {
+			padding: 6px 10px;
+			font-size: 0.62rem;
+			color: var(--text-muted);
+			text-align: center;
+			line-height: 1.3;
+		}
+		@media print {
+			body.printing-cierre-caja #login-view,
+			body.printing-cierre-caja #app-view { display: none !important; }
+			body.printing-cierre-caja #rechazo-modal,
+			body.printing-cierre-caja #gasto-modal,
+			body.printing-cierre-caja #edit-modal,
+			body.printing-cierre-caja #comanda-modal,
+			body.printing-cierre-caja #cierre-confirm-modal { display: none !important; }
+			body.printing-cierre-caja #cierre-resumen-modal {
+				display: flex !important;
+				position: static !important;
+				background: #fff !important;
+				padding: 0 !important;
+			}
+			body.printing-cierre-caja .cierre-modal-chrome { display: none !important; }
+			body.printing-cierre-caja .cierre-resumen-modal-box {
+				box-shadow: none !important;
+				max-width: none !important;
+				padding: 0 !important;
+				background: #fff !important;
+				color: #000 !important;
+			}
+			body.printing-cierre-caja .cierre-resumen-wrap { margin: 0; }
+			body.printing-cierre-caja .resumen.resumen-ticket {
+				max-width: 72mm;
+				width: 72mm;
+				margin: 0;
+				border: none;
+				border-radius: 0;
+			}
+			body.printing-cierre-caja .resumen-top {
+				background: none !important;
+				color: #000 !important;
+				padding: 0 0 6px;
+				border-bottom: 1px solid #000;
+			}
+			body.printing-cierre-caja .resumen-top .meta { opacity: 1; color: #000; }
+			body.printing-cierre-caja .resumen-block { padding: 5px 0; border-color: #ccc; }
+			body.printing-cierre-caja .resumen-block h3,
+			body.printing-cierre-caja .resumen-block .line,
+			body.printing-cierre-caja .resumen .gasto-item { color: #000; }
+			body.printing-cierre-caja .resultado-inline { border-color: #000; padding: 4px 0; }
+			body.printing-cierre-caja .resumen-foot { color: #666; padding: 4px 0 0; }
+			body.printing-cierre-caja .print-hide { display: none !important; }
+		}
 	</style>
 </head>
 <body>
@@ -468,6 +601,32 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="cierre-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="cierre-confirm-title">
+		<div class="modal cierre-resumen-modal-box">
+			<h2 id="cierre-confirm-title">¿Cerrar caja?</h2>
+			<p class="sub">Se guarda el resumen y los contadores vuelven a $0 hasta abrir de nuevo.</p>
+			<p class="cierre-confirm-text" id="cierre-confirm-text"></p>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="cierre-confirm-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="cierre-confirm-ok">Confirmar cierre</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="cierre-resumen-modal" role="dialog" aria-modal="true" aria-labelledby="cierre-resumen-title">
+		<div class="modal cierre-resumen-modal-box">
+			<h2 class="cierre-modal-chrome" id="cierre-resumen-title">Cierre guardado</h2>
+			<p class="sub cierre-modal-chrome">Resumen del turno — podés reimprimir</p>
+			<div class="cierre-resumen-wrap">
+				<div class="resumen resumen-ticket" id="cierre-resumen-content" aria-label="Resumen cierre de caja"></div>
+			</div>
+			<div class="modal-foot cierre-modal-chrome">
+				<button type="button" class="btn-sm" id="cierre-resumen-close">Cerrar</button>
+				<button type="button" class="btn-sm btn-accent" id="cierre-resumen-print">Imprimir resumen</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal-backdrop hidden" id="comanda-modal" role="dialog" aria-labelledby="comanda-modal-title">
 		<div class="modal comanda-modal-box">
 			<h2 id="comanda-modal-title">Comanda</h2>
@@ -485,6 +644,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=6"></script>
-	<script src="/admin/admin.js?v=44"></script>
+	<script src="/admin/admin.js?v=45"></script>
 </body>
 </html>

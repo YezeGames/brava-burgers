@@ -114,49 +114,99 @@
 			border-radius: 8px;
 			overflow: hidden;
 		}
+		.resumen.resumen-ticket {
+			max-width: 320px;
+			margin: 0 auto;
+			font-size: 0.8rem;
+		}
 		.resumen-top {
 			background: linear-gradient(135deg, #ff6b35 0%, #e55a25 100%);
 			color: #fff;
-			padding: 16px 18px;
+			padding: 10px 12px;
+			text-align: center;
 		}
-		.resumen-top .brand { font-size: 1.1rem; font-weight: 800; letter-spacing: 0.02em; }
-		.resumen-top .meta { font-size: 0.78rem; opacity: 0.95; margin-top: 6px; line-height: 1.4; }
-		.resumen-block { padding: 14px 18px; border-bottom: 1px solid #f0f0f0; }
+		.resumen-top .brand { font-size: 1rem; font-weight: 800; letter-spacing: 0.04em; }
+		.resumen-top .meta { font-size: 0.68rem; opacity: 0.95; margin-top: 4px; line-height: 1.35; }
+		.resumen-block { padding: 8px 10px; border-bottom: 1px solid #e8e8e8; }
 		.resumen-block:last-child { border-bottom: none; }
 		.resumen-block h3 {
-			margin: 0 0 10px;
-			font-size: 0.72rem;
+			margin: 0 0 4px;
+			font-size: 0.65rem;
 			text-transform: uppercase;
-			letter-spacing: 0.04em;
-			color: #888;
+			letter-spacing: 0.05em;
+			color: #666;
 		}
 		.resumen-block .line {
 			display: flex;
 			justify-content: space-between;
-			font-size: 0.88rem;
-			margin: 5px 0;
+			align-items: baseline;
+			gap: 8px;
+			font-size: 0.78rem;
+			margin: 2px 0;
 		}
-		.resumen-block .line strong { font-weight: 600; }
-		.resumen-block .line.muted { color: #888; font-size: 0.82rem; }
-		.gasto-item { font-size: 0.82rem; margin: 4px 0; display: flex; justify-content: space-between; gap: 8px; }
-		.resultado-box {
-			background: #f9f9f9;
-			padding: 14px 18px;
-			text-align: center;
+		.resumen-block .line > span:first-child { flex: 1 1 auto; min-width: 0; }
+		.resumen-block .line strong,
+		.resumen-block .line .amt {
+			flex: 0 0 auto;
+			font-weight: 600;
+			white-space: nowrap;
+			text-align: right;
 		}
-		.resultado-box .label { font-size: 0.75rem; text-transform: uppercase; color: #666; letter-spacing: 0.05em; }
-		.resultado-box .amount {
-			font-size: 1.75rem;
-			font-weight: 800;
-			color: #2e7d32;
+		.resumen-block .line.muted { color: #777; font-size: 0.72rem; }
+		.resumen-block .line.line-total {
 			margin-top: 4px;
+			padding-top: 4px;
+			border-top: 1px dashed #ccc;
+			font-weight: 700;
 		}
-		.resultado-box .amount.neg { color: #c62828; }
+		.gasto-item {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 6px;
+			font-size: 0.75rem;
+			margin: 2px 0;
+		}
+		.gasto-item > span:first-child { flex: 1 1 auto; min-width: 0; }
+		.gasto-item > span:last-child { flex: 0 0 auto; white-space: nowrap; }
+		.productos-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 2px 8px;
+			margin: 4px 0 6px;
+			font-size: 0.7rem;
+		}
+		.producto-cell {
+			display: flex;
+			justify-content: space-between;
+			gap: 4px;
+			min-width: 0;
+		}
+		.producto-cell .n {
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.producto-cell .q { font-weight: 700; flex-shrink: 0; }
+		.resultado-inline {
+			display: flex;
+			justify-content: space-between;
+			align-items: baseline;
+			gap: 8px;
+			padding: 6px 10px;
+			border-top: 2px solid #1a1a1a;
+			border-bottom: 2px solid #1a1a1a;
+			font-weight: 800;
+			font-size: 0.88rem;
+		}
+		.resultado-inline .amt { color: #2e7d32; white-space: nowrap; }
+		.resultado-inline.neg .amt { color: #c62828; }
 		.resumen-foot {
-			padding: 12px 18px;
-			font-size: 0.72rem;
+			padding: 6px 10px;
+			font-size: 0.62rem;
 			color: #999;
-			background: #fafafa;
+			text-align: center;
+			line-height: 1.3;
 		}
 		.modal-foot {
 			display: flex;
@@ -194,16 +244,43 @@
 		.order-note { font-size: 0.72rem; color: #888; margin-top: 8px; }
 
 		@media print {
-			body { background: #fff; padding: 0; }
-			.banner, .card, .modal-foot, .no-print { display: none !important; }
+			@page { margin: 5mm; size: auto; }
+			body { background: #fff; padding: 0; margin: 0; font-size: 9pt; }
+			.wrap { display: none !important; }
+			#modal-confirm { display: none !important; }
+			.banner, .card, .modal-foot, .no-print, .print-hide { display: none !important; }
 			.modal-backdrop {
 				position: static;
 				display: block !important;
 				background: none;
 				padding: 0;
 			}
-			.modal { box-shadow: none; max-width: none; max-height: none; }
+			.modal {
+				box-shadow: none;
+				max-width: none;
+				max-height: none;
+				overflow: visible;
+			}
+			.modal-body { padding: 0 !important; }
 			.modal-head { display: none; }
+			.resumen.resumen-ticket {
+				max-width: 72mm;
+				width: 72mm;
+				margin: 0;
+				border: none;
+				border-radius: 0;
+			}
+			.resumen-top {
+				background: none !important;
+				color: #000 !important;
+				padding: 0 0 6px;
+				border-bottom: 1px solid #000;
+			}
+			.resumen-top .meta { opacity: 1; }
+			.resumen-block { padding: 5px 0; }
+			.resumen-block h3 { color: #000; }
+			.resultado-inline { border-color: #000; padding: 4px 0; }
+			.resumen-foot { padding: 4px 0 0; }
 		}
 	</style>
 </head>
@@ -213,7 +290,7 @@
 		<h1>Cierre de caja — resumen diario</h1>
 		<p class="lead">
 			Simula un turno abierto con ventas, gastos y hamburguesas. Al tocar <strong>Cierre de caja</strong> ves confirmación y
-			después el <strong>resumen del día</strong>. Las hamburguesas se cuentan sumando ítems de <strong>comandas entregadas ✓</strong> (como hará el admin), no desde el Sheet.
+			después el <strong>resumen del día</strong> (al confirmar se abre el diálogo de impresión con todo el detalle). Las hamburguesas se cuentan sumando ítems de <strong>comandas entregadas ✓</strong> (como hará el admin), no desde el Sheet.
 		</p>
 
 		<div class="card mock-sidebar">
@@ -268,7 +345,7 @@
 				<p class="sub">Resumen del turno — podés imprimir o capturar</p>
 			</div>
 			<div class="modal-body" style="padding-top:0;">
-				<div class="resumen" id="resumen-content"></div>
+				<div class="resumen resumen-ticket" id="resumen-content"></div>
 			</div>
 			<div class="modal-foot no-print">
 				<button type="button" class="btn" id="resumen-close">Cerrar</button>
@@ -291,7 +368,6 @@
 				{ concepto: 'Carne', monto: 22000, pagado: 'Transferencia' },
 				{ concepto: 'Bolsas / descartables', monto: 3200, pagado: 'Efectivo' },
 			],
-			pedidosEntregados: 23,
 			/** Simula conteo agregado desde líneas de comandas entregadas */
 			conteoComandas: {
 				'Cheeseburger Doble': 3,
@@ -402,18 +478,26 @@
 			renderPorProducto('m-por-producto', true);
 		}
 
-		function productosResumenHtml() {
-			return productosDesdeComandas(false)
-				.map(function (x) {
-					return (
-						'<div class="line"><span>' +
-						x.nombre +
-						':</span><strong>' +
-						x.qty +
-						'</strong></div>'
-					);
-				})
-				.join('');
+		function productosGridHtml() {
+			var lines = productosDesdeComandas(true);
+			if (!lines.length) {
+				return '<p class="line muted">Sin hamburguesas en el turno.</p>';
+			}
+			return (
+				'<div class="productos-grid">' +
+				lines
+					.map(function (x) {
+						return (
+							'<div class="producto-cell"><span class="n">' +
+							x.nombre +
+							'</span><span class="q">' +
+							x.qty +
+							'</span></div>'
+						);
+					})
+					.join('') +
+				'</div>'
+			);
 		}
 
 		function openConfirm() {
@@ -452,13 +536,13 @@
 			var st = stats();
 			DEMO.cierre = new Date().toLocaleString('es-AR');
 			var neg = st.resultado < 0;
-			var productosHtml = productosResumenHtml();
+			var productosHtml = productosGridHtml();
 			var gastosHtml = DEMO.gastos
 				.map(function (g) {
+					var lbl = g.concepto + (g.pagado ? ' (' + g.pagado + ')' : '');
 					return (
 						'<div class="gasto-item"><span>' +
-						g.concepto +
-						(g.pagado ? ' <span class="muted">(' + g.pagado + ')</span>' : '') +
+						lbl +
 						'</span><span>−$' +
 						fmt(g.monto) +
 						'</span></div>'
@@ -469,13 +553,13 @@
 			return (
 				'<div class="resumen-top">' +
 				'<div class="brand">BRAVA BURGERS</div>' +
-				'<div class="meta">Cierre de caja · ' +
+				'<div class="meta">' +
 				DEMO.cierreId +
-				'<br>Período: ' +
+				' · ' +
 				DEMO.periodo +
-				'<br>Abierto: ' +
+				'<br>Apertura ' +
 				DEMO.apertura +
-				' · Cerrado: ' +
+				' · Cierre ' +
 				DEMO.cierre +
 				'</div></div>' +
 				'<div class="resumen-block"><h3>Ventas (entregados ✓)</h3>' +
@@ -485,39 +569,35 @@
 				'<div class="line"><span>Mercado Pago</span><strong>$' +
 				fmt(st.mp) +
 				'</strong></div>' +
-				'<div class="line"><span>Total ventas</span><strong>$' +
+				'<div class="line line-total"><span>Total ventas</span><strong>$' +
 				fmt(st.ventas) +
 				'</strong></div>' +
-				'<div class="line muted"><span>Cancelados (solo info)</span><span>$' +
+				'<div class="line muted"><span>Cancelados (info)</span><span class="amt">$' +
 				fmt(st.cancel) +
 				'</span></div></div>' +
-				'<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
-				'<div class="line" style="margin-bottom:10px;font-size:0.75rem;color:#888;text-transform:uppercase;letter-spacing:0.04em;">Desglose por comanda</div>' +
-				productosHtml +
-				'<div class="line" style="margin-top:14px;"><span>Hamburguesas Simples:</span><strong>' +
-				st.simples +
-				'</strong></div>' +
-				'<div class="line"><span>Hamburguesas Dobles:</span><strong>' +
-				st.dobles +
-				'</strong></div>' +
-				'<div class="line" style="margin-top:8px;font-weight:700;"><span>Cantidad total:</span><strong>' +
-				st.hambTotal +
-				' Hamburguesas</strong></div>' +
-				'<p class="line muted" style="margin:8px 0 0;font-size:0.75rem;">Desglose: simples A–Z, luego dobles A–Z.</p></div>' +
-				'<div class="resumen-block"><h3>Gastos del turno</h3>' +
+				'<div class="resumen-block"><h3>Gastos</h3>' +
 				gastosHtml +
-				'<div class="line" style="margin-top:10px;font-weight:600;"><span>Total gastos</span><span>−$' +
+				'<div class="line line-total"><span>Total gastos</span><span class="amt">−$' +
 				fmt(st.gTotal) +
 				'</span></div></div>' +
-				'<div class="resultado-box">' +
-				'<div class="label">Resultado del turno</div>' +
-				'<div class="amount' +
+				'<div class="resultado-inline' +
 				(neg ? ' neg' : '') +
-				'">' +
+				'"><span>Resultado turno</span><span class="amt">' +
 				(neg ? '−$' : '$') +
 				fmt(Math.abs(st.resultado)) +
-				'</div></div>' +
-				'<div class="resumen-foot">Generado desde el panel Brava · Demo de cierre · No reemplaza comprobantes fiscales.</div>'
+				'</span></div>' +
+				'<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
+				productosHtml +
+				'<div class="line"><span>Simples / Dobles</span><strong>' +
+				st.simples +
+				' / ' +
+				st.dobles +
+				'</strong></div>' +
+				'<div class="line line-total"><span>Total</span><strong>' +
+				st.hambTotal +
+				' u.</strong></div></div>' +
+				'<div class="resumen-foot print-hide">Vista previa demo · Panel Brava Burgers</div>' +
+				'<div class="resumen-foot">Brava Burgers · Cierre de caja</div>'
 			);
 		}
 
@@ -526,19 +606,28 @@
 			document.getElementById('modal-resumen').classList.add('open');
 		}
 
+		function printResumenCompleto() {
+			openResumen();
+			requestAnimationFrame(function () {
+				requestAnimationFrame(function () {
+					window.print();
+				});
+			});
+		}
+
 		document.getElementById('btn-cierre').addEventListener('click', openConfirm);
 		document.getElementById('confirm-cancel').addEventListener('click', function () {
 			document.getElementById('modal-confirm').classList.remove('open');
 		});
 		document.getElementById('confirm-ok').addEventListener('click', function () {
 			document.getElementById('modal-confirm').classList.remove('open');
-			openResumen();
+			printResumenCompleto();
 		});
 		document.getElementById('resumen-close').addEventListener('click', function () {
 			document.getElementById('modal-resumen').classList.remove('open');
 		});
 		document.getElementById('resumen-print-btn').addEventListener('click', function () {
-			window.print();
+			printResumenCompleto();
 		});
 
 		paintMock();

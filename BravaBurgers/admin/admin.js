@@ -94,6 +94,7 @@
   var filterDesde = '';
   var filterHasta = '';
   var lastPuedeOperarCaja = null;
+  var pendingCierreSnapshot = null;
 
 
 
@@ -913,25 +914,36 @@
     renderGastosList();
   }
 
-  function performCierreCaja() {
-    if (findCierreForCurrentPeriod()) {
-      alert('Este período ya está cerrado. Usá «Abrir caja» si querés operar de nuevo.');
-      return;
-    }
-    if (!isCajaMarcadaAbierta()) {
-      alert('Primero abrí la caja con el botón «Abrir caja».');
-      return;
-    }
+  function cierrePeriodoLabel() {
     readDateFiltersFromUi();
-    var st = computeSesionStats();
     var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
     var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
-    var periodoLbl = d1 === d2 ? d1 : d1 + ' — ' + d2;
-    var msg =
-      '¿Cerrar caja del turno (' +
+    return d1 === d2 ? d1 : d1 + ' — ' + d2;
+  }
+
+  function gastoPagadoLabel(g) {
+    var pagado = (g && g.pagado_con) || '';
+    if (pagado === 'efectivo') return 'Efectivo';
+    if (pagado === 'transferencia') return 'Transferencia';
+    return pagado;
+  }
+
+  function gastosEnTurnoParaCierre() {
+    var desdeMs = getAperturaAtMs();
+    if (isNaN(desdeMs)) return [];
+    var hastaMs = Date.now();
+    return gastosCache.filter(function (g) {
+      if (!gastoInFilterRange(g)) return false;
+      var gt = gastoTimestampMs(g);
+      return gt >= desdeMs && gt <= hastaMs;
+    });
+  }
+
+  function buildCierreConfirmMessage(st, periodoLbl) {
+    return (
+      'Turno: ' +
       periodoLbl +
-      ')?\n\n' +
-      'Se guarda este resumen y la caja vuelve a $0 hasta la próxima apertura.\n\n' +
+      '\n\n' +
       'Ventas del turno: $' +
       fmt(st.ventas) +
       ' (EF $' +
@@ -945,15 +957,182 @@
       'Resultado: $' +
       fmt(st.resultado) +
       '\n\n' +
-      'Hamb. simples: ' +
+      'Hamburguesas Simples: ' +
       Math.round(st.simples) +
       '\n' +
-      'Hamb. dobles: ' +
+      'Hamburguesas Dobles: ' +
       Math.round(st.dobles) +
       '\n' +
-      'Total hamburguesas: ' +
-      Math.round(st.hambTotal);
-    if (!confirm(msg)) return;
+      'Cantidad total: ' +
+      Math.round(st.hambTotal) +
+      ' Hamburguesas'
+    );
+  }
+
+  function buildCierreResumenHtml(snapshot, cierreId, cierreWhenIso) {
+    var st = snapshot.st;
+    var neg = st.resultado < 0;
+    var cierreLbl = cierreWhenIso
+      ? formatCierreWhen(cierreWhenIso)
+      : formatCierreWhen(new Date().toISOString());
+    var productos = (st.productosVentas || []).filter(function (x) {
+      return x.qty > 0;
+    });
+    var productosHtml;
+    if (!productos.length) {
+      productosHtml = '<p class="line muted">Sin hamburguesas en el turno.</p>';
+    } else {
+      productosHtml =
+        '<div class="productos-grid">' +
+        productos
+          .map(function (x) {
+            return (
+              '<div class="producto-cell"><span class="n">' +
+              escapeHtml(x.nombre) +
+              '</span><span class="q">' +
+              x.qty +
+              '</span></div>'
+            );
+          })
+          .join('') +
+        '</div>';
+    }
+    var gastosList = snapshot.gastos || [];
+    var gastosHtml = gastosList
+      .map(function (g) {
+        var pag = gastoPagadoLabel(g);
+        var lbl = escapeHtml(g.concepto || '') + (pag ? ' (' + escapeHtml(pag) + ')' : '');
+        return (
+          '<div class="gasto-item"><span>' +
+          lbl +
+          '</span><span>−$' +
+          fmt(g.monto) +
+          '</span></div>'
+        );
+      })
+      .join('');
+    if (!gastosHtml) {
+      gastosHtml = '<div class="line muted">Sin gastos</div>';
+    }
+    return (
+      '<div class="resumen-top">' +
+      '<div class="brand">BRAVA BURGERS</div>' +
+      '<div class="meta">' +
+      escapeHtml(cierreId || '—') +
+      ' · ' +
+      escapeHtml(snapshot.periodoLbl) +
+      '<br>Apertura ' +
+      escapeHtml(snapshot.aperturaLbl) +
+      ' · Cierre ' +
+      escapeHtml(cierreLbl) +
+      '</div></div>' +
+      '<div class="resumen-block"><h3>Ventas (entregados ✓)</h3>' +
+      '<div class="line"><span>Efectivo</span><strong>$' +
+      fmt(st.ef) +
+      '</strong></div>' +
+      '<div class="line"><span>Mercado Pago</span><strong>$' +
+      fmt(st.mp) +
+      '</strong></div>' +
+      '<div class="line line-total"><span>Total ventas</span><strong>$' +
+      fmt(st.ventas) +
+      '</strong></div>' +
+      '<div class="line muted"><span>Cancelados (info)</span><span class="amt">$' +
+      fmt(st.cancel) +
+      '</span></div></div>' +
+      '<div class="resumen-block"><h3>Gastos</h3>' +
+      gastosHtml +
+      '<div class="line line-total"><span>Total gastos</span><span class="amt">−$' +
+      fmt(st.gTotal) +
+      '</span></div></div>' +
+      '<div class="resultado-inline' +
+      (neg ? ' neg' : '') +
+      '"><span>Resultado turno</span><span class="amt">' +
+      (neg ? '−$' : '$') +
+      fmt(Math.abs(st.resultado)) +
+      '</span></div>' +
+      '<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
+      productosHtml +
+      '<div class="line"><span>Simples / Dobles</span><strong>' +
+      Math.round(st.simples) +
+      ' / ' +
+      Math.round(st.dobles) +
+      '</strong></div>' +
+      '<div class="line line-total"><span>Total</span><strong>' +
+      Math.round(st.hambTotal) +
+      ' u.</strong></div></div>' +
+      '<div class="resumen-foot">Brava Burgers · Cierre de caja</div>'
+    );
+  }
+
+  function openCierreConfirmModal() {
+    var el = $('cierre-confirm-text');
+    var modal = $('cierre-confirm-modal');
+    if (!el || !modal || !pendingCierreSnapshot) return;
+    el.textContent = buildCierreConfirmMessage(pendingCierreSnapshot.st, pendingCierreSnapshot.periodoLbl);
+    modal.classList.remove('hidden');
+  }
+
+  function closeCierreConfirmModal() {
+    var modal = $('cierre-confirm-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function openCierreResumenModal(html) {
+    var content = $('cierre-resumen-content');
+    var modal = $('cierre-resumen-modal');
+    if (!content || !modal) return;
+    content.innerHTML = html;
+    modal.classList.remove('hidden');
+  }
+
+  function closeCierreResumenModal() {
+    var modal = $('cierre-resumen-modal');
+    if (modal) modal.classList.add('hidden');
+    document.body.classList.remove('printing-cierre-caja');
+  }
+
+  function printCierreResumenModal() {
+    document.body.classList.add('printing-cierre-caja');
+    var done = function () {
+      document.body.classList.remove('printing-cierre-caja');
+    };
+    if (window.matchMedia) {
+      window.matchMedia('print').addEventListener(
+        'change',
+        function m(e) {
+          if (!e.matches) {
+            done();
+            window.matchMedia('print').removeEventListener('change', m);
+          }
+        },
+        { once: true }
+      );
+    }
+    window.onafterprint = function () {
+      done();
+      window.onafterprint = null;
+    };
+    window.print();
+  }
+
+  function printCierreResumenCompleto() {
+    var content = $('cierre-resumen-content');
+    if (!content || !content.innerHTML) return;
+    var modal = $('cierre-resumen-modal');
+    if (modal) modal.classList.remove('hidden');
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () {
+        printCierreResumenModal();
+      });
+    });
+  }
+
+  function commitCierreCaja() {
+    closeCierreConfirmModal();
+    var snapshot = pendingCierreSnapshot;
+    pendingCierreSnapshot = null;
+    if (!snapshot) return;
+    var st = snapshot.st;
     var btn = $('btn-cierre-caja');
     if (btn) btn.disabled = true;
     var aperturaIso = isNaN(getAperturaAtMs()) ? null : new Date(getAperturaAtMs()).toISOString();
@@ -976,13 +1155,20 @@
     }).then(function (res) {
       if (btn) btn.disabled = false;
       if (res.data.ok && res.data.cierre) {
+        var c = res.data.cierre;
         setCajaMarcadaAbierta(false);
         clearApertura();
-        cierresCache.unshift(res.data.cierre);
+        cierresCache.unshift(c);
         updateCajaUI();
         renderGastosList();
-        alert('Cierre guardado: ' + res.data.cierre.id);
         loadCierres(true);
+        var html = buildCierreResumenHtml(snapshot, c.id, c.cerrado_at);
+        openCierreResumenModal(html);
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            printCierreResumenModal();
+          });
+        });
       } else {
         if (res.status === 401) handleAuthFailure();
         else {
@@ -991,6 +1177,27 @@
         updateCierreStatusUI();
       }
     });
+  }
+
+  function performCierreCaja() {
+    if (findCierreForCurrentPeriod()) {
+      alert('Este período ya está cerrado. Usá «Abrir caja» si querés operar de nuevo.');
+      return;
+    }
+    if (!isCajaMarcadaAbierta()) {
+      alert('Primero abrí la caja con el botón «Abrir caja».');
+      return;
+    }
+    readDateFiltersFromUi();
+    var st = computeSesionStats();
+    var apMs = getAperturaAtMs();
+    pendingCierreSnapshot = {
+      st: st,
+      periodoLbl: cierrePeriodoLabel(),
+      aperturaLbl: isNaN(apMs) ? '—' : formatCierreWhen(new Date(apMs).toISOString()),
+      gastos: gastosEnTurnoParaCierre(),
+    };
+    openCierreConfirmModal();
   }
 
   function renderGastosList() {
@@ -3106,6 +3313,16 @@
   if ($('btn-abrir-caja')) $('btn-abrir-caja').onclick = performAbrirCaja;
 
   if ($('btn-cierre-caja')) $('btn-cierre-caja').onclick = performCierreCaja;
+
+  if ($('cierre-confirm-cancel')) {
+    $('cierre-confirm-cancel').onclick = function () {
+      pendingCierreSnapshot = null;
+      closeCierreConfirmModal();
+    };
+  }
+  if ($('cierre-confirm-ok')) $('cierre-confirm-ok').onclick = commitCierreCaja;
+  if ($('cierre-resumen-close')) $('cierre-resumen-close').onclick = closeCierreResumenModal;
+  if ($('cierre-resumen-print')) $('cierre-resumen-print').onclick = printCierreResumenCompleto;
 
   if ($('btn-add-gasto')) {
     $('btn-add-gasto').onclick = function () {
