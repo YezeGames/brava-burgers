@@ -797,6 +797,8 @@
 			return {
 				nombre: p.nombre,
 				variedad: p.variedad || '',
+				categoria: p.categoria || '',
+				subcategoria: p.subcategoria || '',
 				acl: p.aclaraciones || '',
 				qty: parseFloat(p.cantidad),
 				precio: parseFloat(p.precio) + parseFloat(p.adicionales || 0),

@@ -359,19 +359,6 @@
     return orderDateIso(o);
   }
 
-  function isHamburguesaItem(it) {
-    var n = String((it && it.nombre) || '').toLowerCase();
-    if (!n) return false;
-    if (n.indexOf('burger') >= 0) return true;
-    if (n.indexOf('hamburg') >= 0) return true;
-    return false;
-  }
-
-  function hamburguesaEsDoble(it) {
-    var n = String((it && it.nombre) || '').toLowerCase();
-    return n.indexOf('doble') >= 0;
-  }
-
   function cajaStorageKey() {
     return 'brava_caja_abierta_' + (filterDesde || '') + '_' + (filterHasta || '');
   }
@@ -422,6 +409,89 @@
     if (!o || !o.entregado_at) return NaN;
     var t = new Date(o.entregado_at).getTime();
     return isNaN(t) ? NaN : t;
+  }
+
+  var hambMenuMeta = null;
+  var hambMenuMetaLoading = null;
+
+  function loadHambMenuMeta() {
+    if (hambMenuMeta) return Promise.resolve(hambMenuMeta);
+    if (hambMenuMetaLoading) return hambMenuMetaLoading;
+    if (typeof Papa === 'undefined') {
+      hambMenuMeta = {};
+      return Promise.resolve(hambMenuMeta);
+    }
+    var url =
+      'https://docs.google.com/spreadsheets/d/' +
+      EDIT_MENU_SHEET_ID +
+      '/gviz/tq?tqx=out:csv&sheet=' +
+      encodeURIComponent('productos');
+    hambMenuMetaLoading = fetch(url)
+      .then(function (r) {
+        return r.text();
+      })
+      .then(function (csv) {
+        var parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+        var map = {};
+        (parsed.data || []).forEach(function (row) {
+          var nombre = String(row.nombre || row.Nombre || '').trim();
+          if (!nombre) return;
+          var key = nombre.toLowerCase();
+          if (map[key]) return;
+          map[key] = {
+            categoria: String(row.categoria || row.Categoria || '').trim(),
+            subcategoria: String(row.subcategoria || row.Subcategoria || '').trim(),
+          };
+        });
+        hambMenuMeta = map;
+        return map;
+      })
+      .catch(function () {
+        hambMenuMeta = {};
+        return hambMenuMeta;
+      })
+      .finally(function () {
+        hambMenuMetaLoading = null;
+      });
+    return hambMenuMetaLoading;
+  }
+
+  function resolveItemMeta(it) {
+    var nombre = String((it && (it.nombre || it.name)) || '').trim();
+    var key = nombre.toLowerCase();
+    var m = hambMenuMeta && hambMenuMeta[key];
+    return {
+      nombre: nombre,
+      variedad: String((it && it.variedad) || '').trim(),
+      categoria: String((it && it.categoria) || (m && m.categoria) || '').trim(),
+      subcategoria: String((it && it.subcategoria) || (m && m.subcategoria) || '').trim(),
+    };
+  }
+
+  function itemCatalogText(it) {
+    var r = resolveItemMeta(it);
+    return [r.nombre, r.variedad, r.categoria, r.subcategoria].join(' ').toLowerCase();
+  }
+
+  function isHamburguesaItem(it) {
+    var r = resolveItemMeta(it);
+    var t = itemCatalogText(it);
+    if (!t.trim()) return false;
+    var cat = r.categoria.toLowerCase();
+    var sub = r.subcategoria.toLowerCase();
+    if (cat.indexOf('hamburg') >= 0) return true;
+    if (sub === 'simples' || sub === 'dobles' || sub === 'triples') return true;
+    if (t.indexOf('burger') >= 0 || t.indexOf('hamburg') >= 0) return true;
+    if (/\bcheese\s*burger\b/.test(t)) return true;
+    return false;
+  }
+
+  function hamburguesaEsDoble(it) {
+    var r = resolveItemMeta(it);
+    var t = itemCatalogText(it);
+    if (/\bdoble\b/.test(t) || /\btriple\b/.test(t)) return true;
+    var sub = r.subcategoria.toLowerCase();
+    return sub.indexOf('doble') >= 0 || sub.indexOf('triple') >= 0;
   }
 
   function gastoTimestampMs(g) {
@@ -1067,6 +1137,9 @@
     cierresReady = false;
     loadCierres(true).then(function () {
       loadGastos(true);
+    });
+    loadHambMenuMeta().then(function () {
+      updateCajaUI();
     });
 
     refreshSupabaseSession().finally(function () {
@@ -1720,6 +1793,18 @@
 
         });
 
+        var est = patch.estado ? normalizeEstado(patch.estado) : '';
+
+        var now = new Date().toISOString();
+
+        if (est === 'entregada' && !allOrdersCache[i].entregado_at) allOrdersCache[i].entregado_at = now;
+
+        if (est === 'aceptado' && !allOrdersCache[i].aceptado_at) allOrdersCache[i].aceptado_at = now;
+
+        if (est === 'cancelada' && !allOrdersCache[i].cancelado_at) allOrdersCache[i].cancelado_at = now;
+
+        if (est === 'rechazado' && !allOrdersCache[i].rechazado_at) allOrdersCache[i].rechazado_at = now;
+
         break;
 
       }
@@ -1793,6 +1878,10 @@
         nombre: it.nombre || it.name || 'Ítem',
 
         variedad: it.variedad || '',
+
+        categoria: it.categoria || '',
+
+        subcategoria: it.subcategoria || '',
 
         acl: (it.acl || it.aclaraciones || '').trim(),
 
