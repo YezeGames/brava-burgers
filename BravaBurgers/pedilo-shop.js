@@ -769,10 +769,14 @@
 		$('[id^="aclaracion_"]').each(function () {
 			var p_id = this.id.replace('aclaracion_', '');
 			var val = ($(this).val() || '').trim();
+			if (!val) return;
 			g_pedido.productos.forEach(function (item) {
-				if (String(item.id) === String(p_id)) {
-					if (val) item.aclaraciones = val;
-					else delete item.aclaraciones;
+				if (String(item.id) !== String(p_id)) return;
+				var prev = (item.aclaraciones || '').trim();
+				if (prev) {
+					if (prev.indexOf(val) === -1) item.aclaraciones = prev + ' · ' + val;
+				} else {
+					item.aclaraciones = val;
 				}
 			});
 		});

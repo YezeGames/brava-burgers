@@ -54,7 +54,7 @@
   }
 
   function itemAcl(it) {
-    return (it.acl || it.aclaraciones || '').trim();
+    return (it.acl || it.aclaraciones || it.aclaracion || it.ACL || '').trim();
   }
 
   function itemVariedad(it) {
