@@ -538,6 +538,7 @@
     var cancel = 0;
     var simples = 0;
     var dobles = 0;
+    var porProducto = {};
     allOrdersCache.forEach(function (o) {
       var e = normalizeEstado(o.estado);
       var total = Number(o.total) || 0;
@@ -552,6 +553,9 @@
           var q = editItemQty(it);
           if (hamburguesaEsDoble(it)) dobles += q;
           else simples += q;
+          var r = resolveItemMeta(it);
+          var nombre = (r.nombre || it.nombre || it.name || 'Ítem').trim();
+          porProducto[nombre] = (porProducto[nombre] || 0) + q;
         });
       } else if (e === 'cancelada') {
         if (!inDateRange(orderDateIso(o))) return;
@@ -578,6 +582,7 @@
       simples: simples,
       dobles: dobles,
       hambTotal: simples + dobles,
+      productosVentas: buildProductosVentasList(porProducto),
     };
   }
 
