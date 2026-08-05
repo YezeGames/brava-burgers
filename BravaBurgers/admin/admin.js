@@ -16,7 +16,13 @@
 
   var audioCtx = null;
 
-  /** Tono de pedido nuevo (Web Audio). Ajustá freq/at/dur si querés otro timbre. */
+  var ALERT_SOUND_URL = '/admin/sounds/zumbido.mp3';
+
+  var alertAudio = null;
+
+  var alertUseSynthFallback = false;
+
+  /** Respaldo si no carga el MP3 */
   var ALERT_SOUND_NOTES = [
     { freq: 659.25, at: 0, dur: 0.16, wave: 'triangle', vol: 0.28 },
     { freq: 830.61, at: 0.13, dur: 0.2, wave: 'triangle', vol: 0.32 },
@@ -1179,9 +1185,7 @@
 
 
 
-  function playDing() {
-
-    if (!soundOn) return;
+  function playDingSynth() {
 
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -1196,6 +1200,64 @@
       playAlertTone(ctx, t, note);
 
     });
+
+  }
+
+
+
+  function playDing() {
+
+    if (!soundOn) return;
+
+    if (ALERT_SOUND_URL && !alertUseSynthFallback) {
+
+      if (!alertAudio) {
+
+        alertAudio = new Audio(ALERT_SOUND_URL);
+
+        alertAudio.preload = 'auto';
+
+        alertAudio.addEventListener(
+
+          'error',
+
+          function () {
+
+            alertUseSynthFallback = true;
+
+            playDingSynth();
+
+          },
+
+          { once: true }
+
+        );
+
+      }
+
+      alertAudio.currentTime = 0;
+
+      var played = alertAudio.play();
+
+      if (played && played.then) {
+
+        played.catch(function () {
+
+          alertUseSynthFallback = true;
+
+          playDingSynth();
+
+        });
+
+        return;
+
+      }
+
+      return;
+
+    }
+
+    playDingSynth();
 
   }
 
