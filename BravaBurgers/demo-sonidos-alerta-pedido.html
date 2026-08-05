@@ -82,7 +82,7 @@
 	<div class="wrap">
 		<h1>Demo: sonidos de pedido nuevo</h1>
 		<p class="lead">
-			Probá cada opción y decinos la letra (A–H). La que elijas la integramos en el admin junto a <strong>Activar sonido</strong>.
+			Probá cada opción y decinos la letra (A–P). La que elijas la integramos en el admin junto a <strong>Activar sonido</strong>.
 		</p>
 
 		<button type="button" class="unlock" id="btn-unlock">Tocá acá para habilitar audio</button>
@@ -159,6 +159,74 @@
 					{ freq: 622, at: 0, dur: 0.18, wave: 'triangle', vol: 0.3 },
 					{ freq: 740, at: 0.15, dur: 0.2, wave: 'triangle', vol: 0.32 },
 					{ freq: 932, at: 0.3, dur: 0.5, wave: 'triangle', vol: 0.28 },
+				],
+			},
+			I: {
+				label: 'I — Dong-ding',
+				desc: 'Inverso al B: primero agudo, después grave. Suena a “listo”.',
+				notes: [
+					{ freq: 587.33, at: 0, dur: 0.35, wave: 'sine', vol: 0.28 },
+					{ freq: 440, at: 0.32, dur: 0.5, wave: 'sine', vol: 0.3 },
+				],
+			},
+			J: {
+				label: 'J — Marimba',
+				desc: 'Cuatro notas rápidas ascendentes, tipo barra de madera.',
+				notes: [
+					{ freq: 523.25, at: 0, dur: 0.11, wave: 'triangle', vol: 0.26 },
+					{ freq: 659.25, at: 0.09, dur: 0.11, wave: 'triangle', vol: 0.27 },
+					{ freq: 783.99, at: 0.18, dur: 0.11, wave: 'triangle', vol: 0.28 },
+					{ freq: 1046.5, at: 0.27, dur: 0.2, wave: 'triangle', vol: 0.3 },
+				],
+			},
+			K: {
+				label: 'K — Ta-ta-TAA',
+				desc: 'Dos toques cortos y uno largo más fuerte. Ritmo de “pedido nuevo”.',
+				notes: [
+					{ freq: 698.46, at: 0, dur: 0.1, wave: 'sine', vol: 0.22 },
+					{ freq: 698.46, at: 0.14, dur: 0.1, wave: 'sine', vol: 0.22 },
+					{ freq: 880, at: 0.28, dur: 0.45, wave: 'triangle', vol: 0.34 },
+				],
+			},
+			L: {
+				label: 'L — Campana grave',
+				desc: 'Tonos bajos, más pesados. Se oye bien con volumen alto en cocina.',
+				notes: [
+					{ freq: 329.63, at: 0, dur: 0.55, wave: 'sine', vol: 0.32 },
+					{ freq: 415.3, at: 0.05, dur: 0.5, wave: 'triangle', vol: 0.18 },
+				],
+			},
+			M: {
+				label: 'M — Alegre / arcade',
+				desc: 'Arpegio mayor rápido, sensación de “bonus” o logro.',
+				notes: [
+					{ freq: 523.25, at: 0, dur: 0.08, wave: 'square', vol: 0.09 },
+					{ freq: 659.25, at: 0.07, dur: 0.08, wave: 'square', vol: 0.09 },
+					{ freq: 783.99, at: 0.14, dur: 0.08, wave: 'square', vol: 0.1 },
+					{ freq: 1046.5, at: 0.21, dur: 0.25, wave: 'square', vol: 0.11 },
+				],
+			},
+			N: {
+				label: 'N — Pausado (2 tonos)',
+				desc: 'Dos campanadas separadas, sin apuro. Menos estrés en hora pico.',
+				notes: [
+					{ freq: 622, at: 0, dur: 0.4, wave: 'sine', vol: 0.26 },
+					{ freq: 784, at: 0.55, dur: 0.45, wave: 'sine', vol: 0.28 },
+				],
+			},
+			O: {
+				label: 'O — Ping corto',
+				desc: 'Un solo golpe agudo y breve. Mínimo, para local chico.',
+				notes: [{ freq: 1174.66, at: 0, dur: 0.14, wave: 'sine', vol: 0.28 }],
+			},
+			P: {
+				label: 'P — Escalera',
+				desc: 'Cuatro pasos ascendentes uniformes, fácil de reconocer.',
+				notes: [
+					{ freq: 440, at: 0, dur: 0.14, wave: 'triangle', vol: 0.24 },
+					{ freq: 554.37, at: 0.13, dur: 0.14, wave: 'triangle', vol: 0.25 },
+					{ freq: 659.25, at: 0.26, dur: 0.14, wave: 'triangle', vol: 0.26 },
+					{ freq: 880, at: 0.39, dur: 0.22, wave: 'triangle', vol: 0.3 },
 				],
 			},
 		};
