@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — 1 fila + extras + personalización | Brava</title>
+	<link href="https://fonts.googleapis.com/css?family=Montserrat:600,700|Open+Sans:400,600&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--bg: #1a1a1a;
+			--card: #2a2a2a;
+			--accent: #ff6b35;
+			--text: #fff;
+			--muted: #aaa;
+			--border: #444;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: 'Open Sans', sans-serif;
+			background: var(--bg);
+			color: var(--text);
+			line-height: 1.45;
+		}
+		h1, h2, h3 { font-family: Montserrat, sans-serif; }
+		.wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+		.badge {
+			display: inline-block;
+			background: rgba(255, 107, 53, 0.15);
+			color: var(--accent);
+			font-size: 0.72rem;
+			font-weight: 700;
+			padding: 4px 10px;
+			border-radius: 999px;
+			margin-bottom: 8px;
+		}
+		header h1 { margin: 0 0 8px; font-size: 1.35rem; color: var(--accent); }
+		header p { margin: 0; color: var(--muted); font-size: 0.9rem; max-width: 720px; }
+		.grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 20px;
+			margin-top: 28px;
+		}
+		@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+		.panel {
+			background: var(--card);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			padding: 16px;
+		}
+		.panel h2 { margin: 0 0 12px; font-size: 1rem; color: var(--accent); }
+		.sheet-tabs {
+			display: flex;
+			gap: 6px;
+			margin-bottom: 10px;
+			flex-wrap: wrap;
+		}
+		.sheet-tabs span {
+			font-size: 0.75rem;
+			padding: 6px 10px;
+			border-radius: 6px;
+			background: #333;
+			color: var(--muted);
+		}
+		.sheet-tabs span.on { background: var(--accent); color: #000; font-weight: 700; }
+		table.sheet {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.72rem;
+		}
+		table.sheet th, table.sheet td {
+			border: 1px solid var(--border);
+			padding: 6px 8px;
+			text-align: left;
+		}
+		table.sheet th { background: #333; color: var(--muted); font-weight: 600; }
+		.note { font-size: 0.78rem; color: var(--muted); margin-top: 10px; }
+		.product-card {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			padding: 12px;
+			background: #222;
+			border-radius: 10px;
+			border: 1px solid var(--border);
+			cursor: pointer;
+			margin-bottom: 10px;
+		}
+		.product-card:hover { border-color: var(--accent); }
+		.product-card strong { display: block; font-size: 0.95rem; }
+		.product-card small { color: var(--muted); font-size: 0.78rem; }
+		.price { color: var(--accent); font-weight: 700; white-space: nowrap; margin-left: 12px; }
+		.modal-back {
+			position: fixed;
+			inset: 0;
+			background: rgba(0,0,0,0.75);
+			display: none;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			z-index: 10;
+		}
+		.modal-back.open { display: flex; }
+		.modal {
+			background: var(--card);
+			border: 2px solid var(--accent);
+			border-radius: 14px;
+			max-width: 420px;
+			width: 100%;
+			max-height: 92vh;
+			overflow-y: auto;
+			padding: 20px;
+		}
+		.modal h3 { margin: 0 0 4px; font-size: 1.1rem; }
+		.modal .sub { margin: 0 0 16px; font-size: 0.82rem; color: var(--muted); }
+		.section-label {
+			font-size: 0.72rem;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--accent);
+			margin: 14px 0 8px;
+			font-weight: 700;
+		}
+		.chk-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+		.chk-grid label {
+			display: flex;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.82rem;
+			background: #333;
+			padding: 8px 10px;
+			border-radius: 8px;
+			cursor: pointer;
+			border: 1px solid transparent;
+		}
+		.chk-grid label:has(input:checked) {
+			border-color: var(--accent);
+			background: rgba(255,107,53,0.12);
+		}
+		input[type="text"], textarea {
+			width: 100%;
+			padding: 10px;
+			border-radius: 8px;
+			border: 1px solid var(--border);
+			background: #1a1a1a;
+			color: var(--text);
+			font-size: 0.85rem;
+		}
+		textarea { min-height: 56px; resize: vertical; }
+		.btn-row { display: flex; gap: 10px; margin-top: 18px; }
+		button {
+			flex: 1;
+			padding: 12px;
+			border: none;
+			border-radius: 8px;
+			font-weight: 700;
+			cursor: pointer;
+			font-size: 0.9rem;
+		}
+		.btn-ghost { background: #444; color: #fff; }
+		.btn-accent { background: var(--accent); color: #000; }
+		.cart {
+			margin-top: 16px;
+			padding-top: 16px;
+			border-top: 1px dashed var(--border);
+		}
+		.cart h3 { margin: 0 0 8px; font-size: 0.95rem; }
+		.cart ul { margin: 0; padding-left: 18px; font-size: 0.85rem; }
+		.cart li { margin-bottom: 8px; }
+		.ticket {
+			margin-top: 16px;
+			background: #fff;
+			color: #111;
+			font-family: 'Courier New', monospace;
+			font-size: 0.75rem;
+			padding: 14px;
+			border-radius: 8px;
+			white-space: pre-wrap;
+		}
+		.flow-steps {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin-bottom: 16px;
+		}
+		.flow-steps span {
+			font-size: 0.7rem;
+			padding: 4px 8px;
+			background: #333;
+			border-radius: 6px;
+			color: var(--muted);
+		}
+		.flow-steps span.on { color: #000; background: var(--accent); font-weight: 700; }
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<header>
+			<span class="badge">DEMO — no es la tienda en vivo todavía</span>
+			<h1>Una fila por hamburguesa + extras en otra pestaña + “a gusto”</h1>
+			<p>
+				Propuesta para reemplazar repetir 3 filas por variante. Acá simulamos cómo lo vería el cliente y cómo podrían ser las hojas del Google Sheet.
+			</p>
+		</header>
+
+		<div class="grid">
+			<section class="panel">
+				<h2>Cómo sería el Google Sheet</h2>
+				<div class="sheet-tabs">
+					<span class="on">productos</span>
+					<span>extras</span>
+					<span class="on">ingredientes</span>
+				</div>
+				<p class="note"><strong>productos</strong> — una fila = una hamburguesa (precio base “sin extra”).</p>
+				<table class="sheet">
+					<tr>
+						<th>Nombre</th><th>Precio base</th><th>Grupo extras</th><th>Quitar</th>
+					</tr>
+					<tr>
+						<td>Cheeseburger Simple</td><td>17000</td><td>simple</td><td>simple_std</td>
+					</tr>
+					<tr>
+						<td>Cheeseburger Doble</td><td>22000</td><td>doble</td><td>doble_std</td>
+					</tr>
+				</table>
+				<p class="note" style="margin-top:14px"><strong>extras</strong> — filas reutilizables (no repetís la burger).</p>
+				<table class="sheet">
+					<tr><th>id</th><th>Nombre</th><th>Precio</th><th>Grupo</th></tr>
+					<tr><td>ext_cheddar</td><td>Extra cheddar</td><td>1000</td><td>simple,doble</td></tr>
+					<tr><td>ext_bacon</td><td>Extra bacon</td><td>1500</td><td>simple,doble</td></tr>
+				</table>
+				<p class="note" style="margin-top:14px"><strong>ingredientes</strong> — qué puede sacar el cliente (checkboxes).</p>
+				<table class="sheet">
+					<tr><th>grupo</th><th>Ingrediente</th><th>Default</th></tr>
+					<tr><td>simple_std</td><td>Cebolla</td><td>si</td></tr>
+					<tr><td>simple_std</td><td>Salsa mil islas</td><td>si</td></tr>
+					<tr><td>simple_std</td><td>Cheddar</td><td>si</td></tr>
+				</table>
+			</section>
+
+			<section class="panel">
+				<h2>Experiencia cliente (probá acá)</h2>
+				<div class="flow-steps">
+					<span class="on">1. Elegir burger</span>
+					<span>2. Extras (opcional)</span>
+					<span>3. Sacar ingredientes</span>
+					<span>4. Nota libre</span>
+				</div>
+				<div id="menu">
+					<div class="product-card" data-id="cs">
+						<div>
+							<strong>Cheeseburger Simple</strong>
+							<small>Medallón 120g · cheddar · salsa · cebolla</small>
+						</div>
+						<span class="price">Desde $17.000</span>
+					</div>
+					<div class="product-card" data-id="cd">
+						<div>
+							<strong>Cheeseburger Doble</strong>
+							<small>Doble medallón · cheddar · salsa · cebolla</small>
+						</div>
+						<span class="price">Desde $22.000</span>
+					</div>
+				</div>
+				<div class="cart">
+					<h3>Tu pedido (demo)</h3>
+					<ul id="cart-list"></ul>
+					<div class="ticket" id="ticket">Comanda preview aparece acá…</div>
+				</div>
+			</section>
+		</div>
+	</div>
+
+	<div class="modal-back" id="modal" aria-hidden="true">
+		<div class="modal" role="dialog">
+			<h3 id="m-title">—</h3>
+			<p class="sub" id="m-desc"></p>
+
+			<div class="section-label">Extras (podés marcar varios)</div>
+			<div class="chk-grid" id="m-extras"></div>
+
+			<div class="section-label">Sacar ingredientes (a gusto)</div>
+			<div class="chk-grid" id="m-quitar"></div>
+
+			<div class="section-label">Aclaración libre</div>
+			<textarea id="m-nota" placeholder="Ej. poco cebolla, bien cocida, sin sal…"></textarea>
+
+			<p class="note" id="m-total" style="color:var(--accent);font-weight:700;margin-top:12px"></p>
+			<div class="btn-row">
+				<button type="button" class="btn-ghost" id="m-cancel">Cancelar</button>
+				<button type="button" class="btn-accent" id="m-add">Agregar al pedido</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var DATA = {
+			cs: {
+				nombre: 'Cheeseburger Simple',
+				desc: 'Medallón 120g · cheddar · salsa mil islas · cebolla',
+				base: 17000,
+				grupoExtras: 'simple',
+				grupoQuitar: 'simple_std',
+			},
+			cd: {
+				nombre: 'Cheeseburger Doble',
+				desc: 'Doble medallón · cheddar · salsa · cebolla',
+				base: 22000,
+				grupoExtras: 'doble',
+				grupoQuitar: 'doble_std',
+			},
+		};
+		var EXTRAS = [
+			{ id: 'ext_cheddar', nombre: 'Extra cheddar', precio: 1000, grupos: ['simple', 'doble'] },
+			{ id: 'ext_bacon', nombre: 'Extra bacon', precio: 1500, grupos: ['simple', 'doble'] },
+		];
+		var ING = {
+			simple_std: ['Cebolla', 'Salsa mil islas', 'Cheddar'],
+			doble_std: ['Cebolla', 'Salsa mil islas', 'Cheddar', 'Medallón extra'],
+		};
+		var cart = [];
+		var current = null;
+
+		function fmt(n) {
+			return n.toLocaleString('es-AR');
+		}
+
+		function openModal(id) {
+			current = id;
+			var p = DATA[id];
+			document.getElementById('m-title').textContent = p.nombre;
+			document.getElementById('m-desc').textContent = p.desc;
+			document.getElementById('m-nota').value = '';
+
+			var exHtml = '';
+			EXTRAS.filter(function (e) {
+				return e.grupos.indexOf(p.grupoExtras) >= 0;
+			}).forEach(function (e) {
+				exHtml +=
+					'<label><input type="checkbox" class="ex" data-precio="' +
+					e.precio +
+					'" value="' +
+					e.nombre +
+					'"> ' +
+					e.nombre +
+					' (+$' +
+					fmt(e.precio) +
+					')</label>';
+			});
+			document.getElementById('m-extras').innerHTML = exHtml || '<span class="note">Sin extras para este grupo.</span>';
+
+			var qHtml = '';
+			(ING[p.grupoQuitar] || []).forEach(function (ing) {
+				qHtml += '<label><input type="checkbox" class="quitar" value="' + ing + '"> Sin ' + ing + '</label>';
+			});
+			document.getElementById('m-quitar').innerHTML = qHtml;
+
+			updateModalTotal();
+			document.getElementById('modal').classList.add('open');
+		}
+
+		function updateModalTotal() {
+			if (!current) return;
+			var base = DATA[current].base;
+			var extra = 0;
+			document.querySelectorAll('#m-extras .ex:checked').forEach(function (c) {
+				extra += parseInt(c.getAttribute('data-precio'), 10) || 0;
+			});
+			document.getElementById('m-total').textContent = 'Total esta unidad: $' + fmt(base + extra);
+		}
+
+		document.getElementById('menu').addEventListener('click', function (e) {
+			var card = e.target.closest('.product-card');
+			if (card) openModal(card.getAttribute('data-id'));
+		});
+		document.getElementById('m-extras').addEventListener('change', updateModalTotal);
+		document.getElementById('m-cancel').onclick = function () {
+			document.getElementById('modal').classList.remove('open');
+		};
+		document.getElementById('modal').addEventListener('click', function (e) {
+			if (e.target === document.getElementById('modal')) document.getElementById('modal').classList.remove('open');
+		});
+
+		document.getElementById('m-add').onclick = function () {
+			var p = DATA[current];
+			var extras = [];
+			var extraSum = 0;
+			document.querySelectorAll('#m-extras .ex:checked').forEach(function (c) {
+				extras.push(c.value);
+				extraSum += parseInt(c.getAttribute('data-precio'), 10) || 0;
+			});
+			var sin = [];
+			document.querySelectorAll('#m-quitar .quitar:checked').forEach(function (c) {
+				sin.push(c.value);
+			});
+			var nota = document.getElementById('m-nota').value.trim();
+			var aclParts = [];
+			if (sin.length) aclParts.push('Sin: ' + sin.join(', '));
+			if (nota) aclParts.push(nota);
+			var item = {
+				nombre: p.nombre,
+				variedad: extras.length ? extras.join(' + ') : 'Sin Extra',
+				precio: p.base + extraSum,
+				acl: aclParts.join(' · '),
+			};
+			cart.push(item);
+			document.getElementById('modal').classList.remove('open');
+			renderCart();
+		};
+
+		function renderCart() {
+			var ul = document.getElementById('cart-list');
+			ul.innerHTML = '';
+			var ticket = '';
+			cart.forEach(function (it, i) {
+				var li = document.createElement('li');
+				li.textContent =
+					it.nombre +
+					' · ' +
+					it.variedad +
+					' — $' +
+					fmt(it.precio) +
+					(it.acl ? ' (' + it.acl + ')' : '');
+				ul.appendChild(li);
+				ticket += '1 x ' + it.nombre + '\n';
+				if (it.variedad !== 'Sin Extra') ticket += '   ' + it.variedad + '\n';
+				if (it.acl) ticket += '   * ' + it.acl + '\n';
+			});
+			if (!cart.length) ticket = '(vacío — agregá una burger)';
+			document.getElementById('ticket').textContent = ticket;
+		}
+	</script>
+</body>
+</html>
