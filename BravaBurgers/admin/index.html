@@ -328,8 +328,7 @@
 				width: 80mm !important;
 				margin: 0 !important;
 			}
-			body.printing-comanda .ticket,
-			body.printing-cierre-caja .ticket {
+			body.printing-comanda .ticket {
 				width: 80mm !important;
 				max-width: 80mm !important;
 				padding: 1mm 0 !important;
@@ -340,15 +339,47 @@
 				-webkit-print-color-adjust: exact;
 				print-color-adjust: exact;
 			}
-			body.printing-cierre-caja .ticket .tkt-r {
-				font-size: 10px;
+			body.printing-cierre-caja .resumen.resumen-cierre {
+				width: 80mm !important;
+				max-width: 80mm !important;
+				margin: 0 !important;
+				border: none !important;
+				border-radius: 0 !important;
+				box-sizing: border-box;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
+			body.printing-cierre-caja .resumen-cierre .resumen-top {
+				background: linear-gradient(135deg, #ff6b35 0%, #e55a25 100%) !important;
+				color: #fff !important;
+				padding: 8px 6px !important;
+			}
+			body.printing-cierre-caja .resumen-cierre .resumen-top .meta { color: #fff !important; opacity: 1; }
+			body.printing-cierre-caja .resumen-cierre .resumen-block,
+			body.printing-cierre-caja .resumen-cierre .resultado-inline {
+				background: #fff !important;
+				padding: 6px 4px !important;
+				border-color: #ccc !important;
+			}
+			body.printing-cierre-caja .resumen-cierre h3,
+			body.printing-cierre-caja .resumen-cierre .res-l,
+			body.printing-cierre-caja .resumen-cierre .res-r,
+			body.printing-cierre-caja .resumen-cierre .resumen-note,
+			body.printing-cierre-caja .resumen-cierre .resumen-foot { color: #000 !important; }
+			body.printing-cierre-caja .resumen-cierre .resultado-inline {
+				border-color: #000 !important;
+			}
+			body.printing-cierre-caja .resumen-cierre .res-r.res-result,
+			body.printing-cierre-caja .resumen-cierre tr.res-result .res-r {
+				color: #000 !important;
+				font-weight: 800;
+			}
+			body.printing-cierre-caja .resumen-cierre tr.res-total .res-l,
+			body.printing-cierre-caja .resumen-cierre tr.res-total .res-r {
+				border-top-color: #000 !important;
 			}
 			body.printing-cierre-caja .ticket *,
 			body.printing-comanda .ticket * { color: #000 !important; }
-			body.printing-cierre-caja .ticket .line,
-			body.printing-comanda .ticket .line { border-top-color: #000 !important; }
-			body.printing-cierre-caja .ticket .line-solid,
-			body.printing-comanda .ticket .line-solid { border-top-color: #000 !important; }
 			@page { size: 80mm auto; margin: 0; }
 		}
 		.cierre-confirm-text { font-size: 0.88rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
@@ -357,64 +388,98 @@
 			width: 80mm;
 			max-width: 80mm;
 			margin: 0 auto 12px;
-			border: 1px solid var(--border);
-			border-radius: 6px;
+			border: none;
+			border-radius: 8px;
 			overflow: hidden;
 			box-sizing: border-box;
 		}
-		.ticket.ticket-cierre {
-			background: #fff !important;
-			color: #000 !important;
+		.resumen.resumen-cierre {
 			width: 100%;
 			max-width: 80mm;
-			box-sizing: border-box;
-			padding: 2mm 0.5mm;
 			margin: 0;
+			overflow: hidden;
+			border-radius: 8px;
+			background: var(--bg-surface);
+			color: var(--text);
+			box-sizing: border-box;
 		}
-		.ticket.ticket-cierre .brand { color: #000; }
-		.ticket.ticket-cierre .meta,
-		.ticket.ticket-cierre .footer-note { color: #333; }
-		.ticket table.tkt {
+		.resumen-cierre .resumen-top {
+			background: linear-gradient(135deg, #ff6b35 0%, #e55a25 100%);
+			color: #fff;
+			padding: 12px 10px;
+			text-align: center;
+		}
+		.resumen-cierre .resumen-top .brand { font-size: 1.05rem; font-weight: 800; letter-spacing: 0.04em; }
+		.resumen-cierre .resumen-top .meta { font-size: 0.68rem; opacity: 0.95; margin-top: 4px; line-height: 1.4; }
+		.resumen-cierre .resumen-block {
+			padding: 8px 10px;
+			border-bottom: 1px solid var(--border);
+		}
+		.resumen-cierre .resumen-block h3 {
+			margin: 0 0 6px;
+			font-size: 0.65rem;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: var(--text-muted);
+		}
+		.resumen-cierre .resumen-tbl {
 			width: 100%;
 			border-collapse: collapse;
 			table-layout: fixed;
 		}
-		.ticket .tkt-l {
+		.resumen-cierre .res-l {
+			width: 58%;
 			text-align: left;
 			vertical-align: top;
-			width: 56%;
-			padding: 1px 0;
+			padding: 2px 0;
 			word-break: break-word;
+			font-size: 0.78rem;
 		}
-		.ticket .tkt-r {
+		.resumen-cierre .res-r {
+			width: 42%;
 			text-align: right;
 			vertical-align: top;
-			width: 44%;
-			padding: 1px 0;
+			padding: 2px 0;
 			white-space: nowrap;
 			font-variant-numeric: tabular-nums;
+			font-size: 0.78rem;
 		}
-		.ticket tr.tkt-center td { text-align: center; padding: 1px 0; }
-		.ticket tr.tkt-head td {
-			text-align: left;
+		.resumen-cierre tr.res-total .res-l,
+		.resumen-cierre tr.res-total .res-r {
 			font-weight: 700;
-			font-size: 11px;
-			text-transform: uppercase;
+			border-top: 1px dashed var(--border);
 			padding-top: 5px;
-			padding-bottom: 2px;
 		}
-		.ticket tr.tkt-total td { font-weight: 700; }
-		.ticket tr.tkt-sep td {
-			border-top: 1px dashed #000;
-			height: 0;
-			line-height: 0;
-			padding: 3px 0 0;
+		.resumen-cierre tr.res-muted .res-l,
+		.resumen-cierre tr.res-muted .res-r {
+			color: var(--text-muted);
+			font-size: 0.72rem;
 		}
-		.ticket tr.tkt-sep-solid td {
-			border-top: 1px solid #000;
-			height: 0;
-			line-height: 0;
-			padding: 4px 0 0;
+		.resumen-cierre .resumen-note {
+			margin: 0 0 6px;
+			font-size: 0.75rem;
+			color: var(--text-muted);
+		}
+		.resumen-cierre .resultado-inline {
+			padding: 8px 10px;
+			border-top: 2px solid var(--text-strong);
+			border-bottom: 2px solid var(--text-strong);
+			background: var(--bg-surface-alt);
+		}
+		.resumen-cierre .resultado-inline .resumen-tbl { margin: 0; }
+		.resumen-cierre tr.res-result .res-l,
+		.resumen-cierre tr.res-result .res-r {
+			font-weight: 800;
+			font-size: 0.88rem;
+		}
+		.resumen-cierre .resultado-inline .res-r,
+		.resumen-cierre tr.res-result .res-r { color: #2e7d32; }
+		.resumen-cierre .resultado-inline.neg tr.res-result .res-r { color: #c62828; }
+		.resumen-cierre .resumen-foot {
+			padding: 8px 10px;
+			font-size: 0.62rem;
+			color: var(--text-muted);
+			text-align: center;
 		}
 	</style>
 </head>
@@ -595,7 +660,7 @@
 			<h2 class="cierre-modal-chrome" id="cierre-resumen-title">Cierre guardado</h2>
 			<p class="sub cierre-modal-chrome">Resumen del turno — podés reimprimir</p>
 			<div class="cierre-resumen-wrap">
-				<article class="ticket ticket-cierre" id="cierre-resumen-content" aria-label="Resumen cierre de caja"></article>
+				<div class="resumen resumen-ticket resumen-cierre" id="cierre-resumen-content" aria-label="Resumen cierre de caja"></div>
 			</div>
 			<div class="modal-foot cierre-modal-chrome">
 				<button type="button" class="btn-sm" id="cierre-resumen-close">Cerrar</button>
@@ -621,6 +686,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=6"></script>
-	<script src="/admin/admin.js?v=48"></script>
+	<script src="/admin/admin.js?v=49"></script>
 </body>
 </html>

@@ -982,32 +982,20 @@
     );
   }
 
-  function tktRow(l, r, rowClass) {
-    return (
-      '<tr class="' +
-      (rowClass || 'tkt-data') +
-      '"><td class="tkt-l">' +
-      l +
-      '</td><td class="tkt-r">' +
-      r +
-      '</td></tr>'
-    );
-  }
-
-  function tktSep(dashed) {
-    return (
-      '<tr class="' +
-      (dashed ? 'tkt-sep' : 'tkt-sep-solid') +
-      '"><td colspan="2" aria-hidden="true"></td></tr>'
-    );
-  }
-
-  function tktHead(text) {
-    return '<tr class="tkt-head"><td colspan="2">' + text + '</td></tr>';
-  }
-
-  function tktCenter(html) {
-    return '<tr class="tkt-center"><td colspan="2">' + html + '</td></tr>';
+  function resumenTblRows(rows) {
+    var html = '<table class="resumen-tbl" role="presentation"><tbody>';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      html +=
+        '<tr class="' +
+        (r.c || '') +
+        '"><td class="res-l">' +
+        r.l +
+        '</td><td class="res-r">' +
+        r.r +
+        '</td></tr>';
+    }
+    return html + '</tbody></table>';
   }
 
   function buildCierreResumenHtml(snapshot, cierreId, cierreWhenIso) {
@@ -1018,60 +1006,66 @@
     var productos = (st.productosVentas || []).filter(function (x) {
       return x.qty > 0;
     });
-    var productosHtml = '';
+    var productosBlock = '';
     if (!productos.length) {
-      productosHtml = tktCenter('<span class="meta">Sin hamburguesas en el turno.</span>');
+      productosBlock = '<p class="resumen-note">Sin hamburguesas en el turno.</p>';
     } else {
-      productos.forEach(function (x) {
-        productosHtml += tktRow(escapeHtml(x.nombre), String(x.qty), 'tkt-data');
+      var prows = productos.map(function (x) {
+        return { l: escapeHtml(x.nombre), r: String(x.qty) };
       });
+      productosBlock = resumenTblRows(prows);
     }
     var gastosList = snapshot.gastos || [];
-    var gastosHtml = '';
-    if (!gastosList.length) {
-      gastosHtml = tktCenter('<span class="meta">Sin gastos</span>');
-    } else {
-      gastosList.forEach(function (g) {
-        var pag = gastoPagadoLabel(g);
-        var lbl = escapeHtml(g.concepto || '') + (pag ? ' (' + escapeHtml(pag) + ')' : '');
-        gastosHtml += tktRow(lbl, '-$' + fmt(g.monto));
-      });
+    var grows = [];
+    gastosList.forEach(function (g) {
+      var pag = gastoPagadoLabel(g);
+      var lbl = escapeHtml(g.concepto || '') + (pag ? ' (' + escapeHtml(pag) + ')' : '');
+      grows.push({ l: lbl, r: '-$' + fmt(g.monto) });
+    });
+    if (!grows.length) {
+      grows.push({ l: 'Sin gastos', r: '$0' });
     }
+    grows.push({ l: 'Total gastos', r: '-$' + fmt(st.gTotal), c: 'res-total' });
     var resultadoStr = (neg ? '-$' : '$') + fmt(Math.abs(st.resultado));
     return (
-      '<table class="tkt" role="presentation">' +
-      tktCenter('<span class="brand">BRAVA BURGERS</span>') +
-      tktCenter(
-        '<span class="meta">' +
-          escapeHtml(cierreId || '—') +
-          ' · ' +
-          escapeHtml(snapshot.periodoLbl) +
-          '</span>'
-      ) +
-      tktCenter('<span class="meta">Apertura ' + escapeHtml(aperturaLbl) + '</span>') +
-      tktCenter('<span class="meta">Cierre ' + escapeHtml(cierreLbl) + '</span>') +
-      tktSep(false) +
-      tktHead('Ventas (entregados)') +
-      tktRow('Efectivo', '$' + fmt(st.ef)) +
-      tktRow('Mercado Pago', '$' + fmt(st.mp)) +
-      tktSep(true) +
-      tktRow('Total ventas', '$' + fmt(st.ventas), 'tkt-total') +
-      tktRow('Cancelados (info)', '$' + fmt(st.cancel)) +
-      tktSep(true) +
-      tktHead('Gastos') +
-      gastosHtml +
-      tktSep(true) +
-      tktRow('Total gastos', '-$' + fmt(st.gTotal), 'tkt-total') +
-      tktSep(false) +
-      tktRow('Resultado turno', resultadoStr, 'tkt-total') +
-      tktSep(false) +
-      tktHead('Hamburguesas') +
-      productosHtml +
-      tktRow('Simples / Dobles', Math.round(st.simples) + ' / ' + Math.round(st.dobles)) +
-      tktSep(true) +
-      tktRow('Total', Math.round(st.hambTotal) + ' u.', 'tkt-total') +
-      tktCenter('<span class="footer-note">Brava Burgers · Cierre de caja</span>') +
-      '</table>'
+      '<div class="resumen-top">' +
+      '<div class="brand">BRAVA BURGERS</div>' +
+      '<div class="meta">' +
+      escapeHtml(cierreId || '—') +
+      ' · ' +
+      escapeHtml(snapshot.periodoLbl) +
+      '<br>Apertura ' +
+      escapeHtml(aperturaLbl) +
+      ' · Cierre ' +
+      escapeHtml(cierreLbl) +
+      '</div></div>' +
+      '<div class="resumen-block"><h3>Ventas (entregados ✓)</h3>' +
+      resumenTblRows([
+        { l: 'Efectivo', r: '$' + fmt(st.ef) },
+        { l: 'Mercado Pago', r: '$' + fmt(st.mp) },
+        { l: 'Total ventas', r: '$' + fmt(st.ventas), c: 'res-total' },
+        { l: 'Cancelados (info)', r: '$' + fmt(st.cancel), c: 'res-muted' },
+      ]) +
+      '</div>' +
+      '<div class="resumen-block"><h3>Gastos</h3>' +
+      resumenTblRows(grows) +
+      '</div>' +
+      '<div class="resultado-inline' +
+      (neg ? ' neg' : '') +
+      '">' +
+      resumenTblRows([{ l: 'Resultado turno', r: resultadoStr, c: 'res-result' }]) +
+      '</div>' +
+      '<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
+      productosBlock +
+      resumenTblRows([
+        {
+          l: 'Simples / Dobles',
+          r: Math.round(st.simples) + ' / ' + Math.round(st.dobles),
+        },
+        { l: 'Total', r: Math.round(st.hambTotal) + ' u.', c: 'res-total' },
+      ]) +
+      '</div>' +
+      '<div class="resumen-foot">Brava Burgers · Cierre de caja</div>'
     );
   }
 
