@@ -505,6 +505,32 @@
     return computeSesionStats();
   }
 
+  function isCajaTurnoActivo() {
+    return !findCierreForCurrentPeriod() && isCajaMarcadaAbierta() && !isNaN(getAperturaAtMs());
+  }
+
+  function gastoInSesionTurno(g) {
+    if (!g || !isCajaTurnoActivo()) return false;
+    var desdeMs = getAperturaAtMs();
+    if (!gastoInFilterRange(g)) return false;
+    var gt = gastoTimestampMs(g);
+    return gt >= desdeMs;
+  }
+
+  function gastosVisiblesTurno() {
+    if (!isCajaTurnoActivo()) return [];
+    return gastosCache.filter(gastoInSesionTurno);
+  }
+
+  function updateGastosChrome() {
+    var btn = $('btn-add-gasto');
+    var active = isCajaTurnoActivo();
+    if (btn) {
+      btn.disabled = !active;
+      btn.title = active ? '' : 'Abrí la caja para agregar gastos del turno';
+    }
+  }
+
   function findCierreForCurrentPeriod() {
     var d = filterDesde;
     var h = filterHasta;
@@ -647,6 +673,7 @@
       }
     }
     updateCierreStatusUI();
+    updateGastosChrome();
   }
 
   function loadCierres(force) {
@@ -660,6 +687,7 @@
             clearApertura();
           }
           updateCajaUI();
+          renderGastosList();
           return true;
         }
         if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
@@ -692,6 +720,7 @@
           setCajaMarcadaAbierta(true);
           setAperturaNow();
           updateCajaUI();
+          renderGastosList();
           loadCierres(true);
         } else {
           if (res.status === 401) handleAuthFailure();
@@ -703,6 +732,7 @@
     setCajaMarcadaAbierta(true);
     setAperturaNow();
     updateCajaUI();
+    renderGastosList();
   }
 
   function performCierreCaja() {
@@ -772,6 +802,7 @@
         clearApertura();
         cierresCache.unshift(res.data.cierre);
         updateCajaUI();
+        renderGastosList();
         alert('Cierre guardado: ' + res.data.cierre.id);
         loadCierres(true);
       } else {
@@ -789,13 +820,22 @@
     var empty = $('gastos-empty');
     if (!ul) return;
     ul.innerHTML = '';
-    if (!gastosCache.length) {
-      if (empty) empty.classList.remove('hidden');
+    updateGastosChrome();
+    var visibles = gastosVisiblesTurno();
+    if (!visibles.length) {
+      if (empty) {
+        empty.classList.remove('hidden');
+        if (!isCajaTurnoActivo()) {
+          empty.textContent = 'Sin gastos — abrí la caja para cargar gastos del turno (ahora $0).';
+        } else {
+          empty.textContent = 'Sin gastos en este turno.';
+        }
+      }
       updateCajaUI();
       return;
     }
     if (empty) empty.classList.add('hidden');
-    gastosCache.forEach(function (g) {
+    visibles.forEach(function (g) {
       var li = document.createElement('li');
       var pagado = g.pagado_con || '';
       var pagadoLbl =
@@ -2604,6 +2644,10 @@
 
   if ($('btn-add-gasto')) {
     $('btn-add-gasto').onclick = function () {
+      if (!isCajaTurnoActivo()) {
+        alert('Abrí la caja antes de agregar gastos. Sin apertura la lista queda en 0.');
+        return;
+      }
       $('g-concepto').value = '';
       $('g-monto').value = '';
       $('g-fecha').value = filterHasta || todayIsoLocal();
@@ -2636,8 +2680,9 @@
         concepto: concepto,
         monto: monto,
         pagado_con: pagadoCon,
+        creado_at: new Date().toISOString(),
       };
-      if (gastoInFilterRange(optimistic)) {
+      if (isCajaTurnoActivo()) {
         gastosCache.unshift(optimistic);
         renderGastosList();
       }
@@ -2656,7 +2701,8 @@
           });
           if (res.data.gasto) {
             var g = res.data.gasto;
-            if (gastoInFilterRange(g)) gastosCache.unshift(g);
+            if (!g.creado_at) g.creado_at = new Date().toISOString();
+            if (gastoInSesionTurno(g)) gastosCache.unshift(g);
           }
           renderGastosList();
           loadGastos(true);
