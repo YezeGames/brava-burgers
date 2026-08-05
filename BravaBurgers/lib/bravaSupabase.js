@@ -400,6 +400,12 @@ async function listCierres(limit) {
 
       notas: c.notas || '',
 
+      turno: c.turno || '',
+
+      ventana_desde: c.ventana_desde,
+
+      ventana_hasta: c.ventana_hasta,
+
     };
 
   });
@@ -455,6 +461,12 @@ async function createCierre(body) {
     hamb_total: Number(body.hamb_total) || 0,
 
     notas: String(body.notas || '').trim(),
+
+    turno: String(body.turno || '').trim(),
+
+    ventana_desde: body.ventana_desde || null,
+
+    ventana_hasta: body.ventana_hasta || null,
 
   };
 

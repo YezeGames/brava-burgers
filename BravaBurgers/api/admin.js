@@ -9,7 +9,6 @@ const {
   deleteGasto,
   listCierres,
   createCierre,
-  deleteCierre,
 } = require('../lib/bravaSupabase');
 
 function parseRequestBody(req) {
@@ -76,10 +75,6 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'createCierre') {
     return createCierre(body);
-  }
-
-  if (action === 'deleteCierre') {
-    return deleteCierre(body.id);
   }
 
   if (action === 'refreshRealtime') {

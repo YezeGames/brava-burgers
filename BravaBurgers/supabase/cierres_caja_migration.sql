@@ -14,7 +14,10 @@ CREATE TABLE IF NOT EXISTS cierres_caja (
   hamb_simples bigint NOT NULL DEFAULT 0,
   hamb_dobles bigint NOT NULL DEFAULT 0,
   hamb_total bigint NOT NULL DEFAULT 0,
-  notas text NOT NULL DEFAULT ''
+  notas text NOT NULL DEFAULT '',
+  turno text NOT NULL DEFAULT '',
+  ventana_desde timestamptz,
+  ventana_hasta timestamptz
 );
 
 CREATE INDEX IF NOT EXISTS cierres_caja_cerrado_idx ON cierres_caja (cerrado_at DESC);

@@ -370,6 +370,104 @@
     return n.indexOf('doble') >= 0;
   }
 
+  function orderEntregadoAtMs(o) {
+    if (!o || !o.entregado_at) return NaN;
+    var t = new Date(o.entregado_at).getTime();
+    return isNaN(t) ? NaN : t;
+  }
+
+  function periodDayStartMs() {
+    var iso = filterDesde || todayIsoLocal();
+    return new Date(iso + 'T00:00:00').getTime();
+  }
+
+  function gastoTimestampMs(g) {
+    if (g && g.creado_at) {
+      var t = new Date(g.creado_at).getTime();
+      if (!isNaN(t)) return t;
+    }
+    var iso = String((g && g.fecha) || '').slice(0, 10);
+    if (iso) return new Date(iso + 'T12:00:00').getTime();
+    return 0;
+  }
+
+  function listCierresEnFiltro() {
+    var d = filterDesde;
+    var h = filterHasta;
+    return cierresCache
+      .filter(function (c) {
+        return c.periodo_desde === d && c.periodo_hasta === h;
+      })
+      .sort(function (a, b) {
+        return new Date(b.cerrado_at).getTime() - new Date(a.cerrado_at).getTime();
+      });
+  }
+
+  function lastCierreEnFiltro() {
+    var list = listCierresEnFiltro();
+    return list.length ? list[0] : null;
+  }
+
+  function getTurnoVentanaBounds() {
+    var last = lastCierreEnFiltro();
+    var desdeMs = periodDayStartMs();
+    if (last) {
+      var anchor = last.ventana_hasta || last.cerrado_at;
+      if (anchor) {
+        var ms = new Date(anchor).getTime();
+        if (!isNaN(ms) && ms > desdeMs) desdeMs = ms;
+      }
+    }
+    var hastaMs = Date.now();
+    return {
+      desdeMs: desdeMs,
+      hastaMs: hastaMs,
+      desdeIso: new Date(desdeMs).toISOString(),
+      hastaIso: new Date(hastaMs).toISOString(),
+    };
+  }
+
+  function computeTurnoStats(bounds) {
+    var desdeMs = bounds.desdeMs;
+    var hastaMs = bounds.hastaMs;
+    var ef = 0;
+    var mp = 0;
+    var simples = 0;
+    var dobles = 0;
+    allOrdersCache.forEach(function (o) {
+      if (normalizeEstado(o.estado) !== 'entregada') return;
+      if (!inDateRange(orderCajaDateIso(o))) return;
+      var t = orderEntregadoAtMs(o);
+      if (isNaN(t) || t < desdeMs || t > hastaMs) return;
+      var total = Number(o.total) || 0;
+      if (pagoEsEfectivo(o.pago)) ef += total;
+      else mp += total;
+      parseOrderItems(o).forEach(function (it) {
+        if (!isHamburguesaItem(it)) return;
+        var q = editItemQty(it);
+        if (hamburguesaEsDoble(it)) dobles += q;
+        else simples += q;
+      });
+    });
+    var gTotal = 0;
+    gastosCache.forEach(function (g) {
+      if (!gastoInFilterRange(g)) return;
+      var gt = gastoTimestampMs(g);
+      if (gt >= desdeMs && gt <= hastaMs) gTotal += Number(g.monto) || 0;
+    });
+    var ventas = ef + mp;
+    return {
+      ef: ef,
+      mp: mp,
+      ventas: ventas,
+      gTotal: gTotal,
+      resultado: ventas - gTotal,
+      simples: simples,
+      dobles: dobles,
+      hambTotal: simples + dobles,
+    };
+  }
+
   function computePeriodStats() {
     var ef = 0;
     var mp = 0;
@@ -412,16 +510,6 @@
     };
   }
 
-  function findCierreForCurrentPeriod() {
-    var d = filterDesde;
-    var h = filterHasta;
-    for (var i = 0; i < cierresCache.length; i++) {
-      var c = cierresCache[i];
-      if (c.periodo_desde === d && c.periodo_hasta === h) return c;
-    }
-    return null;
-  }
-
   function formatCierreWhen(iso) {
     if (!iso) return '';
     var d = new Date(iso);
@@ -433,36 +521,74 @@
     return dd + '/' + mm + ' ' + hh + ':' + mi;
   }
 
+  function formatTimeShort(isoOrMs) {
+    var d = typeof isoOrMs === 'number' ? new Date(isoOrMs) : new Date(isoOrMs);
+    if (isNaN(d.getTime())) return '—';
+    return (
+      String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+    );
+  }
+
   function updateCierreStatusUI() {
     var btn = $('btn-cierre-caja');
     var estado = $('caja-estado');
-    var ultimo = $('caja-ultimo-cierre');
-    var c = findCierreForCurrentPeriod();
-    if (c) {
-      if (estado) {
-        estado.textContent = 'Caja cerrada · ' + (c.id || '');
-        estado.classList.add('cerrada');
+    var listEl = $('cierres-hoy-list');
+    var enFiltro = listCierresEnFiltro();
+    if (estado) {
+      if (enFiltro.length) {
+        estado.textContent =
+          enFiltro.length +
+          ' cierre' +
+          (enFiltro.length === 1 ? '' : 's') +
+          ' guardado' +
+          (enFiltro.length === 1 ? '' : 's') +
+          ' en este período · podés cerrar otro turno';
+      } else {
+        estado.textContent = 'Sin cierres en este período · podés cerrar el turno';
       }
-      if (ultimo) {
-        ultimo.hidden = false;
-        ultimo.textContent = 'Cerrado el ' + formatCierreWhen(c.cerrado_at);
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Cierre de caja del turno';
+    }
+    if (listEl) {
+      if (!enFiltro.length) {
+        listEl.hidden = true;
+        listEl.innerHTML = '';
+      } else {
+        listEl.hidden = false;
+        listEl.innerHTML = enFiltro
+          .slice()
+          .reverse()
+          .map(function (c) {
+            var turno = c.turno ? c.turno + ' · ' : '';
+            return (
+              '<li>' +
+              turno +
+              escapeHtml(c.id || '') +
+              ' — ' +
+              formatCierreWhen(c.cerrado_at) +
+              ' · $' +
+              fmt(c.ventas_total || 0) +
+              '</li>'
+            );
+          })
+          .join('');
       }
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Período ya cerrado';
+    }
+    var turnos = ['Mañana', 'Tarde', 'Noche'];
+    var used = {};
+    enFiltro.forEach(function (c) {
+      if (c.turno) used[c.turno] = true;
+    });
+    var sel = $('cierre-turno');
+    if (sel) {
+      for (var ti = 0; ti < turnos.length; ti++) {
+        if (!used[turnos[ti]]) {
+          sel.value = turnos[ti];
+          break;
+        }
       }
-      if ($('btn-reabrir-caja')) $('btn-reabrir-caja').classList.remove('hidden');
-    } else {
-      if (estado) {
-        estado.textContent = 'Caja abierta (pendiente de cierre)';
-        estado.classList.remove('cerrada');
-      }
-      if (ultimo) ultimo.hidden = true;
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Cierre de caja';
-      }
-      if ($('btn-reabrir-caja')) $('btn-reabrir-caja').classList.add('hidden');
     }
   }
 
@@ -483,6 +609,16 @@
     if ($('ventas-hamb-simples')) $('ventas-hamb-simples').textContent = String(Math.round(st.simples));
     if ($('ventas-hamb-dobles')) $('ventas-hamb-dobles').textContent = String(Math.round(st.dobles));
     if ($('ventas-hamb-total')) $('ventas-hamb-total').textContent = String(Math.round(st.hambTotal));
+    var bounds = getTurnoVentanaBounds();
+    var tst = computeTurnoStats(bounds);
+    if ($('turno-ventas')) $('turno-ventas').textContent = '$' + fmt(tst.ventas);
+    if ($('turno-hamb')) $('turno-hamb').textContent = String(Math.round(tst.hambTotal));
+    if ($('turno-desde-lbl')) {
+      $('turno-desde-lbl').textContent =
+        'Desde ' +
+        formatTimeShort(bounds.desdeMs) +
+        ' (solo entregados ✓ en ese rango)';
+    }
     if ($('caja-range')) {
       var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
       var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
@@ -510,30 +646,44 @@
   }
 
   function performCierreCaja() {
-    if (findCierreForCurrentPeriod()) {
-      alert('Este período ya tiene un cierre registrado.');
-      return;
-    }
     readDateFiltersFromUi();
-    var st = computePeriodStats();
+    var bounds = getTurnoVentanaBounds();
+    var st = computeTurnoStats(bounds);
+    if (st.ventas <= 0 && st.gTotal <= 0) {
+      if (
+        !confirm(
+          'No hay ventas ni gastos en este turno (desde ' +
+            formatTimeShort(bounds.desdeMs) +
+            '). ¿Cerrar igual?'
+        )
+      ) {
+        return;
+      }
+    }
+    var turno = ($('cierre-turno') && $('cierre-turno').value) || 'Turno';
     var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
     var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
     var periodoLbl = d1 === d2 ? d1 : d1 + ' — ' + d2;
     var msg =
-      '¿Cerrar caja del período ' +
+      '¿Cerrar caja — turno ' +
+      turno +
+      ' (' +
       periodoLbl +
-      '?\n\n' +
-      'Ventas: $' +
+      ')?\n\n' +
+      'Desde ' +
+      formatTimeShort(bounds.desdeMs) +
+      ' hasta ahora.\n\n' +
+      'Ventas del turno: $' +
       fmt(st.ventas) +
       ' (EF $' +
       fmt(st.ef) +
       ' · MP $' +
       fmt(st.mp) +
       ')\n' +
-      'Gastos: $' +
+      'Gastos del turno: $' +
       fmt(st.gTotal) +
       '\n' +
-      'Resultado: $' +
+      'Resultado turno: $' +
       fmt(st.resultado) +
       '\n\n' +
       'Hamb. simples: ' +
@@ -545,7 +695,7 @@
       'Total hamburguesas: ' +
       Math.round(st.hambTotal) +
       '\n\n' +
-      'Queda guardado en Supabase. Mañana usá «Hoy» para el turno nuevo.';
+      'Podés cerrar otro turno más tarde el mismo día (Tarde, Noche, etc.).';
     if (!confirm(msg)) return;
     var btn = $('btn-cierre-caja');
     if (btn) btn.disabled = true;
@@ -554,59 +704,33 @@
       token: token,
       periodo_desde: filterDesde,
       periodo_hasta: filterHasta,
+      turno: turno,
+      ventana_desde: bounds.desdeIso,
+      ventana_hasta: bounds.hastaIso,
       efectivo: st.ef,
       mercado_pago: st.mp,
       ventas_total: st.ventas,
       gastos: st.gTotal,
       resultado: st.resultado,
-      cancelados: st.cancel,
+      cancelados: 0,
       hamb_simples: Math.round(st.simples),
       hamb_dobles: Math.round(st.dobles),
       hamb_total: Math.round(st.hambTotal),
     }).then(function (res) {
+      if (btn) btn.disabled = false;
       if (res.data.ok && res.data.cierre) {
         cierresCache.unshift(res.data.cierre);
         updateCajaUI();
-        alert('Cierre guardado: ' + res.data.cierre.id);
+        alert('Cierre guardado: ' + res.data.cierre.id + ' (' + turno + ')');
         loadCierres(true);
       } else {
         if (res.status === 401) handleAuthFailure();
         else {
           alert(
-            'No se pudo guardar el cierre. Si es la primera vez, ejecutá en Supabase el archivo supabase/cierres_caja_migration.sql'
+            'No se pudo guardar. Ejecutá en Supabase: cierres_caja_migration.sql y, si ya existía la tabla, cierres_caja_turnos_migration.sql'
           );
         }
         updateCierreStatusUI();
-      }
-    });
-  }
-
-  function performReabrirCaja() {
-    var c = findCierreForCurrentPeriod();
-    if (!c || !c.id) {
-      alert('No hay cierre para reabrir en este período.');
-      return;
-    }
-    if (
-      !confirm(
-        '¿Reabrir la caja de este período?\n\nSe borra el registro ' +
-          c.id +
-          ' en Supabase (como si no hubieras cerrado). Los pedidos y la plata del día no se tocan.'
-      )
-    ) {
-      return;
-    }
-    api({ action: 'deleteCierre', token: token, id: c.id }).then(function (res) {
-      if (res.data.ok) {
-        cierresCache = cierresCache.filter(function (x) {
-          return x.id !== c.id;
-        });
-        updateCajaUI();
-        alert('Caja reabierta para este período.');
-        loadCierres(true);
-      } else {
-        if (res.status === 401) handleAuthFailure();
-        else alert('No se pudo reabrir. ¿Ejecutaste cierres_caja_migration.sql en Supabase?');
       }
     });
   }
@@ -2426,8 +2550,6 @@
   }
 
   if ($('btn-cierre-caja')) $('btn-cierre-caja').onclick = performCierreCaja;
-
-  if ($('btn-reabrir-caja')) $('btn-reabrir-caja').onclick = performReabrirCaja;
 
   if ($('btn-add-gasto')) {
     $('btn-add-gasto').onclick = function () {
