@@ -179,7 +179,8 @@
     var envioLabel = envio > 0 ? 'Envío' + (order.zona ? ' (' + esc(order.zona) + ')' : '') : 'Envío';
 
     return (
-      '<div class="center line-solid"><div class="brand">BRAVA BURGERS</div></div>' +
+      '<div class="comanda-top">' +
+      '<div class="brand">BRAVA BURGERS</div>' +
       '<div class="meta">' +
       '<div>Pedido: <span class="bold">' +
       esc(order.orn || '—') +
@@ -190,9 +191,10 @@
       (order.turno ? '<div>Turno: ' + esc(order.turno) + '</div>' : '') +
       '<div>Tipo: DELIVERY</div>' +
       editNote +
-      '</div>' +
+      '</div></div>' +
+      '<div class="comanda-body">' +
       '<div class="line"></div>' +
-      '<div class="section-title">CLIENTE</div>' +
+      '<div class="section-title">Cliente</div>' +
       '<div>' +
       esc(order.cliente || '—') +
       '</div>' +
@@ -203,7 +205,7 @@
       (locLine ? '<div>' + locLine + '</div>' : '') +
       (zonaLine ? '<div>' + zonaLine + '</div>' : '') +
       '<div class="line"></div>' +
-      '<div class="section-title">ÍTEMS</div>' +
+      '<div class="section-title">Ítems</div>' +
       renderItemsHtml(items) +
       '<div class="line"></div>' +
       '<div class="row"><span>Subtotal productos</span><span>' +
@@ -219,8 +221,8 @@
       '<div class="row total-row"><span>TOTAL</span><span>' +
       esc(fmtMoney(total)) +
       '</span></div>' +
-      '<div class="line-solid"></div>' +
-      '<div class="footer-note">Documento no válido como factura</div>'
+      '</div>' +
+      '<div class="comanda-foot">Documento no válido como factura</div>'
     );
   }
 

@@ -43,76 +43,88 @@
 		.preview-bar .err { color: #ff8a80; font-size: 0.9rem; }
 
 		.ticket-wrap {
-			max-width: 302px;
+			width: 80mm;
+			max-width: 80mm;
 			margin: 0 auto;
 			box-shadow: 0 8px 32px rgba(0,0,0,.5);
 		}
-		.ticket {
+		.ticket.ticket-comanda {
 			background: #fff;
-			color: #111;
-			font-family: "Courier New", Courier, monospace;
-			font-size: 12px;
-			line-height: 1.35;
-			padding: 12px 10px 16px;
+			color: #000;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			font-size: 0.78rem;
+			line-height: 1.4;
+			padding: 0;
 			width: 100%;
 		}
-		.ticket .center { text-align: center; }
-		.ticket .bold { font-weight: 700; }
-		.ticket .line { border-top: 1px dashed #333; margin: 8px 0; }
-		.ticket .line-solid { border-top: 2px solid #111; margin: 8px 0; }
-		.ticket .brand { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
-		.ticket .meta { font-size: 11px; }
-		.ticket .section-title {
-			font-weight: 700;
-			font-size: 11px;
-			margin-top: 4px;
+		.ticket-comanda .comanda-top {
+			background: #000;
+			color: #fff;
+			padding: 10px 8px;
+			text-align: center;
 		}
-		.ticket .item { margin: 6px 0; }
-		.ticket .item-name { font-weight: 700; }
-		.ticket .item-detail { padding-left: 8px; font-size: 11px; }
-		.ticket .item-extras { font-weight: 700; }
-		.ticket .item-sin-ing {
-			padding-left: 8px;
-			font-size: 11px;
+		.ticket-comanda .comanda-top .brand {
+			font-size: 1.05rem;
+			font-weight: 800;
+			letter-spacing: 0.04em;
+		}
+		.ticket-comanda .comanda-top .meta {
+			font-size: 0.7rem;
+			line-height: 1.45;
+			margin-top: 6px;
+			text-align: left;
+		}
+		.ticket-comanda .comanda-body { padding: 8px; }
+		.ticket-comanda .bold { font-weight: 700; }
+		.ticket-comanda .line { border-top: 1px dashed #ccc; margin: 8px 0; }
+		.ticket-comanda .section-title {
 			font-weight: 700;
+			font-size: 0.65rem;
 			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: #666;
+			margin: 4px 0 6px;
 		}
-		.ticket .item-aclaracion {
-			padding-left: 8px;
-			font-size: 11px;
-			font-weight: 700;
-		}
-		.ticket .row {
+		.ticket-comanda .item { margin: 8px 0; }
+		.ticket-comanda .item-name { font-weight: 700; font-size: 0.82rem; }
+		.ticket-comanda .item-detail,
+		.ticket-comanda .item-aclaracion { font-size: 0.75rem; font-weight: 700; margin-top: 2px; }
+		.ticket-comanda .item-extras { font-weight: 700; }
+		.ticket-comanda .row {
 			display: flex;
 			justify-content: space-between;
 			gap: 8px;
+			font-variant-numeric: tabular-nums;
 		}
-		.ticket .total-row {
-			font-weight: 700;
-			font-size: 13px;
-			margin-top: 4px;
-		}
-		.ticket .pago-line {
-			font-weight: 700;
-			margin: 4px 0;
-		}
-		.ticket .edit-note {
-			font-size: 10px;
-			font-weight: 700;
-			margin-top: 4px;
-		}
-		.ticket .footer-note {
-			font-size: 9px;
+		.ticket-comanda .total-row { font-weight: 700; font-size: 0.88rem; }
+		.ticket-comanda .pago-line { font-weight: 700; margin: 4px 0; }
+		.ticket-comanda .edit-note { font-size: 0.68rem; font-weight: 700; margin-top: 6px; }
+		.ticket-comanda .comanda-foot {
+			background: #000;
+			color: #fff;
+			font-size: 0.62rem;
 			text-align: center;
-			margin-top: 8px;
-			color: #444;
+			padding: 8px 6px;
 		}
 
 		@media print {
 			body { background: #fff; padding: 0; }
 			.preview-bar { display: none; }
-			.ticket-wrap { max-width: none; box-shadow: none; margin: 0; }
-			.ticket { width: 80mm; padding: 4mm; font-size: 11px; }
+			.ticket-wrap { max-width: none; box-shadow: none; margin: 0; width: 80mm; }
+			.ticket.ticket-comanda {
+				width: 80mm;
+				padding: 0;
+				font-size: 11px;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
+			.ticket-comanda .comanda-top,
+			.ticket-comanda .comanda-foot {
+				background: #000 !important;
+				color: #fff !important;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
 			@page { size: 80mm auto; margin: 0; }
 		}
 	</style>
@@ -126,9 +138,9 @@
 	</div>
 
 	<div class="ticket-wrap">
-		<article class="ticket" id="ticket-root" aria-label="Comanda térmica"></article>
+		<article class="ticket ticket-comanda" id="ticket-root" aria-label="Comanda térmica"></article>
 	</div>
 
-	<script src="/admin/comanda.js?v=3"></script>
+	<script src="/admin/comanda.js?v=7"></script>
 </body>
 </html>
