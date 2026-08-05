@@ -1458,9 +1458,79 @@
 
     }
 
-    sessionStorage.setItem('brava_comanda_print', JSON.stringify(o));
+    if (!window.BravaComanda || !window.BravaComanda.renderTicketHtml) {
 
-    window.open('/admin/comanda.html', '_blank', 'noopener');
+      alert('No cargó el módulo de comanda. Recargá con Ctrl+Shift+R.');
+
+      return;
+
+    }
+
+    window.BravaComanda.storeOrderForPrint(o);
+
+    $('comanda-ticket-inner').innerHTML = window.BravaComanda.renderTicketHtml(o);
+
+    $('comanda-modal-title').textContent = 'Comanda ' + o.orn;
+
+    $('comanda-modal').classList.remove('hidden');
+
+  }
+
+
+
+  function closeComandaModal() {
+
+    $('comanda-modal').classList.add('hidden');
+
+    document.body.classList.remove('printing-comanda');
+
+  }
+
+
+
+  function printComandaModal() {
+
+    document.body.classList.add('printing-comanda');
+
+    var done = function () {
+
+      document.body.classList.remove('printing-comanda');
+
+    };
+
+    if (window.matchMedia) {
+
+      window.matchMedia('print').addEventListener(
+
+        'change',
+
+        function m(e) {
+
+          if (!e.matches) {
+
+            done();
+
+            window.matchMedia('print').removeEventListener('change', m);
+
+          }
+
+        },
+
+        { once: true }
+
+      );
+
+    }
+
+    window.onafterprint = function () {
+
+      done();
+
+      window.onafterprint = null;
+
+    };
+
+    window.print();
 
   }
 
@@ -1563,6 +1633,20 @@
     $('btn-sound').textContent = 'Sonido activado ✓';
 
   };
+
+  if ($('comanda-close')) $('comanda-close').onclick = closeComandaModal;
+
+  if ($('comanda-print')) $('comanda-print').onclick = printComandaModal;
+
+  if ($('comanda-modal')) {
+
+    $('comanda-modal').addEventListener('click', function (e) {
+
+      if (e.target === $('comanda-modal')) closeComandaModal();
+
+    });
+
+  }
 
 
 

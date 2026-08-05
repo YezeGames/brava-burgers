@@ -1,4 +1,4 @@
-(function () {
+(function (global) {
   function $(id) {
     return document.getElementById(id);
   }
@@ -91,7 +91,7 @@
     return html;
   }
 
-  function renderTicket(order) {
+  function renderTicketHtml(order) {
     var items = parseItems(order);
     var sub = Number(order.subtotal);
     if (isNaN(sub) || sub <= 0) {
@@ -164,36 +164,74 @@
     );
   }
 
-  function showError(msg) {
-    $('bar-err').textContent = msg;
-    $('bar-err').classList.remove('hidden');
-    $('ticket-root').innerHTML = '<div class="center">No hay datos de comanda.</div>';
+  function readStoredOrder() {
+    var raw = null;
+    try {
+      raw = localStorage.getItem('brava_comanda_print');
+      var at = parseInt(localStorage.getItem('brava_comanda_print_at') || '0', 10);
+      if (raw && at && Date.now() - at > 15 * 60 * 1000) raw = null;
+    } catch (e) {}
+    if (!raw) {
+      try {
+        raw = sessionStorage.getItem('brava_comanda_print');
+      } catch (e2) {}
+    }
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch (e3) {
+      return null;
+    }
   }
 
-  function load() {
-    var raw = sessionStorage.getItem('brava_comanda_print');
-    if (!raw) {
-      showError('Abrí el ticket desde el panel admin (Órdenes → Ticket).');
-      return;
-    }
-    var order;
+  function storeOrderForPrint(order) {
+    var payload = JSON.stringify(order);
     try {
-      order = JSON.parse(raw);
-    } catch (e) {
-      showError('Datos de pedido inválidos.');
-      return;
+      localStorage.setItem('brava_comanda_print', payload);
+      localStorage.setItem('brava_comanda_print_at', String(Date.now()));
+    } catch (e) {}
+    try {
+      sessionStorage.setItem('brava_comanda_print', payload);
+    } catch (e2) {}
+  }
+
+  global.BravaComanda = {
+    renderTicketHtml: renderTicketHtml,
+    readStoredOrder: readStoredOrder,
+    storeOrderForPrint: storeOrderForPrint,
+  };
+
+  function showStandaloneError(msg) {
+    var err = $('bar-err');
+    if (err) {
+      err.textContent = msg;
+      err.classList.remove('hidden');
     }
+    var root = $('ticket-root');
+    if (root) root.innerHTML = '<div class="center">No hay datos de comanda.</div>';
+  }
+
+  function initStandalonePage() {
+    if (!$('ticket-root')) return;
+    var order = readStoredOrder();
     if (!order || !order.orn) {
-      showError('Falta el número de pedido (ORN).');
+      var params = new URLSearchParams(window.location.search);
+      showStandaloneError(
+        params.get('orn')
+          ? 'Usá Ticket en el panel admin (misma pestaña). Si abrís comanda.html aparte, recargá el admin con Ctrl+Shift+R.'
+          : 'Abrí el ticket desde el panel admin (Órdenes → Ticket).'
+      );
       return;
     }
     document.title = 'Comanda ' + order.orn;
-    $('bar-title').textContent = 'Comanda ' + order.orn;
-    $('ticket-root').innerHTML = renderTicket(order);
-    $('btn-print').onclick = function () {
-      window.print();
-    };
+    if ($('bar-title')) $('bar-title').textContent = 'Comanda ' + order.orn;
+    $('ticket-root').innerHTML = renderTicketHtml(order);
+    if ($('btn-print')) {
+      $('btn-print').onclick = function () {
+        window.print();
+      };
+    }
   }
 
-  load();
-})();
+  initStandalonePage();
+})(typeof window !== 'undefined' ? window : this);

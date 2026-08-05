@@ -75,6 +75,61 @@
 		.msg-preview { margin-top: 8px; padding: 10px 12px; background: #f5f5f5; border-radius: 6px; font-size: 0.8rem; white-space: pre-wrap; color: #444; max-height: 140px; overflow-y: auto; }
 		.modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 		.btn-wa-modal { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #25D366; color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
+		.comanda-modal-box { max-width: 360px; }
+		.comanda-preview-wrap {
+			max-width: 302px;
+			margin: 0 auto 12px;
+			border: 1px solid #eee;
+			border-radius: 6px;
+			overflow: hidden;
+		}
+		.ticket {
+			background: #fff;
+			color: #111;
+			font-family: "Courier New", Courier, monospace;
+			font-size: 12px;
+			line-height: 1.35;
+			padding: 12px 10px 16px;
+		}
+		.ticket .center { text-align: center; }
+		.ticket .bold { font-weight: 700; }
+		.ticket .line { border-top: 1px dashed #333; margin: 8px 0; }
+		.ticket .line-solid { border-top: 2px solid #111; margin: 8px 0; }
+		.ticket .brand { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+		.ticket .meta { font-size: 11px; }
+		.ticket .section-title { font-weight: 700; font-size: 11px; margin-top: 4px; }
+		.ticket .item { margin: 6px 0; }
+		.ticket .item-name { font-weight: 700; }
+		.ticket .item-detail { padding-left: 8px; font-size: 11px; }
+		.ticket .item-aclaracion { padding-left: 8px; font-size: 11px; font-weight: 700; }
+		.ticket .row { display: flex; justify-content: space-between; gap: 8px; }
+		.ticket .total-row { font-weight: 700; font-size: 13px; margin-top: 4px; }
+		.ticket .pago-line { font-weight: 700; margin: 4px 0; }
+		.ticket .edit-note { font-size: 10px; font-weight: 700; margin-top: 4px; }
+		.ticket .footer-note { font-size: 9px; text-align: center; margin-top: 8px; color: #444; }
+		@media print {
+			body.printing-comanda #login-view,
+			body.printing-comanda #app-view { display: none !important; }
+			body.printing-comanda #rechazo-modal,
+			body.printing-comanda #gasto-modal { display: none !important; }
+			body.printing-comanda #comanda-modal {
+				display: flex !important;
+				position: static !important;
+				background: #fff !important;
+				padding: 0 !important;
+			}
+			body.printing-comanda .comanda-modal-chrome,
+			body.printing-comanda #comanda-modal .sub,
+			body.printing-comanda #comanda-modal-title { display: none !important; }
+			body.printing-comanda .comanda-modal-box {
+				box-shadow: none !important;
+				max-width: none !important;
+				padding: 0 !important;
+			}
+			body.printing-comanda .comanda-preview-wrap { border: none; max-width: none; }
+			body.printing-comanda .ticket { width: 80mm; padding: 4mm; font-size: 11px; }
+			@page { size: 80mm auto; margin: 0; }
+		}
 	</style>
 </head>
 <body>
@@ -191,7 +246,22 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="comanda-modal" role="dialog" aria-labelledby="comanda-modal-title">
+		<div class="modal comanda-modal-box">
+			<h2 id="comanda-modal-title">Comanda</h2>
+			<p class="sub">Ticket 80 mm — revisá e imprimí</p>
+			<div class="comanda-preview-wrap">
+				<article class="ticket" id="comanda-ticket-inner" aria-label="Comanda térmica"></article>
+			</div>
+			<div class="modal-foot comanda-modal-chrome">
+				<button type="button" class="btn-sm" id="comanda-close">Cerrar</button>
+				<button type="button" class="btn-sm btn-accent" id="comanda-print">Imprimir comanda</button>
+			</div>
+		</div>
+	</div>
+
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-	<script src="/admin/admin.js?v=23"></script>
+	<script src="/admin/comanda.js?v=3"></script>
+	<script src="/admin/admin.js?v=25"></script>
 </body>
 </html>
