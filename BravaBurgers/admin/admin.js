@@ -754,6 +754,19 @@
     return dd + '/' + mm + ' ' + hh + ':' + mi;
   }
 
+  /** Hora con segundos para el ticket impreso (apertura vs cierre). */
+  function formatCierreTicketWhen(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    var hh = String(d.getHours()).padStart(2, '0');
+    var mi = String(d.getMinutes()).padStart(2, '0');
+    var ss = String(d.getSeconds()).padStart(2, '0');
+    return dd + '/' + mm + ' ' + hh + ':' + mi + ':' + ss;
+  }
+
   function updateVentasRegistroChrome() {
     var hint = $('ventas-turno-hint');
     if (!hint) return;
@@ -972,30 +985,26 @@
   function buildCierreResumenHtml(snapshot, cierreId, cierreWhenIso) {
     var st = snapshot.st;
     var neg = st.resultado < 0;
-    var cierreLbl = cierreWhenIso
-      ? formatCierreWhen(cierreWhenIso)
-      : formatCierreWhen(new Date().toISOString());
+    var cierreLbl = formatCierreTicketWhen(cierreWhenIso || new Date().toISOString());
+    var aperturaLbl = formatCierreTicketWhen(snapshot.aperturaIso);
     var productos = (st.productosVentas || []).filter(function (x) {
       return x.qty > 0;
     });
     var productosHtml;
     if (!productos.length) {
-      productosHtml = '<p class="line muted">Sin hamburguesas en el turno.</p>';
+      productosHtml = '<div class="meta">Sin hamburguesas en el turno.</div>';
     } else {
-      productosHtml =
-        '<div class="productos-grid">' +
-        productos
-          .map(function (x) {
-            return (
-              '<div class="producto-cell"><span class="n">' +
-              escapeHtml(x.nombre) +
-              '</span><span class="q">' +
-              x.qty +
-              '</span></div>'
-            );
-          })
-          .join('') +
-        '</div>';
+      productosHtml = productos
+        .map(function (x) {
+          return (
+            '<div class="row"><span>' +
+            escapeHtml(x.nombre) +
+            '</span><span class="bold">' +
+            x.qty +
+            '</span></div>'
+          );
+        })
+        .join('');
     }
     var gastosList = snapshot.gastos || [];
     var gastosHtml = gastosList
@@ -1003,64 +1012,70 @@
         var pag = gastoPagadoLabel(g);
         var lbl = escapeHtml(g.concepto || '') + (pag ? ' (' + escapeHtml(pag) + ')' : '');
         return (
-          '<div class="gasto-item"><span>' +
+          '<div class="row"><span>' +
           lbl +
-          '</span><span>−$' +
+          '</span><span>-$' +
           fmt(g.monto) +
           '</span></div>'
         );
       })
       .join('');
     if (!gastosHtml) {
-      gastosHtml = '<div class="line muted">Sin gastos</div>';
+      gastosHtml = '<div class="meta">Sin gastos</div>';
     }
+    var resultadoStr = (neg ? '-$' : '$') + fmt(Math.abs(st.resultado));
     return (
-      '<div class="resumen-top">' +
-      '<div class="brand">BRAVA BURGERS</div>' +
-      '<div class="meta">' +
+      '<div class="center brand">BRAVA BURGERS</div>' +
+      '<div class="center meta">' +
       escapeHtml(cierreId || '—') +
       ' · ' +
       escapeHtml(snapshot.periodoLbl) +
-      '<br>Apertura ' +
-      escapeHtml(snapshot.aperturaLbl) +
-      ' · Cierre ' +
+      '</div>' +
+      '<div class="center meta">Apertura ' +
+      escapeHtml(aperturaLbl) +
+      '</div>' +
+      '<div class="center meta">Cierre ' +
       escapeHtml(cierreLbl) +
-      '</div></div>' +
-      '<div class="resumen-block"><h3>Ventas (entregados ✓)</h3>' +
-      '<div class="line"><span>Efectivo</span><strong>$' +
+      '</div>' +
+      '<div class="line-solid"></div>' +
+      '<div class="section-title">VENTAS (entregados)</div>' +
+      '<div class="row"><span>Efectivo</span><span>$' +
       fmt(st.ef) +
-      '</strong></div>' +
-      '<div class="line"><span>Mercado Pago</span><strong>$' +
-      fmt(st.mp) +
-      '</strong></div>' +
-      '<div class="line line-total"><span>Total ventas</span><strong>$' +
-      fmt(st.ventas) +
-      '</strong></div>' +
-      '<div class="line muted"><span>Cancelados (info)</span><span class="amt">$' +
-      fmt(st.cancel) +
-      '</span></div></div>' +
-      '<div class="resumen-block"><h3>Gastos</h3>' +
-      gastosHtml +
-      '<div class="line line-total"><span>Total gastos</span><span class="amt">−$' +
-      fmt(st.gTotal) +
-      '</span></div></div>' +
-      '<div class="resultado-inline' +
-      (neg ? ' neg' : '') +
-      '"><span>Resultado turno</span><span class="amt">' +
-      (neg ? '−$' : '$') +
-      fmt(Math.abs(st.resultado)) +
       '</span></div>' +
-      '<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
+      '<div class="row"><span>Mercado Pago</span><span>$' +
+      fmt(st.mp) +
+      '</span></div>' +
+      '<div class="line"></div>' +
+      '<div class="row total-row"><span>Total ventas</span><span>$' +
+      fmt(st.ventas) +
+      '</span></div>' +
+      '<div class="row"><span>Cancelados (info)</span><span>$' +
+      fmt(st.cancel) +
+      '</span></div>' +
+      '<div class="line"></div>' +
+      '<div class="section-title">GASTOS</div>' +
+      gastosHtml +
+      '<div class="line"></div>' +
+      '<div class="row total-row"><span>Total gastos</span><span>-$' +
+      fmt(st.gTotal) +
+      '</span></div>' +
+      '<div class="line-solid"></div>' +
+      '<div class="row total-row"><span>Resultado turno</span><span>' +
+      resultadoStr +
+      '</span></div>' +
+      '<div class="line-solid"></div>' +
+      '<div class="section-title">HAMBURGUESAS</div>' +
       productosHtml +
-      '<div class="line"><span>Simples / Dobles</span><strong>' +
+      '<div class="row"><span>Simples / Dobles</span><span>' +
       Math.round(st.simples) +
       ' / ' +
       Math.round(st.dobles) +
-      '</strong></div>' +
-      '<div class="line line-total"><span>Total</span><strong>' +
+      '</span></div>' +
+      '<div class="line"></div>' +
+      '<div class="row total-row"><span>Total</span><span>' +
       Math.round(st.hambTotal) +
-      ' u.</strong></div></div>' +
-      '<div class="resumen-foot">Brava Burgers · Cierre de caja</div>'
+      ' u.</span></div>' +
+      '<div class="footer-note">Brava Burgers · Cierre de caja</div>'
     );
   }
 
@@ -1194,7 +1209,7 @@
     pendingCierreSnapshot = {
       st: st,
       periodoLbl: cierrePeriodoLabel(),
-      aperturaLbl: isNaN(apMs) ? '—' : formatCierreWhen(new Date(apMs).toISOString()),
+      aperturaIso: isNaN(apMs) ? null : new Date(apMs).toISOString(),
       gastos: gastosEnTurnoParaCierre(),
     };
     openCierreConfirmModal();
