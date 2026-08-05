@@ -72,6 +72,7 @@
   var gastosCache = [];
   var cierresCache = [];
   var cierresFetchInFlight = null;
+  var cierresReady = false;
   var filterDesde = '';
   var filterHasta = '';
 
@@ -500,13 +501,27 @@
 
   /** Montos visibles en sidebar: solo con caja abierta; si no, todo en 0. */
   function computeCajaDisplayStats() {
+    if (!cierresReady) return emptyCajaStats();
     if (findCierreForCurrentPeriod()) return emptyCajaStats();
     if (!isCajaMarcadaAbierta()) return emptyCajaStats();
     return computeSesionStats();
   }
 
+  function normPeriodDate(v) {
+    return String(v || '').slice(0, 10);
+  }
+
+  function syncCajaLocalConServidor() {
+    if (findCierreForCurrentPeriod()) {
+      setCajaMarcadaAbierta(false);
+      clearApertura();
+    }
+  }
+
   function isCajaTurnoActivo() {
-    return !findCierreForCurrentPeriod() && isCajaMarcadaAbierta() && !isNaN(getAperturaAtMs());
+    if (!cierresReady) return false;
+    if (findCierreForCurrentPeriod()) return false;
+    return isCajaMarcadaAbierta() && !isNaN(getAperturaAtMs());
   }
 
   function gastoInSesionTurno(g) {
@@ -518,7 +533,9 @@
   }
 
   function gastosVisiblesTurno() {
-    if (!isCajaTurnoActivo()) return [];
+    if (!cierresReady) return [];
+    if (findCierreForCurrentPeriod()) return [];
+    if (!isCajaMarcadaAbierta() || isNaN(getAperturaAtMs())) return [];
     return gastosCache.filter(gastoInSesionTurno);
   }
 
@@ -532,11 +549,11 @@
   }
 
   function findCierreForCurrentPeriod() {
-    var d = filterDesde;
-    var h = filterHasta;
+    var d = normPeriodDate(filterDesde);
+    var h = normPeriodDate(filterHasta);
     for (var i = 0; i < cierresCache.length; i++) {
       var c = cierresCache[i];
-      if (c.periodo_desde === d && c.periodo_hasta === h) return c;
+      if (normPeriodDate(c.periodo_desde) === d && normPeriodDate(c.periodo_hasta) === h) return c;
     }
     return null;
   }
@@ -682,10 +699,7 @@
       .then(function (res) {
         if (res.data.ok) {
           cierresCache = res.data.cierres || [];
-          if (findCierreForCurrentPeriod()) {
-            setCajaMarcadaAbierta(false);
-            clearApertura();
-          }
+          syncCajaLocalConServidor();
           updateCajaUI();
           renderGastosList();
           return true;
@@ -694,7 +708,9 @@
         return false;
       })
       .finally(function () {
+        cierresReady = true;
         cierresFetchInFlight = null;
+        renderGastosList();
       });
     return cierresFetchInFlight;
   }
@@ -915,8 +931,10 @@
   function applyDateFilter() {
     readDateFiltersFromUi();
     fetchOrdersFromServer(true);
-    loadGastos();
-    loadCierres();
+    cierresReady = false;
+    loadCierres(true).then(function () {
+      loadGastos(true);
+    });
     updateCajaUI();
   }
 
@@ -970,6 +988,8 @@
 
     pollTimer = null;
 
+    cierresReady = false;
+
   }
 
 
@@ -986,9 +1006,10 @@
 
     loadOrders();
 
-    loadGastos();
-
-    loadCierres();
+    cierresReady = false;
+    loadCierres(true).then(function () {
+      loadGastos(true);
+    });
 
     refreshSupabaseSession().finally(function () {
 
