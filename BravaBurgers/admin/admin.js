@@ -374,11 +374,15 @@
     return 'brava_caja_abierta_' + (filterDesde || '') + '_' + (filterHasta || '');
   }
 
+  function aperturaStorageKey() {
+    return 'brava_caja_apertura_at_' + (filterDesde || '') + '_' + (filterHasta || '');
+  }
+
   function isCajaMarcadaAbierta() {
     try {
       return localStorage.getItem(cajaStorageKey()) === '1';
     } catch (e) {
-      return true;
+      return false;
     }
   }
 
@@ -387,6 +391,118 @@
       if (on) localStorage.setItem(cajaStorageKey(), '1');
       else localStorage.removeItem(cajaStorageKey());
     } catch (e) {}
+  }
+
+  function getAperturaAtMs() {
+    try {
+      var iso = localStorage.getItem(aperturaStorageKey());
+      if (!iso) return NaN;
+      var t = new Date(iso).getTime();
+      return isNaN(t) ? NaN : t;
+    } catch (e) {
+      return NaN;
+    }
+  }
+
+  function setAperturaNow() {
+    try {
+      localStorage.setItem(aperturaStorageKey(), new Date().toISOString());
+    } catch (e) {}
+  }
+
+  function clearApertura() {
+    try {
+      localStorage.removeItem(aperturaStorageKey());
+    } catch (e) {}
+  }
+
+  function orderEntregadoAtMs(o) {
+    if (!o || !o.entregado_at) return NaN;
+    var t = new Date(o.entregado_at).getTime();
+    return isNaN(t) ? NaN : t;
+  }
+
+  function gastoTimestampMs(g) {
+    if (g && g.creado_at) {
+      var t = new Date(g.creado_at).getTime();
+      if (!isNaN(t)) return t;
+    }
+    var iso = String((g && g.fecha) || '').slice(0, 10);
+    if (iso) return new Date(iso + 'T12:00:00').getTime();
+    return 0;
+  }
+
+  function emptyCajaStats() {
+    return {
+      ef: 0,
+      mp: 0,
+      ventas: 0,
+      cancel: 0,
+      gTotal: 0,
+      resultado: 0,
+      simples: 0,
+      dobles: 0,
+      hambTotal: 0,
+    };
+  }
+
+  function computeSesionStats() {
+    var desdeMs = getAperturaAtMs();
+    if (isNaN(desdeMs)) return emptyCajaStats();
+    var hastaMs = Date.now();
+    var ef = 0;
+    var mp = 0;
+    var cancel = 0;
+    var simples = 0;
+    var dobles = 0;
+    allOrdersCache.forEach(function (o) {
+      var e = normalizeEstado(o.estado);
+      var total = Number(o.total) || 0;
+      if (e === 'entregada') {
+        if (!inDateRange(orderCajaDateIso(o))) return;
+        var t = orderEntregadoAtMs(o);
+        if (isNaN(t) || t < desdeMs || t > hastaMs) return;
+        if (pagoEsEfectivo(o.pago)) ef += total;
+        else mp += total;
+        parseOrderItems(o).forEach(function (it) {
+          if (!isHamburguesaItem(it)) return;
+          var q = editItemQty(it);
+          if (hamburguesaEsDoble(it)) dobles += q;
+          else simples += q;
+        });
+      } else if (e === 'cancelada') {
+        if (!inDateRange(orderDateIso(o))) return;
+        var ct = o.cancelado_at ? new Date(o.cancelado_at).getTime() : NaN;
+        if (isNaN(ct)) return;
+        if (ct < desdeMs || ct > hastaMs) return;
+        cancel += total;
+      }
+    });
+    var ventas = ef + mp;
+    var gTotal = 0;
+    gastosCache.forEach(function (g) {
+      if (!gastoInFilterRange(g)) return;
+      var gt = gastoTimestampMs(g);
+      if (gt >= desdeMs && gt <= hastaMs) gTotal += Number(g.monto) || 0;
+    });
+    return {
+      ef: ef,
+      mp: mp,
+      ventas: ventas,
+      cancel: cancel,
+      gTotal: gTotal,
+      resultado: ventas - gTotal,
+      simples: simples,
+      dobles: dobles,
+      hambTotal: simples + dobles,
+    };
+  }
+
+  /** Montos visibles en sidebar: solo con caja abierta; si no, todo en 0. */
+  function computeCajaDisplayStats() {
+    if (findCierreForCurrentPeriod()) return emptyCajaStats();
+    if (!isCajaMarcadaAbierta()) return emptyCajaStats();
+    return computeSesionStats();
   }
 
   function findCierreForCurrentPeriod() {
@@ -468,7 +584,12 @@
       if (detalle) {
         detalle.hidden = false;
         detalle.textContent =
-          (cierre.id || '') + ' · ' + formatCierreWhen(cierre.cerrado_at) + ' · podés abrir de nuevo';
+          (cierre.id || '') +
+          ' · ' +
+          formatCierreWhen(cierre.cerrado_at) +
+          ' · ventas $' +
+          fmt(cierre.ventas_total || 0) +
+          ' · abrí de nuevo para un turno en 0';
       }
       if (btnCierre) btnCierre.classList.add('hidden');
       if (btnAbrir) btnAbrir.classList.remove('hidden');
@@ -494,7 +615,7 @@
 
   function updateCajaUI() {
     if (!$('caja-ef')) return;
-    var st = computePeriodStats();
+    var st = computeCajaDisplayStats();
     $('caja-ef').textContent = '$' + fmt(st.ef);
     $('caja-mp').textContent = '$' + fmt(st.mp);
     $('caja-ventas').textContent = '$' + fmt(st.ventas);
@@ -512,7 +633,18 @@
     if ($('caja-range')) {
       var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
       var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
-      $('caja-range').textContent = d1 === d2 ? 'Período: ' + d1 : 'Período: ' + d1 + ' — ' + d2;
+      var rango = d1 === d2 ? d1 : d1 + ' — ' + d2;
+      if (findCierreForCurrentPeriod()) {
+        $('caja-range').textContent = 'Turno cerrado · ' + rango;
+      } else if (isCajaMarcadaAbierta()) {
+        var ap = getAperturaAtMs();
+        var desdeLbl = isNaN(ap)
+          ? '—'
+          : formatCierreWhen(new Date(ap).toISOString()).split(' ')[1] || '—';
+        $('caja-range').textContent = 'Turno abierto desde ' + desdeLbl + ' · ' + rango;
+      } else {
+        $('caja-range').textContent = 'Sin apertura · ' + rango + ' (todo en $0 hasta abrir)';
+      }
     }
     updateCierreStatusUI();
   }
@@ -523,7 +655,11 @@
       .then(function (res) {
         if (res.data.ok) {
           cierresCache = res.data.cierres || [];
-          updateCierreStatusUI();
+          if (findCierreForCurrentPeriod()) {
+            setCajaMarcadaAbierta(false);
+            clearApertura();
+          }
+          updateCajaUI();
           return true;
         }
         if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
@@ -554,6 +690,7 @@
             return x.id !== cierre.id;
           });
           setCajaMarcadaAbierta(true);
+          setAperturaNow();
           updateCajaUI();
           loadCierres(true);
         } else {
@@ -564,7 +701,8 @@
       return;
     }
     setCajaMarcadaAbierta(true);
-    updateCierreStatusUI();
+    setAperturaNow();
+    updateCajaUI();
   }
 
   function performCierreCaja() {
@@ -577,15 +715,16 @@
       return;
     }
     readDateFiltersFromUi();
-    var st = computePeriodStats();
+    var st = computeSesionStats();
     var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
     var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
     var periodoLbl = d1 === d2 ? d1 : d1 + ' — ' + d2;
     var msg =
-      '¿Cerrar caja del período ' +
+      '¿Cerrar caja del turno (' +
       periodoLbl +
-      '?\n\n' +
-      'Ventas: $' +
+      ')?\n\n' +
+      'Se guarda este resumen y la caja vuelve a $0 hasta la próxima apertura.\n\n' +
+      'Ventas del turno: $' +
       fmt(st.ventas) +
       ' (EF $' +
       fmt(st.ef) +
@@ -609,11 +748,14 @@
     if (!confirm(msg)) return;
     var btn = $('btn-cierre-caja');
     if (btn) btn.disabled = true;
+    var aperturaIso = isNaN(getAperturaAtMs()) ? null : new Date(getAperturaAtMs()).toISOString();
     api({
       action: 'createCierre',
       token: token,
       periodo_desde: filterDesde,
       periodo_hasta: filterHasta,
+      ventana_desde: aperturaIso,
+      ventana_hasta: new Date().toISOString(),
       efectivo: st.ef,
       mercado_pago: st.mp,
       ventas_total: st.ventas,
@@ -627,6 +769,7 @@
       if (btn) btn.disabled = false;
       if (res.data.ok && res.data.cierre) {
         setCajaMarcadaAbierta(false);
+        clearApertura();
         cierresCache.unshift(res.data.cierre);
         updateCajaUI();
         alert('Cierre guardado: ' + res.data.cierre.id);

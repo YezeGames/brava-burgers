@@ -230,12 +230,12 @@
 					<div class="caja-row section">Salidas</div>
 					<div class="caja-row negative"><span>Gastos</span><span id="caja-gastos">−$0</span></div>
 					<div class="caja-row resultado pos" id="row-resultado"><span>Resultado</span><span id="caja-resultado">$0</span></div>
-					<p class="caja-hint">Resultado = ventas entregadas − gastos. Usá los filtros de fecha arriba.</p>
+					<p class="caja-hint">Solo suma ventas ✓ entregadas <strong>después de abrir caja</strong>. Sin abrir o ya cerrado → todo en 0.</p>
 					<p class="range-label caja-estado" id="caja-estado">—</p>
 					<p class="range-label" id="caja-cierre-detalle" hidden></p>
 					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-abrir-caja">Abrir caja</button>
 					<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja</button>
-					<p class="caja-hint">1) Abrir caja → 2) operás → 3) Cierre (opcional).</p>
+					<p class="caja-hint">Abrir = contadores en 0 · Cierre = guarda y vuelve a 0.</p>
 				</aside>
 				<aside class="sidebar-block ventas-box">
 					<h2>Registro de ventas</h2>
@@ -243,7 +243,7 @@
 					<div class="caja-row"><span>Hamburguesas Simples</span><span id="ventas-hamb-simples">0</span></div>
 					<div class="caja-row"><span>Hamburguesas Dobles</span><span id="ventas-hamb-dobles">0</span></div>
 					<div class="caja-row total-ventas"><span>Vendidas total</span><span id="ventas-hamb-total">0</span></div>
-					<p class="caja-hint">Solo pedidos ✓ entregados en el período (fecha de entrega).</p>
+					<p class="caja-hint">Mismo turno que la caja (desde la apertura).</p>
 				</aside>
 				<aside class="sidebar-block gastos-box">
 					<h2>Gastos</h2>
@@ -334,6 +334,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=3"></script>
-	<script src="/admin/admin.js?v=30"></script>
+	<script src="/admin/admin.js?v=31"></script>
 </body>
 </html>
