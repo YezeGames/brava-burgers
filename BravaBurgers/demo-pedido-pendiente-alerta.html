@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — alerta fila completa (pendiente)</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 24px 16px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+		}
+		.wrap { max-width: 960px; margin: 0 auto; }
+		h1 { font-size: 1.35rem; margin: 0 0 8px; color: #1a1a1a; }
+		.lead { font-size: 0.9rem; color: #666; margin: 0 0 20px; line-height: 1.45; }
+		.card {
+			background: #fff;
+			border-radius: 8px;
+			padding: 20px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+		}
+		.pills { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+		.pill {
+			padding: 6px 12px;
+			border-radius: 999px;
+			border: 1px solid #ddd;
+			background: #fafafa;
+			font-size: 0.8rem;
+			cursor: pointer;
+		}
+		.pill.active { background: #fff3e0; border-color: #ff6b35; color: #e65100; font-weight: 600; }
+		.tabs-demo { display: flex; gap: 8px; margin-bottom: 16px; }
+		.tab-demo {
+			padding: 8px 14px;
+			border: 1px solid #ddd;
+			border-radius: 6px;
+			font-size: 0.85rem;
+		}
+		.tab-demo.active { border-color: #ff6b35; font-weight: 600; }
+
+		/* Separación entre filas = bloque único por pedido */
+		table.demo-orders {
+			width: 100%;
+			border-collapse: separate;
+			border-spacing: 0 8px;
+			font-size: 0.85rem;
+		}
+		table.demo-orders thead tr th {
+			padding: 8px;
+			font-weight: 600;
+			border: none;
+			background: transparent;
+		}
+		table.demo-orders tbody tr td {
+			padding: 12px 8px;
+			border: none;
+			background: transparent;
+			vertical-align: middle;
+		}
+		table.demo-orders tbody tr.row-normal td {
+			background: #fafafa;
+		}
+		table.demo-orders tbody tr.row-normal td:first-child {
+			border-radius: 8px 0 0 8px;
+		}
+		table.demo-orders tbody tr.row-normal td:last-child {
+			border-radius: 0 8px 8px 0;
+		}
+
+		/* —— Toda la fila: un solo color / pulso, sin bordes entre celdas —— */
+		table.demo-orders tbody tr.row-alerta td:first-child {
+			border-radius: 8px 0 0 8px;
+		}
+		table.demo-orders tbody tr.row-alerta td:last-child {
+			border-radius: 0 8px 8px 0;
+		}
+
+		/* A: fondo naranja suave que pulsa (fila entera) */
+		table.demo-orders tbody tr.row-alerta.estilo-a {
+			animation: fila-pulso-a 1.5s ease-in-out infinite;
+		}
+		@keyframes fila-pulso-a {
+			0%, 100% { background-color: #fff0e8; }
+			50% { background-color: #ffcbb3; }
+		}
+
+		/* B: titila suave — solo naranja Brava (claro ↔ intenso) */
+		table.demo-orders tbody tr.row-alerta.estilo-b {
+			background-color: #ff6b35;
+			animation: fila-titila-b 1.1s ease-in-out infinite;
+		}
+		@keyframes fila-titila-b {
+			0%, 100% { background-color: #ffc4a8; filter: brightness(1); }
+			50% { background-color: #ff6b35; filter: brightness(1.06); }
+		}
+
+		/* C: gradiente que se mueve suave (sigue siendo una fila, no recuadro) */
+		table.demo-orders tbody tr.row-alerta.estilo-c {
+			background: linear-gradient(90deg, #fff5f0 0%, #ffd4c2 50%, #fff5f0 100%);
+			background-size: 200% 100%;
+			animation: fila-shimmer-c 2.2s ease-in-out infinite;
+		}
+		@keyframes fila-shimmer-c {
+			0% { background-position: 100% 0; }
+			100% { background-position: -100% 0; }
+		}
+
+		.badge-nuevo {
+			display: inline-flex;
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			color: #fff;
+			background: #ff6b35;
+			padding: 2px 8px;
+			border-radius: 4px;
+			margin-left: 6px;
+		}
+		.actions { display: flex; gap: 6px; }
+		.btn-sm { padding: 6px 10px; font-size: 0.75rem; border: 1px solid #ccc; border-radius: 4px; background: #fff; }
+		.btn-ok { color: #2e7d32; border-color: #2e7d32; font-weight: 700; }
+		.btn-x { color: #c62828; border-color: #c62828; font-weight: 700; }
+		.toggle-row { margin-top: 16px; font-size: 0.85rem; }
+		.note { font-size: 0.8rem; color: #888; margin-top: 10px; }
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<h1>Demo: alerta en toda la fila (sin recuadro)</h1>
+		<p class="lead">
+			La fila pendiente es <strong>un bloque solo</strong>: mismo fondo en todas las celdas, sin bordes ni marcos
+			entre columnas. Compará con la fila gris de abajo (normal).
+		</p>
+
+		<div class="card">
+			<div class="pills" id="style-pills">
+				<button type="button" class="pill" data-style="a">A — Pulso de color (fila entera)</button>
+				<button type="button" class="pill active" data-style="b">B — Titila suave (fila entera)</button>
+				<button type="button" class="pill" data-style="c">C — Brillo que pasa (fila entera)</button>
+				<button type="button" class="pill" data-style="none">Sin alerta</button>
+			</div>
+
+			<div class="tabs-demo">
+				<span class="tab-demo active">Pendientes (1)</span>
+				<span class="tab-demo">Aceptados</span>
+			</div>
+
+			<table class="demo-orders">
+				<thead>
+					<tr>
+						<th>Fecha</th>
+						<th>Cliente</th>
+						<th>Teléfono</th>
+						<th>Pago</th>
+						<th>Total</th>
+						<th>ORN</th>
+						<th>Acciones</th>
+					</tr>
+				</thead>
+				<tbody>
+					<tr id="row-alerta" class="row-alerta estilo-b">
+						<td>5/8/2026, 03:42</td>
+						<td>EZEQUIEL <span class="badge-nuevo">Nuevo</span></td>
+						<td>11 2345-6789</td>
+						<td>Efectivo</td>
+						<td>$21.000</td>
+						<td>ORN-DEL-0015</td>
+						<td>
+							<div class="actions">
+								<button type="button" class="btn-sm btn-ok">✓</button>
+								<button type="button" class="btn-sm btn-x">✕</button>
+								<button type="button" class="btn-sm">Ticket</button>
+							</div>
+						</td>
+					</tr>
+					<tr class="row-normal">
+						<td colspan="7" style="font-size:0.75rem;color:#999;padding:4px 8px;background:transparent!important;">
+							↑ Pedido entrante &nbsp;|&nbsp; ↓ Fila normal (referencia)
+						</td>
+					</tr>
+					<tr class="row-normal">
+						<td>4/8/2026, 22:10</td>
+						<td>Cliente anterior</td>
+						<td>11 1111-2222</td>
+						<td>Mercado Pago</td>
+						<td>$17.000</td>
+						<td>ORN-DEL-0014</td>
+						<td><div class="actions"><button type="button" class="btn-sm btn-ok">✓</button></div></td>
+					</tr>
+				</tbody>
+			</table>
+
+			<div class="toggle-row">
+				<label><input type="checkbox" id="chk-alerta" checked> Alerta activa (pedido nuevo)</label>
+			</div>
+			<p class="note">En el admin real: mismo fondo en el <code>&lt;tr&gt;</code>, celdas transparentes, espacio entre filas.</p>
+		</div>
+	</div>
+
+	<script>
+		var row = document.getElementById('row-alerta');
+		var chk = document.getElementById('chk-alerta');
+		var current = 'b';
+
+		function applyStyle(style) {
+			row.className = 'row-alerta';
+			if (style && style !== 'none') row.classList.add('estilo-' + style);
+			else row.className = 'row-normal';
+			current = style;
+			document.querySelectorAll('#style-pills .pill').forEach(function (p) {
+				p.classList.toggle('active', p.dataset.style === style);
+			});
+		}
+
+		document.getElementById('style-pills').addEventListener('click', function (e) {
+			var pill = e.target.closest('.pill');
+			if (!pill) return;
+			var s = pill.dataset.style;
+			if (chk.checked || s === 'none') applyStyle(s);
+			else current = s;
+		});
+
+		chk.addEventListener('change', function () {
+			applyStyle(chk.checked ? current : 'none');
+			if (chk.checked && current === 'none') applyStyle('a');
+		});
+	</script>
+</body>
+</html>

@@ -8,6 +8,10 @@
 
   var knownOrns = new Set();
 
+  var newPendingOrns = new Set();
+
+  var hasSeededPendingBaseline = false;
+
   var soundOn = false;
 
   var audioCtx = null;
@@ -149,27 +153,9 @@
 
   function onRealtimeDataChange() {
 
-    var prevPendientes = new Set();
-
-    allOrdersCache.forEach(function (o) {
-
-      if (normalizeEstado(o.estado) === 'pendiente' && o.orn) prevPendientes.add(o.orn);
-
-    });
-
     fetchOrdersFromServer(true).then(function (ok) {
 
       if (!ok) return;
-
-      var neu = false;
-
-      allOrdersCache.forEach(function (o) {
-
-        if (normalizeEstado(o.estado) === 'pendiente' && o.orn && !prevPendientes.has(o.orn)) neu = true;
-
-      });
-
-      if (neu) playDing();
 
     });
 
@@ -1298,7 +1284,7 @@
 
     empty.innerHTML =
 
-      '<td colspan="7" style="padding:24px;text-align:center;color:#666;">' +
+      '<td colspan="7" class="orders-empty-msg">' +
 
       (hints[panelEstado] || 'No hay pedidos en esta pestaña.') +
 
@@ -1352,6 +1338,12 @@
     orders.forEach(function (o) {
 
       var tr = document.createElement('tr');
+
+      if (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn)) {
+
+        tr.className = 'row-pendiente-nuevo';
+
+      }
 
       var fecha = o.fecha_creado ? new Date(o.fecha_creado).toLocaleString('es-AR') : '';
 
@@ -1440,6 +1432,12 @@
         '</td><td>' +
 
         (o.cliente || '') +
+
+        (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn)
+
+          ? ' <span class="badge-nuevo">Nuevo</span>'
+
+          : '') +
 
         '</td><td>' +
 
@@ -1555,11 +1553,7 @@
 
 
 
-  function applyCacheFromServer(orders) {
-
-    allOrdersCache = orders || [];
-
-    normalizeOrdersInCache(allOrdersCache);
+  function seedPendingBaseline() {
 
     ordersForEstado(allOrdersCache, 'pendiente').forEach(function (o) {
 
@@ -1567,9 +1561,65 @@
 
     });
 
+    hasSeededPendingBaseline = true;
+
+  }
+
+
+
+  function dismissPendingAlert(orn) {
+
+    if (!orn) return;
+
+    newPendingOrns.delete(orn);
+
+    knownOrns.add(orn);
+
+  }
+
+
+
+  function applyCacheFromServer(orders) {
+
+    var prevPendientes = new Set();
+
+    allOrdersCache.forEach(function (o) {
+
+      if (normalizeEstado(o.estado) === 'pendiente' && o.orn) prevPendientes.add(o.orn);
+
+    });
+
+    allOrdersCache = orders || [];
+
+    normalizeOrdersInCache(allOrdersCache);
+
+    var alertAdded = false;
+
+    if (!hasSeededPendingBaseline) {
+
+      seedPendingBaseline();
+
+    } else {
+
+      allOrdersCache.forEach(function (o) {
+
+        if (normalizeEstado(o.estado) === 'pendiente' && o.orn && !prevPendientes.has(o.orn)) {
+
+          newPendingOrns.add(o.orn);
+
+          alertAdded = true;
+
+        }
+
+      });
+
+      if (alertAdded) playDing();
+
+    }
+
     var sig = buildCacheSignature(allOrdersCache);
 
-    if (sig !== cacheSignature) {
+    if (sig !== cacheSignature || alertAdded) {
 
       cacheSignature = sig;
 
@@ -1739,27 +1789,9 @@
 
   function pollNewOrders() {
 
-    var prevPendientes = new Set();
-
-    allOrdersCache.forEach(function (o) {
-
-      if (normalizeEstado(o.estado) === 'pendiente' && o.orn) prevPendientes.add(o.orn);
-
-    });
-
     fetchOrdersFromServer().then(function (ok) {
 
       if (!ok) return;
-
-      var neu = false;
-
-      allOrdersCache.forEach(function (o) {
-
-        if (normalizeEstado(o.estado) === 'pendiente' && o.orn && !prevPendientes.has(o.orn)) neu = true;
-
-      });
-
-      if (neu) playDing();
 
     });
 
@@ -2089,7 +2121,7 @@
 
     html +=
 
-      '<div class="modal-item" style="background:#fafafa;"><div>Envío</div><div></div><span>' +
+      '<div class="modal-item modal-item-muted"><div>Envío</div><div></div><span>' +
 
       fmt(editEnvio) +
 
@@ -2268,6 +2300,8 @@
 
 
   function sendOrderUpdate(orn, patch) {
+
+    if (patch.estado && normalizeEstado(patch.estado) !== 'pendiente') dismissPendingAlert(orn);
 
     patchOrderInCache(orn, patch);
 
@@ -2496,6 +2530,10 @@
 
         knownOrns = new Set();
 
+        newPendingOrns = new Set();
+
+        hasSeededPendingBaseline = false;
+
         allOrdersCache = [];
 
         cacheSignature = '';
@@ -2715,6 +2753,38 @@
   });
 
 
+
+  function isDarkTheme() {
+    return document.documentElement.getAttribute('data-theme') === 'dark';
+  }
+
+  function updateThemeToggleButtons() {
+    var dark = isDarkTheme();
+    document.querySelectorAll('.theme-toggle-btn').forEach(function (btn) {
+      btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      btn.innerHTML =
+        (dark ? '<i class="fas fa-sun" aria-hidden="true"></i> Claro' : '<i class="fas fa-moon" aria-hidden="true"></i> Noche');
+    });
+  }
+
+  function setAdminTheme(theme) {
+    var dark = theme === 'dark';
+    if (dark) document.documentElement.setAttribute('data-theme', 'dark');
+    else document.documentElement.removeAttribute('data-theme');
+    try {
+      localStorage.setItem('brava_admin_theme', dark ? 'dark' : 'light');
+    } catch (e) {}
+    updateThemeToggleButtons();
+  }
+
+  function toggleAdminTheme() {
+    setAdminTheme(isDarkTheme() ? 'light' : 'dark');
+  }
+
+  updateThemeToggleButtons();
+  document.querySelectorAll('.theme-toggle-btn').forEach(function (btn) {
+    btn.addEventListener('click', toggleAdminTheme);
+  });
 
   $('logout-btn').onclick = function () {
 
