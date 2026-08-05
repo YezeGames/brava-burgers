@@ -106,6 +106,7 @@
 		<div class="card">
 			<ul class="sound-list" id="sound-list"></ul>
 			<p class="note">Mismos motores que el panel (Web Audio, sin archivos). Volumen del dispositivo al máximo para comparar.</p>
+			<p class="note"><strong>T:</strong> si existe <code>demo-sounds/tri-tone.mp3</code>, suena ese archivo (ver <code>demo-sounds/README.md</code>).</p>
 		</div>
 	</div>
 
@@ -151,9 +152,10 @@
 				],
 			},
 			T: {
-				label: 'T — Estilo iPhone (Tri-Tone)',
-				desc: 'Aproximación del tri-tono clásico de notificación. No es el archivo oficial de Apple.',
+				label: 'T — iPhone Tri-Tone',
+				desc: 'Si subís demo-sounds/tri-tone.mp3 (convertido desde el .caf del sistema), suena ese archivo; si no, aproximación sintética.',
 				kind: 'alerta',
+				file: 'demo-sounds/tri-tone.mp3',
 				notes: [
 					{ freq: 783.99, at: 0, dur: 0.095, wave: 'triangle', vol: 0.3 },
 					{ freq: 987.77, at: 0.088, dur: 0.095, wave: 'triangle', vol: 0.32 },
@@ -307,6 +309,53 @@
 
 		var audioCtx = null;
 		var unlocked = false;
+		var fileAudio = {};
+
+		function playPresetSynth(id) {
+			var preset = PRESETS[id];
+			if (!preset || !preset.notes) return;
+			if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			if (audioCtx.state === 'suspended') audioCtx.resume();
+			var t = audioCtx.currentTime;
+			preset.notes.forEach(function (note) {
+				playTone(audioCtx, t, note);
+			});
+		}
+
+		function playPreset(id) {
+			if (!unlocked) return;
+			var preset = PRESETS[id];
+			if (!preset) return;
+
+			if (preset.file && !preset._noFile) {
+				if (!fileAudio[id]) {
+					var a = new Audio(preset.file);
+					a.preload = 'auto';
+					fileAudio[id] = a;
+					a.addEventListener(
+						'error',
+						function () {
+							preset._noFile = true;
+							playPresetSynth(id);
+						},
+						{ once: true }
+					);
+				}
+				var clip = fileAudio[id];
+				clip.currentTime = 0;
+				var played = clip.play();
+				if (played && played.then) {
+					played.catch(function () {
+						preset._noFile = true;
+						playPresetSynth(id);
+					});
+					return;
+				}
+				return;
+			}
+
+			playPresetSynth(id);
+		}
 
 		function playTone(ctx, startTime, note) {
 			var o = ctx.createOscillator();
@@ -323,18 +372,6 @@
 			g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
 			o.start(t0);
 			o.stop(t0 + dur + 0.06);
-		}
-
-		function playPreset(id) {
-			if (!unlocked) return;
-			var preset = PRESETS[id];
-			if (!preset) return;
-			if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-			if (audioCtx.state === 'suspended') audioCtx.resume();
-			var t = audioCtx.currentTime;
-			preset.notes.forEach(function (note) {
-				playTone(audioCtx, t, note);
-			});
 		}
 
 		function unlockAudio() {
