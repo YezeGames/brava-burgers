@@ -166,13 +166,13 @@
 			padding: 0 20px 18px;
 		}
 		.confirm-text { font-size: 0.88rem; line-height: 1.5; margin: 0 0 12px; white-space: pre-wrap; }
-		.hamb-block { margin-top: 4px; }
+		.hamb-block { margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eee; }
 		.hamb-total-line { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee; font-weight: 600; }
 		.hamb-total-line .num { font-size: 1.05rem; color: #1a1a1a; }
 		.por-producto-wrap {
-			margin-top: 12px;
-			padding-top: 10px;
-			border-top: 1px solid #f0f0f0;
+			margin-top: 4px;
+			padding-top: 0;
+			border-top: none;
 			max-height: 200px;
 			overflow-y: auto;
 		}
@@ -228,6 +228,10 @@
 			<div class="row neg"><span>Gastos</span><span id="m-gastos">−$0</span></div>
 			<div class="row result"><span>Resultado</span><span id="m-resultado">$0</span></div>
 			<div class="row section">Hamburguesas ✓</div>
+			<div class="por-producto-wrap" id="sidebar-productos">
+				<h4>Desglose por comanda (entregados ✓)</h4>
+				<div id="m-por-producto"></div>
+			</div>
 			<div class="hamb-block">
 				<div class="row"><span>Hamburguesas Simples:</span><span id="m-simples">0</span></div>
 				<div class="row"><span>Hamburguesas Dobles:</span><span id="m-dobles">0</span></div>
@@ -235,10 +239,6 @@
 					<span>Cantidad total:</span>
 					<span><span class="num" id="m-hamb-total">0</span> Hamburguesas</span>
 				</div>
-			</div>
-			<div class="por-producto-wrap" id="sidebar-productos">
-				<h4>Desglose por comanda (entregados ✓)</h4>
-				<div id="m-por-producto"></div>
 			</div>
 			<p class="order-note">Demo: números de ejemplo. En el admin se suman los ítems de cada pedido entregado en el turno.</p>
 			<button type="button" class="btn btn-accent" id="btn-cierre">Cierre de caja</button>
@@ -494,8 +494,10 @@
 				'<div class="line muted"><span>Cancelados (solo info)</span><span>$' +
 				fmt(st.cancel) +
 				'</span></div></div>' +
-				'<div class="resumen-block"><h3>Control de ventas — hamburguesas</h3>' +
-				'<div class="line"><span>Pedidos entregados</span><strong>' +
+				'<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
+				'<div class="line" style="margin-bottom:10px;font-size:0.75rem;color:#888;text-transform:uppercase;letter-spacing:0.04em;">Desglose por comanda</div>' +
+				productosHtml +
+				'<div class="line" style="margin-top:14px;"><span>Pedidos entregados</span><strong>' +
 				DEMO.pedidosEntregados +
 				'</strong></div>' +
 				'<div class="line"><span>Hamburguesas Simples:</span><strong>' +
@@ -506,10 +508,8 @@
 				'</strong></div>' +
 				'<div class="line" style="margin-top:8px;font-weight:700;"><span>Cantidad total:</span><strong>' +
 				st.hambTotal +
-				' Hamburguesas</strong></div></div>' +
-				'<div class="resumen-block"><h3>Comandas — hamburguesas vendidas</h3>' +
-				productosHtml +
-				'<p class="line muted" style="margin:8px 0 0;font-size:0.75rem;">Simples A–Z, luego dobles A–Z (comandas entregadas ✓).</p></div>' +
+				' Hamburguesas</strong></div>' +
+				'<p class="line muted" style="margin:8px 0 0;font-size:0.75rem;">Desglose: simples A–Z, luego dobles A–Z.</p></div>' +
 				'<div class="resumen-block"><h3>Gastos del turno</h3>' +
 				gastosHtml +
 				'<div class="line" style="margin-top:10px;font-weight:600;"><span>Total gastos</span><span>−$' +
