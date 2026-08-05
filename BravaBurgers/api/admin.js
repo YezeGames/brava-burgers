@@ -1,10 +1,65 @@
 const { cors, gasPost } = require('../lib/gasFetch');
+const { isSupabaseConfigured, createAdminSupabaseSession } = require('../lib/supabaseServer');
+const { checkAdminLogin, validateAdminToken } = require('../lib/adminAuth');
+const {
+  listOrders,
+  updateOrder,
+  listGastos,
+  createGasto,
+  deleteGasto,
+} = require('../lib/bravaSupabase');
 
-module.exports = async function handler(req, res) {
-  cors(res);
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+async function handleSupabaseAdmin(body) {
+  const { action, token } = body;
 
+  if (action === 'login') {
+    const login = checkAdminLogin(body.user, body.password);
+    if (!login.ok) return login;
+    const realtime = await createAdminSupabaseSession();
+    return {
+      ok: true,
+      token: login.token,
+      expiresIn: login.expiresIn,
+      backend: 'supabase',
+      realtime,
+    };
+  }
+
+  if (!validateAdminToken(token)) {
+    return { ok: false, error: 'unauthorized' };
+  }
+
+  if (action === 'listOrders' || action === 'listOrdersRecent') {
+    const max = action === 'listOrdersRecent' ? 35 : 250;
+    return listOrders(max);
+  }
+
+  if (action === 'updateOrder') {
+    return updateOrder(body);
+  }
+
+  if (action === 'listGastos') {
+    return listGastos(body.desde || '', body.hasta || '');
+  }
+
+  if (action === 'createGasto') {
+    return createGasto(body);
+  }
+
+  if (action === 'deleteGasto') {
+    return deleteGasto(body.id);
+  }
+
+  if (action === 'refreshRealtime') {
+    const realtime = await createAdminSupabaseSession();
+    if (!realtime) return { ok: false, error: 'realtime_not_configured' };
+    return { ok: true, realtime };
+  }
+
+  return { ok: false, error: 'unknown_action' };
+}
+
+async function handleGasAdmin(body) {
   const {
     action,
     token,
@@ -23,9 +78,7 @@ module.exports = async function handler(req, res) {
     monto,
     pagadoCon,
     id: gastoId,
-  } = req.body || {};
-
-  if (!action) return res.status(400).json({ ok: false, error: 'missing_action' });
+  } = body;
 
   const payload = { action };
   if (action === 'login') {
@@ -49,20 +102,32 @@ module.exports = async function handler(req, res) {
     if (action === 'createGasto') {
       payload.concepto = concepto;
       payload.monto = monto;
-      payload.fecha = req.body.fecha;
+      payload.fecha = body.fecha;
       payload.pagadoCon = pagadoCon;
     }
     if (action === 'deleteGasto') payload.id = gastoId;
   }
 
-  const data = await gasPost(payload);
+  return gasPost(payload);
+}
+
+module.exports = async function handler(req, res) {
+  cors(res);
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+
+  const body = req.body || {};
+  if (!body.action) return res.status(400).json({ ok: false, error: 'missing_action' });
+
+  const data = isSupabaseConfigured() ? await handleSupabaseAdmin(body) : await handleGasAdmin(body);
+
   if (!data.ok) {
     const authErrors = ['unauthorized', 'invalid_credentials', 'admin_not_configured'];
     const code = authErrors.includes(data.error)
       ? data.error === 'admin_not_configured'
         ? 503
         : 401
-      : data.error === 'gas_not_configured'
+      : data.error === 'gas_not_configured' || data.error === 'supabase_not_configured'
         ? 503
         : 502;
     return res.status(code).json(data);

@@ -18,6 +18,18 @@
 
   var pollTick = 0;
 
+  var gastosPollEvery = 3;
+
+  var gastosFetchInFlight = null;
+
+  var sbClient = null;
+
+  var sbChannels = [];
+
+  var realtimeLive = false;
+
+  var POLL_FALLBACK_MS = 15000;
+
   var fetchStartedAt = 0;
 
   var FETCH_STALE_MS = 7000;
@@ -93,9 +105,167 @@
 
     if (pollTimer) clearInterval(pollTimer);
 
-    pollTimer = setInterval(pollNewOrders, POLL_MS);
+    var ms = realtimeLive ? POLL_FALLBACK_MS : POLL_MS;
+
+    pollTimer = setInterval(pollNewOrders, ms);
 
     pollNewOrders();
+
+  }
+
+  function teardownRealtime() {
+
+    realtimeLive = false;
+
+    sbChannels.forEach(function (ch) {
+
+      try {
+
+        if (sbClient) sbClient.removeChannel(ch);
+
+      } catch (ignore) {}
+
+    });
+
+    sbChannels = [];
+
+    sbClient = null;
+
+  }
+
+  function onRealtimeDataChange() {
+
+    var prevPendientes = new Set();
+
+    allOrdersCache.forEach(function (o) {
+
+      if (normalizeEstado(o.estado) === 'pendiente' && o.orn) prevPendientes.add(o.orn);
+
+    });
+
+    fetchOrdersFromServer(true).then(function (ok) {
+
+      if (!ok) return;
+
+      var neu = false;
+
+      allOrdersCache.forEach(function (o) {
+
+        if (normalizeEstado(o.estado) === 'pendiente' && o.orn && !prevPendientes.has(o.orn)) neu = true;
+
+      });
+
+      if (neu) playDing();
+
+    });
+
+    loadGastos(true);
+
+  }
+
+  function initSupabaseRealtime(cfg) {
+
+    teardownRealtime();
+
+    if (!cfg || !cfg.url || !cfg.anonKey || !cfg.access_token || !window.supabase) return Promise.resolve(false);
+
+    sbClient = window.supabase.createClient(cfg.url, cfg.anonKey);
+
+    return sbClient.auth
+
+      .setSession({
+
+        access_token: cfg.access_token,
+
+        refresh_token: cfg.refresh_token || '',
+
+      })
+
+      .then(function (res) {
+
+        if (res.error) return false;
+
+        var chOrders = sbClient
+
+          .channel('brava-admin-orders')
+
+          .on(
+
+            'postgres_changes',
+
+            { event: '*', schema: 'public', table: 'orders' },
+
+            function () {
+
+              onRealtimeDataChange();
+
+            }
+
+          )
+
+          .subscribe();
+
+        var chGastos = sbClient
+
+          .channel('brava-admin-gastos')
+
+          .on(
+
+            'postgres_changes',
+
+            { event: '*', schema: 'public', table: 'gastos' },
+
+            function () {
+
+              loadGastos(true);
+
+              updateCajaUI();
+
+            }
+
+          )
+
+          .subscribe();
+
+        sbChannels.push(chOrders, chGastos);
+
+        realtimeLive = true;
+
+        if ($('poll-status')) $('poll-status').textContent = 'En vivo · Supabase';
+
+        startPolling();
+
+        return true;
+
+      })
+
+      .catch(function () {
+
+        return false;
+
+      });
+
+  }
+
+  function bootstrapRealtimeAfterLogin(cfg) {
+
+    return initSupabaseRealtime(cfg).then(function (ok) {
+
+      if (!ok && $('poll-status')) $('poll-status').textContent = 'Sync cada ~0,4 s (sin realtime)';
+
+    });
+
+  }
+
+  function refreshSupabaseSession() {
+
+    if (!token) return Promise.resolve();
+
+    return api({ action: 'refreshRealtime', token: token }).then(function (res) {
+
+      if (res.data.ok && res.data.realtime) return initSupabaseRealtime(res.data.realtime);
+
+    });
 
   }
 
@@ -229,9 +399,19 @@
       btn.onclick = function () {
         var gid = btn.getAttribute('data-gasto-id');
         if (!gid || !confirm('¿Eliminar gasto ' + gid + '?')) return;
+        var prev = gastosCache.slice();
+        gastosCache = gastosCache.filter(function (g) {
+          return g.id !== gid;
+        });
+        renderGastosList();
         api({ action: 'deleteGasto', token: token, id: gid }).then(function (res) {
-          if (res.data.ok) loadGastos();
-          else if (res.status === 401) handleAuthFailure();
+          if (res.data.ok) loadGastos(true);
+          else {
+            gastosCache = prev;
+            renderGastosList();
+            if (res.status === 401) handleAuthFailure();
+            else alert('No se pudo eliminar el gasto.');
+          }
         });
       };
     });
@@ -244,17 +424,36 @@
     return d.innerHTML;
   }
 
-  function loadGastos() {
+  function gastoInFilterRange(g) {
+    var iso = String(g.fecha || '').slice(0, 10);
+    if (!iso) return true;
+    if (filterDesde && iso < filterDesde) return false;
+    if (filterHasta && iso > filterHasta) return false;
+    return true;
+  }
+
+  function loadGastos(force) {
     readDateFiltersFromUi();
-    return api({ action: 'listGastos', token: token, desde: filterDesde, hasta: filterHasta }).then(function (res) {
-      if (res.data.ok) {
-        gastosCache = res.data.gastos || [];
-        renderGastosList();
-        return true;
-      }
-      if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
-      return false;
-    });
+    if (gastosFetchInFlight && !force) return gastosFetchInFlight;
+    gastosFetchInFlight = api({
+      action: 'listGastos',
+      token: token,
+      desde: filterDesde,
+      hasta: filterHasta,
+    })
+      .then(function (res) {
+        if (res.data.ok) {
+          gastosCache = res.data.gastos || [];
+          renderGastosList();
+          return true;
+        }
+        if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
+        return false;
+      })
+      .finally(function () {
+        gastosFetchInFlight = null;
+      });
+    return gastosFetchInFlight;
   }
 
   function applyDateFilter() {
@@ -308,7 +507,11 @@
 
     $('app-view').classList.add('hidden');
 
+    teardownRealtime();
+
     if (pollTimer) clearInterval(pollTimer);
+
+    pollTimer = null;
 
   }
 
@@ -328,7 +531,11 @@
 
     loadGastos();
 
-    startPolling();
+    refreshSupabaseSession().finally(function () {
+
+      startPolling();
+
+    });
 
   }
 
@@ -780,6 +987,8 @@
 
     pollTick += 1;
 
+    if (pollTick % gastosPollEvery === 0) loadGastos();
+
     var action = fullSync || pollTick % 10 === 0 ? 'listOrders' : 'listOrdersRecent';
 
     fetchStartedAt = now;
@@ -1135,7 +1344,7 @@
 
             res.data.error === 'admin_not_configured'
 
-              ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Apps Script'
+              ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Vercel'
 
               : res.data.error === 'invalid_gas_response' || res.data.error === 'invalid_response'
 
@@ -1172,6 +1381,8 @@
         });
 
         showApp();
+
+        if (res.data.realtime) bootstrapRealtimeAfterLogin(res.data.realtime);
 
       })
 
@@ -1252,6 +1463,10 @@
     sessionStorage.removeItem('brava_admin_token');
 
     token = '';
+
+    teardownRealtime();
+
+    if (pollTimer) clearInterval(pollTimer);
 
     showLogin();
 
@@ -1351,6 +1566,19 @@
         alert('Completá concepto y monto.');
         return;
       }
+      var tempId = 'tmp-' + Date.now();
+      var optimistic = {
+        id: tempId,
+        fecha: fecha,
+        concepto: concepto,
+        monto: monto,
+        pagado_con: pagadoCon,
+      };
+      if (gastoInFilterRange(optimistic)) {
+        gastosCache.unshift(optimistic);
+        renderGastosList();
+      }
+      $('gasto-modal').classList.add('hidden');
       api({
         action: 'createGasto',
         token: token,
@@ -1360,10 +1588,23 @@
         pagadoCon: pagadoCon,
       }).then(function (res) {
         if (res.data.ok) {
-          $('gasto-modal').classList.add('hidden');
-          loadGastos();
-        } else if (res.status === 401) handleAuthFailure();
-        else alert('No se pudo guardar el gasto.');
+          gastosCache = gastosCache.filter(function (g) {
+            return g.id !== tempId;
+          });
+          if (res.data.gasto) {
+            var g = res.data.gasto;
+            if (gastoInFilterRange(g)) gastosCache.unshift(g);
+          }
+          renderGastosList();
+          loadGastos(true);
+        } else {
+          gastosCache = gastosCache.filter(function (g) {
+            return g.id !== tempId;
+          });
+          renderGastosList();
+          if (res.status === 401) handleAuthFailure();
+          else alert('No se pudo guardar el gasto.');
+        }
       });
     };
   }
