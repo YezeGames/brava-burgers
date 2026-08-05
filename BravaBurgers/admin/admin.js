@@ -16,11 +16,12 @@
 
   var audioCtx = null;
 
-  var ALERT_SOUND_URL = '/admin/sounds/zumbido.mp3';
+  var ALERT_SOUND_URL = '/admin/sounds/zumbido.mp3?v=1';
 
   var alertAudio = null;
 
-  var alertUseSynthFallback = false;
+  /** true solo si el MP3 no existe o no se puede decodificar */
+  var alertMp3Broken = false;
 
   /** Respaldo si no carga el MP3 */
   var ALERT_SOUND_NOTES = [
@@ -1205,27 +1206,75 @@
 
 
 
-  function playDing() {
+  function getAlertAudio() {
 
-    if (!soundOn) return;
+    if (alertAudio) return alertAudio;
 
-    if (ALERT_SOUND_URL && !alertUseSynthFallback) {
+    var el = document.getElementById('alert-sound-mp3');
 
-      if (!alertAudio) {
+    if (el) {
 
-        alertAudio = new Audio(ALERT_SOUND_URL);
+      alertAudio = el;
 
-        alertAudio.preload = 'auto';
+    } else {
 
-        alertAudio.addEventListener(
+      alertAudio = new Audio(ALERT_SOUND_URL);
 
-          'error',
+      alertAudio.preload = 'auto';
+
+    }
+
+    alertAudio.volume = 1;
+
+    if (!alertAudio.dataset.bound) {
+
+      alertAudio.dataset.bound = '1';
+
+      alertAudio.addEventListener(
+
+        'error',
+
+        function () {
+
+          alertMp3Broken = true;
+
+        },
+
+        { once: true }
+
+      );
+
+    }
+
+    return alertAudio;
+
+  }
+
+
+
+  function playMp3Alert(retry) {
+
+    var a = getAlertAudio();
+
+    a.currentTime = 0;
+
+    var played = a.play();
+
+    if (!played || !played.then) return;
+
+    played.catch(function () {
+
+      if (!retry) {
+
+        a.load();
+
+        a.addEventListener(
+
+          'canplaythrough',
 
           function () {
 
-            alertUseSynthFallback = true;
-
-            playDingSynth();
+            playMp3Alert(true);
 
           },
 
@@ -1233,25 +1282,25 @@
 
         );
 
-      }
+      } else {
 
-      alertAudio.currentTime = 0;
-
-      var played = alertAudio.play();
-
-      if (played && played.then) {
-
-        played.catch(function () {
-
-          alertUseSynthFallback = true;
-
-          playDingSynth();
-
-        });
-
-        return;
+        playDingSynth();
 
       }
+
+    });
+
+  }
+
+
+
+  function playDing() {
+
+    if (!soundOn) return;
+
+    if (ALERT_SOUND_URL && !alertMp3Broken) {
+
+      playMp3Alert(false);
 
       return;
 
@@ -2906,6 +2955,8 @@
   $('btn-sound').onclick = function () {
 
     soundOn = true;
+
+    getAlertAudio().load();
 
     playDing();
 
