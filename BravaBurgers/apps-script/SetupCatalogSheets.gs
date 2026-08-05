@@ -3,6 +3,7 @@
  * Extensiones → Apps Script → pegar este archivo → Run → setupExtrasEIngredientesEnCatalogo
  *
  * Crea pestañas extras + ingredientes y columnas en productos (sin borrar datos).
+ * Columna Ingredientes = lista por hamburguesa ("Cebolla, Cheddar") — prioridad sobre pestaña ingredientes.
  */
 var SETUP_CATALOG_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 
@@ -11,9 +12,11 @@ function setupExtrasEIngredientesEnCatalogo() {
   setupExtrasSheet_(ss);
   setupIngredientesSheet_(ss);
   setupProductosColumnas_(ss);
+  linkProductosGrupos_(ss);
+  fillProductosIngredientesEnSheet_(ss);
   SpreadsheetApp.getUi().alert(
-    'Listo: pestañas extras e ingredientes creadas/actualizadas.\n' +
-      'Revisá productos (columnas Grupo extras / Quitar) y publicá el menú.'
+    'Listo: extras, ingredientes y vínculos en productos (filas Sin Extra).\n' +
+      'Publicá el menú desde Pedilo si hace falta.'
   );
 }
 
@@ -23,7 +26,7 @@ function setupExtrasSheet_(ss) {
   if (!sh) sh = ss.insertSheet(name);
   sh.clear();
   sh.getRange(1, 1, 1, 4).setValues([['id', 'Nombre', 'Precio', 'Grupo']]);
-  sh.getRange(2, 1, 3, 4).setValues([
+  sh.getRange('A2:D3').setValues([
     ['ext_cheddar', 'Extra cheddar', 1000, 'simple,doble'],
     ['ext_bacon', 'Extra bacon', 1500, 'simple,doble'],
   ]);
@@ -36,7 +39,7 @@ function setupIngredientesSheet_(ss) {
   if (!sh) sh = ss.insertSheet(name);
   sh.clear();
   sh.getRange(1, 1, 1, 3).setValues([['grupo', 'Ingrediente', 'Default']]);
-  sh.getRange(2, 1, 7, 3).setValues([
+  sh.getRange('A2:C7').setValues([
     ['simple_std', 'Cebolla', 'si'],
     ['simple_std', 'Salsa mil islas', 'si'],
     ['simple_std', 'Cheddar', 'si'],
@@ -70,4 +73,150 @@ function setupProductosColumnas_(ss) {
   if (lower.indexOf('quitar') === -1) {
     sh.getRange(1, sh.getLastColumn() + 1).setValue('Quitar');
   }
+  headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  lower = headers.map(function (h) {
+    return String(h || '')
+      .toLowerCase()
+      .trim();
+  });
+  if (lower.indexOf('ingredientes') === -1) {
+    sh.getRange(1, sh.getLastColumn() + 1).setValue('Ingredientes');
+  }
+}
+
+/** Rellena Grupo extras / Quitar en filas "Sin Extra" según Subcategoría (no borra filas Extra …). */
+function linkProductosGrupos_(ss) {
+  var sh = ss.getSheetByName('productos');
+  if (!sh || sh.getLastRow() < 2) return;
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var col = linkColIndex_(headers);
+  if (col.variedades < 0 || col.subcategoria < 0) return;
+  if (col.grupoExtras < 0 || col.quitar < 0) return;
+
+  var data = sh.getDataRange().getValues();
+  for (var r = 1; r < data.length; r++) {
+    var variedad = String(data[r][col.variedades] || '')
+      .toLowerCase()
+      .trim();
+    if (variedad !== 'sin extra' && variedad !== 'sin extras') continue;
+    var sub = String(data[r][col.subcategoria] || '');
+    var ge = String(data[r][col.grupoExtras] || '').trim();
+    var qu = String(data[r][col.quitar] || '').trim();
+    if (!ge) sh.getRange(r + 1, col.grupoExtras + 1).setValue(linkGrupoExtrasFromSub_(sub));
+    if (!qu) sh.getRange(r + 1, col.quitar + 1).setValue(linkQuitarFromSub_(sub));
+  }
+}
+
+function linkColIndex_(headers) {
+  function idx(names) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = String(headers[i] || '')
+        .toLowerCase()
+        .trim();
+      for (var j = 0; j < names.length; j++) {
+        if (h === names[j].toLowerCase()) return i;
+      }
+    }
+    return -1;
+  }
+  return {
+    variedades: idx(['variedades', 'variedad']),
+    subcategoria: idx(['subcategoria', 'subcategoría']),
+    grupoExtras: idx(['grupo extras', 'grupo_extras']),
+    quitar: idx(['quitar', 'grupo_quitar']),
+  };
+}
+
+function linkGrupoExtrasFromSub_(sub) {
+  var s = String(sub || '').toLowerCase();
+  if (s.indexOf('simple') >= 0) return 'simple';
+  if (s.indexOf('doble') >= 0) return 'doble';
+  if (s.indexOf('triple') >= 0) return 'triple';
+  return 'general';
+}
+
+function linkQuitarFromSub_(sub) {
+  var s = String(sub || '').toLowerCase();
+  if (s.indexOf('simple') >= 0) return 'simple_std';
+  if (s.indexOf('doble') >= 0) return 'doble_std';
+  if (s.indexOf('triple') >= 0) return 'triple_std';
+  return '';
+}
+
+/** Ejecutar cuando agregues columna Ingredientes o nuevas burgers. Rellena filas "Sin Extra". */
+function fillProductosIngredientesBrava() {
+  var ss = SpreadsheetApp.openById(SETUP_CATALOG_SHEET_ID);
+  setupProductosColumnas_(ss);
+  linkProductosGrupos_(ss);
+  fillProductosIngredientesEnSheet_(ss);
+}
+
+function fillProductosIngredientesEnSheet_(ss) {
+  var sh = ss.getSheetByName('productos');
+  if (!sh) return;
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var col = fillColIndex_(headers);
+  var recetasPorNombre = {
+    'cheeseburger simple': 'Cebolla, Salsa mil islas, Cheddar',
+    'cheeseburger doble': 'Cebolla, Salsa mil islas, Cheddar',
+    'la destrozaaanos simple': 'Cheddar, Mayonesa, Lechuga, Tomate',
+    'la destrozaaanos doble': 'Cheddar, Mayonesa, Lechuga, Tomate',
+  };
+  var data = sh.getDataRange().getValues();
+  for (var r = 1; r < data.length; r++) {
+    var variedad = String(data[r][col.variedades] || '')
+      .toLowerCase()
+      .trim();
+    if (variedad !== 'sin extra' && variedad !== 'sin extras') continue;
+    var ingActual = String(data[r][col.ingredientes] || '').trim();
+    if (ingActual) continue;
+    var nombreKey = String(data[r][col.nombre] || '')
+      .toLowerCase()
+      .trim();
+    var lista = recetasPorNombre[nombreKey];
+    if (!lista) lista = ingredientesDesdeDescripcion_(String(data[r][col.descripcion] || ''));
+    if (lista) sh.getRange(r + 1, col.ingredientes + 1).setValue(lista);
+  }
+}
+
+function fillColIndex_(headers) {
+  function idx(names) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = String(headers[i] || '')
+        .toLowerCase()
+        .trim();
+      for (var j = 0; j < names.length; j++) {
+        if (h === names[j].toLowerCase()) return i;
+      }
+    }
+    return -1;
+  }
+  var base = linkColIndex_(headers);
+  return {
+    nombre: idx(['nombre']),
+    descripcion: idx(['descripcion', 'descripción']),
+    variedades: base.variedades,
+    subcategoria: base.subcategoria,
+    grupoExtras: base.grupoExtras,
+    quitar: base.quitar,
+    ingredientes: idx(['ingredientes', 'ingredientes sacar', 'se puede sacar']),
+  };
+}
+
+/** Palabras clave en Descripcion → lista para columna Ingredientes (si no hay receta por nombre). */
+function ingredientesDesdeDescripcion_(desc) {
+  var d = String(desc || '').toLowerCase();
+  var out = [];
+  function add(label, re) {
+    if (re.test(d) && out.indexOf(label) === -1) out.push(label);
+  }
+  add('Cebolla', /cebolla/);
+  add('Salsa mil islas', /mil islas|salsa mil/);
+  add('Cheddar', /cheddar/);
+  add('Mayonesa', /mayonesa/);
+  add('Lechuga', /lechuga/);
+  add('Tomate', /tomate/);
+  add('Bacon', /bacon/);
+  add('Huevo', /huevo/);
+  return out.join(', ');
 }

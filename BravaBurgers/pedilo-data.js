@@ -300,6 +300,39 @@
 			.filter(Boolean);
 	}
 
+	/** Lista en columna Ingredientes del producto: "Cebolla, Cheddar, Lechuga" */
+	function parseIngredientesProductoLista(raw) {
+		if (!raw) return [];
+		return String(raw)
+			.split(/[,;|]/)
+			.map(function (s) {
+				return s.trim();
+			})
+			.filter(Boolean)
+			.map(function (nombre) {
+				return { nombre: nombre, default: true };
+			});
+	}
+
+	function parseIngredientesFromDescripcion(desc) {
+		const d = String(desc || '').toLowerCase();
+		const out = [];
+		function add(label, re) {
+			if (re.test(d) && out.indexOf(label) === -1) out.push(label);
+		}
+		add('Cebolla', /cebolla/);
+		add('Salsa mil islas', /mil islas|salsa mil/);
+		add('Cheddar', /cheddar/);
+		add('Mayonesa', /mayonesa/);
+		add('Lechuga', /lechuga/);
+		add('Tomate', /tomate/);
+		add('Bacon', /bacon/);
+		add('Huevo', /huevo/);
+		return out.map(function (nombre) {
+			return { nombre: nombre, default: true };
+		});
+	}
+
 	function buildExtrasCatalog(rows) {
 		const out = [];
 		rows.forEach(function (row) {
@@ -368,14 +401,24 @@
 					variedades: [],
 					extrasGrupo: '',
 					quitarGrupo: '',
+					ingredientesSacar: [],
 				});
 			}
 
 			const g = groups.get(key);
 			const extrasGrupo = col(row, ['grupo extras', 'grupo_extras', 'extras_grupo', 'grupo extra']);
 			const quitarGrupo = col(row, ['quitar', 'grupo_quitar', 'grupo quitar', 'ingredientes_grupo']);
+			const ingredientesLista = col(row, [
+				'ingredientes',
+				'ingredientes sacar',
+				'se puede sacar',
+				'sacar ingredientes',
+			]);
 			if (extrasGrupo) g.extrasGrupo = extrasGrupo;
 			if (quitarGrupo) g.quitarGrupo = quitarGrupo;
+			if (ingredientesLista) {
+				g.ingredientesSacar = parseIngredientesProductoLista(ingredientesLista);
+			}
 			if (String(row.personalizable || '').toLowerCase().trim() === 'si') {
 				if (!g.extrasGrupo) g.extrasGrupo = 'default';
 			}
@@ -419,7 +462,9 @@
 			});
 			const minPrecio = Math.min.apply(null, prices);
 			const tienePreciosDiferentes = new Set(prices).size > 1;
-			const personalizable = !!g.extrasGrupo;
+			const ingredientesSacar = g.ingredientesSacar || [];
+			const personalizableExtras = !!g.extrasGrupo;
+			const personalizable = personalizableExtras;
 
 			return {
 				id: stableProductId(key, idx),
@@ -436,11 +481,21 @@
 				minimo: 1,
 				maximo: 999999,
 				step: 1,
-				variedades: personalizable ? [] : g.variedades,
+				variedades: personalizableExtras ? [] : g.variedades,
 				personalizable: personalizable,
 				extrasGrupo: g.extrasGrupo || '',
 				quitarGrupo: g.quitarGrupo || '',
+				ingredientesSacar: ingredientesSacar,
 			};
+		});
+	}
+
+	function applyIngredientesPorProducto(products) {
+		products.forEach(function (p) {
+			if (p.ingredientesSacar && p.ingredientesSacar.length) return;
+			if (p.descripcion) {
+				p.ingredientesSacar = parseIngredientesFromDescripcion(p.descripcion);
+			}
 		});
 	}
 
@@ -496,7 +551,7 @@
 				p.extrasGrupo =
 					quitarGrupoFromSubcategoria(p.subcategoria) || 'prod_' + p.id;
 			}
-			if (!p.quitarGrupo) {
+			if (!p.quitarGrupo && !(p.ingredientesSacar && p.ingredientesSacar.length)) {
 				p.quitarGrupo = quitarGrupoFromSubcategoria(p.subcategoria);
 			}
 			p.extrasLocales = otras.map(function (v) {
@@ -708,6 +763,7 @@
 			global.g_ingredientes_catalog = defaultIngredientesCatalog();
 		}
 		inferLegacyPersonalizacion(global.g_productos);
+		applyIngredientesPorProducto(global.g_productos);
 		global.g_ultima_sync_sheets = Date.now();
 
 		return true;

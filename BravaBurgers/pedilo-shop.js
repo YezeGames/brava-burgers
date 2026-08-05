@@ -100,6 +100,9 @@
 	}
 
 	function ingredientesParaProducto(producto) {
+		if (producto.ingredientesSacar && producto.ingredientesSacar.length) {
+			return producto.ingredientesSacar;
+		}
 		var g = String(producto.quitarGrupo || '').toLowerCase();
 		if (!g) return [];
 		var catalog = window.g_ingredientes_catalog || [];
