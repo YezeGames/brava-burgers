@@ -183,9 +183,9 @@
     var brandStyle =
       'display:inline-block;background:#000;color:#fff;font-size:13px;font-weight:800;line-height:1.15;letter-spacing:0.04em;padding:2px 10px;margin:0;border:0;';
     var metaStyle =
-      'padding:6px 8px;font-size:11px;line-height:1.4;color:#000;background:#fff;border-bottom:1px dashed #ccc;margin:0;';
+      'padding:6px 8px;font-size:11px;line-height:1.4;color:#000;background:#fff;border-bottom:1px dashed #000;margin:0;';
     var footStyle =
-      'padding:6px 4px 2px;font-size:8px;color:#555;text-align:center;border-top:1px dashed #ccc;background:#fff;margin:0;';
+      'padding:6px 4px 2px;font-size:8px;color:#555;text-align:center;border-top:1px dashed #000;background:#fff;margin:0;';
 
     return (
       '<div class="comanda-head" style="' +
@@ -282,12 +282,12 @@
       '.ticket-comanda .comanda-head .brand { display: inline-block; background: #000; color: #fff; font-size: 13px; font-weight: 800; line-height: 1.15; letter-spacing: 0.04em; padding: 2px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
       '.ticket-comanda .comanda-top { background: transparent !important; padding: 4px 0 2px; text-align: center; }' +
       '.ticket-comanda .comanda-top .brand { display: inline-block; background: #000; color: #fff; font-size: 13px; font-weight: 800; line-height: 1.15; padding: 2px 10px; }' +
-      '.ticket-comanda .comanda-meta { padding: 6px 2px 6px; color: #000; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #bbb; }' +
+      '.ticket-comanda .comanda-meta { padding: 6px 2px 6px; color: #000; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #000; }' +
       '.ticket-comanda .comanda-meta .meta-line { margin: 0 0 2px; }' +
       '.ticket-comanda .comanda-meta .edit-note { font-size: 10px; font-weight: 700; margin-top: 6px; color: #000; }' +
       '.ticket-comanda .comanda-body { padding: 6px 2px 8px; color: #000; }' +
       '.ticket-comanda .bold { font-weight: 700; }' +
-      '.ticket-comanda .line { border-top: 1px dashed #ccc; margin: 6px 0; }' +
+      '.ticket-comanda .line { border-top: 1px dashed #000; margin: 6px 0; }' +
       '.ticket-comanda .section-title { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #555; margin: 2px 0 4px; }' +
       '.ticket-comanda .item { margin: 6px 0; }' +
       '.ticket-comanda .item-name { font-weight: 700; font-size: 12px; }' +
@@ -297,7 +297,7 @@
       '.ticket-comanda .row > span:last-child { white-space: nowrap; text-align: right; flex-shrink: 0; }' +
       '.ticket-comanda .total-row { font-weight: 700; font-size: 13px; margin-top: 4px; }' +
       '.ticket-comanda .pago-line { font-weight: 700; margin: 4px 0; font-size: 11px; }' +
-      '.ticket-comanda .comanda-foot { background: transparent; color: #555; font-size: 8px; font-weight: 400; text-align: center; padding: 6px 2px 0; border-top: 1px dashed #ccc; }'
+      '.ticket-comanda .comanda-foot { background: transparent; color: #555; font-size: 8px; font-weight: 400; text-align: center; padding: 6px 2px 0; border-top: 1px dashed #000; }'
     );
   }
 
@@ -355,14 +355,14 @@
     if (!order) return false;
     var inner = renderTicketHtml(order);
     return printTicketHtml(
-      '<article class="ticket ticket-comanda" data-comanda-ver="11" aria-label="Comanda térmica">' +
+      '<article class="ticket ticket-comanda" data-comanda-ver="12" aria-label="Comanda térmica">' +
         inner +
         '</article>'
     );
   }
 
   global.BravaComanda = {
-    COMANDA_VER: 11,
+    COMANDA_VER: 12,
     renderTicketHtml: renderTicketHtml,
     readStoredOrder: readStoredOrder,
     storeOrderForPrint: storeOrderForPrint,
