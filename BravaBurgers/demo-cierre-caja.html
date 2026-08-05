@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — resumen cierre de caja</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 24px 16px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+		}
+		.wrap { max-width: 720px; margin: 0 auto; }
+		.banner {
+			background: #1a1a1a;
+			color: #fff;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 0.85rem;
+			margin-bottom: 20px;
+		}
+		.banner strong { color: #ff6b35; }
+		h1 { font-size: 1.35rem; margin: 0 0 8px; }
+		.lead { font-size: 0.9rem; color: #666; margin: 0 0 20px; line-height: 1.45; }
+		.card {
+			background: #fff;
+			border-radius: 8px;
+			padding: 20px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+			margin-bottom: 16px;
+		}
+		.mock-sidebar h2 {
+			margin: 0 0 12px;
+			font-size: 1rem;
+			border-bottom: 2px solid #ff6b35;
+			padding-bottom: 8px;
+		}
+		.row {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.85rem;
+			margin: 6px 0;
+		}
+		.row.section {
+			margin-top: 12px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			color: #666;
+			letter-spacing: 0.03em;
+		}
+		.row.neg { color: #c62828; }
+		.row.total { font-weight: 600; border-top: 1px dashed #eee; padding-top: 8px; margin-top: 8px; }
+		.row.result {
+			font-weight: 700;
+			font-size: 1.05rem;
+			border-top: 2px solid #ff6b35;
+			padding-top: 12px;
+			margin-top: 12px;
+			color: #2e7d32;
+		}
+		.btn {
+			padding: 10px 16px;
+			border-radius: 6px;
+			border: 1px solid #ccc;
+			background: #fff;
+			font-weight: 600;
+			cursor: pointer;
+			font-size: 0.9rem;
+		}
+		.btn-accent {
+			background: #ff6b35;
+			border-color: #ff6b35;
+			color: #fff;
+			width: 100%;
+			margin-top: 12px;
+		}
+		.btn-accent:hover { background: #e55a25; }
+		.state { font-size: 0.8rem; color: #2e7d32; font-weight: 600; margin-top: 8px; }
+
+		.modal-backdrop {
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.5);
+			display: none;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			z-index: 100;
+		}
+		.modal-backdrop.open { display: flex; }
+		.modal {
+			background: #fff;
+			border-radius: 10px;
+			max-width: 520px;
+			width: 100%;
+			max-height: 90vh;
+			overflow: auto;
+			box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
+		}
+		.modal-head {
+			padding: 18px 20px 12px;
+			border-bottom: 1px solid #eee;
+		}
+		.modal-head h2 { margin: 0 0 4px; font-size: 1.2rem; }
+		.modal-head .sub { margin: 0; font-size: 0.8rem; color: #666; }
+		.modal-body { padding: 16px 20px 20px; }
+		.resumen {
+			border: 1px solid #eee;
+			border-radius: 8px;
+			overflow: hidden;
+		}
+		.resumen-top {
+			background: linear-gradient(135deg, #ff6b35 0%, #e55a25 100%);
+			color: #fff;
+			padding: 16px 18px;
+		}
+		.resumen-top .brand { font-size: 1.1rem; font-weight: 800; letter-spacing: 0.02em; }
+		.resumen-top .meta { font-size: 0.78rem; opacity: 0.95; margin-top: 6px; line-height: 1.4; }
+		.resumen-block { padding: 14px 18px; border-bottom: 1px solid #f0f0f0; }
+		.resumen-block:last-child { border-bottom: none; }
+		.resumen-block h3 {
+			margin: 0 0 10px;
+			font-size: 0.72rem;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: #888;
+		}
+		.resumen-block .line {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.88rem;
+			margin: 5px 0;
+		}
+		.resumen-block .line strong { font-weight: 600; }
+		.resumen-block .line.muted { color: #888; font-size: 0.82rem; }
+		.gasto-item { font-size: 0.82rem; margin: 4px 0; display: flex; justify-content: space-between; gap: 8px; }
+		.resultado-box {
+			background: #f9f9f9;
+			padding: 14px 18px;
+			text-align: center;
+		}
+		.resultado-box .label { font-size: 0.75rem; text-transform: uppercase; color: #666; letter-spacing: 0.05em; }
+		.resultado-box .amount {
+			font-size: 1.75rem;
+			font-weight: 800;
+			color: #2e7d32;
+			margin-top: 4px;
+		}
+		.resultado-box .amount.neg { color: #c62828; }
+		.resumen-foot {
+			padding: 12px 18px;
+			font-size: 0.72rem;
+			color: #999;
+			background: #fafafa;
+		}
+		.modal-foot {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			justify-content: flex-end;
+			padding: 0 20px 18px;
+		}
+		.confirm-text { font-size: 0.88rem; line-height: 1.5; margin: 0 0 12px; white-space: pre-wrap; }
+
+		@media print {
+			body { background: #fff; padding: 0; }
+			.banner, .card, .modal-foot, .no-print { display: none !important; }
+			.modal-backdrop {
+				position: static;
+				display: block !important;
+				background: none;
+				padding: 0;
+			}
+			.modal { box-shadow: none; max-width: none; max-height: none; }
+			.modal-head { display: none; }
+		}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="banner"><strong>Demo</strong> — resumen al cerrar caja. No está en el admin todavía; probá el flujo y decinos si lo integramos.</div>
+		<h1>Cierre de caja — resumen diario</h1>
+		<p class="lead">
+			Simula un turno abierto con ventas, gastos y hamburguesas. Al tocar <strong>Cierre de caja</strong> ves confirmación y
+			después el <strong>resumen del día</strong> (como ticket / reporte).
+		</p>
+
+		<div class="card mock-sidebar">
+			<h2>Caja (turno demo)</h2>
+			<p class="state">● Turno abierto — 5/8/2026 18:30</p>
+			<div class="row section">Ventas (entregados ✓)</div>
+			<div class="row"><span>Efectivo</span><span id="m-ef">$0</span></div>
+			<div class="row"><span>Mercado Pago</span><span id="m-mp">$0</span></div>
+			<div class="row total"><span>Total ventas</span><span id="m-ventas">$0</span></div>
+			<div class="row neg"><span>Cancelados (info)</span><span id="m-cancel">$0</span></div>
+			<div class="row section">Salidas</div>
+			<div class="row neg"><span>Gastos</span><span id="m-gastos">−$0</span></div>
+			<div class="row result"><span>Resultado</span><span id="m-resultado">$0</span></div>
+			<div class="row section">Hamburguesas ✓</div>
+			<div class="row"><span>Simples / Dobles</span><span id="m-hamb">0 / 0</span></div>
+			<button type="button" class="btn btn-accent" id="btn-cierre">Cierre de caja</button>
+		</div>
+	</div>
+
+	<div class="modal-backdrop" id="modal-confirm" role="dialog" aria-modal="true">
+		<div class="modal">
+			<div class="modal-head">
+				<h2>¿Cerrar caja?</h2>
+				<p class="sub">Se guarda el resumen y los contadores vuelven a $0 hasta abrir de nuevo.</p>
+			</div>
+			<div class="modal-body">
+				<p class="confirm-text" id="confirm-text"></p>
+			</div>
+			<div class="modal-foot no-print">
+				<button type="button" class="btn" id="confirm-cancel">Cancelar</button>
+				<button type="button" class="btn btn-accent" style="width:auto;margin:0;" id="confirm-ok">Confirmar cierre</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-backdrop" id="modal-resumen" role="dialog" aria-modal="true">
+		<div class="modal" id="resumen-print">
+			<div class="modal-head no-print">
+				<h2>Cierre guardado</h2>
+				<p class="sub">Resumen del turno — podés imprimir o capturar</p>
+			</div>
+			<div class="modal-body" style="padding-top:0;">
+				<div class="resumen" id="resumen-content"></div>
+			</div>
+			<div class="modal-foot no-print">
+				<button type="button" class="btn" id="resumen-close">Cerrar</button>
+				<button type="button" class="btn btn-accent" style="width:auto;margin:0;" id="resumen-print-btn">Imprimir resumen</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var DEMO = {
+			periodo: '5/8/2026',
+			apertura: '5/8/2026, 18:30',
+			cierre: '',
+			cierreId: 'CIERRE-DEMO-0042',
+			ef: 87400,
+			mp: 126600,
+			cancel: 17000,
+			gastos: [
+				{ concepto: 'Pan', monto: 8500, pagado: 'Efectivo' },
+				{ concepto: 'Carne', monto: 22000, pagado: 'Transferencia' },
+				{ concepto: 'Bolsas / descartables', monto: 3200, pagado: 'Efectivo' },
+			],
+			simples: 14,
+			dobles: 9,
+			pedidosEntregados: 23,
+		};
+
+		function fmt(n) {
+			return Math.round(n).toLocaleString('es-AR');
+		}
+
+		function stats() {
+			var ventas = DEMO.ef + DEMO.mp;
+			var gTotal = DEMO.gastos.reduce(function (s, g) {
+				return s + g.monto;
+			}, 0);
+			return {
+				ef: DEMO.ef,
+				mp: DEMO.mp,
+				ventas: ventas,
+				cancel: DEMO.cancel,
+				gTotal: gTotal,
+				resultado: ventas - gTotal,
+				simples: DEMO.simples,
+				dobles: DEMO.dobles,
+				hambTotal: DEMO.simples + DEMO.dobles,
+			};
+		}
+
+		function paintMock() {
+			var st = stats();
+			document.getElementById('m-ef').textContent = '$' + fmt(st.ef);
+			document.getElementById('m-mp').textContent = '$' + fmt(st.mp);
+			document.getElementById('m-ventas').textContent = '$' + fmt(st.ventas);
+			document.getElementById('m-cancel').textContent = '$' + fmt(st.cancel);
+			document.getElementById('m-gastos').textContent = '−$' + fmt(st.gTotal);
+			document.getElementById('m-resultado').textContent = '$' + fmt(st.resultado);
+			document.getElementById('m-hamb').textContent = st.simples + ' / ' + st.dobles;
+		}
+
+		function openConfirm() {
+			var st = stats();
+			var msg =
+				'Turno: ' +
+				DEMO.periodo +
+				'\n\n' +
+				'Ventas del turno: $' +
+				fmt(st.ventas) +
+				' (EF $' +
+				fmt(st.ef) +
+				' · MP $' +
+				fmt(st.mp) +
+				')\n' +
+				'Gastos: $' +
+				fmt(st.gTotal) +
+				'\n' +
+				'Resultado: $' +
+				fmt(st.resultado) +
+				'\n\n' +
+				'Hamb. simples: ' +
+				st.simples +
+				'\n' +
+				'Hamb. dobles: ' +
+				st.dobles +
+				'\n' +
+				'Total hamburguesas: ' +
+				st.hambTotal +
+				'\n' +
+				'Pedidos entregados: ' +
+				DEMO.pedidosEntregados;
+			document.getElementById('confirm-text').textContent = msg;
+			document.getElementById('modal-confirm').classList.add('open');
+		}
+
+		function buildResumenHtml() {
+			var st = stats();
+			DEMO.cierre = new Date().toLocaleString('es-AR');
+			var neg = st.resultado < 0;
+			var gastosHtml = DEMO.gastos
+				.map(function (g) {
+					return (
+						'<div class="gasto-item"><span>' +
+						g.concepto +
+						(g.pagado ? ' <span class="muted">(' + g.pagado + ')</span>' : '') +
+						'</span><span>−$' +
+						fmt(g.monto) +
+						'</span></div>'
+					);
+				})
+				.join('');
+
+			return (
+				'<div class="resumen-top">' +
+				'<div class="brand">BRAVA BURGERS</div>' +
+				'<div class="meta">Cierre de caja · ' +
+				DEMO.cierreId +
+				'<br>Período: ' +
+				DEMO.periodo +
+				'<br>Abierto: ' +
+				DEMO.apertura +
+				' · Cerrado: ' +
+				DEMO.cierre +
+				'</div></div>' +
+				'<div class="resumen-block"><h3>Ventas (entregados ✓)</h3>' +
+				'<div class="line"><span>Efectivo</span><strong>$' +
+				fmt(st.ef) +
+				'</strong></div>' +
+				'<div class="line"><span>Mercado Pago</span><strong>$' +
+				fmt(st.mp) +
+				'</strong></div>' +
+				'<div class="line"><span>Total ventas</span><strong>$' +
+				fmt(st.ventas) +
+				'</strong></div>' +
+				'<div class="line muted"><span>Cancelados (solo info)</span><span>$' +
+				fmt(st.cancel) +
+				'</span></div></div>' +
+				'<div class="resumen-block"><h3>Producto</h3>' +
+				'<div class="line"><span>Pedidos entregados</span><strong>' +
+				DEMO.pedidosEntregados +
+				'</strong></div>' +
+				'<div class="line"><span>Hamburguesas simples</span><strong>' +
+				st.simples +
+				'</strong></div>' +
+				'<div class="line"><span>Hamburguesas dobles</span><strong>' +
+				st.dobles +
+				'</strong></div>' +
+				'<div class="line"><span>Total hamburguesas</span><strong>' +
+				st.hambTotal +
+				'</strong></div></div>' +
+				'<div class="resumen-block"><h3>Gastos del turno</h3>' +
+				gastosHtml +
+				'<div class="line" style="margin-top:10px;font-weight:600;"><span>Total gastos</span><span>−$' +
+				fmt(st.gTotal) +
+				'</span></div></div>' +
+				'<div class="resultado-box">' +
+				'<div class="label">Resultado del turno</div>' +
+				'<div class="amount' +
+				(neg ? ' neg' : '') +
+				'">' +
+				(neg ? '−$' : '$') +
+				fmt(Math.abs(st.resultado)) +
+				'</div></div>' +
+				'<div class="resumen-foot">Generado desde el panel Brava · Demo de cierre · No reemplaza comprobantes fiscales.</div>'
+			);
+		}
+
+		function openResumen() {
+			document.getElementById('resumen-content').innerHTML = buildResumenHtml();
+			document.getElementById('modal-resumen').classList.add('open');
+		}
+
+		document.getElementById('btn-cierre').addEventListener('click', openConfirm);
+		document.getElementById('confirm-cancel').addEventListener('click', function () {
+			document.getElementById('modal-confirm').classList.remove('open');
+		});
+		document.getElementById('confirm-ok').addEventListener('click', function () {
+			document.getElementById('modal-confirm').classList.remove('open');
+			openResumen();
+		});
+		document.getElementById('resumen-close').addEventListener('click', function () {
+			document.getElementById('modal-resumen').classList.remove('open');
+		});
+		document.getElementById('resumen-print-btn').addEventListener('click', function () {
+			window.print();
+		});
+
+		paintMock();
+	</script>
+</body>
+</html>
