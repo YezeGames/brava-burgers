@@ -493,7 +493,11 @@
 
 		if (!agrupado) {
 			producto.cantidad = parseFloat(producto.minimo || 1);
-			producto.adicionales = suma_de_adicionales || 0;
+			if (suma_de_adicionales) {
+				producto.adicionales = suma_de_adicionales;
+			} else if (producto.adicionales == null) {
+				producto.adicionales = 0;
+			}
 			g_pedido.productos.push(producto);
 		}
 
