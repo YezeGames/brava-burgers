@@ -70,8 +70,6 @@
 
   var rechazoOrn = null;
   var gastosCache = [];
-  var cierresCache = [];
-  var cierresFetchInFlight = null;
   var filterDesde = '';
   var filterHasta = '';
 
@@ -341,242 +339,43 @@
     return p.indexOf('efectivo') >= 0;
   }
 
-  function orderCajaDateIso(o) {
-    if (o && o.entregado_at) {
-      var d = new Date(o.entregado_at);
-      if (!isNaN(d.getTime())) {
-        return (
-          d.getFullYear() +
-          '-' +
-          String(d.getMonth() + 1).padStart(2, '0') +
-          '-' +
-          String(d.getDate()).padStart(2, '0')
-        );
-      }
-    }
-    return orderDateIso(o);
-  }
-
-  function isHamburguesaItem(it) {
-    var n = String((it && it.nombre) || '').toLowerCase();
-    if (!n) return false;
-    if (n.indexOf('burger') >= 0) return true;
-    if (n.indexOf('hamburg') >= 0) return true;
-    return false;
-  }
-
-  function hamburguesaEsDoble(it) {
-    var n = String((it && it.nombre) || '').toLowerCase();
-    return n.indexOf('doble') >= 0;
-  }
-
-  function computePeriodStats() {
+  function updateCajaUI() {
+    if (!$('caja-ef')) return;
     var ef = 0;
     var mp = 0;
     var cancel = 0;
-    var simples = 0;
-    var dobles = 0;
     allOrdersCache.forEach(function (o) {
+      if (!inDateRange(orderDateIso(o))) return;
       var e = normalizeEstado(o.estado);
       var total = Number(o.total) || 0;
       if (e === 'entregada') {
-        if (!inDateRange(orderCajaDateIso(o))) return;
         if (pagoEsEfectivo(o.pago)) ef += total;
         else mp += total;
-        parseOrderItems(o).forEach(function (it) {
-          if (!isHamburguesaItem(it)) return;
-          var q = editItemQty(it);
-          if (hamburguesaEsDoble(it)) dobles += q;
-          else simples += q;
-        });
-      } else if (e === 'cancelada') {
-        if (!inDateRange(orderDateIso(o))) return;
-        cancel += total;
       }
+      if (e === 'cancelada') cancel += total;
     });
     var ventas = ef + mp;
     var gTotal = 0;
     gastosCache.forEach(function (g) {
       gTotal += Number(g.monto) || 0;
     });
-    return {
-      ef: ef,
-      mp: mp,
-      ventas: ventas,
-      cancel: cancel,
-      gTotal: gTotal,
-      resultado: ventas - gTotal,
-      simples: simples,
-      dobles: dobles,
-      hambTotal: simples + dobles,
-    };
-  }
-
-  function findCierreForCurrentPeriod() {
-    var d = filterDesde;
-    var h = filterHasta;
-    for (var i = 0; i < cierresCache.length; i++) {
-      var c = cierresCache[i];
-      if (c.periodo_desde === d && c.periodo_hasta === h) return c;
-    }
-    return null;
-  }
-
-  function formatCierreWhen(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    var dd = String(d.getDate()).padStart(2, '0');
-    var mm = String(d.getMonth() + 1).padStart(2, '0');
-    var hh = String(d.getHours()).padStart(2, '0');
-    var mi = String(d.getMinutes()).padStart(2, '0');
-    return dd + '/' + mm + ' ' + hh + ':' + mi;
-  }
-
-  function updateCierreStatusUI() {
-    var btn = $('btn-cierre-caja');
-    var estado = $('caja-estado');
-    var ultimo = $('caja-ultimo-cierre');
-    var c = findCierreForCurrentPeriod();
-    if (c) {
-      if (estado) {
-        estado.textContent = 'Caja cerrada · ' + (c.id || '');
-        estado.classList.add('cerrada');
-      }
-      if (ultimo) {
-        ultimo.hidden = false;
-        ultimo.textContent = 'Cerrado el ' + formatCierreWhen(c.cerrado_at);
-      }
-      if (btn) {
-        btn.disabled = true;
-        btn.textContent = 'Período ya cerrado';
-      }
-    } else {
-      if (estado) {
-        estado.textContent = 'Caja abierta (pendiente de cierre)';
-        estado.classList.remove('cerrada');
-      }
-      if (ultimo) ultimo.hidden = true;
-      if (btn) {
-        btn.disabled = false;
-        btn.textContent = 'Cierre de caja';
-      }
-    }
-  }
-
-  function updateCajaUI() {
-    if (!$('caja-ef')) return;
-    var st = computePeriodStats();
-    $('caja-ef').textContent = '$' + fmt(st.ef);
-    $('caja-mp').textContent = '$' + fmt(st.mp);
-    $('caja-ventas').textContent = '$' + fmt(st.ventas);
-    $('caja-cancel').textContent = '$' + fmt(st.cancel);
-    $('caja-gastos').textContent = '−$' + fmt(st.gTotal);
-    $('caja-resultado').textContent = (st.resultado < 0 ? '−$' : '$') + fmt(Math.abs(st.resultado));
+    var resultado = ventas - gTotal;
+    $('caja-ef').textContent = '$' + fmt(ef);
+    $('caja-mp').textContent = '$' + fmt(mp);
+    $('caja-ventas').textContent = '$' + fmt(ventas);
+    $('caja-cancel').textContent = '$' + fmt(cancel);
+    $('caja-gastos').textContent = '−$' + fmt(gTotal);
+    $('caja-resultado').textContent = (resultado < 0 ? '−$' : '$') + fmt(Math.abs(resultado));
     var row = $('row-resultado');
     if (row) {
       row.classList.remove('pos', 'neg');
-      row.classList.add(st.resultado >= 0 ? 'pos' : 'neg');
+      row.classList.add(resultado >= 0 ? 'pos' : 'neg');
     }
-    if ($('ventas-hamb-simples')) $('ventas-hamb-simples').textContent = String(Math.round(st.simples));
-    if ($('ventas-hamb-dobles')) $('ventas-hamb-dobles').textContent = String(Math.round(st.dobles));
-    if ($('ventas-hamb-total')) $('ventas-hamb-total').textContent = String(Math.round(st.hambTotal));
     if ($('caja-range')) {
       var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
       var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
       $('caja-range').textContent = d1 === d2 ? 'Período: ' + d1 : 'Período: ' + d1 + ' — ' + d2;
     }
-    updateCierreStatusUI();
-  }
-
-  function loadCierres(force) {
-    if (cierresFetchInFlight && !force) return cierresFetchInFlight;
-    cierresFetchInFlight = api({ action: 'listCierres', token: token, limit: 50 })
-      .then(function (res) {
-        if (res.data.ok) {
-          cierresCache = res.data.cierres || [];
-          updateCierreStatusUI();
-          return true;
-        }
-        if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
-        return false;
-      })
-      .finally(function () {
-        cierresFetchInFlight = null;
-      });
-    return cierresFetchInFlight;
-  }
-
-  function performCierreCaja() {
-    if (findCierreForCurrentPeriod()) {
-      alert('Este período ya tiene un cierre registrado.');
-      return;
-    }
-    readDateFiltersFromUi();
-    var st = computePeriodStats();
-    var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
-    var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
-    var periodoLbl = d1 === d2 ? d1 : d1 + ' — ' + d2;
-    var msg =
-      '¿Cerrar caja del período ' +
-      periodoLbl +
-      '?\n\n' +
-      'Ventas: $' +
-      fmt(st.ventas) +
-      ' (EF $' +
-      fmt(st.ef) +
-      ' · MP $' +
-      fmt(st.mp) +
-      ')\n' +
-      'Gastos: $' +
-      fmt(st.gTotal) +
-      '\n' +
-      'Resultado: $' +
-      fmt(st.resultado) +
-      '\n\n' +
-      'Hamb. simples: ' +
-      Math.round(st.simples) +
-      '\n' +
-      'Hamb. dobles: ' +
-      Math.round(st.dobles) +
-      '\n' +
-      'Total hamburguesas: ' +
-      Math.round(st.hambTotal) +
-      '\n\n' +
-      'Queda guardado en Supabase. Mañana usá «Hoy» para el turno nuevo.';
-    if (!confirm(msg)) return;
-    var btn = $('btn-cierre-caja');
-    if (btn) btn.disabled = true;
-    api({
-      action: 'createCierre',
-      token: token,
-      periodo_desde: filterDesde,
-      periodo_hasta: filterHasta,
-      efectivo: st.ef,
-      mercado_pago: st.mp,
-      ventas_total: st.ventas,
-      gastos: st.gTotal,
-      resultado: st.resultado,
-      cancelados: st.cancel,
-      hamb_simples: Math.round(st.simples),
-      hamb_dobles: Math.round(st.dobles),
-      hamb_total: Math.round(st.hambTotal),
-    }).then(function (res) {
-      if (res.data.ok && res.data.cierre) {
-        cierresCache.unshift(res.data.cierre);
-        updateCajaUI();
-        alert('Cierre guardado: ' + res.data.cierre.id);
-        loadCierres(true);
-      } else {
-        if (res.status === 401) handleAuthFailure();
-        else {
-          alert(
-            'No se pudo guardar el cierre. Si es la primera vez, ejecutá en Supabase el archivo supabase/cierres_caja_migration.sql'
-          );
-        }
-        updateCierreStatusUI();
-      }
-    });
   }
 
   function renderGastosList() {
@@ -671,7 +470,6 @@
     readDateFiltersFromUi();
     fetchOrdersFromServer(true);
     loadGastos();
-    loadCierres();
     updateCajaUI();
   }
 
@@ -742,8 +540,6 @@
     loadOrders();
 
     loadGastos();
-
-    loadCierres();
 
     refreshSupabaseSession().finally(function () {
 
@@ -2392,8 +2188,6 @@
       applyDateFilter();
     };
   }
-
-  if ($('btn-cierre-caja')) $('btn-cierre-caja').onclick = performCierreCaja;
 
   if ($('btn-add-gasto')) {
     $('btn-add-gasto').onclick = function () {

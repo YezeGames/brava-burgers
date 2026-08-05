@@ -53,6 +53,9 @@
 		.caja-row.resultado.pos { color: #2e7d32; }
 		.caja-row.resultado.neg { color: #c62828; }
 		.caja-hint, .range-label { font-size: 0.72rem; color: #888; margin: 8px 0 0; line-height: 1.4; }
+		.caja-estado { font-weight: 600; color: #e65100; margin-top: 10px; }
+		.caja-estado.cerrada { color: #2e7d32; }
+		.ventas-box h2 { margin: 0 0 12px; font-size: 1rem; color: #444; border-bottom: 2px solid #FF6B35; padding-bottom: 8px; }
 		.range-label { margin-bottom: 8px; }
 		.gasto-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 180px; overflow-y: auto; }
 		.gasto-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.8rem; }
@@ -227,6 +230,17 @@
 					<div class="caja-row negative"><span>Gastos</span><span id="caja-gastos">−$0</span></div>
 					<div class="caja-row resultado pos" id="row-resultado"><span>Resultado</span><span id="caja-resultado">$0</span></div>
 					<p class="caja-hint">Resultado = ventas entregadas − gastos. Usá los filtros de fecha arriba.</p>
+					<p class="range-label caja-estado" id="caja-estado">—</p>
+					<p class="range-label" id="caja-ultimo-cierre" hidden></p>
+					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja</button>
+				</aside>
+				<aside class="sidebar-block ventas-box">
+					<h2>Registro de ventas</h2>
+					<div class="caja-row section">Hamburguesas (entregados ✓)</div>
+					<div class="caja-row"><span>Hamburguesas Simples</span><span id="ventas-hamb-simples">0</span></div>
+					<div class="caja-row"><span>Hamburguesas Dobles</span><span id="ventas-hamb-dobles">0</span></div>
+					<div class="caja-row total-ventas"><span>Vendidas total</span><span id="ventas-hamb-total">0</span></div>
+					<p class="caja-hint">Solo pedidos ✓ entregados en el período (fecha de entrega).</p>
 				</aside>
 				<aside class="sidebar-block gastos-box">
 					<h2>Gastos</h2>
@@ -317,6 +331,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=3"></script>
-	<script src="/admin/admin.js?v=26"></script>
+	<script src="/admin/admin.js?v=27"></script>
 </body>
 </html>

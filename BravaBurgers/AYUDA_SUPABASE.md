@@ -135,6 +135,9 @@ Proyecto **brava-burgers** → **Settings** → **Environment Variables**.
 | Pedido del cliente (web) | Supabase `orders` + WhatsApp |
 | Aceptar / rechazar / entregar | Supabase (panel) |
 | Gastos y caja | Supabase `gastos` (panel) |
+| Cierre de caja + conteo hamburguesas | Supabase `cierres_caja` (panel) |
+
+**Cierre de caja (ago 2026):** si el botón «Cierre de caja» falla al guardar, en **SQL Editor** ejecutá el archivo `supabase/cierres_caja_migration.sql` (una sola vez).
 
 ---
 
