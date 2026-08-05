@@ -52,59 +52,66 @@
 			background: #fff;
 			color: #000;
 			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-			font-size: 0.78rem;
-			line-height: 1.4;
+			font-size: 12px;
+			font-weight: 400;
+			line-height: 1.35;
 			padding: 0;
 			width: 100%;
 		}
 		.ticket-comanda .comanda-top {
-			background: #000;
-			color: #fff;
-			padding: 10px 8px;
+			background: transparent;
+			padding: 4px 0 2px;
 			text-align: center;
 		}
 		.ticket-comanda .comanda-top .brand {
-			font-size: 1.05rem;
+			display: inline-block;
+			background: #000;
+			color: #fff;
+			font-size: 13px;
 			font-weight: 800;
+			line-height: 1.15;
 			letter-spacing: 0.04em;
+			padding: 2px 10px;
 		}
-		.ticket-comanda .comanda-top .meta {
-			font-size: 0.7rem;
-			line-height: 1.45;
-			margin-top: 6px;
-			text-align: left;
+		.ticket-comanda .comanda-meta {
+			padding: 6px 8px 6px;
+			font-size: 11px;
+			line-height: 1.4;
+			border-bottom: 1px dashed #ccc;
 		}
+		.ticket-comanda .comanda-meta .meta-line { margin: 0 0 2px; }
 		.ticket-comanda .comanda-body { padding: 8px; }
 		.ticket-comanda .bold { font-weight: 700; }
 		.ticket-comanda .line { border-top: 1px dashed #ccc; margin: 8px 0; }
 		.ticket-comanda .section-title {
 			font-weight: 700;
-			font-size: 0.65rem;
+			font-size: 10px;
 			text-transform: uppercase;
-			letter-spacing: 0.05em;
-			color: #666;
+			letter-spacing: 0.04em;
+			color: #555;
 			margin: 4px 0 6px;
 		}
 		.ticket-comanda .item { margin: 8px 0; }
-		.ticket-comanda .item-name { font-weight: 700; font-size: 0.82rem; }
+		.ticket-comanda .item-name { font-weight: 700; font-size: 12px; }
 		.ticket-comanda .item-detail,
-		.ticket-comanda .item-aclaracion { font-size: 0.75rem; font-weight: 700; margin-top: 2px; }
-		.ticket-comanda .item-extras { font-weight: 700; }
+		.ticket-comanda .item-aclaracion { font-size: 11px; font-weight: 400; margin-top: 2px; }
+		.ticket-comanda .item-extras { font-weight: 600; }
 		.ticket-comanda .row {
 			display: flex;
 			justify-content: space-between;
 			gap: 8px;
 			font-variant-numeric: tabular-nums;
 		}
-		.ticket-comanda .total-row { font-weight: 700; font-size: 0.88rem; }
-		.ticket-comanda .pago-line { font-weight: 700; margin: 4px 0; }
-		.ticket-comanda .edit-note { font-size: 0.68rem; font-weight: 700; margin-top: 6px; }
+		.ticket-comanda .total-row { font-weight: 700; font-size: 13px; }
+		.ticket-comanda .pago-line { font-weight: 700; margin: 4px 0; font-size: 11px; }
+		.ticket-comanda .edit-note { font-size: 10px; font-weight: 700; margin-top: 6px; }
 		.ticket-comanda .comanda-foot {
-			background: #000;
-			color: #fff;
-			font-size: 0.62rem;
+			background: transparent;
+			color: #555;
+			font-size: 8px;
 			text-align: center;
-			padding: 8px 6px;
+			padding: 6px 4px 2px;
+			border-top: 1px dashed #ccc;
 		}
 
 		@media print {
@@ -114,12 +121,11 @@
 			.ticket.ticket-comanda {
 				width: 80mm;
 				padding: 0;
-				font-size: 11px;
+				font-size: 12px;
 				-webkit-print-color-adjust: exact;
 				print-color-adjust: exact;
 			}
-			.ticket-comanda .comanda-top,
-			.ticket-comanda .comanda-foot {
+			.ticket-comanda .comanda-top .brand {
 				background: #000 !important;
 				color: #fff !important;
 				-webkit-print-color-adjust: exact;
@@ -141,6 +147,6 @@
 		<article class="ticket ticket-comanda" id="ticket-root" aria-label="Comanda térmica"></article>
 	</div>
 
-	<script src="/admin/comanda.js?v=7"></script>
+	<script src="/admin/comanda.js?v=11"></script>
 </body>
 </html>

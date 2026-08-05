@@ -178,22 +178,35 @@
 
     var envioLabel = envio > 0 ? 'Envío' + (order.zona ? ' (' + esc(order.zona) + ')' : '') : 'Envío';
 
+    var headWrap =
+      'text-align:center;padding:4px 0 2px;margin:0;background:transparent !important;';
+    var brandStyle =
+      'display:inline-block;background:#000;color:#fff;font-size:13px;font-weight:800;line-height:1.15;letter-spacing:0.04em;padding:2px 10px;margin:0;border:0;';
+    var metaStyle =
+      'padding:6px 8px;font-size:11px;line-height:1.4;color:#000;background:#fff;border-bottom:1px dashed #ccc;margin:0;';
+    var footStyle =
+      'padding:6px 4px 2px;font-size:8px;color:#555;text-align:center;border-top:1px dashed #ccc;background:#fff;margin:0;';
+
     return (
-      '<div class="comanda-top">' +
-      '<div class="brand">BRAVA BURGERS</div>' +
-      '<div class="meta">' +
-      '<div>Pedido: <span class="bold">' +
+      '<div class="comanda-head" style="' +
+      headWrap +
+      '"><div class="brand" style="' +
+      brandStyle +
+      '">BRAVA BURGERS</div></div>' +
+      '<div class="comanda-meta" style="' +
+      metaStyle +
+      '">' +
+      '<div class="meta-line">Pedido: <span class="bold">' +
       esc(order.orn || '—') +
       '</span></div>' +
-      '<div>Fecha: ' +
+      '<div class="meta-line">Fecha: ' +
       esc(fmtFecha(order.fecha_creado)) +
       '</div>' +
-      (order.turno ? '<div>Turno: ' + esc(order.turno) + '</div>' : '') +
-      '<div>Tipo: DELIVERY</div>' +
+      (order.turno ? '<div class="meta-line">Turno: ' + esc(order.turno) + '</div>' : '') +
+      '<div class="meta-line">Tipo: DELIVERY</div>' +
       editNote +
-      '</div></div>' +
+      '</div>' +
       '<div class="comanda-body">' +
-      '<div class="line"></div>' +
       '<div class="section-title">Cliente</div>' +
       '<div>' +
       esc(order.cliente || '—') +
@@ -222,7 +235,9 @@
       esc(fmtMoney(total)) +
       '</span></div>' +
       '</div>' +
-      '<div class="comanda-foot">Documento no válido como factura</div>'
+      '<div class="comanda-foot" style="' +
+      footStyle +
+      '">Documento no válido como factura</div>'
     );
   }
 
@@ -257,10 +272,102 @@
     } catch (e2) {}
   }
 
+  function getThermalPrintCss() {
+    return (
+      '@page { size: 80mm auto; margin: 0; }' +
+      'html { font-size: 12px; margin: 0; padding: 0; }' +
+      'body { margin: 0; padding: 0 3mm; width: 80mm; max-width: 80mm; box-sizing: border-box; background: #fff; }' +
+      '.ticket.ticket-comanda { width: 100%; max-width: 100%; box-sizing: border-box; margin: 0; padding: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 400; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '.ticket-comanda .comanda-head { background: transparent !important; padding: 4px 0 2px; text-align: center; }' +
+      '.ticket-comanda .comanda-head .brand { display: inline-block; background: #000; color: #fff; font-size: 13px; font-weight: 800; line-height: 1.15; letter-spacing: 0.04em; padding: 2px 10px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '.ticket-comanda .comanda-top { background: transparent !important; padding: 4px 0 2px; text-align: center; }' +
+      '.ticket-comanda .comanda-top .brand { display: inline-block; background: #000; color: #fff; font-size: 13px; font-weight: 800; line-height: 1.15; padding: 2px 10px; }' +
+      '.ticket-comanda .comanda-meta { padding: 6px 2px 6px; color: #000; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #bbb; }' +
+      '.ticket-comanda .comanda-meta .meta-line { margin: 0 0 2px; }' +
+      '.ticket-comanda .comanda-meta .edit-note { font-size: 10px; font-weight: 700; margin-top: 6px; color: #000; }' +
+      '.ticket-comanda .comanda-body { padding: 6px 2px 8px; color: #000; }' +
+      '.ticket-comanda .bold { font-weight: 700; }' +
+      '.ticket-comanda .line { border-top: 1px dashed #ccc; margin: 6px 0; }' +
+      '.ticket-comanda .section-title { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #555; margin: 2px 0 4px; }' +
+      '.ticket-comanda .item { margin: 6px 0; }' +
+      '.ticket-comanda .item-name { font-weight: 700; font-size: 12px; }' +
+      '.ticket-comanda .item-detail, .ticket-comanda .item-aclaracion { font-size: 11px; font-weight: 400; margin-top: 2px; }' +
+      '.ticket-comanda .item-extras { font-weight: 600; }' +
+      '.ticket-comanda .row { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; font-size: 11px; }' +
+      '.ticket-comanda .row > span:last-child { white-space: nowrap; text-align: right; flex-shrink: 0; }' +
+      '.ticket-comanda .total-row { font-weight: 700; font-size: 13px; margin-top: 4px; }' +
+      '.ticket-comanda .pago-line { font-weight: 700; margin: 4px 0; font-size: 11px; }' +
+      '.ticket-comanda .comanda-foot { background: transparent; color: #555; font-size: 8px; font-weight: 400; text-align: center; padding: 6px 2px 0; border-top: 1px dashed #ccc; }'
+    );
+  }
+
+  function printTicketElement(ticketEl) {
+    if (!ticketEl || !ticketEl.outerHTML) return false;
+    return printTicketHtml(
+      ticketEl.classList && ticketEl.classList.contains('ticket-comanda')
+        ? ticketEl.outerHTML
+        : '<article class="ticket ticket-comanda">' + ticketEl.innerHTML + '</article>'
+    );
+  }
+
+  function printTicketHtml(articleHtml) {
+    if (!articleHtml) return false;
+    var iframe = document.createElement('iframe');
+    iframe.setAttribute('title', 'Impresión comanda');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText =
+      'position:fixed;width:0;height:0;border:0;margin:0;padding:0;left:0;top:0;opacity:0;pointer-events:none';
+    document.body.appendChild(iframe);
+    var win = iframe.contentWindow;
+    var doc = iframe.contentDocument || (win && win.document);
+    if (!doc || !win) {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      return false;
+    }
+    doc.open();
+    doc.write(
+      '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Comanda</title><style>' +
+        getThermalPrintCss() +
+        '</style></head><body>' +
+        articleHtml +
+        '</body></html>'
+    );
+    doc.close();
+    var cleanup = function () {
+      if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+    };
+    win.onafterprint = function () {
+      cleanup();
+      win.onafterprint = null;
+    };
+    setTimeout(function () {
+      try {
+        win.focus();
+        win.print();
+      } catch (e) {
+        cleanup();
+      }
+    }, 200);
+    return true;
+  }
+
+  function printOrderTicket(order) {
+    if (!order) return false;
+    var inner = renderTicketHtml(order);
+    return printTicketHtml(
+      '<article class="ticket ticket-comanda" data-comanda-ver="11" aria-label="Comanda térmica">' +
+        inner +
+        '</article>'
+    );
+  }
+
   global.BravaComanda = {
+    COMANDA_VER: 11,
     renderTicketHtml: renderTicketHtml,
     readStoredOrder: readStoredOrder,
     storeOrderForPrint: storeOrderForPrint,
+    printTicketElement: printTicketElement,
+    printOrderTicket: printOrderTicket,
   };
 
   function showStandaloneError(msg) {
@@ -290,7 +397,8 @@
     $('ticket-root').innerHTML = renderTicketHtml(order);
     if ($('btn-print')) {
       $('btn-print').onclick = function () {
-        window.print();
+        if (printOrderTicket(order)) return;
+        if (!printTicketElement($('ticket-root'))) window.print();
       };
     }
   }

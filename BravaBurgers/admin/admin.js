@@ -3004,11 +3004,20 @@
 
     }
 
+    if (!window.BravaComanda.printOrderTicket || window.BravaComanda.COMANDA_VER !== 11) {
+
+      alert('Versión vieja de comanda.js. Recargá el admin con Ctrl+Shift+R (necesitás comanda v11).');
+
+      return;
+
+    }
+
     window.BravaComanda.storeOrderForPrint(o);
 
     $('comanda-ticket-inner').innerHTML = window.BravaComanda.renderTicketHtml(o);
-
-    $('comanda-modal-title').textContent = 'Comanda ' + o.orn;
+    if ($('comanda-modal-title')) {
+      $('comanda-modal-title').textContent = 'Comanda ' + o.orn;
+    }
 
     $('comanda-modal').classList.remove('hidden');
 
@@ -3020,6 +3029,7 @@
 
     $('comanda-modal').classList.add('hidden');
 
+    document.documentElement.classList.remove('printing-comanda');
     document.body.classList.remove('printing-comanda');
 
   }
@@ -3027,49 +3037,41 @@
 
 
   function printComandaModal() {
-
-    document.body.classList.add('printing-comanda');
-
-    var done = function () {
-
-      document.body.classList.remove('printing-comanda');
-
-    };
-
-    if (window.matchMedia) {
-
-      window.matchMedia('print').addEventListener(
-
-        'change',
-
-        function m(e) {
-
-          if (!e.matches) {
-
-            done();
-
-            window.matchMedia('print').removeEventListener('change', m);
-
-          }
-
-        },
-
-        { once: true }
-
-      );
-
+    var order =
+      window.BravaComanda && window.BravaComanda.readStoredOrder
+        ? window.BravaComanda.readStoredOrder()
+        : null;
+    if (window.BravaComanda && order && window.BravaComanda.printOrderTicket) {
+      if (window.BravaComanda.printOrderTicket(order)) return;
+    }
+    var ticket = $('comanda-ticket-inner');
+    if (window.BravaComanda && window.BravaComanda.printTicketElement && ticket) {
+      if (window.BravaComanda.printTicketElement(ticket)) return;
     }
 
-    window.onafterprint = function () {
-
-      done();
-
-      window.onafterprint = null;
-
+    document.documentElement.classList.add('printing-comanda');
+    document.body.classList.add('printing-comanda');
+    var done = function () {
+      document.documentElement.classList.remove('printing-comanda');
+      document.body.classList.remove('printing-comanda');
     };
-
+    if (window.matchMedia) {
+      window.matchMedia('print').addEventListener(
+        'change',
+        function m(e) {
+          if (!e.matches) {
+            done();
+            window.matchMedia('print').removeEventListener('change', m);
+          }
+        },
+        { once: true }
+      );
+    }
+    window.onafterprint = function () {
+      done();
+      window.onafterprint = null;
+    };
     window.print();
-
   }
 
 
