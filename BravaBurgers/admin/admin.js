@@ -982,6 +982,34 @@
     );
   }
 
+  function tktRow(l, r, rowClass) {
+    return (
+      '<tr class="' +
+      (rowClass || 'tkt-data') +
+      '"><td class="tkt-l">' +
+      l +
+      '</td><td class="tkt-r">' +
+      r +
+      '</td></tr>'
+    );
+  }
+
+  function tktSep(dashed) {
+    return (
+      '<tr class="' +
+      (dashed ? 'tkt-sep' : 'tkt-sep-solid') +
+      '"><td colspan="2" aria-hidden="true"></td></tr>'
+    );
+  }
+
+  function tktHead(text) {
+    return '<tr class="tkt-head"><td colspan="2">' + text + '</td></tr>';
+  }
+
+  function tktCenter(html) {
+    return '<tr class="tkt-center"><td colspan="2">' + html + '</td></tr>';
+  }
+
   function buildCierreResumenHtml(snapshot, cierreId, cierreWhenIso) {
     var st = snapshot.st;
     var neg = st.resultado < 0;
@@ -990,92 +1018,60 @@
     var productos = (st.productosVentas || []).filter(function (x) {
       return x.qty > 0;
     });
-    var productosHtml;
+    var productosHtml = '';
     if (!productos.length) {
-      productosHtml = '<div class="meta">Sin hamburguesas en el turno.</div>';
+      productosHtml = tktCenter('<span class="meta">Sin hamburguesas en el turno.</span>');
     } else {
-      productosHtml = productos
-        .map(function (x) {
-          return (
-            '<div class="row"><span>' +
-            escapeHtml(x.nombre) +
-            '</span><span class="bold">' +
-            x.qty +
-            '</span></div>'
-          );
-        })
-        .join('');
+      productos.forEach(function (x) {
+        productosHtml += tktRow(escapeHtml(x.nombre), String(x.qty), 'tkt-data');
+      });
     }
     var gastosList = snapshot.gastos || [];
-    var gastosHtml = gastosList
-      .map(function (g) {
+    var gastosHtml = '';
+    if (!gastosList.length) {
+      gastosHtml = tktCenter('<span class="meta">Sin gastos</span>');
+    } else {
+      gastosList.forEach(function (g) {
         var pag = gastoPagadoLabel(g);
         var lbl = escapeHtml(g.concepto || '') + (pag ? ' (' + escapeHtml(pag) + ')' : '');
-        return (
-          '<div class="row"><span>' +
-          lbl +
-          '</span><span>-$' +
-          fmt(g.monto) +
-          '</span></div>'
-        );
-      })
-      .join('');
-    if (!gastosHtml) {
-      gastosHtml = '<div class="meta">Sin gastos</div>';
+        gastosHtml += tktRow(lbl, '-$' + fmt(g.monto));
+      });
     }
     var resultadoStr = (neg ? '-$' : '$') + fmt(Math.abs(st.resultado));
     return (
-      '<div class="center brand">BRAVA BURGERS</div>' +
-      '<div class="center meta">' +
-      escapeHtml(cierreId || '—') +
-      ' · ' +
-      escapeHtml(snapshot.periodoLbl) +
-      '</div>' +
-      '<div class="center meta">Apertura ' +
-      escapeHtml(aperturaLbl) +
-      '</div>' +
-      '<div class="center meta">Cierre ' +
-      escapeHtml(cierreLbl) +
-      '</div>' +
-      '<div class="line-solid"></div>' +
-      '<div class="section-title">VENTAS (entregados)</div>' +
-      '<div class="row"><span>Efectivo</span><span>$' +
-      fmt(st.ef) +
-      '</span></div>' +
-      '<div class="row"><span>Mercado Pago</span><span>$' +
-      fmt(st.mp) +
-      '</span></div>' +
-      '<div class="line"></div>' +
-      '<div class="row total-row"><span>Total ventas</span><span>$' +
-      fmt(st.ventas) +
-      '</span></div>' +
-      '<div class="row"><span>Cancelados (info)</span><span>$' +
-      fmt(st.cancel) +
-      '</span></div>' +
-      '<div class="line"></div>' +
-      '<div class="section-title">GASTOS</div>' +
+      '<table class="tkt" role="presentation">' +
+      tktCenter('<span class="brand">BRAVA BURGERS</span>') +
+      tktCenter(
+        '<span class="meta">' +
+          escapeHtml(cierreId || '—') +
+          ' · ' +
+          escapeHtml(snapshot.periodoLbl) +
+          '</span>'
+      ) +
+      tktCenter('<span class="meta">Apertura ' + escapeHtml(aperturaLbl) + '</span>') +
+      tktCenter('<span class="meta">Cierre ' + escapeHtml(cierreLbl) + '</span>') +
+      tktSep(false) +
+      tktHead('Ventas (entregados)') +
+      tktRow('Efectivo', '$' + fmt(st.ef)) +
+      tktRow('Mercado Pago', '$' + fmt(st.mp)) +
+      tktSep(true) +
+      tktRow('Total ventas', '$' + fmt(st.ventas), 'tkt-total') +
+      tktRow('Cancelados (info)', '$' + fmt(st.cancel)) +
+      tktSep(true) +
+      tktHead('Gastos') +
       gastosHtml +
-      '<div class="line"></div>' +
-      '<div class="row total-row"><span>Total gastos</span><span>-$' +
-      fmt(st.gTotal) +
-      '</span></div>' +
-      '<div class="line-solid"></div>' +
-      '<div class="row total-row"><span>Resultado turno</span><span>' +
-      resultadoStr +
-      '</span></div>' +
-      '<div class="line-solid"></div>' +
-      '<div class="section-title">HAMBURGUESAS</div>' +
+      tktSep(true) +
+      tktRow('Total gastos', '-$' + fmt(st.gTotal), 'tkt-total') +
+      tktSep(false) +
+      tktRow('Resultado turno', resultadoStr, 'tkt-total') +
+      tktSep(false) +
+      tktHead('Hamburguesas') +
       productosHtml +
-      '<div class="row"><span>Simples / Dobles</span><span>' +
-      Math.round(st.simples) +
-      ' / ' +
-      Math.round(st.dobles) +
-      '</span></div>' +
-      '<div class="line"></div>' +
-      '<div class="row total-row"><span>Total</span><span>' +
-      Math.round(st.hambTotal) +
-      ' u.</span></div>' +
-      '<div class="footer-note">Brava Burgers · Cierre de caja</div>'
+      tktRow('Simples / Dobles', Math.round(st.simples) + ' / ' + Math.round(st.dobles)) +
+      tktSep(true) +
+      tktRow('Total', Math.round(st.hambTotal) + ' u.', 'tkt-total') +
+      tktCenter('<span class="footer-note">Brava Burgers · Cierre de caja</span>') +
+      '</table>'
     );
   }
 
@@ -1103,12 +1099,15 @@
   function closeCierreResumenModal() {
     var modal = $('cierre-resumen-modal');
     if (modal) modal.classList.add('hidden');
+    document.documentElement.classList.remove('printing-cierre-caja');
     document.body.classList.remove('printing-cierre-caja');
   }
 
   function printCierreResumenModal() {
+    document.documentElement.classList.add('printing-cierre-caja');
     document.body.classList.add('printing-cierre-caja');
     var done = function () {
+      document.documentElement.classList.remove('printing-cierre-caja');
       document.body.classList.remove('printing-cierre-caja');
     };
     if (window.matchMedia) {
