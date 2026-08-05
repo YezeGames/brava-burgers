@@ -1346,9 +1346,13 @@
 
               ? 'Falta configurar ADMIN_USER y ADMIN_PASSWORD en Vercel'
 
+              : res.data.error === 'server_error'
+
+                ? 'Error en el servidor (Vercel). Esperá 1 minuto y probá de nuevo.'
+
               : res.data.error === 'invalid_gas_response' || res.data.error === 'invalid_response'
 
-                ? 'Error al conectar con Google. Probá en unos minutos.'
+                ? 'Error al conectar con el servidor. Probá en unos minutos.'
 
                 : 'Usuario o contraseña incorrectos';
 

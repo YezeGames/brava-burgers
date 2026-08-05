@@ -1,4 +1,10 @@
-const { createClient } = require('@supabase/supabase-js');
+function getCreateClient() {
+  try {
+    return require('@supabase/supabase-js').createClient;
+  } catch {
+    return null;
+  }
+}
 
 function supabaseUrl() {
   return process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -22,13 +28,14 @@ function anonKey() {
 }
 
 function isSupabaseConfigured() {
-  return Boolean(supabaseUrl() && serviceRoleKey());
+  return Boolean(getCreateClient() && supabaseUrl() && serviceRoleKey());
 }
 
 function getServiceClient() {
+  const createClient = getCreateClient();
   const url = supabaseUrl();
   const key = serviceRoleKey();
-  if (!url || !key) return null;
+  if (!createClient || !url || !key) return null;
   return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
@@ -38,8 +45,12 @@ async function createAdminSupabaseSession() {
   const email = process.env.SUPABASE_ADMIN_EMAIL;
   const password = process.env.SUPABASE_ADMIN_PASSWORD;
   if (!sb || !email || !password) return null;
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  if (error || !data.session) return null;
+  try {
+    var { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error || !data.session) return null;
+  } catch {
+    return null;
+  }
   return {
     url: supabaseUrl(),
     anonKey: anonKey(),

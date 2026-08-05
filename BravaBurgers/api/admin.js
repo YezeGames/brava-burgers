@@ -9,13 +9,30 @@ const {
   deleteGasto,
 } = require('../lib/bravaSupabase');
 
+function parseRequestBody(req) {
+  let body = req.body;
+  if (typeof body === 'string') {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      body = {};
+    }
+  }
+  return body && typeof body === 'object' ? body : {};
+}
+
 async function handleSupabaseAdmin(body) {
   const { action, token } = body;
 
   if (action === 'login') {
     const login = checkAdminLogin(body.user, body.password);
     if (!login.ok) return login;
-    const realtime = await createAdminSupabaseSession();
+    let realtime = null;
+    try {
+      realtime = await createAdminSupabaseSession();
+    } catch {
+      realtime = null;
+    }
     return {
       ok: true,
       token: login.token,
@@ -116,10 +133,16 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const body = req.body || {};
+  const body = parseRequestBody(req);
   if (!body.action) return res.status(400).json({ ok: false, error: 'missing_action' });
 
-  const data = isSupabaseConfigured() ? await handleSupabaseAdmin(body) : await handleGasAdmin(body);
+  let data;
+  try {
+    data = isSupabaseConfigured() ? await handleSupabaseAdmin(body) : await handleGasAdmin(body);
+  } catch (err) {
+    console.error('admin handler error', err);
+    return res.status(500).json({ ok: false, error: 'server_error' });
+  }
 
   if (!data.ok) {
     const authErrors = ['unauthorized', 'invalid_credentials', 'admin_not_configured'];
