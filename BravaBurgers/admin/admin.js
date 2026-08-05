@@ -767,6 +767,13 @@
     return dd + '/' + mm + ' ' + hh + ':' + mi + ':' + ss;
   }
 
+  function formatCierreMetaWhen(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('es-AR');
+  }
+
   function updateVentasRegistroChrome() {
     var hint = $('ventas-turno-hint');
     if (!hint) return;
@@ -998,35 +1005,45 @@
     return html + '</tbody></table>';
   }
 
+  function cierreProductosGridHtml(productos) {
+    if (!productos.length) {
+      return '<p class="resumen-note">Sin hamburguesas en el turno.</p>';
+    }
+    return (
+      '<div class="productos-grid">' +
+      productos
+        .map(function (x) {
+          return (
+            '<div class="producto-cell"><span class="n">' +
+            escapeHtml(x.nombre) +
+            '</span><span class="q">' +
+            x.qty +
+            '</span></div>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
   function buildCierreResumenHtml(snapshot, cierreId, cierreWhenIso) {
     var st = snapshot.st;
     var neg = st.resultado < 0;
-    var cierreLbl = formatCierreTicketWhen(cierreWhenIso || new Date().toISOString());
-    var aperturaLbl = formatCierreTicketWhen(snapshot.aperturaIso);
+    var cierreIso = cierreWhenIso || new Date().toISOString();
     var productos = (st.productosVentas || []).filter(function (x) {
       return x.qty > 0;
     });
-    var productosBlock = '';
-    if (!productos.length) {
-      productosBlock = '<p class="resumen-note">Sin hamburguesas en el turno.</p>';
-    } else {
-      var prows = productos.map(function (x) {
-        return { l: escapeHtml(x.nombre), r: String(x.qty) };
-      });
-      productosBlock = resumenTblRows(prows);
-    }
     var gastosList = snapshot.gastos || [];
-    var grows = [];
+    var gastosRows = [];
     gastosList.forEach(function (g) {
       var pag = gastoPagadoLabel(g);
       var lbl = escapeHtml(g.concepto || '') + (pag ? ' (' + escapeHtml(pag) + ')' : '');
-      grows.push({ l: lbl, r: '-$' + fmt(g.monto) });
+      gastosRows.push({ l: lbl, r: '−$' + fmt(g.monto) });
     });
-    if (!grows.length) {
-      grows.push({ l: 'Sin gastos', r: '$0' });
+    if (!gastosRows.length) {
+      gastosRows.push({ l: 'Sin gastos', r: '$0', c: 'res-muted' });
     }
-    grows.push({ l: 'Total gastos', r: '-$' + fmt(st.gTotal), c: 'res-total' });
-    var resultadoStr = (neg ? '-$' : '$') + fmt(Math.abs(st.resultado));
+    var resultadoStr = (neg ? '−$' : '$') + fmt(Math.abs(st.resultado));
     return (
       '<div class="resumen-top">' +
       '<div class="brand">BRAVA BURGERS</div>' +
@@ -1035,9 +1052,9 @@
       ' · ' +
       escapeHtml(snapshot.periodoLbl) +
       '<br>Apertura ' +
-      escapeHtml(aperturaLbl) +
+      escapeHtml(formatCierreMetaWhen(snapshot.aperturaIso)) +
       ' · Cierre ' +
-      escapeHtml(cierreLbl) +
+      escapeHtml(formatCierreMetaWhen(cierreIso)) +
       '</div></div>' +
       '<div class="resumen-block"><h3>Ventas (entregados ✓)</h3>' +
       resumenTblRows([
@@ -1048,7 +1065,7 @@
       ]) +
       '</div>' +
       '<div class="resumen-block"><h3>Gastos</h3>' +
-      resumenTblRows(grows) +
+      resumenTblRows(gastosRows.concat([{ l: 'Total gastos', r: '−$' + fmt(st.gTotal), c: 'res-total' }])) +
       '</div>' +
       '<div class="resultado-inline' +
       (neg ? ' neg' : '') +
@@ -1056,7 +1073,7 @@
       resumenTblRows([{ l: 'Resultado turno', r: resultadoStr, c: 'res-result' }]) +
       '</div>' +
       '<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
-      productosBlock +
+      cierreProductosGridHtml(productos) +
       resumenTblRows([
         {
           l: 'Simples / Dobles',
