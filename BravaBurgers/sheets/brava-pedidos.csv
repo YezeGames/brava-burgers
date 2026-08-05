@@ -1,1 +1,1 @@
-orn,fecha_creado,estado,cliente,telefono,direccion,localidad,piso,turno,zona,envio,pago,items_json,subtotal,total,modificado,modificado_at,entregado_at,cancelado_at
+orn,fecha_creado,estado,cliente,telefono,direccion,localidad,piso,turno,zona,envio,pago,items_json,subtotal,total,modificado,modificado_at,entregado_at,cancelado_at,aceptado_at,rechazado_at,rechazo_mensaje

@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Brava — Órdenes + Caja + Gastos (demo)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+			padding: 24px 16px 48px;
+		}
+		.demo-banner {
+			max-width: 1200px;
+			margin: 0 auto 16px;
+			padding: 10px 14px;
+			background: #1a1a1a;
+			color: #fff;
+			border-radius: 8px;
+			border-left: 4px solid #FF6B35;
+			font-size: 0.85rem;
+		}
+		.demo-banner strong { color: #FF6B35; }
+		.layout {
+			max-width: 1200px;
+			margin: 0 auto;
+			display: grid;
+			grid-template-columns: 1fr 280px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 960px) {
+			.layout { grid-template-columns: 1fr; }
+			.sidebar { order: -1; }
+		}
+		.wrap, .sidebar-block {
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0,0,0,.08);
+		}
+		.wrap { padding: 28px 24px 16px; }
+		.sidebar-block { padding: 20px 16px; margin-bottom: 16px; }
+		.sidebar-block:last-child { margin-bottom: 0; }
+		@media (min-width: 961px) {
+			.sidebar { position: sticky; top: 16px; }
+		}
+		.caja-box h2, .gastos-box h2 {
+			margin: 0 0 12px;
+			font-size: 1rem;
+			color: #444;
+			border-bottom: 2px solid #FF6B35;
+			padding-bottom: 8px;
+		}
+		.caja-row {
+			display: flex;
+			justify-content: space-between;
+			margin: 6px 0;
+			font-size: 0.85rem;
+		}
+		.caja-row.section { margin-top: 10px; font-weight: 600; color: #555; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+		.caja-row.negative { color: #c62828; }
+		.caja-row.total-ventas {
+			font-weight: 600;
+			padding-top: 8px;
+			border-top: 1px dashed #eee;
+		}
+		.caja-row.resultado {
+			font-weight: 700;
+			font-size: 1.05rem;
+			margin-top: 12px;
+			padding-top: 12px;
+			border-top: 2px solid #FF6B35;
+			color: #1a1a1a;
+		}
+		.caja-row.resultado.neg { color: #c62828; }
+		.caja-row.resultado.pos { color: #2e7d32; }
+		.caja-hint { margin: 10px 0 0; font-size: 0.72rem; color: #888; line-height: 1.4; }
+		h1 { margin: 0 0 16px; font-size: 1.75rem; font-weight: 400; color: #444; }
+		.tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #eee; flex-wrap: wrap; }
+		.tab {
+			padding: 10px 16px; border: none; background: none; cursor: pointer;
+			font-size: 0.9rem; color: #666; border-bottom: 2px solid transparent; margin-bottom: -1px;
+		}
+		.tab.active { color: #111; font-weight: 600; border-bottom-color: #FF6B35; }
+		.tab .count {
+			display: inline-block; min-width: 1.25rem; padding: 0 6px; margin-left: 4px;
+			background: #eee; border-radius: 10px; font-size: 0.75rem;
+		}
+		.filters {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+			gap: 12px 16px;
+			align-items: end;
+			margin-bottom: 16px;
+			padding-bottom: 16px;
+			border-bottom: 1px solid #eee;
+		}
+		.filters label { display: block; font-size: 0.75rem; color: #666; margin-bottom: 4px; }
+		.filters input, .filters select {
+			width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;
+		}
+		.filter-actions { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
+		.btn {
+			padding: 8px 16px; border-radius: 4px; font-size: 0.8rem; font-weight: 600;
+			cursor: pointer; border: 1px solid #ccc; background: #fff;
+		}
+		.btn-primary { background: #333; color: #fff; border-color: #333; }
+		.btn-accent { background: #FF6B35; color: #fff; border-color: #FF6B35; }
+		.btn-accent:hover { background: #E55A25; }
+		.btn-sm { padding: 5px 8px; font-size: 0.7rem; }
+		table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+		th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eee; }
+		th { font-weight: 600; color: #555; font-size: 0.8rem; }
+		td.total { font-weight: 600; }
+		.actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+		.btn-wa {
+			display: inline-flex; align-items: center; padding: 6px 10px;
+			background: #25D366; color: #fff; border: none; border-radius: 6px; font-size: 0.75rem; text-decoration: none;
+		}
+		.btn-icon {
+			width: 32px; height: 32px; border-radius: 6px; border: 2px solid;
+			background: #fff; cursor: pointer; font-weight: 700; font-size: 1rem;
+			display: inline-flex; align-items: center; justify-content: center;
+		}
+		.btn-icon.accept { border-color: #2e7d32; color: #2e7d32; }
+		.btn-icon.deliver { border-color: #2e7d32; color: #2e7d32; }
+		.btn-icon.reject { border-color: #c62828; color: #c62828; }
+		.btn-icon.cancel { border-color: #c62828; color: #c62828; }
+		.empty { text-align: center; padding: 24px; color: #999; font-size: 0.9rem; }
+		.gasto-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 200px; overflow-y: auto; }
+		.gasto-list li {
+			display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+			padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.8rem;
+		}
+		.gasto-list li:last-child { border-bottom: none; }
+		.gasto-list .concept { flex: 1; }
+		.gasto-list .concept small { display: block; color: #888; margin-top: 2px; }
+		.gasto-list .monto { font-weight: 600; white-space: nowrap; }
+		.gasto-list .btn-del {
+			border: none; background: none; color: #c62828; cursor: pointer; padding: 2px 4px; font-size: 0.85rem;
+		}
+		.gastos-empty { font-size: 0.8rem; color: #999; margin: 8px 0 0; }
+		.modal-backdrop {
+			position: fixed; inset: 0; background: rgba(0,0,0,.45);
+			display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100;
+		}
+		.modal-backdrop[hidden] { display: none; }
+		.modal {
+			background: #fff; border-radius: 8px; max-width: 400px; width: 100%;
+			padding: 20px; box-shadow: 0 8px 32px rgba(0,0,0,.2);
+		}
+		.modal.modal-wide { max-width: 480px; }
+		.modal h2 { margin: 0 0 4px; font-size: 1.1rem; }
+		.modal .sub { font-size: 0.8rem; color: #666; margin-bottom: 14px; }
+		.modal label { display: block; font-size: 0.75rem; color: #666; margin-bottom: 4px; margin-top: 10px; }
+		.modal input, .modal select, .modal textarea {
+			width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem;
+		}
+		.modal textarea { min-height: 72px; resize: vertical; font-family: inherit; }
+		.motivo-list { border: 1px solid #eee; border-radius: 6px; padding: 8px 12px; margin-top: 6px; }
+		.motivo-list label {
+			display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 0.9rem; color: #333; cursor: pointer;
+		}
+		.motivo-list input { width: auto; margin: 0; }
+		.msg-preview {
+			margin-top: 12px; padding: 10px 12px; background: #f5f5f5; border-radius: 6px;
+			font-size: 0.8rem; white-space: pre-wrap; color: #444; max-height: 140px; overflow-y: auto;
+		}
+		.btn-wa-modal {
+			display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px;
+			background: #25D366; color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer;
+		}
+		.modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+		.range-label { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+	</style>
+</head>
+<body>
+	<p class="demo-banner">
+		<strong>Demo — flujo + caja + gastos</strong> · <strong>Pendientes:</strong> Aceptar / Rechazar (modal con motivos y WhatsApp) · <strong>Aceptados:</strong> ✓ entregar · ✕ cancelar
+	</p>
+
+	<div class="layout">
+		<div class="wrap">
+			<h1>Órdenes</h1>
+
+			<div class="tabs">
+				<button type="button" class="tab active" data-tab="pendiente">Pendientes <span class="count" id="count-pendiente">0</span></button>
+				<button type="button" class="tab" data-tab="aceptado">Aceptados <span class="count" id="count-aceptado">0</span></button>
+				<button type="button" class="tab" data-tab="rechazado">Rechazados <span class="count" id="count-rechazado">0</span></button>
+				<button type="button" class="tab" data-tab="entregada">Entregados <span class="count" id="count-entregada">0</span></button>
+				<button type="button" class="tab" data-tab="cancelada">Cancelados <span class="count" id="count-cancelada">0</span></button>
+			</div>
+
+			<div class="filters">
+				<div>
+					<label for="desde">Desde</label>
+					<input type="date" id="desde">
+				</div>
+				<div>
+					<label for="hasta">Hasta</label>
+					<input type="date" id="hasta">
+				</div>
+				<div>
+					<label for="pago">Pago</label>
+					<select id="pago">
+						<option value="">Todos</option>
+						<option>Efectivo</option>
+						<option>Mercado Pago</option>
+					</select>
+				</div>
+				<div class="filter-actions">
+					<button type="button" class="btn btn-primary" id="btn-aplicar">APLICAR</button>
+					<button type="button" class="btn" id="btn-reset">RESTABLECER</button>
+				</div>
+			</div>
+
+			<div style="overflow-x:auto">
+				<table>
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th>Cliente</th>
+							<th>Teléfono</th>
+							<th>Pago</th>
+							<th>Total</th>
+							<th>Acciones</th>
+						</tr>
+					</thead>
+					<tbody id="tbody"></tbody>
+				</table>
+				<p class="empty" id="empty" hidden>No hay pedidos en esta lista.</p>
+			</div>
+		</div>
+
+		<div class="sidebar">
+			<aside class="sidebar-block caja-box">
+				<h2>Caja</h2>
+				<p class="range-label" id="caja-range">—</p>
+				<div class="caja-row section">Ventas (entregados ✓)</div>
+				<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
+				<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
+				<div class="caja-row total-ventas"><span>Total ventas</span><span id="caja-ventas">$0</span></div>
+				<div class="caja-row negative" style="margin-top:8px;"><span>Cancelados (info)</span><span id="caja-cancel">$0</span></div>
+				<div class="caja-row section">Salidas</div>
+				<div class="caja-row negative"><span>Gastos</span><span id="caja-gastos">−$0</span></div>
+				<div class="caja-row resultado pos" id="row-resultado">
+					<span>Resultado</span><span id="caja-resultado">$0</span>
+				</div>
+				<p class="caja-hint">Resultado = ventas entregadas − gastos. Pendientes / aceptados no suman hasta ✓ entregado.</p>
+			</aside>
+
+			<aside class="sidebar-block gastos-box">
+				<h2>Gastos</h2>
+				<button type="button" class="btn btn-accent" style="width:100%;" id="btn-add-gasto">+ Agregar gasto</button>
+				<ul class="gasto-list" id="gasto-list"></ul>
+				<p class="gastos-empty" id="gastos-empty" hidden>Sin gastos en este período.</p>
+			</aside>
+		</div>
+	</div>
+
+	<div class="modal-backdrop" id="rechazo-modal" hidden>
+		<div class="modal modal-wide">
+			<h2>Rechazar pedido</h2>
+			<p class="sub" id="rechazo-sub"></p>
+			<p style="margin:0 0 4px;font-size:0.75rem;color:#666;">Motivo (podés marcar más de uno)</p>
+			<div class="motivo-list" id="rechazo-motivos">
+				<label><input type="checkbox" value="Local Cerrado"> Local Cerrado</label>
+				<label><input type="checkbox" value="Problemas Técnicos"> Problemas Técnicos</label>
+				<label><input type="checkbox" value="TURNO LLENO"> TURNO LLENO</label>
+			</div>
+			<label for="rechazo-extra">Mensaje adicional</label>
+			<textarea id="rechazo-extra" placeholder="Texto opcional para el cliente…"></textarea>
+			<label>Vista previa</label>
+			<div class="msg-preview" id="rechazo-preview"></div>
+			<div class="modal-foot">
+				<button type="button" class="btn" id="rechazo-close">Cerrar</button>
+				<button type="button" class="btn-wa-modal" id="rechazo-wa"><i class="fab fa-whatsapp"></i> Enviar por WhatsApp</button>
+				<button type="button" class="btn btn-primary" id="rechazo-confirm">Confirmar rechazo</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-backdrop" id="gasto-modal" hidden>
+		<div class="modal">
+			<h2>Agregar gasto</h2>
+			<label for="g-concepto">Concepto</label>
+			<input type="text" id="g-concepto" placeholder="Ej. Pan, carne, bolsas…">
+			<label for="g-monto">Monto ($)</label>
+			<input type="number" id="g-monto" min="1" step="1" placeholder="15000">
+			<label for="g-fecha">Fecha</label>
+			<input type="date" id="g-fecha">
+			<label for="g-pagado">Salió de (opcional)</label>
+			<select id="g-pagado">
+				<option value="">—</option>
+				<option value="efectivo">Efectivo</option>
+				<option value="transferencia">Transferencia / MP</option>
+				<option value="otro">Otro</option>
+			</select>
+			<div class="modal-foot">
+				<button type="button" class="btn" id="g-cancel">Cancelar</button>
+				<button type="button" class="btn btn-primary" id="g-save">Guardar</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		function fmt(n) {
+			return Math.round(n).toLocaleString('es-AR');
+		}
+
+		function todayIso() {
+			var d = new Date();
+			return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+		}
+
+		function parseOrderDate(fechaStr) {
+			var m = /^(\d{2})\/(\d{2})\/(\d{4})/.exec(fechaStr || '');
+			if (!m) return null;
+			return m[3] + '-' + m[2] + '-' + m[1];
+		}
+
+		function inRange(isoDate, desde, hasta) {
+			if (!isoDate) return true;
+			if (desde && isoDate < desde) return false;
+			if (hasta && isoDate > hasta) return false;
+			return true;
+		}
+
+		var today = todayIso();
+		var todayDisplay = today.split('-').reverse().join('/').replace(/(\d+)\/(\d+)\/(\d+)/, function (_, d, mo, y) {
+			return d + '/' + mo + '/' + y;
+		});
+
+		function makeFecha(h, min) {
+			var p = today.split('-');
+			return p[2] + '/' + p[1] + '/' + p[0] + ' ' + String(h).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+		}
+
+		var orders = [
+			{ id: '1', orn: 'ORN-DEL-0020', fecha: makeFecha(20, 15), cliente: 'María González', tel: '11 6234-5678', wa: '5491162345678', pago: 'Mercado Pago', envio: 800, estado: 'pendiente', total: 25500 },
+			{ id: '2', orn: 'ORN-DEL-0021', fecha: makeFecha(20, 42), cliente: 'Lucas Pérez', tel: '11 5555-1234', wa: '5491155551234', pago: 'Efectivo', envio: 500, estado: 'pendiente', total: 19200 },
+			{ id: '6', orn: 'ORN-DEL-0022', fecha: makeFecha(20, 50), cliente: 'Sofía Lema', tel: '11 7000-1111', wa: '5491170001111', pago: 'Efectivo', envio: 500, estado: 'aceptado', total: 17800 },
+			{ id: '3', orn: 'ORN-DEL-0018', fecha: makeFecha(19, 10), cliente: 'Camila Ruiz', tel: '11 7372-1945', wa: '5491173721945', pago: 'Efectivo', envio: 800, estado: 'entregada', total: 22800 },
+			{ id: '4', orn: 'ORN-DEL-0019', fecha: makeFecha(19, 55), cliente: 'Tomás Acosta', tel: '11 6012-8899', wa: '5491160128899', pago: 'Mercado Pago', envio: 800, estado: 'entregada', total: 31100 },
+			{ id: '5', orn: 'ORN-DEL-0017', fecha: makeFecha(18, 30), cliente: 'Ana Test', tel: '11 4000-0000', wa: '5491140000000', pago: 'Efectivo', envio: 500, estado: 'cancelada', total: 17500 }
+		];
+
+		var gastos = [
+			{ id: 'g1', fecha: today, concepto: 'Pan — mayorista', monto: 12000, pagado: 'efectivo' },
+			{ id: 'g2', fecha: today, concepto: 'Bolsas delivery', monto: 3500, pagado: 'transferencia' }
+		];
+		var nextGastoId = 3;
+
+		var currentTab = 'pendiente';
+		var filterDesde = today;
+		var filterHasta = today;
+		var filterPago = '';
+		var rechazoOrderId = null;
+
+		document.getElementById('desde').value = today;
+		document.getElementById('hasta').value = today;
+
+		document.querySelectorAll('.tab').forEach(function (btn) {
+			btn.addEventListener('click', function () {
+				currentTab = btn.dataset.tab;
+				document.querySelectorAll('.tab').forEach(function (t) {
+					t.classList.toggle('active', t.dataset.tab === currentTab);
+				});
+				renderTable();
+			});
+		});
+
+		document.getElementById('btn-aplicar').addEventListener('click', function () {
+			filterDesde = document.getElementById('desde').value;
+			filterHasta = document.getElementById('hasta').value;
+			filterPago = document.getElementById('pago').value;
+			renderAll();
+		});
+
+		document.getElementById('btn-reset').addEventListener('click', function () {
+			document.getElementById('desde').value = today;
+			document.getElementById('hasta').value = today;
+			document.getElementById('pago').value = '';
+			filterDesde = today;
+			filterHasta = today;
+			filterPago = '';
+			renderAll();
+		});
+
+		function ordersInFilter() {
+			return orders.filter(function (o) {
+				var iso = parseOrderDate(o.fecha);
+				if (!inRange(iso, filterDesde, filterHasta)) return false;
+				if (filterPago && o.pago !== filterPago) return false;
+				return true;
+			});
+		}
+
+		function gastosInFilter() {
+			return gastos.filter(function (g) {
+				return inRange(g.fecha, filterDesde, filterHasta);
+			});
+		}
+
+		function setEstado(id, estado) {
+			var o = orders.find(function (x) { return x.id === id; });
+			if (!o) return;
+			if (estado === 'cancelada' && !confirm('¿Cancelar ' + o.orn + '?')) return;
+			o.estado = estado;
+			renderAll();
+		}
+
+		function aceptarPedido(id) {
+			var o = orders.find(function (x) { return x.id === id; });
+			if (!o) return;
+			o.estado = 'aceptado';
+			o.aceptadoAt = new Date().toLocaleString('es-AR');
+			renderAll();
+		}
+
+		function buildRechazoMessage(o) {
+			var motivos = [];
+			document.querySelectorAll('#rechazo-motivos input:checked').forEach(function (cb) {
+				motivos.push(cb.value);
+			});
+			var extra = (document.getElementById('rechazo-extra').value || '').trim();
+			var first = (o.cliente || '').split(' ')[0];
+			var lines = [
+				'Hola ' + first + ', somos Brava Burgers.',
+				'',
+				'Lamentamos informarte que no podemos tomar tu pedido ' + o.orn + '.'
+			];
+			if (motivos.length) {
+				lines.push('');
+				lines.push('Motivo:');
+				motivos.forEach(function (m) { lines.push('• ' + m); });
+			}
+			if (extra) {
+				lines.push('');
+				lines.push(extra);
+			}
+			lines.push('');
+			lines.push('Gracias por tu comprensión.');
+			return lines.join('\n');
+		}
+
+		function updateRechazoPreview() {
+			var o = orders.find(function (x) { return x.id === rechazoOrderId; });
+			if (!o) return;
+			document.getElementById('rechazo-preview').textContent = buildRechazoMessage(o);
+		}
+
+		function openRechazo(id) {
+			rechazoOrderId = id;
+			var o = orders.find(function (x) { return x.id === id; });
+			if (!o) return;
+			document.getElementById('rechazo-sub').textContent = o.orn + ' · ' + o.cliente + ' · ' + o.tel;
+			document.querySelectorAll('#rechazo-motivos input').forEach(function (cb) { cb.checked = false; });
+			document.getElementById('rechazo-extra').value = '';
+			updateRechazoPreview();
+			document.getElementById('rechazo-modal').hidden = false;
+		}
+
+		function closeRechazo() {
+			rechazoOrderId = null;
+			document.getElementById('rechazo-modal').hidden = true;
+		}
+
+		function confirmRechazo(openWa) {
+			var o = orders.find(function (x) { return x.id === rechazoOrderId; });
+			if (!o) return;
+			var msg = buildRechazoMessage(o);
+			o.estado = 'rechazado';
+			o.rechazadoAt = new Date().toLocaleString('es-AR');
+			o.rechazoMensaje = msg;
+			closeRechazo();
+			if (openWa) {
+				window.open('https://wa.me/' + o.wa + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+			}
+			renderAll();
+		}
+
+		window.setEstado = setEstado;
+		window.aceptarPedido = aceptarPedido;
+		window.openRechazo = openRechazo;
+
+		function updateCaja() {
+			var pool = ordersInFilter();
+			var ef = 0, mp = 0, cancel = 0;
+			pool.forEach(function (o) {
+				if (o.estado === 'entregada') {
+					if (o.pago === 'Efectivo') ef += o.total;
+					else mp += o.total;
+				}
+				if (o.estado === 'cancelada') cancel += o.total;
+			});
+			var ventas = ef + mp;
+			var gList = gastosInFilter();
+			var gTotal = 0;
+			gList.forEach(function (g) { gTotal += g.monto; });
+			var resultado = ventas - gTotal;
+
+			document.getElementById('caja-ef').textContent = '$' + fmt(ef);
+			document.getElementById('caja-mp').textContent = '$' + fmt(mp);
+			document.getElementById('caja-ventas').textContent = '$' + fmt(ventas);
+			document.getElementById('caja-cancel').textContent = '$' + fmt(cancel);
+			document.getElementById('caja-gastos').textContent = '−$' + fmt(gTotal);
+			document.getElementById('caja-resultado').textContent = (resultado < 0 ? '−$' : '$') + fmt(Math.abs(resultado));
+
+			var row = document.getElementById('row-resultado');
+			row.classList.remove('pos', 'neg');
+			row.classList.add(resultado >= 0 ? 'pos' : 'neg');
+
+			var desdeLbl = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
+			var hastaLbl = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
+			document.getElementById('caja-range').textContent =
+				desdeLbl === hastaLbl ? 'Período: ' + desdeLbl : 'Período: ' + desdeLbl + ' — ' + hastaLbl;
+		}
+
+		function renderGastos() {
+			var list = gastosInFilter();
+			var ul = document.getElementById('gasto-list');
+			var empty = document.getElementById('gastos-empty');
+			ul.innerHTML = '';
+			if (list.length === 0) {
+				empty.hidden = false;
+				return;
+			}
+			empty.hidden = true;
+			list.forEach(function (g) {
+				var li = document.createElement('li');
+				var pagadoLbl = g.pagado === 'efectivo' ? 'Efectivo' : g.pagado === 'transferencia' ? 'Transferencia' : g.pagado ? g.pagado : '';
+				li.innerHTML =
+					'<div class="concept">' + escapeHtml(g.concepto) +
+					(pagadoLbl ? '<small>' + pagadoLbl + '</small>' : '') + '</div>' +
+					'<span class="monto">−$' + fmt(g.monto) + '</span>' +
+					'<button type="button" class="btn-del" title="Quitar" data-id="' + g.id + '">✕</button>';
+				ul.appendChild(li);
+			});
+			ul.querySelectorAll('.btn-del').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					var id = btn.getAttribute('data-id');
+					if (!confirm('¿Eliminar este gasto?')) return;
+					gastos = gastos.filter(function (g) { return g.id !== id; });
+					renderAll();
+				});
+			});
+		}
+
+		function escapeHtml(s) {
+			var d = document.createElement('div');
+			d.textContent = s;
+			return d.innerHTML;
+		}
+
+		function updateCounts() {
+			var pool = ordersInFilter();
+			['pendiente', 'aceptado', 'rechazado', 'entregada', 'cancelada'].forEach(function (s) {
+				var n = pool.filter(function (o) { return o.estado === s; }).length;
+				var el = document.getElementById('count-' + s);
+				if (el) el.textContent = n;
+			});
+		}
+
+		function renderTable() {
+			var list = ordersInFilter().filter(function (o) { return o.estado === currentTab; });
+			var tbody = document.getElementById('tbody');
+			var empty = document.getElementById('empty');
+			tbody.innerHTML = '';
+			if (list.length === 0) {
+				empty.hidden = false;
+			} else {
+				empty.hidden = true;
+			}
+			list.forEach(function (o) {
+				var tr = document.createElement('tr');
+				var actions = '<div class="actions">' +
+					'<a class="btn-wa" href="https://wa.me/' + o.wa + '" target="_blank" rel="noopener"><i class="fab fa-whatsapp"></i></a>';
+				if (o.estado === 'pendiente') {
+					actions += '<button type="button" class="btn-icon accept" title="Aceptar" onclick="aceptarPedido(\'' + o.id + '\')">✓</button>';
+					actions += '<button type="button" class="btn-icon reject" title="Rechazar" onclick="openRechazo(\'' + o.id + '\')">✕</button>';
+				}
+				if (o.estado === 'aceptado') {
+					actions += '<button type="button" class="btn-icon deliver" title="Entregado" onclick="setEstado(\'' + o.id + '\',\'entregada\')">✓</button>';
+					actions += '<button type="button" class="btn-icon cancel" title="Cancelar" onclick="setEstado(\'' + o.id + '\',\'cancelada\')">✕</button>';
+				}
+				actions += '</div>';
+				var extra = '';
+				if (o.estado === 'rechazado' && o.rechazoMensaje) {
+					extra = '<br><small style="color:#888">Motivo registrado</small>';
+				}
+				tr.innerHTML =
+					'<td>' + o.fecha + '<br><small style="color:#888">' + o.orn + '</small>' + extra + '</td>' +
+					'<td>' + escapeHtml(o.cliente) + '</td>' +
+					'<td>' + o.tel + '</td>' +
+					'<td>' + o.pago + '</td>' +
+					'<td class="total">$' + fmt(o.total) + '</td>' +
+					'<td>' + actions + '</td>';
+				tbody.appendChild(tr);
+			});
+		}
+
+		function renderAll() {
+			updateCounts();
+			renderTable();
+			updateCaja();
+			renderGastos();
+		}
+
+		document.getElementById('rechazo-close').addEventListener('click', closeRechazo);
+		document.getElementById('rechazo-extra').addEventListener('input', updateRechazoPreview);
+		document.querySelectorAll('#rechazo-motivos input').forEach(function (cb) {
+			cb.addEventListener('change', updateRechazoPreview);
+		});
+		document.getElementById('rechazo-wa').addEventListener('click', function () {
+			var o = orders.find(function (x) { return x.id === rechazoOrderId; });
+			if (!o) return;
+			var msg = buildRechazoMessage(o);
+			window.open('https://wa.me/' + o.wa + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+		});
+		document.getElementById('rechazo-confirm').addEventListener('click', function () {
+			var o = orders.find(function (x) { return x.id === rechazoOrderId; });
+			if (!o) return;
+			var motivos = document.querySelectorAll('#rechazo-motivos input:checked').length;
+			var extra = (document.getElementById('rechazo-extra').value || '').trim();
+			if (!motivos && !extra) {
+				if (!confirm('¿Rechazar sin motivo ni mensaje?')) return;
+			}
+			if (confirm('¿Confirmar rechazo de ' + o.orn + '?')) {
+				confirmRechazo(false);
+			}
+		});
+
+		document.getElementById('btn-add-gasto').addEventListener('click', function () {
+			document.getElementById('g-concepto').value = '';
+			document.getElementById('g-monto').value = '';
+			document.getElementById('g-fecha').value = filterHasta || today;
+			document.getElementById('g-pagado').value = '';
+			document.getElementById('gasto-modal').hidden = false;
+			document.getElementById('g-concepto').focus();
+		});
+
+		document.getElementById('g-cancel').addEventListener('click', function () {
+			document.getElementById('gasto-modal').hidden = true;
+		});
+
+		document.getElementById('g-save').addEventListener('click', function () {
+			var concepto = document.getElementById('g-concepto').value.trim();
+			var monto = parseFloat(document.getElementById('g-monto').value, 10);
+			var fecha = document.getElementById('g-fecha').value || today;
+			var pagado = document.getElementById('g-pagado').value;
+			if (!concepto || !monto || monto <= 0) {
+				alert('Completá concepto y monto.');
+				return;
+			}
+			gastos.unshift({
+				id: 'g' + nextGastoId++,
+				fecha: fecha,
+				concepto: concepto,
+				monto: monto,
+				pagado: pagado
+			});
+			document.getElementById('gasto-modal').hidden = true;
+			renderAll();
+		});
+
+		renderAll();
+	</script>
+</body>
+</html>

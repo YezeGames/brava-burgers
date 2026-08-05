@@ -5,8 +5,19 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const { action, token, user, password, orn, estado, items, subtotal, total, estadoFilter } =
-    req.body || {};
+  const {
+    action,
+    token,
+    user,
+    password,
+    orn,
+    estado,
+    items,
+    subtotal,
+    total,
+    estadoFilter,
+    rechazoMensaje,
+  } = req.body || {};
 
   if (!action) return res.status(400).json({ ok: false, error: 'missing_action' });
 
@@ -23,6 +34,7 @@ module.exports = async function handler(req, res) {
       if (items) payload.items = items;
       if (subtotal != null) payload.subtotal = subtotal;
       if (total != null) payload.total = total;
+      if (rechazoMensaje != null) payload.rechazoMensaje = rechazoMensaje;
     }
   }
 

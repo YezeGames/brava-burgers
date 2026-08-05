@@ -30,10 +30,13 @@ var HEADERS = [
   'modificado_at',
   'entregado_at',
   'cancelado_at',
+  'aceptado_at',
+  'rechazado_at',
+  'rechazo_mensaje',
 ];
 
 function doGet(e) {
-  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 5 });
+  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 6 });
 }
 
 function doPost(e) {
@@ -94,8 +97,28 @@ function getPedidosSheet_() {
   } else if (sh.getLastRow() === 0) {
     sh.appendRow(HEADERS);
     sh.setFrozenRows(1);
+  } else {
+    syncPedidosHeaders_(sh);
   }
   return sh;
+}
+
+function syncPedidosHeaders_(sh) {
+  var lastCol = Math.max(1, sh.getLastColumn());
+  var row = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+  var have = row.map(function (h) {
+    return String(h || '')
+      .trim()
+      .toLowerCase();
+  });
+  for (var i = 0; i < HEADERS.length; i++) {
+    var key = HEADERS[i].toLowerCase();
+    if (have.indexOf(key) < 0) {
+      lastCol += 1;
+      sh.getRange(1, lastCol).setValue(HEADERS[i]);
+      have.push(key);
+    }
+  }
 }
 
 function nextOrn_() {
@@ -124,7 +147,7 @@ function appendOrderRow_(order) {
   var row = [
     orn,
     now,
-    'activa',
+    'pendiente',
     order.cliente || '',
     order.telefono || '',
     order.direccion || '',
@@ -137,6 +160,9 @@ function appendOrderRow_(order) {
     itemsJson,
     subtotal,
     total,
+    '',
+    '',
+    '',
     '',
     '',
     '',
@@ -253,7 +279,10 @@ function rowToOrder_(headers, row) {
       .toLowerCase();
     if (key) o[key] = row[c];
   }
-  if (o.estado != null) o.estado = String(o.estado).trim().toLowerCase();
+  if (o.estado != null) {
+    o.estado = String(o.estado).trim().toLowerCase();
+    if (o.estado === 'activa') o.estado = 'pendiente';
+  }
   if (o.fecha_creado instanceof Date) {
     o.fecha_creado = o.fecha_creado.toISOString();
   }
@@ -278,13 +307,18 @@ function updateOrder_(body) {
     if (String(data[i][ornCol] || '').trim() !== String(orn).trim()) continue;
     var rowNum = i + 1;
     if (body.estado) {
-      setCell_(sh, headers, rowNum, 'estado', body.estado);
-      if (body.estado === 'entregada') {
-        setCell_(sh, headers, rowNum, 'entregado_at', new Date());
+      var est = String(body.estado).trim().toLowerCase();
+      setCell_(sh, headers, rowNum, 'estado', est);
+      var now = new Date();
+      if (est === 'aceptado') setCell_(sh, headers, rowNum, 'aceptado_at', now);
+      if (est === 'rechazado') {
+        setCell_(sh, headers, rowNum, 'rechazado_at', now);
+        if (body.rechazoMensaje != null) {
+          setCell_(sh, headers, rowNum, 'rechazo_mensaje', String(body.rechazoMensaje));
+        }
       }
-      if (body.estado === 'cancelada') {
-        setCell_(sh, headers, rowNum, 'cancelado_at', new Date());
-      }
+      if (est === 'entregada') setCell_(sh, headers, rowNum, 'entregado_at', now);
+      if (est === 'cancelada') setCell_(sh, headers, rowNum, 'cancelado_at', now);
     }
     if (body.items) {
       setCell_(sh, headers, rowNum, 'items_json', JSON.stringify(body.items));
