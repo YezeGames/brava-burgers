@@ -68,7 +68,7 @@
     return n === 'sin extra' || n === 'sin extras';
   }
 
-  /** "Sin: A, B · nota libre" → líneas separadas para cocina */
+  /** "Sin: A, B · nota libre" → una sola línea Acl: para cocina */
   function splitAclaracionesComanda(acl) {
     var raw = String(acl || '').trim();
     if (!raw) return { sin: '', nota: '' };
@@ -86,6 +86,35 @@
       notas = [];
     }
     return { sin: sin, nota: notas.join(' · ') };
+  }
+
+  function formatAclLineComanda(acl) {
+    var raw = String(acl || '').trim();
+    if (!raw) return '';
+    var p = splitAclaracionesComanda(raw);
+    var out = '';
+    if (p.sin) {
+      var items = p.sin
+        .split(',')
+        .map(function (s) {
+          return s.trim();
+        })
+        .filter(Boolean);
+      out = items
+        .map(function (ing) {
+          if (/^sin\s/i.test(ing)) {
+            return ing.charAt(0).toUpperCase() + ing.slice(1);
+          }
+          return 'Sin ' + ing;
+        })
+        .join(', ');
+      out += '.';
+    }
+    if (p.nota) {
+      out += (out ? ' ' : '') + p.nota;
+    }
+    if (!out) return raw;
+    return out;
   }
 
   function itemUnitPrecio(it) {
@@ -107,20 +136,14 @@
       var lineTotal = qty * precio;
       var variedad = itemVariedad(it);
       var acl = itemAcl(it);
-      var aclParts = splitAclaracionesComanda(acl);
+      var aclLine = formatAclLineComanda(acl);
       html += '<div class="item">';
       html += '<div class="item-name">' + esc(qty) + ' x ' + esc(itemName(it)) + '</div>';
       if (variedad && !isSinExtraVariedad(variedad)) {
         html += '<div class="item-detail item-extras">Extras: ' + esc(variedad) + '</div>';
       }
-      if (aclParts.sin) {
-        html +=
-          '<div class="item-sin-ing">Sacar: ' + esc(aclParts.sin) + '</div>';
-      }
-      if (aclParts.nota) {
-        html += '<div class="item-aclaracion">Acl.: ' + esc(aclParts.nota) + '</div>';
-      } else if (acl && !aclParts.sin) {
-        html += '<div class="item-aclaracion">Acl.: ' + esc(acl) + '</div>';
+      if (aclLine) {
+        html += '<div class="item-aclaracion">Acl: ' + esc(aclLine) + '</div>';
       }
       html += '<div class="row"><span></span><span>Subtotal ' + esc(fmtMoney(lineTotal)) + '</span></div>';
       html += '</div>';
