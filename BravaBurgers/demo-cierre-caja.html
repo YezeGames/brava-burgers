@@ -191,17 +191,7 @@
 			margin: 3px 0;
 		}
 		.line-producto .qty { font-weight: 700; min-width: 1.5rem; text-align: right; }
-		.line-producto.favorita { color: #e65100; }
-		.tag-fav {
-			font-size: 0.6rem;
-			background: #fff3e0;
-			color: #e65100;
-			padding: 1px 5px;
-			border-radius: 3px;
-			margin-left: 4px;
-			font-weight: 700;
-		}
-		.sheet-note { font-size: 0.72rem; color: #888; margin-top: 8px; }
+		.order-note { font-size: 0.72rem; color: #888; margin-top: 8px; }
 
 		@media print {
 			body { background: #fff; padding: 0; }
@@ -223,7 +213,7 @@
 		<h1>Cierre de caja — resumen diario</h1>
 		<p class="lead">
 			Simula un turno abierto con ventas, gastos y hamburguesas. Al tocar <strong>Cierre de caja</strong> ves confirmación y
-			después el <strong>resumen del día</strong> (como ticket / reporte).
+			después el <strong>resumen del día</strong>. Las hamburguesas se cuentan sumando ítems de <strong>comandas entregadas ✓</strong> (como hará el admin), no desde el Sheet.
 		</p>
 
 		<div class="card mock-sidebar">
@@ -247,10 +237,10 @@
 				</div>
 			</div>
 			<div class="por-producto-wrap" id="sidebar-productos">
-				<h4>Ventas por producto (menú Sheet)</h4>
+				<h4>Desglose por comanda (entregados ✓)</h4>
 				<div id="m-por-producto"></div>
 			</div>
-			<p class="sheet-note" id="sheet-status">Cargando menú desde Google Sheet…</p>
+			<p class="order-note">Demo: números de ejemplo. En el admin se suman los ítems de cada pedido entregado en el turno.</p>
 			<button type="button" class="btn btn-accent" id="btn-cierre">Cierre de caja</button>
 		</div>
 	</div>
@@ -287,12 +277,7 @@
 		</div>
 	</div>
 
-	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script>
-		var SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
-		var menuHamburguesas = [];
-		var ventasPorProducto = {};
-
 		var DEMO = {
 			periodo: '5/8/2026',
 			apertura: '5/8/2026, 18:30',
@@ -307,15 +292,15 @@
 				{ concepto: 'Bolsas / descartables', monto: 3200, pagado: 'Efectivo' },
 			],
 			pedidosEntregados: 23,
-			/** Cantidades demo por nombre exacto del Sheet (productos) */
-			ventasDemo: {
-				'Promo Cheese Simple': 6,
-				'Promo Cheese Doble': 4,
-				'Cheeseburger Simple': 5,
+			/** Simula conteo agregado desde líneas de comandas entregadas */
+			conteoComandas: {
 				'Cheeseburger Doble': 3,
-				'Vegan Crispy Simple': 2,
-				'Classic Brava Simple': 1,
+				'Cheeseburger Simple': 5,
 				'Classic Brava Doble': 2,
+				'Classic Brava Simple': 1,
+				'Promo Cheese Doble': 4,
+				'Promo Cheese Simple': 6,
+				'Vegan Crispy Simple': 2,
 			},
 		};
 
@@ -323,132 +308,50 @@
 			return Math.round(n).toLocaleString('es-AR');
 		}
 
-		function isOculto(row) {
-			var v = String(row.Ocultar || row.ocultar || '')
-				.trim()
-				.toLowerCase();
-			return v === 'si' || v === 'sí' || v === 'true' || v === '1';
+		function esDobleNombre(nombre) {
+			var t = String(nombre || '').toLowerCase();
+			return t.indexOf('doble') >= 0 || t.indexOf('triple') >= 0;
 		}
 
-		function esHamburguesaRow(row) {
-			var cat = String(row.Categoria || row.categoria || '').toLowerCase();
-			return cat.indexOf('hamburg') >= 0;
-		}
-
-		function esDobleProducto(p) {
-			var sub = String(p.subcategoria || '').toLowerCase();
-			var n = String(p.nombre || '').toLowerCase();
-			if (sub.indexOf('doble') >= 0 || sub.indexOf('triple') >= 0) return true;
-			return n.indexOf('doble') >= 0 || n.indexOf('triple') >= 0;
-		}
-
-		function syncVentasFromMenu() {
-			ventasPorProducto = {};
-			menuHamburguesas.forEach(function (p) {
-				var q = DEMO.ventasDemo[p.nombre];
-				if (q == null) q = 0;
-				ventasPorProducto[p.nombre] = Number(q) || 0;
-			});
-			Object.keys(DEMO.ventasDemo).forEach(function (nombre) {
-				if (ventasPorProducto[nombre] == null) {
-					menuHamburguesas.push({ nombre: nombre, subcategoria: '' });
-					ventasPorProducto[nombre] = DEMO.ventasDemo[nombre];
-				}
-			});
+		function productosDesdeComandas(soloConVentas) {
+			var list = Object.keys(DEMO.conteoComandas)
+				.map(function (nombre) {
+					return { nombre: nombre, qty: DEMO.conteoComandas[nombre] || 0 };
+				})
+				.sort(function (a, b) {
+					return a.nombre.localeCompare(b.nombre, 'es');
+				});
+			if (soloConVentas) {
+				list = list.filter(function (x) {
+					return x.qty > 0;
+				});
+			}
+			return list;
 		}
 
 		function hambStats() {
 			var simples = 0;
 			var dobles = 0;
-			menuHamburguesas.forEach(function (p) {
-				var q = ventasPorProducto[p.nombre] || 0;
-				if (esDobleProducto(p)) dobles += q;
-				else simples += q;
+			productosDesdeComandas(false).forEach(function (p) {
+				if (esDobleNombre(p.nombre)) dobles += p.qty;
+				else simples += p.qty;
 			});
-			return {
-				simples: simples,
-				dobles: dobles,
-				hambTotal: simples + dobles,
-			};
+			return { simples: simples, dobles: dobles, hambTotal: simples + dobles };
 		}
 
-		function productosOrdenados() {
-			return menuHamburguesas
-				.map(function (p) {
-					return { nombre: p.nombre, qty: ventasPorProducto[p.nombre] || 0 };
-				})
-				.sort(function (a, b) {
-					return b.qty - a.qty || a.nombre.localeCompare(b.nombre, 'es');
-				});
-		}
-
-		function topFavoritas(limit) {
-			return productosOrdenados()
-				.filter(function (x) {
-					return x.qty > 0;
-				})
-				.slice(0, limit || 3);
-		}
-
-		function loadMenuFromSheet() {
-			var url =
-				'https://docs.google.com/spreadsheets/d/' +
-				SHEET_ID +
-				'/gviz/tq?tqx=out:csv&sheet=productos';
-			return fetch(url)
-				.then(function (r) {
-					if (!r.ok) throw new Error('fetch');
-					return r.text();
-				})
-				.then(function (csv) {
-					var parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
-					menuHamburguesas = (parsed.data || [])
-						.filter(function (row) {
-							return !isOculto(row) && esHamburguesaRow(row) && String(row.Nombre || '').trim();
-						})
-						.map(function (row) {
-							return {
-								nombre: String(row.Nombre).trim(),
-								subcategoria: String(row.Subcategoria || row.subcategoria || '').trim(),
-							};
-						});
-					syncVentasFromMenu();
-					var el = document.getElementById('sheet-status');
-					if (el) el.textContent = 'Menú: ' + menuHamburguesas.length + ' hamburguesas del Sheet (ventas demo simuladas).';
-				})
-				.catch(function () {
-					menuHamburguesas = Object.keys(DEMO.ventasDemo).map(function (n) {
-						return { nombre: n, subcategoria: n.toLowerCase().indexOf('doble') >= 0 ? 'Dobles' : 'Simples' };
-					});
-					syncVentasFromMenu();
-					var el = document.getElementById('sheet-status');
-					if (el) el.textContent = 'Sin Sheet — mostrando productos demo locales.';
-				});
-		}
-
-		function renderPorProducto(targetId, compact) {
+		function renderPorProducto(targetId, soloConVentas) {
 			var el = document.getElementById(targetId);
 			if (!el) return;
-			var favs = topFavoritas(3).map(function (x) {
-				return x.nombre;
-			});
-			var lines = productosOrdenados();
-			if (compact) lines = lines.filter(function (x) {
-				return x.qty > 0;
-			});
+			var lines = productosDesdeComandas(soloConVentas);
 			if (!lines.length) {
-				el.innerHTML = '<p class="sheet-note">Sin productos en menú.</p>';
+				el.innerHTML = '<p class="order-note">Sin hamburguesas en comandas del turno.</p>';
 				return;
 			}
 			el.innerHTML = lines
 				.map(function (x) {
-					var fav = favs.indexOf(x.nombre) >= 0 && x.qty > 0;
 					return (
-						'<div class="line-producto' +
-						(fav ? ' favorita' : '') +
-						'"><span>' +
+						'<div class="line-producto"><span>' +
 						x.nombre +
-						(fav ? ' <span class="tag-fav">★ Favorita</span>' : '') +
 						':</span><span class="qty">' +
 						x.qty +
 						'</span></div>'
@@ -490,6 +393,20 @@
 			renderPorProducto('m-por-producto', true);
 		}
 
+		function productosResumenHtml() {
+			return productosDesdeComandas(false)
+				.map(function (x) {
+					return (
+						'<div class="line"><span>' +
+						x.nombre +
+						':</span><strong>' +
+						x.qty +
+						'</strong></div>'
+					);
+				})
+				.join('');
+		}
+
 		function openConfirm() {
 			var st = stats();
 			var msg =
@@ -529,30 +446,7 @@
 			var st = stats();
 			DEMO.cierre = new Date().toLocaleString('es-AR');
 			var neg = st.resultado < 0;
-			var favs = topFavoritas(3);
-			var favHtml = favs.length
-				? favs
-						.map(function (x, i) {
-							return '<div class="line"><span>' + (i + 1) + '. ' + x.nombre + '</span><strong>' + x.qty + '</strong></div>';
-						})
-						.join('')
-				: '<div class="line muted"><span>Sin ventas en el turno</span></div>';
-			var productosHtml = productosOrdenados()
-				.map(function (x) {
-					var fav = favs.some(function (f) {
-						return f.nombre === x.nombre;
-					});
-					return (
-						'<div class="line"' +
-						(fav && x.qty > 0 ? ' style="color:#e65100;font-weight:600;"' : '') +
-						'><span>' +
-						x.nombre +
-						':</span><strong>' +
-						x.qty +
-						'</strong></div>'
-					);
-				})
-				.join('');
+			var productosHtml = productosResumenHtml();
 			var gastosHtml = DEMO.gastos
 				.map(function (g) {
 					return (
@@ -604,12 +498,9 @@
 				'<div class="line" style="margin-top:8px;font-weight:700;"><span>Cantidad total:</span><strong>' +
 				st.hambTotal +
 				' Hamburguesas</strong></div></div>' +
-				'<div class="resumen-block"><h3>Ventas por producto (menú Sheet)</h3>' +
+				'<div class="resumen-block"><h3>Comandas — hamburguesas vendidas</h3>' +
 				productosHtml +
-				'</div>' +
-				'<div class="resumen-block"><h3>★ Favoritas del turno</h3>' +
-				favHtml +
-				'<p class="line muted" style="margin:8px 0 0;font-size:0.75rem;">Top 3 con más unidades vendidas en el turno.</p></div>' +
+				'<p class="line muted" style="margin:8px 0 0;font-size:0.75rem;">Orden alfabético. Solo ítems de pedidos entregados ✓ en el turno.</p></div>' +
 				'<div class="resumen-block"><h3>Gastos del turno</h3>' +
 				gastosHtml +
 				'<div class="line" style="margin-top:10px;font-weight:600;"><span>Total gastos</span><span>−$' +
@@ -647,7 +538,7 @@
 			window.print();
 		});
 
-		loadMenuFromSheet().then(paintMock);
+		paintMock();
 	</script>
 </body>
 </html>

@@ -515,7 +515,18 @@
       simples: 0,
       dobles: 0,
       hambTotal: 0,
+      productosVentas: [],
     };
+  }
+
+  function buildProductosVentasList(porProducto) {
+    return Object.keys(porProducto || {})
+      .sort(function (a, b) {
+        return a.localeCompare(b, 'es');
+      })
+      .map(function (nombre) {
+        return { nombre: nombre, qty: porProducto[nombre] };
+      });
   }
 
   function computeSesionStats() {
