@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Brava — Comanda</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			min-height: 100vh;
+			background: #1a1a1a;
+			color: #fff;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			padding: 24px 16px 48px;
+		}
+		.preview-bar {
+			max-width: 320px;
+			margin: 0 auto 16px;
+			text-align: center;
+		}
+		.preview-bar h1 {
+			font-size: 1rem;
+			font-weight: 600;
+			color: #FF6B35;
+			margin: 0 0 8px;
+		}
+		.preview-bar p {
+			font-size: 0.85rem;
+			color: #aaa;
+			margin: 0 0 12px;
+		}
+		.preview-bar button {
+			background: #FF6B35;
+			color: #fff;
+			border: none;
+			padding: 10px 20px;
+			border-radius: 8px;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.preview-bar button:hover { background: #E55A25; }
+		.preview-bar .err { color: #ff8a80; font-size: 0.9rem; }
+
+		.ticket-wrap {
+			max-width: 302px;
+			margin: 0 auto;
+			box-shadow: 0 8px 32px rgba(0,0,0,.5);
+		}
+		.ticket {
+			background: #fff;
+			color: #111;
+			font-family: "Courier New", Courier, monospace;
+			font-size: 12px;
+			line-height: 1.35;
+			padding: 12px 10px 16px;
+			width: 100%;
+		}
+		.ticket .center { text-align: center; }
+		.ticket .bold { font-weight: 700; }
+		.ticket .line { border-top: 1px dashed #333; margin: 8px 0; }
+		.ticket .line-solid { border-top: 2px solid #111; margin: 8px 0; }
+		.ticket .brand { font-size: 14px; font-weight: 700; letter-spacing: 0.5px; }
+		.ticket .meta { font-size: 11px; }
+		.ticket .section-title {
+			font-weight: 700;
+			font-size: 11px;
+			margin-top: 4px;
+		}
+		.ticket .item { margin: 6px 0; }
+		.ticket .item-name { font-weight: 700; }
+		.ticket .item-detail { padding-left: 8px; font-size: 11px; }
+		.ticket .item-aclaracion {
+			padding-left: 8px;
+			font-size: 11px;
+			font-weight: 700;
+		}
+		.ticket .row {
+			display: flex;
+			justify-content: space-between;
+			gap: 8px;
+		}
+		.ticket .total-row {
+			font-weight: 700;
+			font-size: 13px;
+			margin-top: 4px;
+		}
+		.ticket .pago-line {
+			font-weight: 700;
+			margin: 4px 0;
+		}
+		.ticket .edit-note {
+			font-size: 10px;
+			font-weight: 700;
+			margin-top: 4px;
+		}
+		.ticket .footer-note {
+			font-size: 9px;
+			text-align: center;
+			margin-top: 8px;
+			color: #444;
+		}
+
+		@media print {
+			body { background: #fff; padding: 0; }
+			.preview-bar { display: none; }
+			.ticket-wrap { max-width: none; box-shadow: none; margin: 0; }
+			.ticket { width: 80mm; padding: 4mm; font-size: 11px; }
+			@page { size: 80mm auto; margin: 0; }
+		}
+	</style>
+</head>
+<body>
+	<div class="preview-bar">
+		<h1 id="bar-title">Comanda — Brava Burgers</h1>
+		<p id="bar-sub">Ticket 80 mm — revisá antes de imprimir</p>
+		<button type="button" id="btn-print">Imprimir comanda</button>
+		<p class="err hidden" id="bar-err"></p>
+	</div>
+
+	<div class="ticket-wrap">
+		<article class="ticket" id="ticket-root" aria-label="Comanda térmica"></article>
+	</div>
+
+	<script src="/admin/comanda.js?v=1"></script>
+</body>
+</html>

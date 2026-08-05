@@ -231,7 +231,7 @@
 
         realtimeLive = true;
 
-        if ($('poll-status')) $('poll-status').textContent = 'En vivo · Supabase';
+        updatePollStatusLabel();
 
         startPolling();
 
@@ -789,6 +789,8 @@
 
       print.dataset.action = 'ticket';
 
+      print.dataset.orn = o.orn;
+
       actions.appendChild(print);
 
 
@@ -937,7 +939,23 @@
 
     updateCajaUI();
 
-    $('poll-status').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-AR');
+    updatePollStatusLabel();
+
+  }
+
+
+
+  function updatePollStatusLabel() {
+
+    var el = $('poll-status');
+
+    if (!el) return;
+
+    var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    if (realtimeLive) el.textContent = 'En vivo · Supabase · lista al día ' + t;
+
+    else el.textContent = 'Lista al día ' + t + ' (sync automático)';
 
   }
 
@@ -1414,6 +1432,40 @@
 
 
 
+  function findOrderByOrn(orn) {
+
+    for (var i = 0; i < allOrdersCache.length; i++) {
+
+      if (allOrdersCache[i].orn === orn) return allOrdersCache[i];
+
+    }
+
+    return null;
+
+  }
+
+
+
+  function openComanda(orn) {
+
+    var o = findOrderByOrn(orn);
+
+    if (!o) {
+
+      alert('No encontramos ese pedido. Probá APLICAR o recargá el panel.');
+
+      return;
+
+    }
+
+    sessionStorage.setItem('brava_comanda_print', JSON.stringify(o));
+
+    window.open('/admin/comanda.html', '_blank', 'noopener');
+
+  }
+
+
+
   $('orders-table').addEventListener('click', function (e) {
 
     var btn = e.target.closest('[data-action]');
@@ -1424,7 +1476,9 @@
 
     if (action === 'ticket') {
 
-      window.open('../comanda-ejemplo.html', '_blank');
+      var ornTicket = btn.dataset.orn;
+
+      if (ornTicket) openComanda(ornTicket);
 
       return;
 

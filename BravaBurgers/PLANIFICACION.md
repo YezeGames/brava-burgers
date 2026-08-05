@@ -1,235 +1,490 @@
 # Brava Burgers — planificación e ideas
 
+
+
 Archivo vivo del proyecto. Acá anotamos ideas, prioridades y decisiones.  
+
 Cuando quieras agregar algo, decilo en el chat y lo incorporamos acá.
 
+
+
 ---
+
+
 
 ## Lo que queremos (resumen — ago 2026)
 
+
+
 Documento único de **alcance deseado**. Maquetas: `comanda-ejemplo.html`, `panel-pedidos-ejemplo.html`.
+
+
 
 ### 1. Tienda (ya operativa, ajustes menores)
 
-- Catálogo y config desde **Google Sheet** (`productos`, `configuracion`).
+
+
+- Catálogo y config desde **Google Sheet** (`productos`, `configuracion`) — **sin cambiar**.
+
 - Cliente arma carrito → checkout → **WhatsApp** con el pedido (sigue existiendo).
+
 - **Delivery solo** — **sin retiro en local** por ahora (alinear zonas en Sheet cuando toque).
-- Agregar al checkout: **teléfono obligatorio**.
-- Arreglar **aclaraciones** (ej. “sin salsa”) para que entren bien al pedido guardado y a la comanda.
-- Al implementar panel: al confirmar pedido, **guardar en Sheet** además de (o antes de) abrir WA; incluir **ORN** en mensaje WA.
 
-### 2. Guardar pedidos — Google Sheets
+- Checkout: **teléfono obligatorio** (hecho).
 
-- Nueva hoja **`pedidos`** en el mismo Sheet del menú.
-- Contador **`ORN-DEL-0001`** en Sheet (solo delivery).
-- Escritura/lectura vía **Apps Script** (o API con secreto), no credenciales en el JS público.
-- Cada pedido: datos cliente, tel, dirección, turno, zona, envío, **Efectivo / Mercado Pago**, ítems + aclaraciones, total, estado, si fue **editado**.
+- **Aclaraciones** (ej. “sin salsa”) en pedido guardado y comanda (revisar si falta algún caso).
+
+- Al confirmar pedido: **guardar en Supabase** (Vercel `/api/pedido`) además de abrir WA; incluir **ORN** en mensaje WA.
+
+
+
+### 2. Guardar pedidos — Supabase (operaciones)
+
+
+
+- Tablas **`orders`**, **`gastos`**, contador **`admin_counters`** (`orn_del`, `gasto_id`).
+
+- Contador **`ORN-DEL-0001`** vía RPC `next_orn_del()` (solo delivery).
+
+- Escritura/lectura desde **Vercel** (`api/pedido.js`, `api/admin.js`) con **service role** en servidor; nada secreto en el JS público.
+
+- Cada pedido: datos cliente, tel, dirección, turno, zona, envío, **Efectivo / Mercado Pago**, ítems + aclaraciones (`items_json`), total, estado, flags **editado**, timestamps.
+
+- Schema: **`supabase/schema.sql`**. Guías: **`AYUDA_SUPABASE.md`**, **`VERCEL_SUPABASE_RAPIDO.md`**.
+
+- **Fallback legacy:** si Supabase no está configurado en Vercel, `/api/*` puede usar **Apps Script + Sheet** (`BRAVA_GAS_URL`). En producción el camino principal es **Supabase**.
+
+
 
 ### 3. Panel `/admin` (login usuario + contraseña)
 
+
+
 Pantalla **Órdenes** tipo deli (referencia capturada), adaptada a Brava:
 
+
+
 | Elemento | Detalle |
+
 |----------|---------|
-| **Pestañas** | **Activas** · **Entregados** · **Cancelados** |
-| **Filtros** | Fecha desde/hasta, **Pago** (EF / MP), APLICAR / RESTABLECER |
-| **Columnas** | Fecha, Cliente, **Teléfono** (no “Productos”), Método de pago, Total, Acciones |
-| **Buscar** | Operación diaria por **teléfono** / WhatsApp; ORN es **referencia** en comanda |
-| **Acciones (Activas)** | **Editar** · Imprimir ticket · **WhatsApp** · **✓ entregado** · **✕ cancelar** |
-| **✓** | Pasa a Entregados; **suma caja** (EF o MP) |
-| **✕** | Pasa a Cancelados; fecha de cancelación; **importe descontado** del cierre del día |
-| **Editar** | Más ítems/cantidades por WhatsApp sin re-pedido web; mismo ORN; reimprimir comanda; total final al entregar |
-| **Caja del día** | EF entregados + MP entregados; línea cancelados; activas no suman hasta ✓ |
-| **Sonido** | Aviso al **pedido nuevo** (activar sonido + polling al Sheet); probado en demo |
+
+| **Pestañas** | **Pendientes** · **Aceptados** · **Rechazados** · **Entregados** · **Cancelados** |
+
+| **Filtros** | Fecha desde/hasta, **Pago** (EF / MP), APLICAR / RESTABLECER *(pago/buscar: pendiente en UI)* |
+
+| **Columnas** | Fecha, Cliente, **Teléfono**, Método de pago, Total, ORN, Acciones |
+
+| **Buscar** | Operación diaria por **teléfono** / WhatsApp; ORN es **referencia** en comanda *(buscador: pendiente)* |
+
+| **Pendientes** | Aviso sonoro · **Aceptar** / **Rechazar** · WA · ticket |
+
+| **Aceptados** | **Editar** *(pendiente prod.)* · ticket · WA · **✓ entregado** · **✕ cancelar** |
+
+| **Rechazados** | WA consulta · solo lectura |
+
+| **✓ entregado** | Desde **Aceptados** → Entregados; **suma caja** (EF o MP) |
+
+| **✕ cancelar** | Desde **Aceptados** → Cancelados |
+
+| **Rechazar** | Desde **Pendientes** → Rechazados (modal motivos + WA) |
+
+| **Editar** | Mismo ORN; reimprimir comanda; total final al entregar *(pendiente prod.)* |
+
+| **Caja del día** | EF + MP entregados; cancelados info; **− gastos**; estados intermedios no suman |
+
+| **Gastos** | Alta/baja en Supabase; restan del **resultado del día** |
+
+| **Tiempo real** | **Supabase Realtime** en el navegador (+ polling de respaldo). Indicador “En vivo · Supabase” |
+
+
 
 ### 4. Comanda impresa (80 mm)
 
+
+
 - **Igual** para Efectivo y Mercado Pago; solo cambia línea **Medio de pago**.
+
 - Incluye: **ORN-DEL-…**, cliente, tel, dirección, turno, ítems, **Acl.:** por ítem, envío, total.
-- **Sin “Estado”** en el papel (no se actualiza en vivo).
-- Imprimir desde panel con datos reales del pedido (hoy: `comanda-ejemplo.html` como diseño).
+
+- **Sin “Estado”** en el papel.
+
+- **Pendiente:** ~~imprimir desde panel~~ → Ticket abre comanda real (`admin/comanda.html`).
+
+
 
 ### 5. Mercado Pago
 
+
+
 - **Solo etiqueta** en pedido y caja; **cobro manual** (transferencia, etc.).
+
 - **Sin** cobro automático ni webhooks por ahora.
+
+
 
 ### 6. Fuera de alcance (por ahora)
 
+
+
 - Retiro en local / `ORN-RET`.
+
 - Pasarela MP online.
-- Base Supabase/Firebase (elegido **Sheet**).
+
+- Volver a usar **Sheet como fuente única** de pedidos en el día a día (reemplazado por Supabase para operaciones).
+
+
 
 ### 7. Por construir (orden lógico)
 
-1. ~~Plantilla hoja `pedidos` + Apps Script~~ → **`apps-script/`** (desplegar en tu Sheet).
-2. ~~Checkout → guardar pedido + teléfono~~ → hecho (`/api/pedido`).
-3. ~~Admin mínimo~~ → **`/admin`** (login + listado + ✓/✕ + sonido).
-4. Comanda dinámica desde pedido real (ticket aún usa ejemplo).
-5. **Editar** comanda en admin producción (solo en demo HTML por ahora).
+
+
+1. ~~Schema Supabase + Vercel env + `/api/pedido` + `/api/admin`~~ → hecho.
+
+2. ~~Admin: pestañas, caja, gastos, rechazo, sonido~~ → hecho (Supabase).
+
+3. Comanda **dinámica** desde pedido real (ticket aún usa ejemplo).
+
+4. **Editar** comanda en admin producción (solo en demo HTML por ahora).
+
+5. Filtros **Pago** + **buscar por tel** + **RESTABLECER** en panel.
+
+6. Opcional: importar histórico Sheet operaciones → Supabase; dual-write a Sheet (backup).
+
+
 
 ---
+
+
 
 ## En curso / próximo
 
-1. **Vos (Google):** pegar `apps-script/Code.gs`, Script Properties, publicar web app → URL en Vercel.
-2. **Vercel:** `BRAVA_GAS_URL` + `BRAVA_ORDER_SECRET` (ver `.env.example`).
-3. Redeploy → probar checkout + **`/admin`**.
 
-Implementado en repo: `api/pedido.js`, `api/admin.js`, `admin/`, checkout con teléfono y POST pedido.
+
+1. Probar ciclo completo: pedido web → panel → aceptar → entregar → caja.
+
+2. Usuario **Supabase Auth** (`admin@brava.com`) para Realtime estable.
+
+3. Comanda dinámica + editar en Aceptados.
+
+4. Actualizar este doc al cerrar cada ítem.
+
+
+
+Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supabaseServer.js`, `api/pedido.js`, `api/admin.js`, `admin/` (v20+).
+
+
 
 ---
 
-## Decisiones (ago 2026)
+
+
+## Decisiones (ago 2026 — actualizado)
+
+
 
 | Tema | Decisión |
-|------|----------|
-| **Retiro en local** | **No** por el momento. Todos los pedidos son **delivery** (zonas de envío del Sheet). No usar `ORN-RET` hasta que exista retiro. |
-| **Persistencia** | **Google Sheets** (más simple). Catálogo ya está en Sheet; agregar pestaña **`pedidos`** (+ opcional `admin` / contador ORN). |
-| **ORN** | Solo **`ORN-DEL-{NNNN}`** mientras no haya retiro. |
 
-**Arquitectura Sheet (borrador):**
+|------|----------|
+
+| **Retiro en local** | **No** por el momento. Todos los pedidos son **delivery**. No usar `ORN-RET` hasta que exista retiro. |
+
+| **Menú / tienda** | **Google Sheet** (`productos`, `configuracion`) — Pedilo-compatible, sin backend propio para catálogo. |
+
+| **Operaciones (pedidos + caja + gastos + admin)** | **Supabase** (Postgres + Realtime + Auth para sesión admin). |
+
+| **ORN** | Solo **`ORN-DEL-{NNNN}`** mientras no haya retiro. Contador en **`admin_counters`**. |
+
+
+
+**Arquitectura actual:**
+
+
 
 | Pieza | Rol |
-|--------|-----|
-| Hoja **`pedidos`** | Una fila por pedido: ORN, fecha, cliente, tel, dirección, localidad, piso, turno, zona, envío, pago, ítems (JSON o columnas), total, estado (`activa` / `entregada` / `cancelada`), flags `modificado`, timestamps |
-| **Checkout web** | Tras validar formulario → **append** fila en `pedidos` (vía **Google Apps Script** web app o **Vercel Function** con service account) + seguir con WhatsApp |
-| **`/admin`** | Lee/filtra Sheet, ✓/✕/editar actualizan fila; imprimir comanda desde esos datos |
-| **Login admin** | No solo front: **Apps Script** o API con clave/sesión; contraseña no en el JS público |
 
-**Contador ORN:** celda o hoja **`config_pedidos`** en el mismo Sheet (último número DEL); al crear pedido incrementar y formatear `ORN-DEL-0001`.
+|--------|-----|
+
+| **Sheet (menú)** | Catálogo, precios, zonas, horarios, WhatsApp de la tienda |
+
+| **Supabase `orders`** | Una fila por pedido: ORN, fechas, cliente, tel, dirección, pago, `items_json`, total, `estado`, timestamps, `rechazo_mensaje`, etc. |
+
+| **Supabase `gastos`** | Gastos de caja (`GAS-0001` vía `next_gasto_id()`) |
+
+| **Checkout web** | POST **`/api/pedido`** → insert en Supabase + WA con `*Ref:* ORN-DEL-…` |
+
+| **`/admin`** | POST **`/api/admin`** → login Vercel (`ADMIN_USER`/`ADMIN_PASSWORD`); CRUD pedidos/gastos; Realtime opcional |
+
+| **Login admin** | Usuario **`admin`** (no email) en el formulario; email Supabase solo para Realtime en servidor |
+
+| **Apps Script + Sheet operaciones** | Legacy / respaldo si no hay Supabase; libro operaciones puede tener histórico previo a la migración |
+
+
+
+**Contador ORN:** tabla **`admin_counters`**, clave `orn_del`. Ajuste manual vía SQL si importás histórico (ver `AYUDA_SUPABASE.md`).
+
+
 
 ---
+
+
 
 ## Ideas (backlog)
 
+
+
 ### Panel administrativo (consulta — feb 2026)
 
+
+
 **Qué pidió el cliente:**
+
 - Login con usuario y contraseña.
+
 - Dashboard tipo **control de caja**: pedidos que entren, separar **Efectivo** vs **Mercado Pago**.
-- Sector **delivery / comanda**: ver datos del cliente, productos, total (como ticket de cocina/delivery).
 
-**¿Es posible?** **Sí**, pero hoy la web **no guarda pedidos**: solo arma el mensaje y abre **WhatsApp**. No hay servidor ni base de datos de órdenes.
+- Sector **delivery / comanda**: ver datos del cliente, productos, total.
 
-**Qué habría que agregar (resumen):**
+
+
+**Estado:** backend en **Vercel + Supabase**; panel en **`/admin`**. Falta pulir ticket dinámico y editar comanda.
+
+
 
 | Pieza | Para qué |
+
 |--------|----------|
-| **Backend** (API) | Recibir pedidos, login, listar/cambiar estado |
-| **Base de datos** | Pedidos, usuarios admin, estados (nuevo / en cocina / entregado / pagado) |
-| **Cambio en el checkout** | Además de (o en lugar de solo) WhatsApp, **enviar el pedido a la API** |
-| **Pantalla `/admin`** | Dashboard protegido con sesión o JWT |
-| **Mercado Pago** | Solo **etiqueta + caja** (cobro manual afuera). **Sin** integración API ni cobro automático (fuera de alcance por ahora). |
 
-**Opciones de “cómo lo armamos”:** ~~Supabase/Firebase~~ · ~~Pedilo hosted~~ — **elegido: Google Sheets** (ver **Decisiones** arriba). Alternativa futura si el volumen crece: API + DB.
+| **Backend** (API) | ✅ Vercel `api/pedido`, `api/admin` |
 
-~~4. **MVP acotado**~~ → cubierto por Sheets + panel descrito abajo.
+| **Base de datos** | ✅ Supabase `orders`, `gastos` |
 
-**Seguridad:** usuario/contraseña **no** puede quedar solo en JavaScript visible; el login tiene que validarse en servidor (**Apps Script** o Vercel + secret).
+| **Checkout → API** | ✅ Hecho |
 
-**Código de pedido (ID en comanda y panel):**
-- Formato: **`ORN-DEL-{NNNN}`** (4 dígitos; contador en Sheet).
-- Ejemplo: **`ORN-DEL-0014`**
-- **Sin retiro local** → no usar `ORN-RET` por ahora.
-- **Uso operativo (decisión feb 2026):** el **ORN queda en comanda y panel como referencia** (ticket, cruce con cliente). Para **buscar rápido el chat**, la referencia principal es el **teléfono del cliente** → en el admin conviene **tel visible**, **link a WhatsApp** (`wa.me/...`) y **buscar/filtrar por tel**; el ORN no reemplaza al teléfono en el día a día.
+| **Pantalla `/admin`** | ✅ Hecho (mejoras UX pendientes) |
 
-**Estados del pedido (decisión feb 2026):**
+| **Mercado Pago** | Solo etiqueta + caja manual |
 
-| Estado | Dónde se ve | Acción |
-|--------|-------------|--------|
-| **Activa** | Lista principal **Órdenes** (pendientes del turno/día) | Pedido recién guardado |
-| **Entregada** | Pestaña / lista **Entregados** | Botón **✓ (V)** al lado de WhatsApp → sale de Activas, **suma a caja** (EF o MP según método) |
-| **Cancelada** | Pestaña / lista **Cancelados** | Botón **✕ (X)** → sale de Activas; queda **fecha/hora de cancelación** registrada; **importe descontado del total de caja del día** |
 
-**Acciones por fila (lista Activas):** Imprimir ticket · WhatsApp · **✓ entregado** · **✕ cancelar**. En Entregados/Cancelados: ticket + WhatsApp (consulta).
 
-**Caja del día:**
-- **Efectivo (entregados)** + **Mercado Pago (entregados)** = subtotal entregados.
-- **Menos cancelados (descontado):** suma de totales de pedidos cancelados ese día.
-- **Total caja** = entregados − cancelados (las **activas no suman** hasta marcar ✓).
+**Opciones históricas:** ~~solo Google Sheets~~ → **híbrido**: Sheet menú + **Supabase operaciones** (ago 2026).
 
-**Medio de pago (etiqueta fija al crear pedido):** `Efectivo` | `Mercado Pago` — filtros y columnas de caja EF / MP.
 
-_(Prioridad y fases: definir con el cliente.)_
 
-**Referencia visual — pantalla “Órdenes” (captura deli):**
+**Seguridad:** login validado en servidor (Vercel); claves Supabase solo en env; panel no usa email de Supabase en el login.
 
-Layout como la referencia: título **Órdenes**, filtros arriba, tabla abajo, paginación.
 
-| Zona | Contenido |
-|------|-----------|
-| **Filtros** | **Desde** / **Hasta**, **Pago** → **APLICAR** / **RESTABLECER** (solo delivery; sin filtro retiro) |
-| **Columnas tabla** | **Fecha** · **Cliente** · **Teléfono** · **Método de pago** · **Total** · **Acciones** (columna Tipo opcional fija “delivery”) |
-| **Acciones** | **Editar** (solo Activas) · **Imprimir ticket** · **WhatsApp** · **✓** · **✕** |
 
-**ORN:** no hace falta columna en esta tabla si operás por tel; el código **`ORN-DEL-0000`** queda en **comanda impresa** y en detalle del pedido si hace falta.
+**Código de pedido (ORN):**
 
-| **Ticket impreso** | **Misma comanda** para Efectivo y Mercado Pago. **Medio de pago**, **ORN-DEL-0000**, cliente, tel, dirección, turno, ítems, aclaraciones, envío, total. **Sin estado** en el ticket. |
+- Formato: **`ORN-DEL-{NNNN}`** (4 dígitos; contador Supabase).
 
-**Ajustes vs Pedidos Ya / panel genérico:**
-- En Brava hoy el pago sale del formulario (Efectivo / Mercado Pago), no “Definido por mensaje” — conviene guardarlo **explícito** al crear el pedido.
-- **Mercado Pago (decisión feb 2026):** **solo manual.** No planificar cobro automático ni webhooks. El cliente elige **Mercado Pago** en el checkout; vos cobrás **manual** (link, transferencia, POS, etc.). El panel debe:
-  - Mostrar etiqueta **Mercado Pago** (no confundir con efectivo).
-  - Sumar ese importe en **totales del día / caja** igual que efectivo, pero en columna o filtro **“Total MP”** aparte de **“Total efectivo”**.
-  - Opcional: botón **“Marcar cobrado”** cuando confirmás el pago manual (estado pago: pendiente → cobrado).
-- Datos que ya tenemos en checkout: nombre, dirección, localidad, piso, turno, zona + costo envío, ítems del carrito. **Falta hoy:** **teléfono** — hay que agregarlo al formulario para llenar la columna **Teléfono** del panel.
-- WhatsApp puede seguir como copia; el **origen de verdad** sería el pedido guardado en **Sheet `pedidos`**.
+- **Uso operativo:** ORN en comanda y panel; búsqueda diaria por **teléfono** + link WA.
 
-**Editar comanda (decisión feb 2026):**
 
-Caso real: entra pedido web (ej. 2 Cheeseburger Simple) → imprimís comanda → el cliente **por WhatsApp pide una más** sin volver a enviar el pedido en la web.
 
-| Regla | Detalle |
-|--------|---------|
-| **Cuándo** | Solo pedidos **Activos** (antes de ✓ entregado o ✕ cancelado) |
-| **Qué se edita** | Cantidades, ítems (+/−), agregar producto del **catálogo** (precios Sheet), aclaraciones; **recalcular total** (productos + envío) |
-| **Mismo ORN** | No se crea pedido nuevo; sigue **`ORN-DEL-0000`** con badge **editado** + hora de última modificación |
-| **Comanda** | **Reimprimir ticket** con ítems actualizados (cocina ve la versión nueva) |
-| **Caja** | Cuenta el **total final** al marcar ✓ entregado (lo editado manda) |
-| **WhatsApp** | No se sincroniza solo; vos coordinás con el cliente por chat |
+**Estados del pedido (modelo actual — cinco pestañas):**
 
-En la prueba: botón **Editar** en `panel-pedidos-ejemplo.html` (ej. Lucas: 1 simple → sumá otra con +).
 
-**MVP sugerido (misma UX, alcance chico):**
-1. `/admin` login → pestañas **Activas / Entregados / Cancelados** + filtros.
-2. Botón **Imprimir ticket** (CSS 80 mm, como `comanda-ejemplo.html`).
-3. **Editar** comanda (ítems y total) en Activas.
-4. **WhatsApp**, **✓**, **✕** por fila en Activas.
-5. **Caja del día** (EF / MP / cancelados) — ver `panel-pedidos-ejemplo.html`.
 
-**Aviso sonoro pedido nuevo (ago 2026):** **Sí, es posible** en `/admin`. Al detectar un pedido nuevo (estado `activa`, ORN que antes no estaba), reproducir un **beep** corto (archivo `mp3`/`wav` en el proyecto). Implementación típica con Sheet: **polling** cada 15–30 s (o al foco de la pestaña) comparando último ORN / `ultima_actualizacion`; si hay fila nueva → sonido + opcional parpadeo en título. **Limitación navegador:** el audio suele requerir **un clic previo** en la página (desbloquear audio); mostrar botón “Activar avisos” la primera vez. No hace falta push nativo para el MVP; más adelante: Supabase realtime, Firebase, o extensión PWA.
+| Estado | Pestaña | Notas |
+
+|--------|---------|--------|
+
+| `pendiente` | Pendientes | Nuevo desde checkout; suena aviso |
+
+| `aceptado` | Aceptados | Cocina / delivery |
+
+| `rechazado` | Rechazados | Modal motivos + `rechazo_mensaje` |
+
+| `entregada` | Entregados | Suma caja |
+
+| `cancelada` | Cancelados | No suma ventas |
+
+
+
+**Caja del día:** solo **`entregada`** suma EF/MP; **− gastos** del período; filtros de fecha compartidos.
+
+
+
+**Referencia visual — pantalla “Órdenes”:** ver maqueta `panel-pedidos-ejemplo.html`. En producción: columnas similares; faltan filtro pago y buscar tel.
+
+
+
+**Editar comanda (pendiente producción):** mismo ORN, `modificado` + `modificado_at`, total al entregar. Catálogo para precios sigue leyendo **Sheet** en la tienda; el admin debería reutilizar precios (API o cache).
+
+
+
+**Aviso sonoro (ago 2026):** beep en ORN nuevo `pendiente`. **Supabase Realtime** en suscripciones `orders`/`gastos`; fallback polling ~0,4 s. Botón **Activar sonido** (política del navegador).
+
+
 
 ---
+
+
+
+## Estados del pedido — flujo operativo (ago 2026)
+
+
+
+```mermaid
+
+stateDiagram-v2
+
+  [*] --> pendiente: checkout → Supabase
+
+  pendiente --> aceptado: Aceptar
+
+  pendiente --> rechazado: Rechazar
+
+  aceptado --> entregada: ✓ Entregado
+
+  aceptado --> cancelada: ✕ Cancelar
+
+```
+
+
+
+| Pestaña admin | Valor `estado` en Supabase | Acciones principales |
+
+|---------------|----------------------------|----------------------|
+
+| Pendientes | `pendiente` | **Aceptar** · **Rechazar** · WhatsApp · Imprimir |
+
+| Aceptados | `aceptado` | Editar *(pend.)* · **✓** · **✕** · WA · Imprimir |
+
+| Rechazados | `rechazado` | WA; `rechazado_at`, `rechazo_mensaje` |
+
+| Entregados | `entregada` | WA · ticket; `entregado_at` |
+
+| Cancelados | `cancelada` | WA · ticket; `cancelado_at` |
+
+
+
+**Modal rechazar:** motivos Local Cerrado / Problemas Técnicos / TURNO LLENO + texto + WA + confirmar en Supabase.
+
+
+
+**Histórico Sheet:** pedidos viejos en libro **Operaciones** (Google) no están automáticamente en Supabase; migración opcional.
+
+
+
+---
+
+
+
+## Caja + gastos (ago 2026)
+
+
+
+**UI:** un solo **`/admin`**, sidebar **Caja del día** + **Gastos**.
+
+
+
+| Línea | Origen |
+
+|--------|--------|
+
+| Efectivo (entregados) | `orders` con `estado = entregada`, pago efectivo |
+
+| Mercado Pago (entregados) | Igual, pago MP |
+
+| **Ventas** | EF + MP |
+
+| Cancelados (info) | Informativo |
+
+| **Gastos** | Suma `gastos` en rango de fechas |
+
+| **Resultado del día** | Ventas − gastos |
+
+
+
+**Datos Supabase — tabla `gastos`:**
+
+
+
+| Campo | Ejemplo |
+
+|--------|---------|
+
+| id | `GAS-0001` |
+
+| fecha | `2026-08-05` |
+
+| concepto | “Pan — mayorista” |
+
+| monto | `15000` |
+
+| pagado_con | `efectivo` / `transferencia` / `otro` |
+
+| creado_at | timestamp |
+
+
+
+**API admin:** `listGastos`, `createGasto`, `deleteGasto` (mismos filtros **desde/hasta** que pedidos).
+
+
+
+---
+
+
 
 ## Hecho ✅
 
+
+
 - Tienda Pedilo-compatible (Sheet `productos` + `configuracion`)
-- Tema Brava (oscuro + naranja `#FF6B35`)
-- Modals checkout y extras (~350px, estilo Pedilo)
-- Logo desde Sheet (Imgur / fila fusionada)
-- Pie de página formato Pedilo con datos Brava
-- Menú colapsado al entrar (categoría → subcategoría → productos)
-- Precio en catálogo: **Desde $** en todos los productos
-- Sin sync automático cada 30s (carga al abrir; F5 para actualizar Sheet)
-- Sin textos “Pedilo-compatible” / sync en footer
+
+- Checkout → **`/api/pedido`** → Supabase + ORN en WhatsApp
+
+- Panel **`/admin`**: login, 5 pestañas, aceptar/rechazar, entregar/cancelar, caja, gastos, sonido, **ticket/comanda 80 mm**
+
+- Backend operaciones en **Supabase** + env en **Vercel**
+
+- Realtime Supabase (con fallback polling)
+
+- Tema Brava, modals, menú colapsado, logo desde Sheet
+
+- Apps Script legacy + Sheet operaciones (histórico / fallback)
+
+
 
 ---
+
+
 
 ## Notas técnicas
 
+
+
 | Tema | Detalle |
+
 |------|---------|
-| **Datos** | `productos` + `configuracion` + **`pedidos`** (nueva) en el mismo Google Sheet |
-| **Deploy** | Vercel: https://brava-burgers.vercel.app/ |
-| **Config local** | `sheets/brava-configuracion.csv`, `sheets/brava-productos.csv` |
+
+| **Menú** | Google Sheet → `pedilo-data.js` / `pedilo-shop.js` |
+
+| **Operaciones** | Supabase (`supabase/schema.sql`); ver `.env.example` |
+
+| **Deploy** | https://brava-burgers.vercel.app/ — repo `YezeGames/brava-burgers`, carpeta `BravaBurgers/` |
+
+| **CSV locales** | `sheets/brava-configuracion.csv`, `sheets/brava-productos.csv` (referencia) |
+
+
 
 ---
 
+
+
 ## Cómo usar este archivo
 
+
+
 1. Mandá ideas por chat (una o varias).
+
 2. Las clasificamos: **próximo**, **backlog**, o **descartado**.
+
 3. Al implementar, movemos ítems a **Hecho**.
 
-_Última actualización: resumen “lo que queremos” consolidado._
+
+
+_Última actualización: operaciones migradas de Sheet a Supabase (menú sigue en Sheet)._
+
