@@ -106,7 +106,7 @@
 		<div class="card">
 			<ul class="sound-list" id="sound-list"></ul>
 			<p class="note">Mismos motores que el panel (Web Audio, sin archivos). Volumen del dispositivo al máximo para comparar.</p>
-			<p class="note"><strong>T:</strong> si existe <code>demo-sounds/tri-tone.mp3</code>, suena ese archivo (ver <code>demo-sounds/README.md</code>).</p>
+			<p class="note"><strong>T / U:</strong> archivos en <code>demo-sounds/</code> (<code>tri-tone.mp3</code>, <code>zumbido.mp3</code>).</p>
 		</div>
 	</div>
 
@@ -161,6 +161,13 @@
 					{ freq: 987.77, at: 0.088, dur: 0.095, wave: 'triangle', vol: 0.32 },
 					{ freq: 1174.66, at: 0.175, dur: 0.16, wave: 'triangle', vol: 0.34 },
 				],
+			},
+			U: {
+				label: 'U — Zumbido',
+				desc: 'Archivo demo-sounds/zumbido.mp3.',
+				kind: 'alerta',
+				file: 'demo-sounds/zumbido.mp3',
+				notes: [{ freq: 880, at: 0, dur: 0.2, wave: 'sine', vol: 0.2 }],
 			},
 			A: {
 				label: 'A — Campana arpegio',
@@ -303,7 +310,7 @@
 		};
 
 		var SECTIONS = [
-			{ title: 'Alertas (recomendado)', keys: ['Q', 'R', 'S', 'T', 'F', 'K'] },
+			{ title: 'Alertas (recomendado)', keys: ['U', 'Q', 'R', 'S', 'T', 'F', 'K'] },
 			{ title: 'Campanas y otros', keys: ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P'] },
 		];
 
