@@ -27,6 +27,9 @@ Acá guardás la contraseña del admin y el secreto de pedidos. **No van en el c
 | `ORDER_SECRET` | `brava_xK9mP2vL8nQ4wR7tY1` (string largo, difícil de adivinar) |
 | `ADMIN_USER` | `admin` (o el usuario que quieras para `/admin`) |
 | `ADMIN_PASSWORD` | Tu clave del panel (ej. una frase que solo vos sepas) |
+| `OPERATIONS_SHEET_ID` | *(Opcional)* ID del Sheet **privado** de pedidos + gastos. Si está vacío, usa el Sheet donde está bound el script. |
+
+Hoja **`gastos`**: se crea sola al primer gasto desde `/admin` (columnas: id, fecha, concepto, monto, pagado_con, creado_at).
 
 - **Nombre de propiedad:** respetá mayúsculas → `ORDER_SECRET`, no `order_secret`.
 - **Valor:** sin comillas.

@@ -9,6 +9,7 @@
  */
 
 var SHEET_PEDIDOS = 'pedidos';
+var SHEET_GASTOS = 'gastos';
 var SHEET_CONFIG = 'config_pedidos';
 var HEADERS = [
   'orn',
@@ -35,8 +36,10 @@ var HEADERS = [
   'rechazo_mensaje',
 ];
 
+var GASTOS_HEADERS = ['id', 'fecha', 'concepto', 'monto', 'pagado_con', 'creado_at'];
+
 function doGet(e) {
-  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 6 });
+  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 7 });
 }
 
 function doPost(e) {
@@ -71,6 +74,21 @@ function doPost(e) {
       return jsonOut(updateOrder_(body));
     }
 
+    if (action === 'listGastos') {
+      if (!validateToken_(body.token)) return jsonOut({ ok: false, error: 'unauthorized' });
+      return jsonOut(listGastos_(body));
+    }
+
+    if (action === 'createGasto') {
+      if (!validateToken_(body.token)) return jsonOut({ ok: false, error: 'unauthorized' });
+      return jsonOut(createGasto_(body));
+    }
+
+    if (action === 'deleteGasto') {
+      if (!validateToken_(body.token)) return jsonOut({ ok: false, error: 'unauthorized' });
+      return jsonOut(deleteGasto_(body));
+    }
+
     return jsonOut({ ok: false, error: 'unknown_action' });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err.message || err) });
@@ -87,8 +105,14 @@ function getProp_(key) {
   return PropertiesService.getScriptProperties().getProperty(key) || '';
 }
 
+function getOperationsSpreadsheet_() {
+  var id = getProp_('OPERATIONS_SHEET_ID');
+  if (id) return SpreadsheetApp.openById(id);
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
 function getPedidosSheet_() {
-  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var ss = getOperationsSpreadsheet_();
   var sh = ss.getSheetByName(SHEET_PEDIDOS);
   if (!sh) {
     sh = ss.insertSheet(SHEET_PEDIDOS);
@@ -336,4 +360,99 @@ function updateOrder_(body) {
 function setCell_(sh, headers, rowNum, key, value) {
   var col = headerIndex_(headers, key);
   if (col >= 0) sh.getRange(rowNum, col + 1).setValue(value);
+}
+
+function getGastosSheet_() {
+  var ss = getOperationsSpreadsheet_();
+  var sh = ss.getSheetByName(SHEET_GASTOS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_GASTOS);
+    sh.appendRow(GASTOS_HEADERS);
+    sh.setFrozenRows(1);
+  } else if (sh.getLastRow() === 0) {
+    sh.appendRow(GASTOS_HEADERS);
+    sh.setFrozenRows(1);
+  }
+  return sh;
+}
+
+function nextGastoId_() {
+  var props = PropertiesService.getScriptProperties();
+  var n = parseInt(props.getProperty('LAST_GASTO_ID') || '0', 10) + 1;
+  props.setProperty('LAST_GASTO_ID', String(n));
+  return 'GAS-' + ('0000' + n).slice(-4);
+}
+
+function dateOnlyIso_(value) {
+  if (value instanceof Date) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  var s = String(value || '').trim();
+  if (!s) return '';
+  if (s.length >= 10 && s.indexOf('T') > 0) return s.slice(0, 10);
+  return s.slice(0, 10);
+}
+
+function listGastos_(body) {
+  body = body || {};
+  var sh = getGastosSheet_();
+  var lastRow = sh.getLastRow();
+  if (lastRow < 2) return { ok: true, gastos: [] };
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var data = sh.getRange(2, 1, lastRow, sh.getLastColumn()).getValues();
+  var desde = body.desde || '';
+  var hasta = body.hasta || '';
+  var out = [];
+  for (var i = 0; i < data.length; i++) {
+    var row = data[i];
+    var g = {};
+    for (var c = 0; c < headers.length; c++) {
+      var key = String(headers[c] || '')
+        .trim()
+        .toLowerCase();
+      if (key) g[key] = row[c];
+    }
+    if (!g.id) continue;
+    var iso = dateOnlyIso_(g.fecha);
+    if (desde && iso && iso < desde) continue;
+    if (hasta && iso && iso > hasta) continue;
+    if (g.fecha instanceof Date) g.fecha = iso;
+    if (g.creado_at instanceof Date) g.creado_at = g.creado_at.toISOString();
+    g.monto = Number(g.monto) || 0;
+    out.push(g);
+  }
+  out.sort(function (a, b) {
+    return String(b.fecha || '').localeCompare(String(a.fecha || ''));
+  });
+  return { ok: true, gastos: out };
+}
+
+function createGasto_(body) {
+  var concepto = String(body.concepto || '').trim();
+  var monto = Number(body.monto);
+  if (!concepto || !monto || monto <= 0) return { ok: false, error: 'invalid_gasto' };
+  var sh = getGastosSheet_();
+  var id = nextGastoId_();
+  var now = new Date();
+  var fecha = body.fecha ? new Date(body.fecha + 'T12:00:00') : now;
+  var pagado = String(body.pagadoCon || body.pagado_con || '').trim();
+  sh.appendRow([id, fecha, concepto, monto, pagado, now]);
+  return { ok: true, gasto: { id: id, fecha: dateOnlyIso_(fecha), concepto: concepto, monto: monto, pagado_con: pagado } };
+}
+
+function deleteGasto_(body) {
+  var id = String(body.id || '').trim();
+  if (!id) return { ok: false, error: 'missing_id' };
+  var sh = getGastosSheet_();
+  var data = sh.getDataRange().getValues();
+  var headers = data[0];
+  var idCol = headerIndex_(headers, 'id');
+  if (idCol < 0) return { ok: false, error: 'bad_sheet' };
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][idCol] || '').trim() === id) {
+      sh.deleteRow(i + 1);
+      return { ok: true, id: id };
+    }
+  }
+  return { ok: false, error: 'not_found' };
 }

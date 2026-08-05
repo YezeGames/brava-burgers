@@ -17,6 +17,12 @@ module.exports = async function handler(req, res) {
     total,
     estadoFilter,
     rechazoMensaje,
+    desde,
+    hasta,
+    concepto,
+    monto,
+    pagadoCon,
+    id: gastoId,
   } = req.body || {};
 
   if (!action) return res.status(400).json({ ok: false, error: 'missing_action' });
@@ -36,6 +42,17 @@ module.exports = async function handler(req, res) {
       if (total != null) payload.total = total;
       if (rechazoMensaje != null) payload.rechazoMensaje = rechazoMensaje;
     }
+    if (action === 'listGastos') {
+      payload.desde = desde || '';
+      payload.hasta = hasta || '';
+    }
+    if (action === 'createGasto') {
+      payload.concepto = concepto;
+      payload.monto = monto;
+      payload.fecha = req.body.fecha;
+      payload.pagadoCon = pagadoCon;
+    }
+    if (action === 'deleteGasto') payload.id = gastoId;
   }
 
   const data = await gasPost(payload);
