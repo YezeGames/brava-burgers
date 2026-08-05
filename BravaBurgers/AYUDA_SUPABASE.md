@@ -139,6 +139,10 @@ Proyecto **brava-burgers** → **Settings** → **Environment Variables**.
 
 **Cierre de caja (ago 2026):** si el botón «Cierre de caja» falla al guardar, en **SQL Editor** ejecutá el archivo `supabase/cierres_caja_migration.sql` (una sola vez).
 
+- **Cerrar** guarda un snapshot en `cierres_caja` (no borra pedidos).
+- **Reabrir** en el panel borra ese registro del período actual.
+- Para borrar a mano: Supabase → **Table Editor** → `cierres_caja` → eliminar fila. El contador `CIE-0001` no vuelve atrás (solo importa el número; no afecta la caja).
+
 ---
 
 ## Problemas comunes

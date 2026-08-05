@@ -451,6 +451,7 @@
         btn.disabled = true;
         btn.textContent = 'Período ya cerrado';
       }
+      if ($('btn-reabrir-caja')) $('btn-reabrir-caja').classList.remove('hidden');
     } else {
       if (estado) {
         estado.textContent = 'Caja abierta (pendiente de cierre)';
@@ -461,6 +462,7 @@
         btn.disabled = false;
         btn.textContent = 'Cierre de caja';
       }
+      if ($('btn-reabrir-caja')) $('btn-reabrir-caja').classList.add('hidden');
     }
   }
 
@@ -575,6 +577,36 @@
           );
         }
         updateCierreStatusUI();
+      }
+    });
+  }
+
+  function performReabrirCaja() {
+    var c = findCierreForCurrentPeriod();
+    if (!c || !c.id) {
+      alert('No hay cierre para reabrir en este período.');
+      return;
+    }
+    if (
+      !confirm(
+        '¿Reabrir la caja de este período?\n\nSe borra el registro ' +
+          c.id +
+          ' en Supabase (como si no hubieras cerrado). Los pedidos y la plata del día no se tocan.'
+      )
+    ) {
+      return;
+    }
+    api({ action: 'deleteCierre', token: token, id: c.id }).then(function (res) {
+      if (res.data.ok) {
+        cierresCache = cierresCache.filter(function (x) {
+          return x.id !== c.id;
+        });
+        updateCajaUI();
+        alert('Caja reabierta para este período.');
+        loadCierres(true);
+      } else {
+        if (res.status === 401) handleAuthFailure();
+        else alert('No se pudo reabrir. ¿Ejecutaste cierres_caja_migration.sql en Supabase?');
       }
     });
   }
@@ -2394,6 +2426,8 @@
   }
 
   if ($('btn-cierre-caja')) $('btn-cierre-caja').onclick = performCierreCaja;
+
+  if ($('btn-reabrir-caja')) $('btn-reabrir-caja').onclick = performReabrirCaja;
 
   if ($('btn-add-gasto')) {
     $('btn-add-gasto').onclick = function () {

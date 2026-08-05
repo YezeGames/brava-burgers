@@ -470,6 +470,22 @@ async function createCierre(body) {
 
 
 
+async function deleteCierre(id) {
+
+  const cid = String(id || '').trim();
+
+  if (!cid) return { ok: false, error: 'missing_id' };
+
+  const r = await restDelete('cierres_caja', 'id=eq.' + encodeURIComponent(cid));
+
+  if (!r.ok) return supabaseFail(r, r.error);
+
+  return { ok: true, id: cid };
+
+}
+
+
+
 module.exports = {
 
   createOrderFromShop,
@@ -487,6 +503,8 @@ module.exports = {
   listCierres,
 
   createCierre,
+
+  deleteCierre,
 
   rowToOrder,
 
