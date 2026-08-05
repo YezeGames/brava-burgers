@@ -28,6 +28,9 @@
 		.tabs { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
 		.tab { padding: 8px 14px; border: 1px solid #ddd; background: #fff; color: #333; cursor: pointer; border-radius: 6px; }
 		.tab.active { border-color: #FF6B35; font-weight: 600; color: #1a1a1a; }
+		.turno-pedidos-banner { background: #fff3e0; border: 1px solid #ffb74d; color: #bf360c; padding: 12px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 0.85rem; line-height: 1.45; }
+		.turno-pedidos-banner strong { display: block; margin-bottom: 4px; color: #e65100; }
+		.btn-sm:disabled { opacity: 0.45; cursor: not-allowed; }
 		table { width: 100%; border-collapse: collapse; font-size: 0.85rem; color: #333; }
 		th, td { padding: 10px 8px; border-bottom: 1px solid #eee; text-align: left; color: #333; }
 		th { color: #1a1a1a; font-weight: 600; }
@@ -213,6 +216,7 @@
 					<button type="button" class="tab" data-estado="entregada">Entregados</button>
 					<button type="button" class="tab" data-estado="cancelada">Cancelados</button>
 				</div>
+				<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
 				<div style="overflow-x:auto">
 					<table id="orders-table">
 						<thead>
@@ -342,6 +346,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=6"></script>
-	<script src="/admin/admin.js?v=34"></script>
+	<script src="/admin/admin.js?v=35"></script>
 </body>
 </html>

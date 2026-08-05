@@ -75,6 +75,7 @@
   var cierresReady = false;
   var filterDesde = '';
   var filterHasta = '';
+  var lastPuedeOperarCaja = null;
 
 
 
@@ -522,6 +523,45 @@
     return isCajaMarcadaAbierta() && !isNaN(getAperturaAtMs());
   }
 
+  function mensajeBloqueoOperarPedidos() {
+    if (!cierresReady) return 'Esperá un momento: cargando el estado de caja…';
+    if (findCierreForCurrentPeriod()) {
+      return 'Turno cerrado. Usá «Abrir caja» (columna derecha) antes de aceptar o marcar entregados.';
+    }
+    if (!isCajaMarcadaAbierta() || isNaN(getAperturaAtMs())) {
+      return 'La caja no está abierta. Tocá «Abrir caja» para aceptar pedidos y que sumen en el turno.';
+    }
+    return '';
+  }
+
+  function updateTurnoPedidosBanner() {
+    var el = $('turno-pedidos-banner');
+    if (!el) return;
+    if (isCajaTurnoActivo()) {
+      el.classList.add('hidden');
+      el.textContent = '';
+      return;
+    }
+    var msg = mensajeBloqueoOperarPedidos();
+    el.classList.remove('hidden');
+    el.innerHTML =
+      '<strong>No podés operar pedidos en caja cerrada</strong>' +
+      msg +
+      ' Podés rechazar pedidos o imprimir ticket; aceptar y entregar quedan bloqueados hasta abrir.';
+  }
+
+  function syncTurnoPedidosUi() {
+    var ok = isCajaTurnoActivo();
+    updateTurnoPedidosBanner();
+    if (lastPuedeOperarCaja !== ok) {
+      lastPuedeOperarCaja = ok;
+      if (allOrdersCache.length) {
+        rebuildAllPanelFrags();
+        paintCurrentTab();
+      }
+    }
+  }
+
   function gastoInSesionTurno(g) {
     if (!g || !isCajaTurnoActivo()) return false;
     var desdeMs = getAperturaAtMs();
@@ -708,6 +748,7 @@
     }
     updateCierreStatusUI();
     updateGastosChrome();
+    syncTurnoPedidosUi();
   }
 
   function loadCierres(force) {
@@ -1196,7 +1237,7 @@
 
 
 
-  function addActionBtn(parent, text, className, action, orn, title) {
+  function addActionBtn(parent, text, className, action, orn, title, disabled) {
 
     var b = document.createElement('button');
 
@@ -1211,6 +1252,11 @@
     b.dataset.orn = orn;
 
     if (title) b.title = title;
+
+    if (disabled) {
+      b.disabled = true;
+      if (!title) b.title = mensajeBloqueoOperarPedidos();
+    }
 
     parent.appendChild(b);
 
@@ -1244,9 +1290,19 @@
 
 
 
+      var cajaOk = isCajaTurnoActivo();
+
       if (panelEstado === 'pendiente') {
 
-        addActionBtn(actions, '✓', 'btn-sm btn-ok', 'accept', o.orn, 'Aceptar pedido');
+        addActionBtn(
+          actions,
+          '✓',
+          'btn-sm btn-ok',
+          'accept',
+          o.orn,
+          cajaOk ? 'Aceptar pedido' : mensajeBloqueoOperarPedidos(),
+          !cajaOk
+        );
 
         addActionBtn(actions, '✕', 'btn-sm btn-x', 'reject', o.orn, 'Rechazar pedido');
 
@@ -1256,7 +1312,15 @@
 
         addActionBtn(actions, 'Editar', 'btn-sm btn-edit', 'edit', o.orn, 'Editar comanda');
 
-        addActionBtn(actions, '✓', 'btn-sm btn-ok', 'deliver', o.orn, 'Marcar entregado');
+        addActionBtn(
+          actions,
+          '✓',
+          'btn-sm btn-ok',
+          'deliver',
+          o.orn,
+          cajaOk ? 'Marcar entregado' : mensajeBloqueoOperarPedidos(),
+          !cajaOk
+        );
 
         addActionBtn(actions, '✕', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
 
@@ -2519,11 +2583,23 @@
 
     if (!orn) return;
 
-    if (action === 'accept') sendOrderUpdate(orn, { estado: 'aceptado' });
+    if (action === 'accept') {
+      if (!isCajaTurnoActivo()) {
+        alert(mensajeBloqueoOperarPedidos());
+        return;
+      }
+      sendOrderUpdate(orn, { estado: 'aceptado' });
+    }
 
     if (action === 'reject') openRechazoModal(orn);
 
-    if (action === 'deliver') sendOrderUpdate(orn, { estado: 'entregada' });
+    if (action === 'deliver') {
+      if (!isCajaTurnoActivo()) {
+        alert(mensajeBloqueoOperarPedidos());
+        return;
+      }
+      sendOrderUpdate(orn, { estado: 'entregada' });
+    }
 
     if (action === 'cancel') {
 
