@@ -144,6 +144,10 @@ module.exports = async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'server_error' });
   }
 
+  if (!data || typeof data !== 'object') {
+    return res.status(502).json({ ok: false, error: 'invalid_handler_response' });
+  }
+
   if (!data.ok) {
     const authErrors = ['unauthorized', 'invalid_credentials', 'admin_not_configured'];
     const code = authErrors.includes(data.error)
