@@ -62,6 +62,21 @@
 			padding: 2px 8px;
 			border-radius: 4px;
 		}
+		.tag-alert {
+			background: #ffebee;
+			color: #c62828;
+		}
+		.section-title {
+			font-size: 0.75rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: #888;
+			margin: 16px 0 8px;
+			padding-top: 8px;
+			border-top: 1px solid #eee;
+		}
+		.section-title:first-child { border-top: none; margin-top: 0; padding-top: 0; }
 		.sound-item p { margin: 0; font-size: 0.82rem; color: #666; }
 		.btn-play {
 			padding: 10px 16px;
@@ -82,7 +97,8 @@
 	<div class="wrap">
 		<h1>Demo: sonidos de pedido nuevo</h1>
 		<p class="lead">
-			Probá cada opción y decinos la letra (A–P). La que elijas la integramos en el admin junto a <strong>Activar sonido</strong>.
+			Acá probás <strong>alertas</strong> (Q, R, S…) y campanas (A–P). El admin en producción sigue con la
+			<strong>A — Campana arpegio</strong> hasta que elijas una letra para integrar.
 		</p>
 
 		<button type="button" class="unlock" id="btn-unlock">Tocá acá para habilitar audio</button>
@@ -95,19 +111,60 @@
 
 	<script>
 		var PRESETS = {
+			Q: {
+				label: 'Q — Alerta pedido',
+				desc: 'Pitidos alternados agudos. Patrón tipo notificación urgente.',
+				kind: 'alerta',
+				notes: [
+					{ freq: 987.77, at: 0, dur: 0.11, wave: 'square', vol: 0.14 },
+					{ freq: 987.77, at: 0.13, dur: 0.11, wave: 'square', vol: 0.14 },
+					{ freq: 1318.51, at: 0.26, dur: 0.11, wave: 'square', vol: 0.15 },
+					{ freq: 1318.51, at: 0.39, dur: 0.11, wave: 'square', vol: 0.15 },
+					{ freq: 987.77, at: 0.52, dur: 0.1, wave: 'square', vol: 0.14 },
+					{ freq: 1318.51, at: 0.64, dur: 0.28, wave: 'square', vol: 0.16 },
+				],
+			},
+			R: {
+				label: 'R — Sirena corta',
+				desc: 'Sube y baja rápido, estilo alerta de emergencia acotada.',
+				kind: 'alerta',
+				notes: [
+					{ freq: 720, at: 0, dur: 0.07, wave: 'square', vol: 0.12 },
+					{ freq: 900, at: 0.06, dur: 0.07, wave: 'square', vol: 0.13 },
+					{ freq: 1080, at: 0.12, dur: 0.07, wave: 'square', vol: 0.14 },
+					{ freq: 900, at: 0.18, dur: 0.07, wave: 'square', vol: 0.13 },
+					{ freq: 720, at: 0.24, dur: 0.07, wave: 'square', vol: 0.12 },
+					{ freq: 1080, at: 0.3, dur: 0.2, wave: 'square', vol: 0.15 },
+				],
+			},
+			S: {
+				label: 'S — Alerta triple fuerte',
+				desc: 'Tres ráfagas de dos pitidos. Muy visible en hora pico.',
+				kind: 'alerta',
+				notes: [
+					{ freq: 880, at: 0, dur: 0.09, wave: 'square', vol: 0.15 },
+					{ freq: 1100, at: 0.1, dur: 0.09, wave: 'square', vol: 0.15 },
+					{ freq: 880, at: 0.28, dur: 0.09, wave: 'square', vol: 0.15 },
+					{ freq: 1100, at: 0.38, dur: 0.09, wave: 'square', vol: 0.15 },
+					{ freq: 880, at: 0.56, dur: 0.09, wave: 'square', vol: 0.16 },
+					{ freq: 1100, at: 0.66, dur: 0.22, wave: 'square', vol: 0.17 },
+				],
+			},
 			A: {
 				label: 'A — Campana arpegio',
-				desc: 'Tres notas ascendentes (actual en admin v39). Cálido, tipo mostrador.',
+				desc: 'Tres notas ascendentes. Cálido; es el que suena hoy en el admin.',
+				kind: 'campana',
+				current: true,
 				notes: [
 					{ freq: 659.25, at: 0, dur: 0.16, wave: 'triangle', vol: 0.28 },
 					{ freq: 830.61, at: 0.13, dur: 0.2, wave: 'triangle', vol: 0.32 },
 					{ freq: 987.77, at: 0.26, dur: 0.55, wave: 'sine', vol: 0.26 },
 				],
-				current: true,
 			},
 			B: {
 				label: 'B — Ding-dong',
 				desc: 'Dos tonos: grave y luego agudo. Clásico timbre puerta.',
+				kind: 'campana',
 				notes: [
 					{ freq: 392, at: 0, dur: 0.45, wave: 'sine', vol: 0.3 },
 					{ freq: 523.25, at: 0.42, dur: 0.55, wave: 'sine', vol: 0.32 },
@@ -138,6 +195,7 @@
 			F: {
 				label: 'F — Urgente',
 				desc: 'Tres pitidos cortos, tono más agudo.',
+				kind: 'alerta',
 				notes: [
 					{ freq: 1046.5, at: 0, dur: 0.12, wave: 'square', vol: 0.11 },
 					{ freq: 1046.5, at: 0.16, dur: 0.12, wave: 'square', vol: 0.11 },
@@ -182,6 +240,7 @@
 			K: {
 				label: 'K — Ta-ta-TAA',
 				desc: 'Dos toques cortos y uno largo más fuerte. Ritmo de “pedido nuevo”.',
+				kind: 'alerta',
 				notes: [
 					{ freq: 698.46, at: 0, dur: 0.1, wave: 'sine', vol: 0.22 },
 					{ freq: 698.46, at: 0.14, dur: 0.1, wave: 'sine', vol: 0.22 },
@@ -231,6 +290,11 @@
 			},
 		};
 
+		var SECTIONS = [
+			{ title: 'Alertas (recomendado)', keys: ['Q', 'R', 'S', 'F', 'K'] },
+			{ title: 'Campanas y otros', keys: ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P'] },
+		];
+
 		var audioCtx = null;
 		var unlocked = false;
 
@@ -278,27 +342,32 @@
 		}
 
 		var list = document.getElementById('sound-list');
-		Object.keys(PRESETS).forEach(function (id) {
-			var p = PRESETS[id];
-			var li = document.createElement('li');
-			li.className = 'sound-item';
-			li.innerHTML =
-				'<div><h2>' +
-				p.label +
-				(p.current ? ' <span class="tag">En admin ahora</span>' : '') +
-				'</h2><p>' +
-				p.desc +
-				'</p></div>';
-			var play = document.createElement('button');
-			play.type = 'button';
-			play.className = 'btn-play';
-			play.textContent = '▶ Escuchar';
-			play.disabled = true;
-			play.addEventListener('click', function () {
-				playPreset(id);
+		SECTIONS.forEach(function (section) {
+			var h = document.createElement('li');
+			h.className = 'section-title';
+			h.textContent = section.title;
+			list.appendChild(h);
+			section.keys.forEach(function (id) {
+				var p = PRESETS[id];
+				if (!p) return;
+				var li = document.createElement('li');
+				li.className = 'sound-item';
+				var tags = '';
+				if (p.current) tags += ' <span class="tag">En admin ahora</span>';
+				if (p.kind === 'alerta') tags += ' <span class="tag tag-alert">Alerta</span>';
+				li.innerHTML =
+					'<div><h2>' + p.label + tags + '</h2><p>' + p.desc + '</p></div>';
+				var play = document.createElement('button');
+				play.type = 'button';
+				play.className = 'btn-play';
+				play.textContent = '▶ Escuchar';
+				play.disabled = true;
+				play.addEventListener('click', function () {
+					playPreset(id);
+				});
+				li.appendChild(play);
+				list.appendChild(li);
 			});
-			li.appendChild(play);
-			list.appendChild(li);
 		});
 
 		document.getElementById('btn-unlock').addEventListener('click', unlockAudio);
