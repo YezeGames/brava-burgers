@@ -16,6 +16,10 @@
 	window.g_zonas_envios = window.g_zonas_envios || [];
 	window.g_stock = window.g_stock || {};
 	window.g_pedido_zona_envio_ignorar_monto = window.g_pedido_zona_envio_ignorar_monto ?? -1;
+	window.g_extras_catalog = window.g_extras_catalog || [];
+	window.g_ingredientes_catalog = window.g_ingredientes_catalog || [];
+	var _brava_pers_prod_id = null;
+	var _brava_pers_line = null;
 
 	function escapeHtml(s) {
 		return String(s || '')
@@ -81,6 +85,134 @@
 			}
 		});
 		return resultado;
+	};
+
+	function extrasParaProducto(producto) {
+		if (producto.extrasLocales && producto.extrasLocales.length) {
+			return producto.extrasLocales;
+		}
+		var g = String(producto.extrasGrupo || '').toLowerCase();
+		var catalog = window.g_extras_catalog || [];
+		return catalog.filter(function (e) {
+			if (!e.grupos || !e.grupos.length) return true;
+			return e.grupos.indexOf(g) >= 0;
+		});
+	}
+
+	function ingredientesParaProducto(producto) {
+		var g = String(producto.quitarGrupo || '').toLowerCase();
+		if (!g) return [];
+		var catalog = window.g_ingredientes_catalog || [];
+		return catalog.filter(function (i) {
+			return i.grupo === g;
+		});
+	}
+
+	function actualizarTotalPersonalizacion() {
+		var producto = dame_producto(_brava_pers_prod_id);
+		if (!producto) return;
+		var base = parseFloat(producto.precio_base || producto.precio) || 0;
+		var extra = 0;
+		$('#pregunta_personalizacion_extras input:checked').each(function () {
+			extra += parseInt($(this).data('precio'), 10) || 0;
+		});
+		$('#pregunta_personalizacion_total').text(g_moneda_signo + formatear_moneda(base + extra));
+	}
+
+	window.abrir_personalizacion_pedido = function (p_id) {
+		var producto = dame_producto(p_id);
+		if (!producto) return;
+		_brava_pers_prod_id = p_id;
+		$('#pregunta_personalizacion_titulo').text(producto.nombre);
+		$('#pregunta_personalizacion_sub').text(producto.descripcion || '');
+
+		var extras = extrasParaProducto(producto);
+		var exHtml = '';
+		extras.forEach(function (e) {
+			exHtml +=
+				'<label class="brava-pers-chip"><input type="checkbox" data-precio="' +
+				e.precio +
+				'"> <span>' +
+				escapeHtml(e.nombre) +
+				'</span><span class="precio-chip">+' +
+				g_moneda_signo +
+				formatear_moneda(e.precio) +
+				'</span></label>';
+		});
+		$('#pregunta_personalizacion_extras').html(
+			exHtml || '<p class="brava-pers-empty">Sin extras configurados.</p>'
+		);
+		$('#pregunta_personalizacion_extras_wrap').toggle(extras.length > 0);
+
+		var ings = ingredientesParaProducto(producto);
+		var quHtml = '';
+		ings.forEach(function (ing) {
+			quHtml +=
+				'<label class="brava-pers-chip"><input type="checkbox" class="brava-quitar-ing"> <span>Sin ' +
+				escapeHtml(ing.nombre) +
+				'</span></label>';
+		});
+		$('#pregunta_personalizacion_quitar').html(
+			quHtml || '<p class="brava-pers-empty">Podés usar la nota de abajo.</p>'
+		);
+		$('#pregunta_personalizacion_quitar_wrap').toggle(ings.length > 0);
+
+		$('#pregunta_personalizacion_nota').val('');
+		$('#pregunta_personalizacion_extras, #pregunta_personalizacion_quitar')
+			.off('change.bravaPers')
+			.on('change.bravaPers', 'input', function () {
+				$(this).closest('.brava-pers-chip').toggleClass('is-on', this.checked);
+				actualizarTotalPersonalizacion();
+			});
+
+		actualizarTotalPersonalizacion();
+		$.fancybox.open(bravaModalPediloOpts('#pregunta_personalizacion'));
+	};
+
+	window.confirmar_personalizacion_pedido = function () {
+		var producto = dame_producto(_brava_pers_prod_id);
+		if (!producto) return;
+
+		var extrasNombres = [];
+		var extraSum = 0;
+		$('#pregunta_personalizacion_extras input:checked').each(function () {
+			extrasNombres.push(
+				$(this)
+					.closest('label')
+					.find('span')
+					.first()
+					.text()
+			);
+			extraSum += parseInt($(this).data('precio'), 10) || 0;
+		});
+
+		var sin = [];
+		$('#pregunta_personalizacion_quitar input:checked').each(function () {
+			sin.push(
+				$(this)
+					.closest('label')
+					.find('span')
+					.text()
+					.replace(/^Sin\s+/i, '')
+			);
+		});
+
+		var nota = ($('#pregunta_personalizacion_nota').val() || '').trim();
+		var aclParts = [];
+		if (sin.length) aclParts.push('Sin: ' + sin.join(', '));
+		if (nota) aclParts.push(nota);
+
+		var variedad = extrasNombres.length ? extrasNombres.join(' + ') : 'Sin extra';
+		var base = parseFloat(producto.precio_base || producto.precio) || 0;
+
+		_brava_pers_line = {
+			variedad: variedad,
+			precio: String(base),
+			adicionales: extraSum,
+			aclaraciones: aclParts.join(' · '),
+		};
+
+		agregar_al_pedido(_brava_pers_prod_id, variedad);
 	};
 
 	function poblar_sidenav() {
@@ -309,6 +441,11 @@
 		var producto = dame_producto(p_id);
 		if (!producto) return false;
 
+		if (producto.personalizable && p_variedad === undefined) {
+			abrir_personalizacion_pedido(p_id);
+			return;
+		}
+
 		if (producto.variedades && producto.variedades.length > 0 && p_variedad === undefined) {
 			$('#pregunta_variedades_titulo').html('Elija una opción');
 			$('#pregunta_variedades_opciones').html(
@@ -320,18 +457,27 @@
 
 		if (p_variedad !== undefined && p_variedad !== null) {
 			producto.variedad = p_variedad;
-			producto.variedades.forEach(function (v) {
-				if (v.nombre === p_variedad) {
-					producto.precio = v.precio;
-					producto.minimo = v.minimo;
-					producto.maximo = v.maximo;
-					producto.step = v.step;
-				}
-			});
+			if (_brava_pers_line) {
+				producto.precio = _brava_pers_line.precio;
+				producto.adicionales = _brava_pers_line.adicionales || 0;
+				if (_brava_pers_line.aclaraciones) producto.aclaraciones = _brava_pers_line.aclaraciones;
+				_brava_pers_line = null;
+			} else if (producto.variedades && producto.variedades.length) {
+				producto.variedades.forEach(function (v) {
+					if (v.nombre === p_variedad) {
+						producto.precio = v.precio;
+						producto.minimo = v.minimo;
+						producto.maximo = v.maximo;
+						producto.step = v.step;
+					}
+				});
+			}
 		}
 
-		var acl = $('#aclaracion_' + p_id).val();
-		if (acl) producto.aclaraciones = acl;
+		if (!_brava_pers_line) {
+			var acl = $('#aclaracion_' + p_id).val();
+			if (acl) producto.aclaraciones = acl;
+		}
 
 		var agrupado = false;
 		g_pedido.productos.forEach(function (item) {

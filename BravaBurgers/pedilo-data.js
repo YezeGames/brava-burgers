@@ -5,6 +5,8 @@
 	const SHEET_ID = global.PEDILO_SHEET_ID || '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 	const SHEET_PRODUCTOS = global.PEDILO_SHEET_PRODUCTOS || 'productos';
 	const SHEET_CONFIG = global.PEDILO_SHEET_CONFIG || 'configuracion';
+	const SHEET_EXTRAS = global.PEDILO_SHEET_EXTRAS || 'extras';
+	const SHEET_INGREDIENTES = global.PEDILO_SHEET_INGREDIENTES || 'ingredientes';
 
 	function sheetCsvUrl(sheetName) {
 		return (
@@ -280,6 +282,58 @@
 		return cfg;
 	}
 
+	function col(row, names) {
+		for (let i = 0; i < names.length; i++) {
+			const v = row[names[i]];
+			if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+		}
+		return '';
+	}
+
+	function splitGruposList(raw) {
+		if (!raw) return [];
+		return String(raw)
+			.split(/[,;|]/)
+			.map(function (s) {
+				return s.trim().toLowerCase();
+			})
+			.filter(Boolean);
+	}
+
+	function buildExtrasCatalog(rows) {
+		const out = [];
+		rows.forEach(function (row) {
+			const nombre = col(row, ['nombre', 'extra', 'titulo']);
+			if (!nombre) return;
+			if (isOcultar(row.ocultar)) return;
+			const precio = limpiarPrecio(row.precio);
+			out.push({
+				id: col(row, ['id', 'codigo', 'llave']) || nombre,
+				nombre: nombre,
+				precio: precio,
+				grupos: splitGruposList(col(row, ['grupo', 'grupos', 'aplica'])),
+			});
+		});
+		return out;
+	}
+
+	function buildIngredientesCatalog(rows) {
+		const out = [];
+		rows.forEach(function (row) {
+			const grupo = col(row, ['grupo', 'grupo_quitar', 'quitar']).toLowerCase();
+			const nombre = col(row, ['ingrediente', 'nombre', 'item']);
+			if (!grupo || !nombre) return;
+			if (isOcultar(row.ocultar)) return;
+			const def = col(row, ['default', 'defecto', 'viene']).toLowerCase();
+			out.push({
+				grupo: grupo,
+				nombre: nombre,
+				default: def !== 'no' && def !== '0',
+			});
+		});
+		return out;
+	}
+
 	function stableProductId(key, index) {
 		let h = 0;
 		for (let i = 0; i < key.length; i++) {
@@ -312,10 +366,19 @@
 					subcategoria: (row.subcategoria || '').trim(),
 					imagen: (row.imagen || '').trim(),
 					variedades: [],
+					extrasGrupo: '',
+					quitarGrupo: '',
 				});
 			}
 
 			const g = groups.get(key);
+			const extrasGrupo = col(row, ['grupo extras', 'grupo_extras', 'extras_grupo', 'grupo extra']);
+			const quitarGrupo = col(row, ['quitar', 'grupo_quitar', 'grupo quitar', 'ingredientes_grupo']);
+			if (extrasGrupo) g.extrasGrupo = extrasGrupo;
+			if (quitarGrupo) g.quitarGrupo = quitarGrupo;
+			if (String(row.personalizable || '').toLowerCase().trim() === 'si') {
+				if (!g.extrasGrupo) g.extrasGrupo = 'default';
+			}
 			const varNombre = (row.variedades || row.variedad || 'Sin Extra').trim() || 'Sin Extra';
 			const exists = g.variedades.some(function (v) {
 				return v.nombre === varNombre && v.precio === String(precio);
@@ -356,6 +419,7 @@
 			});
 			const minPrecio = Math.min.apply(null, prices);
 			const tienePreciosDiferentes = new Set(prices).size > 1;
+			const personalizable = !!g.extrasGrupo;
 
 			return {
 				id: stableProductId(key, idx),
@@ -366,13 +430,88 @@
 				imagen: g.imagen,
 				precio: String(minPrecio),
 				precio_mostrar: String(minPrecio),
-				tiene_precios_diferentes: tienePreciosDiferentes,
+				precio_base: String(minPrecio),
+				tiene_precios_diferentes: personalizable ? true : tienePreciosDiferentes,
 				se_puede_pedir: true,
 				minimo: 1,
 				maximo: 999999,
 				step: 1,
-				variedades: g.variedades,
+				variedades: personalizable ? [] : g.variedades,
+				personalizable: personalizable,
+				extrasGrupo: g.extrasGrupo || '',
+				quitarGrupo: g.quitarGrupo || '',
 			};
+		});
+	}
+
+	function isSinExtraNombre(nombre) {
+		const n = String(nombre || '')
+			.toLowerCase()
+			.trim();
+		return (
+			n === 'sin extra' ||
+			n === 'sin extras' ||
+			n === 'sin adicional' ||
+			n === 'sin adicionales'
+		);
+	}
+
+	function quitarGrupoFromSubcategoria(sub) {
+		const s = String(sub || '').toLowerCase();
+		if (s.indexOf('simple') >= 0) return 'simple_std';
+		if (s.indexOf('doble') >= 0) return 'doble_std';
+		if (s.indexOf('triple') >= 0) return 'triple_std';
+		return '';
+	}
+
+	function defaultIngredientesCatalog() {
+		return [
+			{ grupo: 'simple_std', nombre: 'Cebolla', default: true },
+			{ grupo: 'simple_std', nombre: 'Salsa mil islas', default: true },
+			{ grupo: 'simple_std', nombre: 'Cheddar', default: true },
+			{ grupo: 'doble_std', nombre: 'Cebolla', default: true },
+			{ grupo: 'doble_std', nombre: 'Salsa mil islas', default: true },
+			{ grupo: 'doble_std', nombre: 'Cheddar', default: true },
+		];
+	}
+
+	/** Menú viejo Pedilo (3 filas = variantes) → modal extras + quitar sin tocar el Sheet todavía. */
+	function inferLegacyPersonalizacion(products) {
+		products.forEach(function (p) {
+			if (p.personalizable) return;
+			if (!p.variedades || p.variedades.length < 2) return;
+			let sinVar = null;
+			const otras = [];
+			p.variedades.forEach(function (v) {
+				if (isSinExtraNombre(v.nombre)) sinVar = v;
+				else otras.push(v);
+			});
+			if (!sinVar || !otras.length) return;
+			const base = limpiarPrecio(sinVar.precio);
+			p.personalizable = true;
+			p.precio_base = String(base);
+			p.precio = String(base);
+			p.precio_mostrar = String(base);
+			if (!p.extrasGrupo) {
+				p.extrasGrupo =
+					quitarGrupoFromSubcategoria(p.subcategoria) || 'prod_' + p.id;
+			}
+			if (!p.quitarGrupo) {
+				p.quitarGrupo = quitarGrupoFromSubcategoria(p.subcategoria);
+			}
+			p.extrasLocales = otras.map(function (v) {
+				const full = limpiarPrecio(v.precio);
+				let addon = full - base;
+				if (addon < 0) addon = full;
+				return {
+					id: v.nombre,
+					nombre: v.nombre,
+					precio: addon,
+					grupos: [],
+				};
+			});
+			p.variedades = [];
+			p.tiene_precios_diferentes = true;
 		});
 	}
 
@@ -534,9 +673,15 @@
 	}
 
 	async function cargar_datos_desde_sheets() {
-		const [productsCSV, configCSV] = await Promise.all([
+		const [productsCSV, configCSV, extrasCSV, ingredientesCSV] = await Promise.all([
 			loadCSV(sheetCsvUrl(SHEET_PRODUCTOS)),
 			loadCSV(sheetCsvUrl(SHEET_CONFIG)).catch(function () {
+				return null;
+			}),
+			loadCSV(sheetCsvUrl(SHEET_EXTRAS)).catch(function () {
+				return null;
+			}),
+			loadCSV(sheetCsvUrl(SHEET_INGREDIENTES)).catch(function () {
 				return null;
 			}),
 		]);
@@ -555,6 +700,14 @@
 
 		const rows = parseCSV(productsCSV);
 		global.g_productos = buildProductsFromPediloRows(rows);
+		global.g_extras_catalog = extrasCSV ? buildExtrasCatalog(parseCSV(extrasCSV)) : [];
+		global.g_ingredientes_catalog = ingredientesCSV
+			? buildIngredientesCatalog(parseCSV(ingredientesCSV))
+			: [];
+		if (!global.g_ingredientes_catalog.length) {
+			global.g_ingredientes_catalog = defaultIngredientesCatalog();
+		}
+		inferLegacyPersonalizacion(global.g_productos);
 		global.g_ultima_sync_sheets = Date.now();
 
 		return true;
@@ -567,6 +720,8 @@
 		limpiarPrecio: limpiarPrecio,
 		cargar_datos_desde_sheets: cargar_datos_desde_sheets,
 		buildProductsFromPediloRows: buildProductsFromPediloRows,
+		buildExtrasCatalog: buildExtrasCatalog,
+		buildIngredientesCatalog: buildIngredientesCatalog,
 		applyConfigToGlobals: applyConfigToGlobals,
 		injectThemeCss: injectThemeCss,
 	};

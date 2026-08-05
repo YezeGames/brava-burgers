@@ -28,14 +28,19 @@
 		window.PEDILO_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 		window.PEDILO_SHEET_PRODUCTOS = 'productos';
 		window.PEDILO_SHEET_CONFIG = 'configuracion';
+		window.PEDILO_SHEET_EXTRAS = 'extras';
+		window.PEDILO_SHEET_INGREDIENTES = 'ingredientes';
 		var g_productos = [];
+		var g_extras_catalog = [];
+		var g_ingredientes_catalog = [];
 		var g_telefono = '';
 	</script>
-	<script src="pedilo-data.js?v=13"></script>
-	<link href="brava-brand.css?v=13" rel="stylesheet">
+	<script src="pedilo-data.js?v=15"></script>
+	<link href="brava-brand.css?v=14" rel="stylesheet">
 	<style>
 		#preguntas_pedido.fancybox-content,
-		#pregunta_variedades.fancybox-content {
+		#pregunta_variedades.fancybox-content,
+		#pregunta_personalizacion.fancybox-content {
 			width: 350px !important;
 			max-width: calc(100vw - 24px) !important;
 			padding: 44px !important;
@@ -190,6 +195,28 @@
 		</div>
 	</div>
 
+	<div id="pregunta_personalizacion" style="display:none;">
+		<div class="brava-variedades-inner brava-personalizacion-inner">
+			<h5 class="mb-0" id="pregunta_personalizacion_titulo">Personalizá tu pedido</h5>
+			<p id="pregunta_personalizacion_sub" class="brava-pers-sub"></p>
+			<div id="pregunta_personalizacion_extras_wrap">
+				<div class="brava-pers-section">Extras (podés elegir varios)</div>
+				<div class="brava-pers-chips" id="pregunta_personalizacion_extras"></div>
+			</div>
+			<div id="pregunta_personalizacion_quitar_wrap">
+				<div class="brava-pers-section">Sacar ingredientes</div>
+				<div class="brava-pers-chips" id="pregunta_personalizacion_quitar"></div>
+			</div>
+			<div class="brava-pers-section">Aclaraciones</div>
+			<input type="text" class="form-control" id="pregunta_personalizacion_nota" placeholder="Ej. bien cocida…">
+			<p id="pregunta_personalizacion_total" class="brava-pers-total"></p>
+			<div class="brava-pers-foot">
+				<button type="button" class="btn btn-dark btn-block brava-variante-btn" style="margin-bottom:8px;" onclick="$.fancybox.close();">Cancelar</button>
+				<button type="button" class="btn btn-primary my-btn-primary btn-block" onclick="confirmar_personalizacion_pedido();">Agregar al pedido</button>
+			</div>
+		</div>
+	</div>
+
 	<footer class="footer text-center">
 		<div class="container">
 			<div id="footer_pedilo_contenido" class="py-4">
@@ -205,6 +232,6 @@
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
-	<script src="pedilo-shop.js?v=19"></script>
+	<script src="pedilo-shop.js?v=21"></script>
 </body>
 </html>

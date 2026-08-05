@@ -410,6 +410,99 @@ body:has(#app-view) .tab.active {
 	color: #1a1a1a !important;
 	border-color: #ff6b35 !important;
 }
+#pregunta_personalizacion {
+	background-color: var(--brava-bg);
+	color: var(--brava-text);
+}
+
+#pregunta_personalizacion_titulo {
+	color: var(--brava-accent) !important;
+	font-weight: bold;
+	font-size: 16px;
+	margin: 0 32px 8px 0;
+	line-height: 1.3;
+}
+
+.brava-pers-sub {
+	font-size: 0.78rem;
+	color: var(--brava-muted);
+	margin: 0 0 12px;
+	line-height: 1.35;
+}
+
+.brava-pers-section {
+	font-size: 0.72rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--brava-accent);
+	font-weight: 700;
+	margin: 14px 0 8px;
+}
+
+.brava-pers-chips {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.brava-pers-chip {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 10px 12px;
+	background: var(--brava-card);
+	border: 1px solid var(--brava-border);
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 0.88rem;
+	margin: 0;
+}
+
+.brava-pers-chip input {
+	width: 18px;
+	height: 18px;
+	accent-color: var(--brava-accent);
+}
+
+.brava-pers-chip.is-on {
+	border-color: var(--brava-accent);
+	background: rgba(255, 107, 53, 0.1);
+}
+
+.brava-pers-chip .precio-chip {
+	margin-left: auto;
+	color: var(--brava-accent);
+	font-weight: 700;
+	font-size: 0.85rem;
+}
+
+.brava-pers-empty {
+	font-size: 0.78rem;
+	color: var(--brava-muted);
+	margin: 0;
+}
+
+#pregunta_personalizacion_nota {
+	background-color: var(--brava-card);
+	color: var(--brava-text);
+	border: 1px solid var(--brava-border);
+	font-size: 0.88rem;
+}
+
+.brava-pers-total {
+	text-align: center;
+	color: var(--brava-accent);
+	font-weight: 800;
+	margin: 14px 0 0;
+	font-size: 1rem;
+}
+
+.brava-pers-foot {
+	margin-top: 16px;
+	padding-top: 14px;
+	border-top: 1px solid var(--brava-accent);
+}
+
 body:has(#app-view) #poll-status {
 	color: #666 !important;
 }
