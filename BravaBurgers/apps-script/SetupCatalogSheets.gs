@@ -14,10 +14,14 @@ function setupExtrasEIngredientesEnCatalogo() {
   setupProductosColumnas_(ss);
   linkProductosGrupos_(ss);
   fillProductosIngredientesEnSheet_(ss);
-  SpreadsheetApp.getUi().alert(
-    'Listo: extras, ingredientes y vínculos en productos (filas Sin Extra).\n' +
-      'Publicá el menú desde Pedilo si hace falta.'
-  );
+  try {
+    SpreadsheetApp.getUi().alert(
+      'Listo: extras, ingredientes y vínculos en productos (filas Sin Extra).\n' +
+        'Publicá el menú desde Pedilo si hace falta.'
+    );
+  } catch (e) {
+    Logger.log('Setup catalog OK (sin UI): ' + e);
+  }
 }
 
 function setupExtrasSheet_(ss) {
