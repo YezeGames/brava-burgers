@@ -501,9 +501,7 @@
 
   /** Montos visibles en sidebar: solo con caja abierta; si no, todo en 0. */
   function computeCajaDisplayStats() {
-    if (!cierresReady) return emptyCajaStats();
-    if (findCierreForCurrentPeriod()) return emptyCajaStats();
-    if (!isCajaMarcadaAbierta()) return emptyCajaStats();
+    if (!isCajaTurnoActivo()) return emptyCajaStats();
     return computeSesionStats();
   }
 
@@ -611,9 +609,27 @@
     return dd + '/' + mm + ' ' + hh + ':' + mi;
   }
 
+  function updateVentasRegistroChrome() {
+    var hint = $('ventas-turno-hint');
+    if (!hint) return;
+    if (!cierresReady) {
+      hint.textContent = 'Cargando turno…';
+      return;
+    }
+    if (findCierreForCurrentPeriod()) {
+      hint.textContent = 'Turno cerrado — hamburguesas en 0 (solo cuenta con caja abierta).';
+      return;
+    }
+    if (isCajaTurnoActivo()) {
+      hint.textContent = 'Contando entregados ✓ desde que abriste la caja.';
+      return;
+    }
+    hint.textContent = 'Sin apertura — contadores en 0. Abrí caja para empezar.';
+  }
+
   function updateCierreStatusUI() {
-    var cierre = findCierreForCurrentPeriod();
-    var abierta = !cierre && isCajaMarcadaAbierta();
+    var cierre = cierresReady ? findCierreForCurrentPeriod() : null;
+    var abierta = cierresReady && isCajaTurnoActivo();
     var btnCierre = $('btn-cierre-caja');
     var btnAbrir = $('btn-abrir-caja');
     var estado = $('caja-estado');
@@ -673,13 +689,14 @@
     if ($('ventas-hamb-simples')) $('ventas-hamb-simples').textContent = String(Math.round(st.simples));
     if ($('ventas-hamb-dobles')) $('ventas-hamb-dobles').textContent = String(Math.round(st.dobles));
     if ($('ventas-hamb-total')) $('ventas-hamb-total').textContent = String(Math.round(st.hambTotal));
+    updateVentasRegistroChrome();
     if ($('caja-range')) {
       var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
       var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
       var rango = d1 === d2 ? d1 : d1 + ' — ' + d2;
       if (findCierreForCurrentPeriod()) {
         $('caja-range').textContent = 'Turno cerrado · ' + rango;
-      } else if (isCajaMarcadaAbierta()) {
+      } else if (isCajaTurnoActivo()) {
         var ap = getAperturaAtMs();
         var desdeLbl = isNaN(ap)
           ? '—'
