@@ -150,6 +150,16 @@
 					{ freq: 1100, at: 0.66, dur: 0.22, wave: 'square', vol: 0.17 },
 				],
 			},
+			T: {
+				label: 'T — Estilo iPhone (Tri-Tone)',
+				desc: 'Aproximación del tri-tono clásico de notificación. No es el archivo oficial de Apple.',
+				kind: 'alerta',
+				notes: [
+					{ freq: 783.99, at: 0, dur: 0.095, wave: 'triangle', vol: 0.3 },
+					{ freq: 987.77, at: 0.088, dur: 0.095, wave: 'triangle', vol: 0.32 },
+					{ freq: 1174.66, at: 0.175, dur: 0.16, wave: 'triangle', vol: 0.34 },
+				],
+			},
 			A: {
 				label: 'A — Campana arpegio',
 				desc: 'Tres notas ascendentes. Cálido; es el que suena hoy en el admin.',
@@ -291,7 +301,7 @@
 		};
 
 		var SECTIONS = [
-			{ title: 'Alertas (recomendado)', keys: ['Q', 'R', 'S', 'F', 'K'] },
+			{ title: 'Alertas (recomendado)', keys: ['Q', 'R', 'S', 'T', 'F', 'K'] },
 			{ title: 'Campanas y otros', keys: ['A', 'B', 'C', 'D', 'E', 'G', 'H', 'I', 'J', 'L', 'M', 'N', 'O', 'P'] },
 		];
 
