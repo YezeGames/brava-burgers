@@ -534,17 +534,44 @@
 		calcular_total();
 	};
 
+	function whatsappBoldLabel(raw) {
+		var s = String(raw || '')
+			.replace(/\*/g, '')
+			.trim();
+		return s ? '*' + s + '*' : '';
+	}
+
+	function isSinExtraVariedad(nombre) {
+		var n = String(nombre || '')
+			.toLowerCase()
+			.trim();
+		return n === 'sin extra' || n === 'sin extras';
+	}
+
+	function formatWhatsAppFooter(text) {
+		var s = String(text || 'BRAVA BURGERS')
+			.replace(/\uFFFD/g, '')
+			.replace(/\?\?/g, '')
+			.replace(/\*+$/g, '')
+			.trim();
+		if (!s) s = 'BRAVA BURGERS';
+		return '\n*' + s.replace(/\*/g, '') + '*';
+	}
+
 	function buildLineaPedido(producto, modelo) {
-		var variedadTxt = producto.variedad ? ' (' + producto.variedad + ')' : '';
-		var acl = producto.aclaraciones ? ' ' + producto.aclaraciones : '';
+		var variedadTxt = '';
+		if (producto.variedad && !isSinExtraVariedad(producto.variedad)) {
+			variedadTxt = '\nExtras: ' + producto.variedad;
+		}
+		var acl = producto.aclaraciones ? '\nAclaraciones: ' + producto.aclaraciones : '';
 		var subtotal =
 			parseFloat(producto.cantidad) * (parseFloat(producto.precio) + parseFloat(producto.adicionales || 0));
 		var linea = modelo || g_modelo_linea_whatsapp;
 		linea = linea.replace(/\\n/g, '\n');
 		linea = linea.replace(/\*CANTIDAD\*/gi, producto.cantidad);
 		linea = linea.replace(/\*NOMBRE\*/gi, producto.nombre);
-		linea = linea.replace(/\*VARIEDAD\*/gi, variedadTxt.trim());
-		linea = linea.replace(/\*ACLARACION\*/gi, acl.trim());
+		linea = linea.replace(/\*VARIEDAD\*/gi, variedadTxt);
+		linea = linea.replace(/\*ACLARACION\*/gi, acl);
 		linea = linea.replace(/\*SUBTOTAL\*/gi, formatear_moneda(subtotal));
 		return linea;
 	}
@@ -646,14 +673,13 @@
 			var lab = $('#pregunta_' + i + '_label').text();
 			var val = $('#pregunta_' + i + '_respuesta').val() || '';
 			if (lab) {
-				preguntas_whatsapp += '*' + lab.replace(/\*/g, '') + '*\n_' + val + '_\n\n';
+				preguntas_whatsapp += whatsappBoldLabel(lab) + '\n_' + val + '_\n\n';
 			}
 		}
 		if (g_zonas_envios.length > 0) {
 			preguntas_whatsapp +=
-				'*' +
-				$('#pregunta_10_label').text().replace(/\*/g, '') +
-				'*\n_' +
+				whatsappBoldLabel($('#pregunta_10_label').text()) +
+				'\n_' +
 				($('#pregunta_10_respuesta').val() || '') +
 				'_\n\n';
 		}
@@ -672,8 +698,11 @@
 			}
 		}
 
+		if (pedido_extras > 0) {
+			pedido += '\n*Envío:* $' + formatear_moneda(pedido_extras);
+		}
 		pedido += '\n*Total pedido: $' + formatear_moneda(total + pedido_extras) + '*';
-		pedido += '\n' + (g_texto_final_whatsapp || '');
+		pedido += formatWhatsAppFooter(g_texto_final_whatsapp);
 
 		var url_pedido = 'https://wa.me/' + g_telefono + '?text=' + encodeURIComponent(pedido);
 		$('#form_order_text').val(pedido);
