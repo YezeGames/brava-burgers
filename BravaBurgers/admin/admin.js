@@ -60,6 +60,12 @@
 
   var editCatalog = null;
 
+  var editProductGroups = null;
+
+  var editExtrasCatalog = null;
+
+  var editMenuLoadPromise = null;
+
   var EDIT_MENU_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 
 
@@ -2287,11 +2293,31 @@
 
 
 
-  function editItemPrecio(it) {
+  function editItemBasePrecio(it) {
 
     var p = parseFloat(it.precio);
 
     return isNaN(p) ? 0 : p;
+
+  }
+
+
+
+  function editItemLineUnit(it) {
+
+    var ad = parseFloat(it.adicionales);
+
+    if (isNaN(ad) || ad < 0) ad = 0;
+
+    return editItemBasePrecio(it) + ad;
+
+  }
+
+
+
+  function editItemPrecio(it) {
+
+    return editItemLineUnit(it);
 
   }
 
@@ -2315,7 +2341,15 @@
 
         qty: editItemQty(it),
 
-        precio: editItemPrecio(it),
+        precio: editItemBasePrecio(it),
+
+        adicionales: (function () {
+
+          var ad = parseFloat(it.adicionales);
+
+          return isNaN(ad) || ad < 0 ? 0 : ad;
+
+        })(),
 
       };
 
@@ -2341,25 +2375,9 @@
 
 
 
-  function loadEditCatalog(done) {
+  function editSheetCsvUrl(sheetName) {
 
-    if (editCatalog && editCatalog.length) {
-
-      done(editCatalog);
-
-      return;
-
-    }
-
-    if (typeof Papa === 'undefined') {
-
-      done([]);
-
-      return;
-
-    }
-
-    var url =
+    return (
 
       'https://docs.google.com/spreadsheets/d/' +
 
@@ -2367,57 +2385,143 @@
 
       '/gviz/tq?tqx=out:csv&sheet=' +
 
-      encodeURIComponent('productos');
+      encodeURIComponent(sheetName)
 
-    fetch(url)
+    );
 
-      .then(function (r) {
+  }
 
-        return r.text();
 
-      })
 
-      .then(function (csv) {
+  function editRowVal(row, keys) {
 
-        var parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+    if (!row) return '';
 
-        var list = [];
+    var rowKeys = Object.keys(row);
 
-        (parsed.data || []).forEach(function (row, i) {
+    var i;
 
-          var nombre = String(row.nombre || row.Nombre || '').trim();
+    var j;
 
-          if (!nombre) return;
+    for (i = 0; i < keys.length; i++) {
 
-          var oculto = String(row.ocultar || row.Ocultar || '').toLowerCase();
+      var want = keys[i].toLowerCase().trim();
 
-          if (oculto === 'si' || oculto === 'sí') return;
+      for (j = 0; j < rowKeys.length; j++) {
 
-          var precio = parseInt(String(row.precio || row.Precio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+        if (rowKeys[j].toLowerCase().trim() !== want) continue;
 
-          list.push({
+        var v = row[rowKeys[j]];
 
-            key: 'p' + i,
+        if (v != null && String(v).trim() !== '') return String(v).trim();
 
-            nombre: nombre,
+      }
 
-            variedad: String(row.variedad || row.Variedad || '').trim(),
+    }
 
-            precio: precio,
+    return '';
 
-          });
+  }
+
+
+
+  function editParsePrecio(raw) {
+
+    return parseInt(String(raw || '0').replace(/[^0-9]/g, ''), 10) || 0;
+
+  }
+
+
+
+  function buildEditProductGroups(rows) {
+
+    var map = {};
+
+    var order = [];
+
+    (rows || []).forEach(function (row) {
+
+      var nombre = editRowVal(row, ['nombre']);
+
+      if (!nombre) return;
+
+      var oculto = editRowVal(row, ['ocultar']).toLowerCase();
+
+      if (oculto === 'si' || oculto === 'sí') return;
+
+      var precio = editParsePrecio(row.precio || row.Precio);
+
+      if (precio <= 0) return;
+
+      var variedad = editRowVal(row, ['variedades', 'variedad']) || 'Sin Extra';
+
+      var key = nombre.toLowerCase();
+
+      if (!map[key]) {
+
+        order.push(key);
+
+        map[key] = {
+
+          key: key,
+
+          nombre: nombre,
+
+          categoria: editRowVal(row, ['categoria']),
+
+          subcategoria: editRowVal(row, ['subcategoria']),
+
+          extrasGrupo: '',
+
+          rows: [],
+
+        };
+
+      }
+
+      var g = map[key];
+
+      var eg = editRowVal(row, ['grupo extras', 'grupo_extras', 'extras_grupo']);
+
+      if (eg && !g.extrasGrupo) g.extrasGrupo = eg;
+
+      g.rows.push({ variedad: variedad, precio: precio });
+
+    });
+
+    return order
+
+      .map(function (k) {
+
+        var g = map[k];
+
+        var base = null;
+
+        g.rows.forEach(function (r) {
+
+          if (/^sin\s*extra/i.test(r.variedad)) base = r.precio;
 
         });
 
-        editCatalog = list;
+        if (base == null) {
 
-        done(list);
+          g.rows.forEach(function (r) {
+
+            if (base == null || r.precio < base) base = r.precio;
+
+          });
+
+        }
+
+        g.basePrecio = base || 0;
+
+        return g;
 
       })
 
-      .catch(function () {
+      .sort(function (a, b) {
 
-        done([]);
+        return a.nombre.localeCompare(b.nombre, 'es');
 
       });
 
@@ -2425,13 +2529,285 @@
 
 
 
-  function fillEditAddSelect(catalog) {
+  function editSplitExtraGrupos(raw) {
+
+    var s = String(raw || '')
+
+      .toLowerCase()
+
+      .trim();
+
+    if (!s || s === 'all' || s === 'todos') return ['all'];
+
+    return s.split(/[,;|/]+/).map(function (x) {
+
+      return x.trim();
+
+    });
+
+  }
+
+
+
+  function buildEditExtrasCatalog(rows) {
+
+    var out = [];
+
+    (rows || []).forEach(function (row) {
+
+      var nombre = editRowVal(row, ['nombre', 'extra', 'titulo']);
+
+      if (!nombre) return;
+
+      var oculto = editRowVal(row, ['ocultar']).toLowerCase();
+
+      if (oculto === 'si' || oculto === 'sí') return;
+
+      var precio = editParsePrecio(row.precio || row.Precio);
+
+      out.push({
+
+        nombre: nombre,
+
+        precio: precio,
+
+        grupos: editSplitExtraGrupos(editRowVal(row, ['grupo', 'grupos', 'aplica'])),
+
+      });
+
+    });
+
+    return out.sort(function (a, b) {
+
+      return a.nombre.localeCompare(b.nombre, 'es');
+
+    });
+
+  }
+
+
+
+  function findEditProductGroup(nombre) {
+
+    if (!editProductGroups || !nombre) return null;
+
+    var key = String(nombre).trim().toLowerCase();
+
+    for (var i = 0; i < editProductGroups.length; i++) {
+
+      if (editProductGroups[i].key === key) return editProductGroups[i];
+
+    }
+
+    return null;
+
+  }
+
+
+
+  function extrasForEditItem(it) {
+
+    if (!editExtrasCatalog || !editExtrasCatalog.length) return [];
+
+    var g = findEditProductGroup(it && it.nombre);
+
+    var need = g && g.extrasGrupo ? g.extrasGrupo.toLowerCase() : '';
+
+    return editExtrasCatalog.filter(function (ex) {
+
+      if (!ex.grupos || !ex.grupos.length || ex.grupos.indexOf('all') >= 0) return true;
+
+      if (!need) return true;
+
+      return ex.grupos.indexOf(need) >= 0;
+
+    });
+
+  }
+
+
+
+  function parseExtrasFromVariedad(variedad) {
+
+    var v = String(variedad || '').trim();
+
+    if (!v || /^sin\s*extra/i.test(v)) return [];
+
+    return v
+
+      .split(/\s*\+\s*/)
+
+      .map(function (s) {
+
+        return s.trim();
+
+      })
+
+      .filter(Boolean);
+
+  }
+
+
+
+  function editItemExtrasKey(it) {
+
+    return (
+
+      String(it.nombre || '') +
+
+      '\x1e' +
+
+      String(it.variedad || '') +
+
+      '\x1e' +
+
+      String((it.acl || it.aclaraciones || '').trim())
+
+    );
+
+  }
+
+
+
+  function applyEditItemExtras(idx) {
+
+    var it = editItems[idx];
+
+    if (!it) return;
+
+    var box = $('edit-items');
+
+    if (!box) return;
+
+    var selected = [];
+
+    box.querySelectorAll('[data-edit-extra][data-idx="' + idx + '"]:checked').forEach(function (cb) {
+
+      selected.push(cb.getAttribute('data-extra-name') || '');
+
+    });
+
+    selected = selected.filter(Boolean);
+
+    var sum = 0;
+
+    selected.forEach(function (name) {
+
+      var ex = (editExtrasCatalog || []).find(function (e) {
+
+        return e.nombre === name;
+
+      });
+
+      if (ex) sum += ex.precio;
+
+    });
+
+    it.adicionales = sum;
+
+    it.variedad = selected.length ? selected.join(' + ') : 'Sin extra';
+
+  }
+
+
+
+  function loadEditMenu(done) {
+
+    if (editProductGroups && editExtrasCatalog) {
+
+      done(editProductGroups);
+
+      return;
+
+    }
+
+    if (typeof Papa === 'undefined') {
+
+      editProductGroups = [];
+
+      editExtrasCatalog = [];
+
+      done([]);
+
+      return;
+
+    }
+
+    if (editMenuLoadPromise) {
+
+      editMenuLoadPromise.then(function () {
+
+        done(editProductGroups || []);
+
+      });
+
+      return;
+
+    }
+
+    editMenuLoadPromise = Promise.all([
+
+      fetch(editSheetCsvUrl('productos')).then(function (r) {
+
+        return r.text();
+
+      }),
+
+      fetch(editSheetCsvUrl('extras')).then(function (r) {
+
+        return r.text();
+
+      }),
+
+    ])
+
+      .then(function (pair) {
+
+        var prod = Papa.parse(pair[0], { header: true, skipEmptyLines: true });
+
+        var ext = Papa.parse(pair[1], { header: true, skipEmptyLines: true });
+
+        editProductGroups = buildEditProductGroups(prod.data || []);
+
+        editExtrasCatalog = buildEditExtrasCatalog(ext.data || []);
+
+        editCatalog = editProductGroups;
+
+      })
+
+      .catch(function () {
+
+        editProductGroups = [];
+
+        editExtrasCatalog = [];
+
+        editCatalog = [];
+
+      })
+
+      .finally(function () {
+
+        editMenuLoadPromise = null;
+
+      });
+
+    editMenuLoadPromise.then(function () {
+
+      done(editProductGroups || []);
+
+    });
+
+  }
+
+
+
+  function fillEditAddSelect(groups) {
 
     var sel = $('edit-add-select');
 
     if (!sel) return;
 
-    if (!catalog.length) {
+    if (!groups.length) {
 
       sel.innerHTML = '<option value="">(Menú no cargado — igual podés +/- ítems)</option>';
 
@@ -2439,17 +2815,63 @@
 
     }
 
-    sel.innerHTML = catalog
+    sel.innerHTML = groups
 
-      .map(function (c) {
+      .map(function (g) {
 
-        var label = c.nombre + (c.variedad ? ' (' + c.variedad + ')' : '') + ' — ' + fmt(c.precio);
+        var label = g.nombre + ' — ' + fmt(g.basePrecio);
 
-        return '<option value="' + c.key + '">' + label + '</option>';
+        return '<option value="' + g.key + '">' + label + '</option>';
 
       })
 
       .join('');
+
+  }
+
+
+
+  function renderEditExtrasHtml(idx, it) {
+
+    var list = extrasForEditItem(it);
+
+    if (!list.length) return '';
+
+    var picked = parseExtrasFromVariedad(it.variedad);
+
+    var html = '<div class="edit-extras"><div class="edit-extras-title">Extras</div>';
+
+    list.forEach(function (ex) {
+
+      var checked = picked.indexOf(ex.nombre) >= 0 ? ' checked' : '';
+
+      html +=
+
+        '<label><input type="checkbox" data-edit-extra data-idx="' +
+
+        idx +
+
+        '" data-extra-name="' +
+
+        String(ex.nombre).replace(/"/g, '&quot;') +
+
+        '"' +
+
+        checked +
+
+        '> ' +
+
+        ex.nombre +
+
+        (ex.precio > 0 ? ' (+' + fmt(ex.precio) + ')' : '') +
+
+        '</label>';
+
+    });
+
+    html += '</div>';
+
+    return html;
 
   }
 
@@ -2465,15 +2887,15 @@
 
     editItems.forEach(function (it, idx) {
 
-      var det = it.variedad ? it.variedad : '';
-
       var acl = (it.acl || it.aclaraciones || '').trim();
 
-      if (acl) det += (det ? ' · ' : '') + 'Acl.: ' + acl;
+      var aclHtml = acl ? '<small>Acl.: ' + acl + '</small>' : '';
 
       html +=
 
-        '<div class="modal-item">' +
+        '<div class="modal-item modal-item-stack">' +
+
+        '<div class="modal-item-top">' +
 
         '<div><strong>' +
 
@@ -2481,7 +2903,7 @@
 
         '</strong>' +
 
-        (det ? '<small>' + det + '</small>' : '') +
+        aclHtml +
 
         '</div>' +
 
@@ -2509,9 +2931,13 @@
 
         '<span>' +
 
-        fmt(editItemQty(it) * editItemPrecio(it)) +
+        fmt(editItemQty(it) * editItemLineUnit(it)) +
 
-        '</span></div>';
+        '</span></div>' +
+
+        renderEditExtrasHtml(idx, it) +
+
+        '</div>';
 
     });
 
@@ -2571,9 +2997,35 @@
 
       ' — Si pidieron más por WhatsApp, ajustá acá (mismo ORN).';
 
-    loadEditCatalog(function (catalog) {
+    loadEditMenu(function (groups) {
 
-      fillEditAddSelect(catalog);
+      editItems.forEach(function (it) {
+
+        if (it.adicionales == null || isNaN(parseFloat(it.adicionales))) {
+
+          var names = parseExtrasFromVariedad(it.variedad);
+
+          var sum = 0;
+
+          names.forEach(function (n) {
+
+            var ex = (editExtrasCatalog || []).find(function (e) {
+
+              return e.nombre === n;
+
+            });
+
+            if (ex) sum += ex.precio;
+
+          });
+
+          it.adicionales = sum;
+
+        }
+
+      });
+
+      fillEditAddSelect(groups);
 
       renderEditModalItems();
 
@@ -2617,39 +3069,47 @@
 
     var sel = $('edit-add-select');
 
-    if (!sel || !editCatalog || !editCatalog.length) return;
+    if (!sel || !editProductGroups || !editProductGroups.length) return;
 
-    var c = editCatalog.find(function (x) {
+    var g = editProductGroups.find(function (x) {
 
       return x.key === sel.value;
 
     });
 
-    if (!c) return;
+    if (!g) return;
+
+    var newLine = {
+
+      nombre: g.nombre,
+
+      categoria: g.categoria,
+
+      subcategoria: g.subcategoria,
+
+      variedad: 'Sin extra',
+
+      acl: '',
+
+      qty: 1,
+
+      precio: g.basePrecio,
+
+      adicionales: 0,
+
+    };
+
+    var key = editItemExtrasKey(newLine);
 
     var found = editItems.find(function (it) {
 
-      return (it.nombre || '') === c.nombre && (it.variedad || '') === c.variedad && !(it.acl || it.aclaraciones);
+      return editItemExtrasKey(it) === key;
 
     });
 
     if (found) found.qty = editItemQty(found) + 1;
 
-    else
-
-      editItems.push({
-
-        nombre: c.nombre,
-
-        variedad: c.variedad,
-
-        acl: '',
-
-        qty: 1,
-
-        precio: c.precio,
-
-      });
+    else editItems.push(newLine);
 
     renderEditModalItems();
 
@@ -3283,6 +3743,18 @@
       if (!b) return;
 
       changeEditQty(parseInt(b.getAttribute('data-edit-qty'), 10), parseInt(b.getAttribute('data-delta'), 10));
+
+    });
+
+    $('edit-items').addEventListener('change', function (e) {
+
+      var cb = e.target.closest('[data-edit-extra]');
+
+      if (!cb) return;
+
+      applyEditItemExtras(parseInt(cb.getAttribute('data-idx'), 10));
+
+      renderEditModalItems();
 
     });
 

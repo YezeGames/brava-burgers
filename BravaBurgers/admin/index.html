@@ -188,6 +188,41 @@
 			font-size: 0.85rem;
 		}
 		.modal-item:last-child { border-bottom: none; }
+		.modal-item.modal-item-stack {
+			grid-template-columns: 1fr;
+			align-items: stretch;
+		}
+		.modal-item.modal-item-stack .modal-item-top {
+			display: grid;
+			grid-template-columns: 1fr auto auto;
+			gap: 8px;
+			align-items: center;
+		}
+		.edit-extras {
+			margin-top: 8px;
+			padding-top: 8px;
+			border-top: 1px dashed var(--border);
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px 12px;
+		}
+		.edit-extras-title {
+			width: 100%;
+			font-size: 0.68rem;
+			font-weight: 600;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--text-muted);
+			margin: 0 0 2px;
+		}
+		.edit-extras label {
+			font-size: 0.72rem;
+			display: inline-flex;
+			align-items: center;
+			gap: 4px;
+			cursor: pointer;
+			color: var(--text);
+		}
 		.modal-item small { display: block; color: var(--text-muted); margin-top: 2px; }
 		.modal-item.modal-item-muted { background: var(--bg-surface-alt); }
 		.modal-qty { display: flex; align-items: center; gap: 6px; }
@@ -802,6 +837,7 @@
 				<select id="edit-add-select" aria-label="Agregar producto del menú"></select>
 				<button type="button" class="btn-sm btn-accent" id="edit-add-btn">+ Agregar</button>
 			</div>
+			<p class="sub" style="margin:-4px 0 10px;font-size:0.75rem;">Un producto por línea; marcá extras abajo de cada ítem.</p>
 			<p class="modal-total" id="edit-total"></p>
 			<div class="modal-foot">
 				<button type="button" class="btn-sm" id="edit-close">Cancelar</button>
@@ -853,6 +889,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
-	<script src="/admin/admin.js?v=55"></script>
+	<script src="/admin/admin.js?v=56"></script>
 </body>
 </html>
