@@ -58,12 +58,42 @@
   }
 
   function itemVariedad(it) {
-    return (it.variedad || '').trim();
+    return (it.variedad || it.var || '').trim();
   }
 
-  function itemPrecio(it) {
+  function isSinExtraVariedad(nombre) {
+    var n = String(nombre || '')
+      .toLowerCase()
+      .trim();
+    return n === 'sin extra' || n === 'sin extras';
+  }
+
+  /** "Sin: A, B · nota libre" → líneas separadas para cocina */
+  function splitAclaracionesComanda(acl) {
+    var raw = String(acl || '').trim();
+    if (!raw) return { sin: '', nota: '' };
+    var parts = raw.split(/\s*·\s*/);
+    var sin = '';
+    var notas = [];
+    parts.forEach(function (p) {
+      p = p.trim();
+      if (!p) return;
+      if (/^Sin:/i.test(p)) sin = p.replace(/^Sin:\s*/i, '').trim();
+      else notas.push(p);
+    });
+    if (!sin && /^Sin:/i.test(raw)) {
+      sin = raw.replace(/^Sin:\s*/i, '').trim();
+      notas = [];
+    }
+    return { sin: sin, nota: notas.join(' · ') };
+  }
+
+  function itemUnitPrecio(it) {
     var p = parseFloat(it.precio);
-    return isNaN(p) ? 0 : p;
+    if (isNaN(p)) p = 0;
+    var ad = parseFloat(it.adicionales);
+    if (!isNaN(ad) && ad > 0) p += ad;
+    return p;
   }
 
   function renderItemsHtml(items) {
@@ -73,16 +103,23 @@
     var html = '';
     items.forEach(function (it) {
       var qty = itemQty(it);
-      var precio = itemPrecio(it);
+      var precio = itemUnitPrecio(it);
       var lineTotal = qty * precio;
       var variedad = itemVariedad(it);
       var acl = itemAcl(it);
+      var aclParts = splitAclaracionesComanda(acl);
       html += '<div class="item">';
       html += '<div class="item-name">' + esc(qty) + ' x ' + esc(itemName(it)) + '</div>';
-      if (variedad) {
-        html += '<div class="item-detail">(' + esc(variedad) + ')</div>';
+      if (variedad && !isSinExtraVariedad(variedad)) {
+        html += '<div class="item-detail item-extras">Extras: ' + esc(variedad) + '</div>';
       }
-      if (acl) {
+      if (aclParts.sin) {
+        html +=
+          '<div class="item-sin-ing">Sacar: ' + esc(aclParts.sin) + '</div>';
+      }
+      if (aclParts.nota) {
+        html += '<div class="item-aclaracion">Acl.: ' + esc(aclParts.nota) + '</div>';
+      } else if (acl && !aclParts.sin) {
         html += '<div class="item-aclaracion">Acl.: ' + esc(acl) + '</div>';
       }
       html += '<div class="row"><span></span><span>Subtotal ' + esc(fmtMoney(lineTotal)) + '</span></div>';
@@ -97,7 +134,7 @@
     if (isNaN(sub) || sub <= 0) {
       sub = 0;
       items.forEach(function (it) {
-        sub += itemQty(it) * itemPrecio(it);
+        sub += itemQty(it) * itemUnitPrecio(it);
       });
     }
     var envio = Number(order.envio) || 0;
