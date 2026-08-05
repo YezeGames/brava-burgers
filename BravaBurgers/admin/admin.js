@@ -16,6 +16,13 @@
 
   var audioCtx = null;
 
+  /** Tono de pedido nuevo (Web Audio). Ajustá freq/at/dur si querés otro timbre. */
+  var ALERT_SOUND_NOTES = [
+    { freq: 659.25, at: 0, dur: 0.16, wave: 'triangle', vol: 0.28 },
+    { freq: 830.61, at: 0.13, dur: 0.2, wave: 'triangle', vol: 0.32 },
+    { freq: 987.77, at: 0.26, dur: 0.55, wave: 'sine', vol: 0.26 },
+  ];
+
   var pollTimer = null;
 
   var POLL_MS = 400;
@@ -1138,6 +1145,40 @@
 
 
 
+  function playAlertTone(ctx, startTime, note) {
+
+    var o = ctx.createOscillator();
+
+    var g = ctx.createGain();
+
+    o.type = note.wave || 'sine';
+
+    o.frequency.value = note.freq;
+
+    o.connect(g);
+
+    g.connect(ctx.destination);
+
+    var t0 = startTime + (note.at || 0);
+
+    var dur = note.dur || 0.3;
+
+    var peak = note.vol != null ? note.vol : 0.25;
+
+    g.gain.setValueAtTime(0.001, t0);
+
+    g.gain.exponentialRampToValueAtTime(peak, t0 + 0.025);
+
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+
+    o.start(t0);
+
+    o.stop(t0 + dur + 0.06);
+
+  }
+
+
+
   function playDing() {
 
     if (!soundOn) return;
@@ -1150,29 +1191,9 @@
 
     var t = ctx.currentTime;
 
-    [880, 1318].forEach(function (f, i) {
+    ALERT_SOUND_NOTES.forEach(function (note) {
 
-      var o = ctx.createOscillator();
-
-      var g = ctx.createGain();
-
-      o.connect(g);
-
-      g.connect(ctx.destination);
-
-      o.frequency.value = f;
-
-      var t0 = t + i * 0.18;
-
-      g.gain.setValueAtTime(0.001, t0);
-
-      g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.03);
-
-      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
-
-      o.start(t0);
-
-      o.stop(t0 + 0.4);
+      playAlertTone(ctx, t, note);
 
     });
 
@@ -2828,7 +2849,31 @@
 
     $('btn-sound').textContent = 'Sonido activado ✓';
 
+    var testBtn = $('btn-sound-test');
+
+    if (testBtn) testBtn.classList.remove('hidden');
+
   };
+
+  if ($('btn-sound-test')) {
+
+    $('btn-sound-test').onclick = function () {
+
+      if (!soundOn) {
+
+        soundOn = true;
+
+        $('btn-sound').textContent = 'Sonido activado ✓';
+
+        $('btn-sound-test').classList.remove('hidden');
+
+      }
+
+      playDing();
+
+    };
+
+  }
 
   if ($('comanda-close')) $('comanda-close').onclick = closeComandaModal;
 
