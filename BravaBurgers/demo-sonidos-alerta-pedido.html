@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — sonidos alerta pedido</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 24px 16px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+		}
+		.wrap { max-width: 640px; margin: 0 auto; }
+		h1 { font-size: 1.35rem; margin: 0 0 8px; }
+		.lead { font-size: 0.9rem; color: #666; margin: 0 0 20px; line-height: 1.45; }
+		.card {
+			background: #fff;
+			border-radius: 8px;
+			padding: 20px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+			margin-bottom: 16px;
+		}
+		.unlock {
+			width: 100%;
+			padding: 12px 16px;
+			font-size: 1rem;
+			font-weight: 600;
+			border: none;
+			border-radius: 8px;
+			background: #ff6b35;
+			color: #fff;
+			cursor: pointer;
+			margin-bottom: 16px;
+		}
+		.unlock.done { background: #2e7d32; cursor: default; }
+		.sound-list { list-style: none; margin: 0; padding: 0; }
+		.sound-item {
+			display: grid;
+			grid-template-columns: 1fr auto;
+			gap: 12px;
+			align-items: center;
+			padding: 14px 0;
+			border-bottom: 1px solid #eee;
+		}
+		.sound-item:last-child { border-bottom: none; }
+		.sound-item h2 {
+			margin: 0 0 4px;
+			font-size: 1rem;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.tag {
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			background: #fff3e0;
+			color: #e65100;
+			padding: 2px 8px;
+			border-radius: 4px;
+		}
+		.sound-item p { margin: 0; font-size: 0.82rem; color: #666; }
+		.btn-play {
+			padding: 10px 16px;
+			border: 1px solid #ccc;
+			border-radius: 6px;
+			background: #fff;
+			font-weight: 600;
+			cursor: pointer;
+			white-space: nowrap;
+		}
+		.btn-play:hover { border-color: #ff6b35; color: #e65100; }
+		.btn-play:disabled { opacity: 0.45; cursor: not-allowed; }
+		.note { font-size: 0.8rem; color: #888; margin-top: 12px; }
+		code { font-size: 0.85em; background: #f0f0f0; padding: 2px 6px; border-radius: 4px; }
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<h1>Demo: sonidos de pedido nuevo</h1>
+		<p class="lead">
+			Probá cada opción y decinos la letra (A–H). La que elijas la integramos en el admin junto a <strong>Activar sonido</strong>.
+		</p>
+
+		<button type="button" class="unlock" id="btn-unlock">Tocá acá para habilitar audio</button>
+
+		<div class="card">
+			<ul class="sound-list" id="sound-list"></ul>
+			<p class="note">Mismos motores que el panel (Web Audio, sin archivos). Volumen del dispositivo al máximo para comparar.</p>
+		</div>
+	</div>
+
+	<script>
+		var PRESETS = {
+			A: {
+				label: 'A — Campana arpegio',
+				desc: 'Tres notas ascendentes (actual en admin v39). Cálido, tipo mostrador.',
+				notes: [
+					{ freq: 659.25, at: 0, dur: 0.16, wave: 'triangle', vol: 0.28 },
+					{ freq: 830.61, at: 0.13, dur: 0.2, wave: 'triangle', vol: 0.32 },
+					{ freq: 987.77, at: 0.26, dur: 0.55, wave: 'sine', vol: 0.26 },
+				],
+				current: true,
+			},
+			B: {
+				label: 'B — Ding-dong',
+				desc: 'Dos tonos: grave y luego agudo. Clásico timbre puerta.',
+				notes: [
+					{ freq: 392, at: 0, dur: 0.45, wave: 'sine', vol: 0.3 },
+					{ freq: 523.25, at: 0.42, dur: 0.55, wave: 'sine', vol: 0.32 },
+				],
+			},
+			C: {
+				label: 'C — Doble campana',
+				desc: 'Dos golpes iguales, rápidos. Muy visible en cocina.',
+				notes: [
+					{ freq: 880, at: 0, dur: 0.2, wave: 'triangle', vol: 0.32 },
+					{ freq: 880, at: 0.22, dur: 0.28, wave: 'triangle', vol: 0.34 },
+				],
+			},
+			D: {
+				label: 'D — POS / caja',
+				desc: 'Arpegio corto y brillante, estilo sistema de ventas.',
+				notes: [
+					{ freq: 523.25, at: 0, dur: 0.1, wave: 'square', vol: 0.12 },
+					{ freq: 659.25, at: 0.08, dur: 0.1, wave: 'square', vol: 0.12 },
+					{ freq: 783.99, at: 0.16, dur: 0.22, wave: 'square', vol: 0.14 },
+				],
+			},
+			E: {
+				label: 'E — Campana suave',
+				desc: 'Una sola nota larga, menos intrusivo.',
+				notes: [{ freq: 740, at: 0, dur: 0.75, wave: 'sine', vol: 0.22 }],
+			},
+			F: {
+				label: 'F — Urgente',
+				desc: 'Tres pitidos cortos, tono más agudo.',
+				notes: [
+					{ freq: 1046.5, at: 0, dur: 0.12, wave: 'square', vol: 0.11 },
+					{ freq: 1046.5, at: 0.16, dur: 0.12, wave: 'square', vol: 0.11 },
+					{ freq: 1046.5, at: 0.32, dur: 0.18, wave: 'square', vol: 0.13 },
+				],
+			},
+			G: {
+				label: 'G — Retro (anterior)',
+				desc: 'El beep doble que tenía el admin antes del cambio.',
+				notes: [
+					{ freq: 880, at: 0, dur: 0.35, wave: 'sine', vol: 0.3 },
+					{ freq: 1318.51, at: 0.18, dur: 0.35, wave: 'sine', vol: 0.3 },
+				],
+			},
+			H: {
+				label: 'H — Brava triple',
+				desc: 'Tres campanadas naranja: mi-sol-si con más cuerpo.',
+				notes: [
+					{ freq: 622, at: 0, dur: 0.18, wave: 'triangle', vol: 0.3 },
+					{ freq: 740, at: 0.15, dur: 0.2, wave: 'triangle', vol: 0.32 },
+					{ freq: 932, at: 0.3, dur: 0.5, wave: 'triangle', vol: 0.28 },
+				],
+			},
+		};
+
+		var audioCtx = null;
+		var unlocked = false;
+
+		function playTone(ctx, startTime, note) {
+			var o = ctx.createOscillator();
+			var g = ctx.createGain();
+			o.type = note.wave || 'sine';
+			o.frequency.value = note.freq;
+			o.connect(g);
+			g.connect(ctx.destination);
+			var t0 = startTime + (note.at || 0);
+			var dur = note.dur || 0.3;
+			var peak = note.vol != null ? note.vol : 0.25;
+			g.gain.setValueAtTime(0.001, t0);
+			g.gain.exponentialRampToValueAtTime(peak, t0 + 0.025);
+			g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+			o.start(t0);
+			o.stop(t0 + dur + 0.06);
+		}
+
+		function playPreset(id) {
+			if (!unlocked) return;
+			var preset = PRESETS[id];
+			if (!preset) return;
+			if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			if (audioCtx.state === 'suspended') audioCtx.resume();
+			var t = audioCtx.currentTime;
+			preset.notes.forEach(function (note) {
+				playTone(audioCtx, t, note);
+			});
+		}
+
+		function unlockAudio() {
+			if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			audioCtx.resume().then(function () {
+				unlocked = true;
+				var btn = document.getElementById('btn-unlock');
+				btn.textContent = 'Audio habilitado ✓';
+				btn.classList.add('done');
+				btn.disabled = true;
+				document.querySelectorAll('.btn-play').forEach(function (b) {
+					b.disabled = false;
+				});
+			});
+		}
+
+		var list = document.getElementById('sound-list');
+		Object.keys(PRESETS).forEach(function (id) {
+			var p = PRESETS[id];
+			var li = document.createElement('li');
+			li.className = 'sound-item';
+			li.innerHTML =
+				'<div><h2>' +
+				p.label +
+				(p.current ? ' <span class="tag">En admin ahora</span>' : '') +
+				'</h2><p>' +
+				p.desc +
+				'</p></div>';
+			var play = document.createElement('button');
+			play.type = 'button';
+			play.className = 'btn-play';
+			play.textContent = '▶ Escuchar';
+			play.disabled = true;
+			play.addEventListener('click', function () {
+				playPreset(id);
+			});
+			li.appendChild(play);
+			list.appendChild(li);
+		});
+
+		document.getElementById('btn-unlock').addEventListener('click', unlockAudio);
+	</script>
+</body>
+</html>
