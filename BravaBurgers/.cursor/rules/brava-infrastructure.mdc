@@ -1,0 +1,41 @@
+---
+description: Brava Burgers — acceso a GitHub, Vercel, Supabase y Google Sheet; flujo de deploy
+alwaysApply: true
+---
+
+# Brava Burgers — infra y deploy
+
+El agente **puede y debe** usar estas plataformas para terminar tareas (no quedarse solo en cambios locales).
+
+## GitHub
+
+- Repo: **https://github.com/YezeGames/brava-burgers**
+- Código de producción en carpeta **`BravaBurgers/`** (no en la raíz del clone).
+- Rama de deploy: **`main`**. Usar **`gh`** para PRs, checks y contenido remoto.
+- Carpeta local del usuario (`Documents\BravaBurgers`) puede no tener git enlazado; para publicar: clonar a temp, copiar archivos a `BravaBurgers/`, commit y push.
+
+## Vercel
+
+- Sitio: **https://brava-burgers.vercel.app** (admin: `/admin/`).
+- Deploy automático al hacer **push a `main`** en GitHub.
+- Tras cambios en admin/API/static, **siempre** push a GitHub y verificar en producción (p. ej. query `?v=` en `admin.js` o contenido de `index.html`).
+
+## Supabase
+
+- Backend de pedidos, gastos, caja y realtime del admin (`api/admin.js`, `supabase/schema.sql`).
+- Guías en repo: `AYUDA_SUPABASE.md`, `VERCEL_SUPABASE_RAPIDO.md`, `.env.example`.
+- Cambios de **solo UI del admin** (CSS, tema, alertas visuales) **no** requieren Supabase.
+- Cambios de schema/API sí: SQL en Supabase + variables en Vercel.
+
+## Google Sheet (menú / catálogo)
+
+- Sheet operativo **BRAVA-BURGERS-Pedilo**: ID `1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0`.
+- Documentación: `sheets/OPERACIONES.md`, `sheets/IMPORTAR_EN_GOOGLE_SHEETS.md`, Apps Script en `apps-script/`.
+- Personalización tienda: columnas como `Ingredientes`, `Grupo extras`, `Quitar` en pestaña productos; código en `pedilo-data.js` / `pedilo-shop.js`.
+
+## Checklist al cerrar una feature
+
+1. Implementar en workspace local.
+2. Copiar/sync a `BravaBurgers/` en clone de GitHub → commit → push `main`.
+3. Confirmar deploy Vercel (contenido live o deploy reciente).
+4. Supabase / Sheet solo si la feature lo exige.
