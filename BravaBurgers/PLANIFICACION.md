@@ -142,7 +142,7 @@ Pantalla **Órdenes** tipo deli (referencia capturada), adaptada a Brava:
 
 2. ~~Admin: pestañas, caja, gastos, rechazo, sonido~~ → hecho (Supabase).
 
-3. Comanda **dinámica** desde pedido real (ticket aún usa ejemplo).
+3. ~~Comanda **dinámica** desde pedido real~~ → hecho (`/admin/comanda.html`).
 
 4. **Editar** comanda en admin producción (solo en demo HTML por ahora).
 

@@ -34,6 +34,16 @@
 
   var FETCH_STALE_MS = 7000;
 
+  var editOrn = null;
+
+  var editItems = [];
+
+  var editEnvio = 0;
+
+  var editCatalog = null;
+
+  var EDIT_MENU_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
+
 
 
   var allOrdersCache = [];
@@ -757,6 +767,8 @@
 
       if (panelEstado === 'aceptado') {
 
+        addActionBtn(actions, 'Editar', 'btn-sm btn-edit', 'edit', o.orn, 'Editar comanda');
+
         addActionBtn(actions, '✓', 'btn-sm btn-ok', 'deliver', o.orn, 'Marcar entregado');
 
         addActionBtn(actions, '✕', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
@@ -816,6 +828,12 @@
         '</td><td>' +
 
         fmt(o.total) +
+
+        (String(o.modificado || '').toUpperCase() === 'SI'
+
+          ? '<span class="badge-mod">editado</span>'
+
+          : '') +
 
         '</td><td>' +
 
@@ -1169,6 +1187,446 @@
 
 
 
+  function parseOrderItems(o) {
+
+    if (!o) return [];
+
+    if (Array.isArray(o.items) && o.items.length) return JSON.parse(JSON.stringify(o.items));
+
+    if (o.items_json) {
+
+      try {
+
+        var j = typeof o.items_json === 'string' ? JSON.parse(o.items_json) : o.items_json;
+
+        if (Array.isArray(j)) return j;
+
+      } catch (e) {}
+
+    }
+
+    return [];
+
+  }
+
+
+
+  function editItemQty(it) {
+
+    var q = it.qty != null ? it.qty : it.cantidad;
+
+    q = parseFloat(q);
+
+    return isNaN(q) || q <= 0 ? 1 : q;
+
+  }
+
+
+
+  function editItemPrecio(it) {
+
+    var p = parseFloat(it.precio);
+
+    return isNaN(p) ? 0 : p;
+
+  }
+
+
+
+  function normalizeItemsForSave(items) {
+
+    return (items || []).map(function (it) {
+
+      return {
+
+        nombre: it.nombre || it.name || 'Ítem',
+
+        variedad: it.variedad || '',
+
+        acl: (it.acl || it.aclaraciones || '').trim(),
+
+        qty: editItemQty(it),
+
+        precio: editItemPrecio(it),
+
+      };
+
+    });
+
+  }
+
+
+
+  function recalcEditTotals() {
+
+    var sub = 0;
+
+    editItems.forEach(function (it) {
+
+      sub += editItemQty(it) * editItemPrecio(it);
+
+    });
+
+    return { subtotal: sub, total: sub + (Number(editEnvio) || 0) };
+
+  }
+
+
+
+  function loadEditCatalog(done) {
+
+    if (editCatalog && editCatalog.length) {
+
+      done(editCatalog);
+
+      return;
+
+    }
+
+    if (typeof Papa === 'undefined') {
+
+      done([]);
+
+      return;
+
+    }
+
+    var url =
+
+      'https://docs.google.com/spreadsheets/d/' +
+
+      EDIT_MENU_SHEET_ID +
+
+      '/gviz/tq?tqx=out:csv&sheet=' +
+
+      encodeURIComponent('productos');
+
+    fetch(url)
+
+      .then(function (r) {
+
+        return r.text();
+
+      })
+
+      .then(function (csv) {
+
+        var parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+
+        var list = [];
+
+        (parsed.data || []).forEach(function (row, i) {
+
+          var nombre = String(row.nombre || row.Nombre || '').trim();
+
+          if (!nombre) return;
+
+          var oculto = String(row.ocultar || row.Ocultar || '').toLowerCase();
+
+          if (oculto === 'si' || oculto === 'sí') return;
+
+          var precio = parseInt(String(row.precio || row.Precio || '0').replace(/[^0-9]/g, ''), 10) || 0;
+
+          list.push({
+
+            key: 'p' + i,
+
+            nombre: nombre,
+
+            variedad: String(row.variedad || row.Variedad || '').trim(),
+
+            precio: precio,
+
+          });
+
+        });
+
+        editCatalog = list;
+
+        done(list);
+
+      })
+
+      .catch(function () {
+
+        done([]);
+
+      });
+
+  }
+
+
+
+  function fillEditAddSelect(catalog) {
+
+    var sel = $('edit-add-select');
+
+    if (!sel) return;
+
+    if (!catalog.length) {
+
+      sel.innerHTML = '<option value="">(Menú no cargado — igual podés +/- ítems)</option>';
+
+      return;
+
+    }
+
+    sel.innerHTML = catalog
+
+      .map(function (c) {
+
+        var label = c.nombre + (c.variedad ? ' (' + c.variedad + ')' : '') + ' — ' + fmt(c.precio);
+
+        return '<option value="' + c.key + '">' + label + '</option>';
+
+      })
+
+      .join('');
+
+  }
+
+
+
+  function renderEditModalItems() {
+
+    var box = $('edit-items');
+
+    if (!box) return;
+
+    var html = '';
+
+    editItems.forEach(function (it, idx) {
+
+      var det = it.variedad ? it.variedad : '';
+
+      var acl = (it.acl || it.aclaraciones || '').trim();
+
+      if (acl) det += (det ? ' · ' : '') + 'Acl.: ' + acl;
+
+      html +=
+
+        '<div class="modal-item">' +
+
+        '<div><strong>' +
+
+        (it.nombre || 'Ítem') +
+
+        '</strong>' +
+
+        (det ? '<small>' + det + '</small>' : '') +
+
+        '</div>' +
+
+        '<div class="modal-qty">' +
+
+        '<button type="button" data-edit-qty="' +
+
+        idx +
+
+        '" data-delta="-1">−</button>' +
+
+        '<span>' +
+
+        editItemQty(it) +
+
+        '</span>' +
+
+        '<button type="button" data-edit-qty="' +
+
+        idx +
+
+        '" data-delta="1">+</button>' +
+
+        '</div>' +
+
+        '<span>' +
+
+        fmt(editItemQty(it) * editItemPrecio(it)) +
+
+        '</span></div>';
+
+    });
+
+    html +=
+
+      '<div class="modal-item" style="background:#fafafa;"><div>Envío</div><div></div><span>' +
+
+      fmt(editEnvio) +
+
+      '</span></div>';
+
+    box.innerHTML = html;
+
+    var totals = recalcEditTotals();
+
+    $('edit-total').textContent =
+
+      'Total: ' + fmt(totals.total) + ' (productos ' + fmt(totals.subtotal) + ' + envío)';
+
+  }
+
+
+
+  function openEditModal(orn) {
+
+    var o = findOrderByOrn(orn);
+
+    if (!o) {
+
+      alert('Pedido no encontrado.');
+
+      return;
+
+    }
+
+    if (normalizeEstado(o.estado) !== 'aceptado') {
+
+      alert('Solo podés editar pedidos en Aceptados.');
+
+      return;
+
+    }
+
+    editOrn = orn;
+
+    editItems = normalizeItemsForSave(parseOrderItems(o));
+
+    editEnvio = Number(o.envio) || 0;
+
+    $('edit-sub').textContent =
+
+      o.orn +
+
+      ' · ' +
+
+      (o.cliente || '') +
+
+      ' — Si pidieron más por WhatsApp, ajustá acá (mismo ORN).';
+
+    loadEditCatalog(function (catalog) {
+
+      fillEditAddSelect(catalog);
+
+      renderEditModalItems();
+
+      $('edit-modal').classList.remove('hidden');
+
+    });
+
+  }
+
+
+
+  function closeEditModal() {
+
+    editOrn = null;
+
+    editItems = [];
+
+    $('edit-modal').classList.add('hidden');
+
+  }
+
+
+
+  function changeEditQty(idx, delta) {
+
+    if (!editItems[idx]) return;
+
+    var q = editItemQty(editItems[idx]) + delta;
+
+    if (q <= 0) editItems.splice(idx, 1);
+
+    else editItems[idx].qty = q;
+
+    renderEditModalItems();
+
+  }
+
+
+
+  function addEditCatalogLine() {
+
+    var sel = $('edit-add-select');
+
+    if (!sel || !editCatalog || !editCatalog.length) return;
+
+    var c = editCatalog.find(function (x) {
+
+      return x.key === sel.value;
+
+    });
+
+    if (!c) return;
+
+    var found = editItems.find(function (it) {
+
+      return (it.nombre || '') === c.nombre && (it.variedad || '') === c.variedad && !(it.acl || it.aclaraciones);
+
+    });
+
+    if (found) found.qty = editItemQty(found) + 1;
+
+    else
+
+      editItems.push({
+
+        nombre: c.nombre,
+
+        variedad: c.variedad,
+
+        acl: '',
+
+        qty: 1,
+
+        precio: c.precio,
+
+      });
+
+    renderEditModalItems();
+
+  }
+
+
+
+  function saveEditModal() {
+
+    if (!editOrn || !editItems.length) {
+
+      alert('Agregá al menos un ítem.');
+
+      return;
+
+    }
+
+    var totals = recalcEditTotals();
+
+    var items = normalizeItemsForSave(editItems);
+
+    var now = new Date().toISOString();
+
+    sendOrderUpdate(editOrn, {
+
+      items: items,
+
+      subtotal: totals.subtotal,
+
+      total: totals.total,
+
+      modificado: 'SI',
+
+      modificado_at: now,
+
+      items_json: JSON.stringify(items),
+
+    });
+
+    closeEditModal();
+
+  }
+
+
+
   function sendOrderUpdate(orn, patch) {
 
     patchOrderInCache(orn, patch);
@@ -1178,6 +1636,12 @@
     if (patch.estado) body.estado = patch.estado;
 
     if (patch.rechazo_mensaje != null) body.rechazoMensaje = patch.rechazo_mensaje;
+
+    if (patch.items) body.items = patch.items;
+
+    if (patch.subtotal != null) body.subtotal = patch.subtotal;
+
+    if (patch.total != null) body.total = patch.total;
 
     api(body).then(function (res) {
 
@@ -1554,6 +2018,16 @@
 
     }
 
+    if (action === 'edit') {
+
+      var ornEdit = btn.dataset.orn;
+
+      if (ornEdit) openEditModal(ornEdit);
+
+      return;
+
+    }
+
     var orn = btn.dataset.orn;
 
     if (!orn) return;
@@ -1643,6 +2117,36 @@
     $('comanda-modal').addEventListener('click', function (e) {
 
       if (e.target === $('comanda-modal')) closeComandaModal();
+
+    });
+
+  }
+
+  if ($('edit-close')) $('edit-close').onclick = closeEditModal;
+
+  if ($('edit-save')) $('edit-save').onclick = saveEditModal;
+
+  if ($('edit-add-btn')) $('edit-add-btn').onclick = addEditCatalogLine;
+
+  if ($('edit-items')) {
+
+    $('edit-items').addEventListener('click', function (e) {
+
+      var b = e.target.closest('[data-edit-qty]');
+
+      if (!b) return;
+
+      changeEditQty(parseInt(b.getAttribute('data-edit-qty'), 10), parseInt(b.getAttribute('data-delta'), 10));
+
+    });
+
+  }
+
+  if ($('edit-modal')) {
+
+    $('edit-modal').addEventListener('click', function (e) {
+
+      if (e.target === $('edit-modal')) closeEditModal();
 
     });
 
