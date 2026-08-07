@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — sidebar desplegable</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 24px 16px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #0f0f0f;
+			color: #e4e4e4;
+		}
+		.wrap { max-width: 900px; margin: 0 auto; }
+		.banner {
+			background: #1c1c1c;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 0.85rem;
+			margin-bottom: 20px;
+			line-height: 1.45;
+			color: #ccc;
+		}
+		.banner strong { color: #ff6b35; }
+		h1 { font-size: 1.25rem; margin: 0 0 8px; }
+		.lead { font-size: 0.88rem; color: #9a9a9a; margin: 0 0 20px; line-height: 1.45; }
+		.demo-layout {
+			display: grid;
+			grid-template-columns: 1fr 260px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 720px) {
+			.demo-layout { grid-template-columns: 1fr; }
+		}
+		.mock-main {
+			background: #1c1c1c;
+			border-radius: 8px;
+			padding: 20px;
+			min-height: 320px;
+			border: 1px solid #333;
+		}
+		.mock-main h2 { margin: 0 0 12px; font-size: 1.1rem; }
+		.mock-table {
+			height: 200px;
+			background: #252525;
+			border-radius: 6px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: #555;
+			font-size: 0.85rem;
+		}
+		.sidebar-menu-fold {
+			background: #1c1c1c;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+			margin-bottom: 12px;
+			border: 1px solid #333;
+			overflow: hidden;
+		}
+		.sidebar-menu-fold:last-child { margin-bottom: 0; }
+		.sidebar-menu-fold summary {
+			list-style: none;
+			cursor: pointer;
+			padding: 12px 14px;
+			font-size: 0.78rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: #ddd;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			user-select: none;
+		}
+		.sidebar-menu-fold summary::-webkit-details-marker { display: none; }
+		.sidebar-menu-fold summary::after {
+			content: '▸';
+			color: #ff6b35;
+			font-size: 0.85rem;
+			transition: transform 0.15s ease;
+		}
+		.sidebar-menu-fold[open] summary::after { transform: rotate(90deg); }
+		.sidebar-menu-fold[open] summary {
+			border-bottom: 1px solid #333;
+			background: #222;
+		}
+		.sidebar-menu-body { padding: 12px 14px 14px; }
+		.section-title {
+			margin: 0 0 8px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			color: #888;
+			border-bottom: 2px solid #ff6b35;
+			padding-bottom: 4px;
+		}
+		.section-title:not(:first-child) { margin-top: 14px; }
+		.row {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.8rem;
+			margin: 4px 0;
+			color: #bbb;
+		}
+		.row.big { font-weight: 700; color: #81c784; }
+		.hint { font-size: 0.68rem; color: #777; margin: 8px 0 0; line-height: 1.35; }
+		.btn {
+			display: block;
+			width: 100%;
+			margin-top: 8px;
+			padding: 8px;
+			text-align: center;
+			background: #ff6b35;
+			color: #fff;
+			border: none;
+			border-radius: 6px;
+			font-weight: 600;
+			font-size: 0.78rem;
+			cursor: pointer;
+		}
+		.btn-ghost { background: #333; color: #ddd; }
+		.cap-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+			margin-bottom: 12px;
+		}
+		.cap-cell {
+			background: #252525;
+			border: 1px solid #ff6b35;
+			border-radius: 6px;
+			padding: 8px;
+			text-align: center;
+		}
+		.cap-cell .lbl { font-size: 0.62rem; color: #888; display: block; }
+		.cap-cell .n { font-size: 1.25rem; font-weight: 800; color: #ff6b35; }
+		.stock-row {
+			display: grid;
+			grid-template-columns: 1fr auto auto;
+			gap: 6px;
+			align-items: center;
+			font-size: 0.8rem;
+			padding: 4px 0;
+			border-bottom: 1px solid #2a2a2a;
+		}
+		.stock-row:last-child { border-bottom: none; }
+		.stock-row .v { font-weight: 800; color: #81c784; }
+		.pm button {
+			width: 24px;
+			height: 24px;
+			border: 1px solid #444;
+			background: #2a2a2a;
+			color: #eee;
+			border-radius: 4px;
+			cursor: pointer;
+		}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="banner">
+			<strong>Menú desplegable</strong> — Dos bloques en la columna derecha. Tocás el título para abrir/cerrar. Así acortás el scroll y agrupás lo que va junto.
+		</div>
+		<h1>Demo — Caja · ventas · gastos / Control stock</h1>
+		<p class="lead">Probá expandir y colapsar cada sección (como un acordeón). Esto es lo que iría en el admin real.</p>
+
+		<div class="demo-layout">
+			<div class="mock-main">
+				<h2>Órdenes</h2>
+				<p style="color:#666;font-size:0.85rem;margin:0 0 12px;">Sin cuadro naranja acá — capacidad dentro de «Control stock».</p>
+				<div class="mock-table">Tabla de pedidos</div>
+			</div>
+
+			<div class="mock-sidebar">
+				<details class="sidebar-menu-fold" open>
+					<summary>Caja · gastos · ventas</summary>
+					<div class="sidebar-menu-body">
+						<p class="section-title">Caja</p>
+						<div class="row"><span>Efectivo</span><span>$0</span></div>
+						<div class="row"><span>Total ventas</span><span>$0</span></div>
+						<div class="row big"><span>Resultado</span><span>$0</span></div>
+						<button type="button" class="btn">Abrir caja</button>
+						<p class="hint">Turno, cierre, contadores de plata.</p>
+
+						<p class="section-title">Registro de ventas</p>
+						<div class="row"><span>Simples</span><span>0</span></div>
+						<div class="row"><span>Dobles</span><span>0</span></div>
+
+						<p class="section-title">Gastos</p>
+						<button type="button" class="btn btn-ghost">+ Agregar gasto</button>
+						<p class="hint">Lista de gastos del turno.</p>
+					</div>
+				</details>
+
+				<details class="sidebar-menu-fold" open>
+					<summary>Control stock</summary>
+					<div class="sidebar-menu-body">
+						<div class="cap-grid">
+							<div class="cap-cell"><span class="lbl">Hasta simples</span><span class="n">145</span></div>
+							<div class="cap-cell"><span class="lbl">Hasta dobles</span><span class="n">145</span></div>
+						</div>
+						<div class="stock-row">
+							<span>Panes</span>
+							<span class="v">145</span>
+							<span class="pm"><button type="button">−</button><button type="button">+</button></span>
+						</div>
+						<div class="stock-row">
+							<span>Medallones</span>
+							<span class="v">1246</span>
+							<span class="pm"><button type="button">−</button><button type="button">+</button></span>
+						</div>
+						<div class="stock-row">
+							<span>Lonchas cheddar</span>
+							<span class="v">12334</span>
+							<span class="pm"><button type="button">−</button><button type="button">+</button></span>
+						</div>
+						<button type="button" class="btn btn-ghost">Recontar</button>
+						<p class="hint">2 lonchas/med · extra cheddar +1 al entregar ✓.</p>
+					</div>
+				</details>
+			</div>
+		</div>
+	</div>
+</body>
+</html>

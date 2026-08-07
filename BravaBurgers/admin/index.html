@@ -254,6 +254,69 @@
 			background: var(--input-bg);
 			color: var(--text);
 		}
+		.sidebar-menu-fold {
+			background: var(--bg-surface);
+			border-radius: 8px;
+			box-shadow: var(--shadow-card);
+			margin-bottom: 12px;
+			border: 1px solid var(--border);
+			overflow: hidden;
+		}
+		.sidebar-menu-fold:last-child { margin-bottom: 0; }
+		.sidebar-menu-fold > summary {
+			list-style: none;
+			cursor: pointer;
+			padding: 12px 14px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--text-heading);
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 8px;
+			user-select: none;
+		}
+		.sidebar-menu-fold > summary::-webkit-details-marker { display: none; }
+		.sidebar-menu-fold > summary::after {
+			content: '▸';
+			color: var(--brava);
+			font-size: 0.85rem;
+			transition: transform 0.15s ease;
+			flex-shrink: 0;
+		}
+		.sidebar-menu-fold[open] > summary::after { transform: rotate(90deg); }
+		.sidebar-menu-fold[open] > summary {
+			border-bottom: 1px solid var(--border);
+			background: var(--bg-surface-muted);
+		}
+		.sidebar-menu-body { padding: 12px 14px 14px; }
+		.sidebar-menu-body .sidebar-block {
+			box-shadow: none;
+			padding: 14px 0 0;
+			margin: 0;
+			border-radius: 0;
+			border-top: 1px solid var(--border-strong);
+		}
+		.sidebar-menu-body .sidebar-block:first-child {
+			border-top: none;
+			padding-top: 0;
+		}
+		.sidebar-menu-body .sidebar-block h2 {
+			font-size: 0.78rem;
+			margin-bottom: 8px;
+		}
+		.sidebar-stock-panel .burger-capacity-box {
+			margin-bottom: 12px;
+			min-height: 0;
+		}
+		.sidebar-stock-panel .stock-cocina-block {
+			margin-top: 0;
+			padding-top: 0;
+			border-top: none;
+		}
+		.sidebar-stock-panel .stock-cocina-block.hidden { display: none; }
 		.card, .sidebar-block { background: var(--bg-surface); border-radius: 8px; padding: 24px; box-shadow: var(--shadow-card); color: var(--text); }
 		.sidebar-block { padding: 20px 16px; margin-bottom: 16px; }
 		.sidebar-block:last-child { margin-bottom: 0; }
@@ -914,21 +977,6 @@
 	<div id="app-view" class="hidden">
 		<div class="layout">
 			<div class="card">
-				<div class="orders-head-grid">
-					<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
-						<h3>¿Cuántas burgers?</h3>
-						<p class="cap-sub" id="burger-cap-sub">Abrí caja y cargá stock.</p>
-						<div class="burger-cap-row">
-							<span>Hasta · simples</span>
-							<span class="num" id="burger-cap-simples">—</span>
-						</div>
-						<div class="burger-cap-row">
-							<span>Hasta · dobles</span>
-							<span class="num" id="burger-cap-dobles">—</span>
-						</div>
-						<p class="burger-cap-foot" id="burger-cap-foot">2 lonchas/med · extra cheddar +1 al entregar.</p>
-					</div>
-					<div class="orders-head-main">
 				<h1>Órdenes
 					<span class="header-actions">
 						<button type="button" class="btn-sm theme-toggle-btn" id="theme-toggle-app" aria-pressed="false" title="Modo noche / claro">
@@ -937,8 +985,6 @@
 						<button type="button" class="btn-sm" id="logout-btn">Salir</button>
 					</span>
 				</h1>
-					</div>
-				</div>
 				<div class="sound-bar">
 					<audio id="alert-sound-mp3" preload="auto" src="/admin/sounds/zumbido.mp3?v=1"></audio>
 					<button type="button" class="btn-sm" id="btn-sound">Activar sonido</button>
@@ -974,6 +1020,9 @@
 				<p class="err" id="app-err" hidden></p>
 			</div>
 			<div class="sidebar">
+				<details class="sidebar-menu-fold" id="sidebar-fold-caja" open>
+					<summary>Caja · gastos · ventas</summary>
+					<div class="sidebar-menu-body">
 				<aside class="sidebar-block caja-box">
 					<h2>Caja</h2>
 					<p class="range-label" id="caja-range">—</p>
@@ -991,37 +1040,6 @@
 					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-abrir-caja">Abrir caja</button>
 					<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja</button>
 					<p class="caja-hint">Abrir = contadores en 0 · Cierre = guarda y vuelve a 0.</p>
-					<div class="stock-cocina-block hidden" id="stock-cocina-block" aria-live="polite">
-						<div class="stock-cocina-head">
-							<h3>Stock cocina</h3>
-							<button type="button" class="btn-sm" id="btn-stock-recontar">Recontar</button>
-						</div>
-						<p class="stock-cocina-hint">Panes, medallones y lonchas. Bajan al marcar entregado ✓.</p>
-						<div class="stock-live-row ok" data-stock-key="panes" data-stock-low="8" data-stock-critical="4">
-							<span class="name">Panes</span>
-							<span class="qty" id="stock-live-panes">0</span>
-							<span class="stock-mini-btns">
-								<button type="button" data-stock-delta="-1" aria-label="Menos pan">−</button>
-								<button type="button" data-stock-delta="1" aria-label="Más pan">+</button>
-							</span>
-						</div>
-						<div class="stock-live-row ok" data-stock-key="medallones" data-stock-low="10" data-stock-critical="5">
-							<span class="name">Medallones</span>
-							<span class="qty" id="stock-live-med">0</span>
-							<span class="stock-mini-btns">
-								<button type="button" data-stock-delta="-1">−</button>
-								<button type="button" data-stock-delta="1">+</button>
-							</span>
-						</div>
-						<div class="stock-live-row ok" data-stock-key="queso" data-stock-low="20" data-stock-critical="10">
-							<span class="name">Queso cheddar</span>
-							<span class="qty" id="stock-live-queso">0</span>
-							<span class="stock-mini-btns">
-								<button type="button" data-stock-delta="-1">−</button>
-								<button type="button" data-stock-delta="1">+</button>
-							</span>
-						</div>
-					</div>
 				</aside>
 				<aside class="sidebar-block ventas-box">
 					<h2>Registro de ventas</h2>
@@ -1038,6 +1056,57 @@
 					<p class="gastos-empty hidden" id="gastos-empty">Sin gastos en este turno.</p>
 					<p class="caja-hint">Igual que la caja: solo gastos cargados con la caja abierta; al cerrar, lista en 0.</p>
 				</aside>
+					</div>
+				</details>
+				<details class="sidebar-menu-fold" id="sidebar-fold-stock" open>
+					<summary>Control stock</summary>
+					<div class="sidebar-menu-body sidebar-stock-panel">
+						<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
+							<h3>¿Cuántas burgers?</h3>
+							<p class="cap-sub" id="burger-cap-sub">Abrí caja y cargá stock.</p>
+							<div class="burger-cap-row">
+								<span>Hasta · simples</span>
+								<span class="num" id="burger-cap-simples">—</span>
+							</div>
+							<div class="burger-cap-row">
+								<span>Hasta · dobles</span>
+								<span class="num" id="burger-cap-dobles">—</span>
+							</div>
+							<p class="burger-cap-foot" id="burger-cap-foot">2 lonchas/med · extra cheddar +1 al entregar.</p>
+						</div>
+						<div class="stock-cocina-block hidden" id="stock-cocina-block" aria-live="polite">
+							<div class="stock-cocina-head">
+								<h3>Inventario</h3>
+								<button type="button" class="btn-sm" id="btn-stock-recontar">Recontar</button>
+							</div>
+							<p class="stock-cocina-hint">Panes, medallones y lonchas. Bajan al marcar entregado ✓.</p>
+							<div class="stock-live-row ok" data-stock-key="panes" data-stock-low="8" data-stock-critical="4">
+								<span class="name">Panes</span>
+								<span class="qty" id="stock-live-panes">0</span>
+								<span class="stock-mini-btns">
+									<button type="button" data-stock-delta="-1" aria-label="Menos pan">−</button>
+									<button type="button" data-stock-delta="1" aria-label="Más pan">+</button>
+								</span>
+							</div>
+							<div class="stock-live-row ok" data-stock-key="medallones" data-stock-low="10" data-stock-critical="5">
+								<span class="name">Medallones</span>
+								<span class="qty" id="stock-live-med">0</span>
+								<span class="stock-mini-btns">
+									<button type="button" data-stock-delta="-1">−</button>
+									<button type="button" data-stock-delta="1">+</button>
+								</span>
+							</div>
+							<div class="stock-live-row ok" data-stock-key="queso" data-stock-low="20" data-stock-critical="10">
+								<span class="name">Queso cheddar</span>
+								<span class="qty" id="stock-live-queso">0</span>
+								<span class="stock-mini-btns">
+									<button type="button" data-stock-delta="-1">−</button>
+									<button type="button" data-stock-delta="1">+</button>
+								</span>
+							</div>
+						</div>
+					</div>
+				</details>
 			</div>
 		</div>
 	</div>
@@ -1195,6 +1264,6 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
-	<script src="/admin/admin.js?v=59"></script>
+	<script src="/admin/admin.js?v=60"></script>
 </body>
 </html>

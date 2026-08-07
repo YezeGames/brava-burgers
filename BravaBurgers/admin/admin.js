@@ -4094,6 +4094,26 @@
     setAdminTheme(isDarkTheme() ? 'light' : 'dark');
   }
 
+  function initSidebarMenuFolds() {
+    ['sidebar-fold-caja', 'sidebar-fold-stock'].forEach(function (id) {
+      var el = $(id);
+      if (!el) return;
+      var key = 'brava_admin_sidebar_' + id;
+      try {
+        var v = localStorage.getItem(key);
+        if (v === '0') el.open = false;
+        else if (v === '1') el.open = true;
+      } catch (e) {}
+      el.addEventListener('toggle', function () {
+        try {
+          localStorage.setItem(key, el.open ? '1' : '0');
+        } catch (e2) {}
+      });
+    });
+  }
+
+  initSidebarMenuFolds();
+
   updateThemeToggleButtons();
   document.querySelectorAll('.theme-toggle-btn').forEach(function (btn) {
     btn.addEventListener('click', toggleAdminTheme);
