@@ -410,6 +410,272 @@
     try {
       localStorage.removeItem(aperturaStorageKey());
     } catch (e) {}
+    clearStockTurno();
+  }
+
+  var pendingFinalizeAbrirCaja = null;
+  var stockModalMode = 'apertura';
+  var STOCK_MED_POR_SIMPLE = 1;
+  var STOCK_MED_POR_DOBLE = 2;
+  var STOCK_LONCHAS_POR_MED = 2;
+  var STOCK_LONCHAS_POR_EXTRA_CHEDDAR = 1;
+  var STOCK_PAN_POR_BURGER = 1;
+
+  function stockStorageKey() {
+    return 'brava_cocina_stock_' + (filterDesde || '') + '_' + (filterHasta || '');
+  }
+
+  function stockLastTurnKey() {
+    return 'brava_cocina_stock_last';
+  }
+
+  function normalizeStockObj(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+      panes: Math.max(0, parseInt(raw.panes, 10) || 0),
+      medallones: Math.max(0, parseInt(raw.medallones, 10) || 0),
+      queso: Math.max(0, parseInt(raw.queso, 10) || 0),
+    };
+  }
+
+  function getStockTurno() {
+    try {
+      var raw = localStorage.getItem(stockStorageKey());
+      if (!raw) return null;
+      return normalizeStockObj(JSON.parse(raw));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveStockTurno(st) {
+    var n = normalizeStockObj(st);
+    if (!n) return;
+    try {
+      localStorage.setItem(stockStorageKey(), JSON.stringify(n));
+      localStorage.setItem(stockLastTurnKey(), JSON.stringify(n));
+    } catch (e) {}
+  }
+
+  function clearStockTurno() {
+    try {
+      localStorage.removeItem(stockStorageKey());
+    } catch (e) {}
+  }
+
+  function medallonesPorHambItem(it) {
+    var t = itemCatalogText(it);
+    if (/\btriple\b/.test(t)) return 3;
+    if (hamburguesaEsDoble(it)) return STOCK_MED_POR_DOBLE;
+    return STOCK_MED_POR_SIMPLE;
+  }
+
+  function countExtraCheddarInVariedad(variedad) {
+    var t = String(variedad || '').trim();
+    if (!t || /^sin\s*extra/i.test(t)) return 0;
+    var total = 0;
+    var re = /extra\s*cheddar(?:\s*x\s*(\d+))?/gi;
+    var m;
+    while ((m = re.exec(t))) {
+      total += m[1] ? Math.max(1, parseInt(m[1], 10) || 1) : 1;
+    }
+    return total;
+  }
+
+  function lonchasQuesoPorHambItem(it) {
+    var med = medallonesPorHambItem(it);
+    var extra = countExtraCheddarInVariedad(it.variedad || it.var || '');
+    return med * STOCK_LONCHAS_POR_MED + extra * STOCK_LONCHAS_POR_EXTRA_CHEDDAR;
+  }
+
+  function computeStockUsageForOrder(o) {
+    var panes = 0;
+    var medallones = 0;
+    var queso = 0;
+    parseOrderItems(o).forEach(function (it) {
+      if (!isHamburguesaItem(it)) return;
+      var q = editItemQty(it);
+      panes += q * STOCK_PAN_POR_BURGER;
+      medallones += q * medallonesPorHambItem(it);
+      queso += q * lonchasQuesoPorHambItem(it);
+    });
+    return { panes: panes, medallones: medallones, queso: queso };
+  }
+
+  function deductStockForDeliveredOrder(o) {
+    if (!isCajaTurnoActivo()) return;
+    var st = getStockTurno();
+    if (!st) return;
+    var use = computeStockUsageForOrder(o);
+    if (!use.panes && !use.medallones && !use.queso) return;
+    st.panes = Math.max(0, st.panes - use.panes);
+    st.medallones = Math.max(0, st.medallones - use.medallones);
+    st.queso = Math.max(0, st.queso - use.queso);
+    saveStockTurno(st);
+  }
+
+  function stockLonchasBaseSimple() {
+    return STOCK_MED_POR_SIMPLE * STOCK_LONCHAS_POR_MED;
+  }
+
+  function stockLonchasBaseDoble() {
+    return STOCK_MED_POR_DOBLE * STOCK_LONCHAS_POR_MED;
+  }
+
+  function stockCapacidadBurgers(st) {
+    var p = st.panes;
+    var m = st.medallones;
+    var q = st.queso;
+    var simples = Math.min(p, m, Math.floor(q / stockLonchasBaseSimple()));
+    var dobles = Math.min(p, Math.floor(m / STOCK_MED_POR_DOBLE), Math.floor(q / stockLonchasBaseDoble()));
+    function cuelloSimples() {
+      var qs = Math.floor(q / stockLonchasBaseSimple());
+      var n = Math.min(p, m, qs);
+      if (n === p) return 'panes';
+      if (n === m) return 'medallones';
+      return 'lonchas';
+    }
+    function cuelloDobles() {
+      var dm = Math.floor(m / STOCK_MED_POR_DOBLE);
+      var dq = Math.floor(q / stockLonchasBaseDoble());
+      var n = Math.min(p, dm, dq);
+      if (n === p) return 'panes';
+      if (n === dm) return 'medallones';
+      return 'lonchas';
+    }
+    return { simples: simples, dobles: dobles, limitS: cuelloSimples(), limitD: cuelloDobles() };
+  }
+
+  function stockApplyRowLevel(row, qty) {
+    if (!row) return;
+    var low = parseInt(row.getAttribute('data-stock-low'), 10);
+    var crit = parseInt(row.getAttribute('data-stock-critical'), 10);
+    row.classList.remove('ok', 'low', 'critical');
+    if (qty < crit) row.classList.add('critical');
+    else if (qty < low) row.classList.add('low');
+    else row.classList.add('ok');
+  }
+
+  function updateStockChrome() {
+    var block = $('stock-cocina-block');
+    var capBox = $('burger-capacity-box');
+    var activo = isCajaTurnoActivo();
+    var st = getStockTurno();
+    if (block) block.classList.toggle('hidden', !activo || !st);
+    if (activo && st) {
+      if ($('stock-live-panes')) $('stock-live-panes').textContent = String(st.panes);
+      if ($('stock-live-med')) $('stock-live-med').textContent = String(st.medallones);
+      if ($('stock-live-queso')) $('stock-live-queso').textContent = String(st.queso);
+      document.querySelectorAll('.stock-live-row[data-stock-key]').forEach(function (row) {
+        var key = row.getAttribute('data-stock-key');
+        stockApplyRowLevel(row, st[key]);
+      });
+    }
+    if (capBox) {
+      if (!activo || !st) {
+        capBox.classList.add('is-off');
+        if ($('burger-cap-sub')) $('burger-cap-sub').textContent = 'Abrí caja y cargá stock.';
+        if ($('burger-cap-simples')) $('burger-cap-simples').textContent = '—';
+        if ($('burger-cap-dobles')) $('burger-cap-dobles').textContent = '—';
+        if ($('burger-cap-foot')) {
+          $('burger-cap-foot').textContent = '2 lonchas/med · extra cheddar +1 al entregar.';
+        }
+      } else {
+        capBox.classList.remove('is-off');
+        var cap = stockCapacidadBurgers(st);
+        if ($('burger-cap-sub')) {
+          $('burger-cap-sub').textContent = 'Según pan, med y lonchas en Stock cocina:';
+        }
+        if ($('burger-cap-simples')) {
+          $('burger-cap-simples').textContent = String(cap.simples);
+          $('burger-cap-simples').classList.toggle('zero', cap.simples === 0);
+        }
+        if ($('burger-cap-dobles')) {
+          $('burger-cap-dobles').textContent = String(cap.dobles);
+          $('burger-cap-dobles').classList.toggle('zero', cap.dobles === 0);
+        }
+        if ($('burger-cap-foot')) {
+          $('burger-cap-foot').textContent =
+            'Limita simples: ' + cap.limitS + ' · dobles: ' + cap.limitD + '.';
+        }
+      }
+    }
+  }
+
+  function readStockModalForm() {
+    function num(id) {
+      var v = parseInt($(id).value, 10);
+      return isNaN(v) || v < 0 ? 0 : v;
+    }
+    return {
+      panes: num('stock-qty-panes'),
+      medallones: num('stock-qty-med'),
+      queso: num('stock-qty-queso'),
+    };
+  }
+
+  function fillStockModalForm(st) {
+    var s = st || { panes: '', medallones: '', queso: '' };
+    $('stock-qty-panes').value = s.panes !== '' && s.panes != null ? s.panes : '';
+    $('stock-qty-med').value = s.medallones !== '' && s.medallones != null ? s.medallones : '';
+    $('stock-qty-queso').value = s.queso !== '' && s.queso != null ? s.queso : '';
+  }
+
+  function openStockAperturaModal(mode, afterSave) {
+    stockModalMode = mode === 'recontar' ? 'recontar' : 'apertura';
+    pendingFinalizeAbrirCaja = typeof afterSave === 'function' ? afterSave : null;
+    var modal = $('stock-apertura-modal');
+    if (!modal) {
+      if (pendingFinalizeAbrirCaja) pendingFinalizeAbrirCaja();
+      return;
+    }
+    if ($('stock-apertura-title')) {
+      $('stock-apertura-title').textContent =
+        stockModalMode === 'recontar' ? 'Recontar stock cocina' : 'Abrir caja — stock cocina';
+    }
+    if ($('stock-apertura-sub')) {
+      $('stock-apertura-sub').textContent =
+        stockModalMode === 'recontar'
+          ? 'Actualizá panes, medallones y lonchas.'
+          : 'Contá lo que hay ahora. Después podés recontar en la columna Caja.';
+    }
+    if ($('stock-apertura-ok')) {
+      $('stock-apertura-ok').textContent =
+        stockModalMode === 'recontar' ? 'Guardar conteo' : 'Confirmar y abrir caja';
+    }
+    if (stockModalMode === 'recontar') fillStockModalForm(getStockTurno() || {});
+    else fillStockModalForm({ panes: '', medallones: '', queso: '' });
+    modal.classList.remove('hidden');
+    if ($('stock-qty-panes')) $('stock-qty-panes').focus();
+  }
+
+  function closeStockAperturaModal() {
+    var modal = $('stock-apertura-modal');
+    if (modal) modal.classList.add('hidden');
+    pendingFinalizeAbrirCaja = null;
+  }
+
+  function confirmStockAperturaModal() {
+    var st = readStockModalForm();
+    if (stockModalMode === 'apertura' && !st.panes && !st.medallones && !st.queso) {
+      if (!confirm('Los tres ítems están en 0. ¿Abrir caja igual?')) return;
+    }
+    saveStockTurno(st);
+    var done = pendingFinalizeAbrirCaja;
+    var modal = $('stock-apertura-modal');
+    if (modal) modal.classList.add('hidden');
+    pendingFinalizeAbrirCaja = null;
+    updateStockChrome();
+    if (done) done();
+  }
+
+  function adjustStockTurnoKey(key, delta) {
+    if (!isCajaTurnoActivo()) return;
+    var st = getStockTurno();
+    if (!st || !key) return;
+    st[key] = Math.max(0, (st[key] || 0) + delta);
+    saveStockTurno(st);
+    updateStockChrome();
   }
 
   function orderEntregadoAtMs(o) {
@@ -880,6 +1146,7 @@
     updateCierreStatusUI();
     updateGastosChrome();
     syncTurnoPedidosUi();
+    updateStockChrome();
   }
 
   function loadCierres(force) {
@@ -917,27 +1184,32 @@
       ) {
         return;
       }
-      api({ action: 'deleteCierre', token: token, id: cierre.id }).then(function (res) {
-        if (res.data.ok) {
-          cierresCache = cierresCache.filter(function (x) {
-            return x.id !== cierre.id;
-          });
-          setCajaMarcadaAbierta(true);
-          setAperturaNow();
-          updateCajaUI();
-          renderGastosList();
-          loadCierres(true);
-        } else {
-          if (res.status === 401) handleAuthFailure();
-          else alert('No se pudo abrir la caja.');
-        }
+      var cierreId = cierre.id;
+      openStockAperturaModal('apertura', function () {
+        api({ action: 'deleteCierre', token: token, id: cierreId }).then(function (res) {
+          if (res.data.ok) {
+            cierresCache = cierresCache.filter(function (x) {
+              return x.id !== cierreId;
+            });
+            setCajaMarcadaAbierta(true);
+            setAperturaNow();
+            updateCajaUI();
+            renderGastosList();
+            loadCierres(true);
+          } else {
+            if (res.status === 401) handleAuthFailure();
+            else alert('No se pudo abrir la caja.');
+          }
+        });
       });
       return;
     }
-    setCajaMarcadaAbierta(true);
-    setAperturaNow();
-    updateCajaUI();
-    renderGastosList();
+    openStockAperturaModal('apertura', function () {
+      setCajaMarcadaAbierta(true);
+      setAperturaNow();
+      updateCajaUI();
+      renderGastosList();
+    });
   }
 
   function cierrePeriodoLabel() {
@@ -2266,13 +2538,15 @@
 
       if (allOrdersCache[i].orn === orn) {
 
+        var prevEst = normalizeEstado(allOrdersCache[i].estado);
+
         Object.keys(patch).forEach(function (k) {
 
           allOrdersCache[i][k] = patch[k];
 
         });
 
-        var est = patch.estado ? normalizeEstado(patch.estado) : '';
+        var est = patch.estado ? normalizeEstado(patch.estado) : prevEst;
 
         var now = new Date().toISOString();
 
@@ -2283,6 +2557,10 @@
         if (est === 'cancelada' && !allOrdersCache[i].cancelado_at) allOrdersCache[i].cancelado_at = now;
 
         if (est === 'rechazado' && !allOrdersCache[i].rechazado_at) allOrdersCache[i].rechazado_at = now;
+
+        if (est === 'entregada' && prevEst !== 'entregada') {
+          deductStockForDeliveredOrder(allOrdersCache[i]);
+        }
 
         break;
 
@@ -3995,6 +4273,35 @@
   }
 
   if ($('btn-abrir-caja')) $('btn-abrir-caja').onclick = performAbrirCaja;
+
+  if ($('btn-stock-recontar')) {
+    $('btn-stock-recontar').onclick = function () {
+      if (!isCajaTurnoActivo()) return;
+      openStockAperturaModal('recontar');
+    };
+  }
+  if ($('stock-apertura-cancel')) $('stock-apertura-cancel').onclick = closeStockAperturaModal;
+  if ($('stock-apertura-ok')) $('stock-apertura-ok').onclick = confirmStockAperturaModal;
+  document.querySelectorAll('[data-stock-field]').forEach(function (btn) {
+    btn.onclick = function () {
+      var id = btn.getAttribute('data-stock-field');
+      var step = parseInt(btn.getAttribute('data-stock-step'), 10);
+      var input = $(id);
+      if (!input) return;
+      var cur = parseInt(input.value, 10);
+      if (isNaN(cur)) cur = 0;
+      input.value = String(Math.max(0, cur + step));
+    };
+  });
+  document.querySelectorAll('.stock-mini-btns button[data-stock-delta]').forEach(function (btn) {
+    btn.onclick = function () {
+      var row = btn.closest('.stock-live-row');
+      if (!row) return;
+      var key = row.getAttribute('data-stock-key');
+      var d = parseInt(btn.getAttribute('data-stock-delta'), 10);
+      adjustStockTurnoKey(key, d);
+    };
+  });
 
   if ($('btn-cierre-caja')) $('btn-cierre-caja').onclick = performCierreCaja;
 
