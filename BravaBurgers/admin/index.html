@@ -776,6 +776,12 @@
 		html[data-theme="dark"] #orders-table tbody tr.row-pendiente-nuevo {
 			box-shadow: inset 0 0 0 1px rgba(255, 107, 53, 0.35);
 		}
+		#orders-table .orders-addr { font-weight: 600; font-size: 0.82rem; line-height: 1.35; min-width: 140px; }
+		#orders-table .orders-addr-sub { font-size: 0.72rem; color: var(--text-subtle); margin-top: 2px; }
+		#orders-table .orders-addr-muted { color: var(--text-faint); }
+		#orders-table tbody tr.row-reparto-on td { background: rgba(255, 107, 53, 0.08); }
+		#orders-table .td-reparto-chk { width: 40px; text-align: center; vertical-align: middle; }
+		#orders-table .reparto-order-cb { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brava); }
 		@media print {
 			html.printing-comanda,
 			html.printing-comanda body,
@@ -1130,7 +1136,7 @@
 					<table id="orders-table">
 						<thead>
 							<tr>
-								<th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Pago</th><th>Total</th><th>ORN</th><th>Acciones</th>
+								<th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Dirección</th><th>Pago</th><th>Total</th><th>ORN</th><th>Acciones</th>
 							</tr>
 						</thead>
 						<tbody id="tbody"></tbody>
@@ -1419,7 +1425,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=1"></script>
-	<script src="/admin/admin.js?v=61"></script>
+	<script src="/admin/reparto.js?v=2"></script>
+	<script src="/admin/admin.js?v=62"></script>
 </body>
 </html>

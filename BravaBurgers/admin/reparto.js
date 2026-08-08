@@ -308,6 +308,48 @@
     renderRouteList();
   }
 
+  function isOrnSelected(orn) {
+    return selected.indexOf(orn) !== -1;
+  }
+
+  function canSelectOrn(orn) {
+    return candidates.some(function (c) {
+      return c.orn === orn;
+    });
+  }
+
+  function syncMainTableRepartoUi() {
+    document.querySelectorAll('#orders-table .reparto-order-cb').forEach(function (cb) {
+      var orn = cb.getAttribute('data-orn');
+      var on = isOrnSelected(orn);
+      cb.checked = on;
+      var tr = cb.closest('tr');
+      if (tr) tr.classList.toggle('row-reparto-on', on);
+    });
+  }
+
+  function syncPickListChecks() {
+    var ul = $('reparto-pick-list');
+    if (!ul) return;
+    ul.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
+      var orn = cb.getAttribute('data-o');
+      var on = isOrnSelected(orn);
+      cb.checked = on;
+      var li = cb.closest('li');
+      if (li) li.classList.toggle('is-on', on);
+    });
+  }
+
+  function setOrderSelected(orn, on) {
+    if (!canSelectOrn(orn)) return;
+    var ix = selected.indexOf(orn);
+    if (on && ix === -1) selected.push(orn);
+    if (!on && ix !== -1) selected.splice(ix, 1);
+    syncRouteFromSelection();
+    syncPickListChecks();
+    syncMainTableRepartoUi();
+  }
+
   function syncRouteFromSelection() {
     routeOrder = selected.filter(function (orn) {
       return candidates.some(function (c) {
@@ -350,15 +392,11 @@
     });
     ul.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
       cb.onchange = function () {
-        var orn = cb.getAttribute('data-o');
-        var ix = selected.indexOf(orn);
-        if (cb.checked && ix === -1) selected.push(orn);
-        if (!cb.checked && ix !== -1) selected.splice(ix, 1);
-        syncRouteFromSelection();
-        renderPickList();
+        setOrderSelected(cb.getAttribute('data-o'), cb.checked);
       };
     });
     syncRouteFromSelection();
+    syncMainTableRepartoUi();
   }
 
   function pickCandidatesFromOrders(orders) {
@@ -515,6 +553,8 @@
 
   window.BravaReparto = {
     init: init,
-    onOrdersUpdated: onOrdersUpdated
+    onOrdersUpdated: onOrdersUpdated,
+    isOrnSelected: isOrnSelected,
+    setOrderSelected: setOrderSelected
   };
 })();

@@ -1981,6 +1981,52 @@
 
 
 
+  function ordersTableColspan(panelEstado) {
+    return panelEstado === 'aceptado' ? 9 : 8;
+  }
+
+  function updateOrdersTableHead(panelEstado) {
+    var row = document.querySelector('#orders-table thead tr');
+    if (!row) return;
+    var cols = ['Fecha', 'Cliente', 'Teléfono', 'Dirección', 'Pago', 'Total', 'ORN', 'Acciones'];
+    if (panelEstado === 'aceptado') cols.unshift('Ruta');
+    row.innerHTML = cols
+      .map(function (c) {
+        return '<th>' + c + '</th>';
+      })
+      .join('');
+  }
+
+  function formatOrderAddressCell(o) {
+    var dir = String(o.direccion || '').trim();
+    var sub = [o.piso, o.localidad]
+      .filter(function (x) {
+        return String(x || '').trim();
+      })
+      .join(' · ');
+    if (!dir && !sub) return '<span class="orders-addr-muted">—</span>';
+    var html = dir ? '<div class="orders-addr">' + escapeHtml(dir) + '</div>' : '';
+    if (sub) html += '<div class="orders-addr-sub">' + escapeHtml(sub) + '</div>';
+    return html;
+  }
+
+  function repartoCheckboxCellHtml(o, tr) {
+    var hasDir = String(o.direccion || '').trim().length > 0;
+    if (!hasDir) return '<td class="td-reparto-chk"></td>';
+    var on =
+      window.BravaReparto &&
+      typeof window.BravaReparto.isOrnSelected === 'function' &&
+      window.BravaReparto.isOrnSelected(o.orn);
+    if (on) tr.className = (tr.className ? tr.className + ' ' : '') + 'row-reparto-on';
+    return (
+      '<td class="td-reparto-chk"><input type="checkbox" class="reparto-order-cb" data-orn="' +
+      escapeHtml(o.orn) +
+      '"' +
+      (on ? ' checked' : '') +
+      ' title="Incluir en ruta (Reparto)"></td>'
+    );
+  }
+
   function appendEmptyRow(parent, panelEstado) {
 
     var hints = {
@@ -2003,7 +2049,7 @@
 
     empty.innerHTML =
 
-      '<td colspan="7" class="orders-empty-msg">' +
+      '<td colspan="' + ordersTableColspan(panelEstado) + '" class="orders-empty-msg">' +
 
       (hints[panelEstado] || 'No hay pedidos en esta pestaña.') +
 
@@ -2144,6 +2190,8 @@
 
       tr.innerHTML =
 
+        (panelEstado === 'aceptado' ? repartoCheckboxCellHtml(o, tr) : '') +
+
         '<td>' +
 
         fecha +
@@ -2161,6 +2209,10 @@
         '</td><td>' +
 
         (o.telefono || '') +
+
+        '</td><td>' +
+
+        formatOrderAddressCell(o) +
 
         '</td><td>' +
 
@@ -2213,6 +2265,8 @@
 
 
   function paintCurrentTab() {
+
+    updateOrdersTableHead(currentEstado);
 
     var tb = $('tbody');
 
@@ -3994,6 +4048,14 @@
   }
 
 
+
+  $('orders-table').addEventListener('change', function (e) {
+    var cb = e.target;
+    if (!cb || !cb.classList || !cb.classList.contains('reparto-order-cb')) return;
+    var orn = cb.getAttribute('data-orn');
+    if (!orn || !window.BravaReparto || typeof window.BravaReparto.setOrderSelected !== 'function') return;
+    window.BravaReparto.setOrderSelected(orn, cb.checked);
+  });
 
   $('orders-table').addEventListener('click', function (e) {
 
