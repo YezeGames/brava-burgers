@@ -570,6 +570,48 @@
 		});
 	}
 
+	function normalizeTimeConfig(val, fallback) {
+		if (val === undefined || val === null || String(val).trim() === '') return fallback;
+		let s = String(val).trim().replace(/\./g, ':');
+		const m = s.match(/^(\d{1,2}):(\d{2})/);
+		if (!m) return fallback;
+		const h = parseInt(m[1], 10);
+		const min = parseInt(m[2], 10) || 0;
+		return (h < 10 ? '0' : '') + h + ':' + (min < 10 ? '0' : '') + min;
+	}
+
+	function buildTurnosDeliveryConfig(cfg, opcionesTurno) {
+		const slots = [
+			{ start: '20:00', end: '21:00', cutoff: '20:30', bucket: 20 },
+			{ start: '21:00', end: '22:00', cutoff: '21:30', bucket: 21 },
+			{ start: '22:00', end: '23:00', cutoff: '22:40', bucket: 22 },
+		];
+		const n = Math.max(1, Math.min((opcionesTurno && opcionesTurno.length) || 3, 5));
+		const turnos = [];
+		for (let i = 1; i <= n; i++) {
+			const def = slots[i - 1] || slots[slots.length - 1];
+			const deliveryStart = normalizeTimeConfig(configGet(cfg, 'Turno ' + i + ' - Entrega desde'), def.start);
+			const deliveryEnd = normalizeTimeConfig(configGet(cfg, 'Turno ' + i + ' - Entrega hasta'), def.end);
+			const orderCutoff = normalizeTimeConfig(configGet(cfg, 'Turno ' + i + ' - Cierre pedidos'), def.cutoff);
+			turnos.push({
+				index: i,
+				deliveryStart: deliveryStart,
+				deliveryEnd: deliveryEnd,
+				orderCutoff: orderCutoff,
+				hourBucket: def.bucket,
+				customerLabel: 'Turno ' + i + ' — ' + deliveryStart + ' a ' + deliveryEnd,
+			});
+		}
+		const maxRaw = configGet(cfg, 'Máx pedidos por hora') || configGet(cfg, 'Max pedidos por hora');
+		let maxPorHora = parseInt(String(maxRaw || '').replace(/[^0-9]/g, ''), 10);
+		if (isNaN(maxPorHora) || maxPorHora < 1) maxPorHora = 4;
+		return {
+			pedidosDesde: normalizeTimeConfig(configGet(cfg, 'Pedidos web desde'), '19:00'),
+			maxPorHora: maxPorHora,
+			turnos: turnos,
+		};
+	}
+
 	function applyConfigToGlobals(cfg) {
 		global.g_config = cfg;
 
@@ -581,6 +623,10 @@
 		global.g_pedido_monto_minimo = limpiarPrecio(configGet(cfg, 'Monto mínimo del pedido') || configGet(cfg, 'Monto minimo del pedido'));
 		global.g_control_horario =
 			String(configGet(cfg, 'Control horario')).toUpperCase() === 'SI';
+		global.g_control_turnos_delivery =
+			String(
+				configGet(cfg, 'Control turnos delivery') || configGet(cfg, 'Control turnos de delivery')
+			).toUpperCase() === 'SI';
 		global.g_mensaje_cerrado = configGet(cfg, 'Mensaje si está CERRADO') || configGet(cfg, 'Mensaje si esta CERRADO');
 		global.g_texto_final_whatsapp = configGet(cfg, 'Texto al final del mensaje') || 'BRAVA BURGERS';
 		global.g_modelo_linea_whatsapp =
@@ -637,11 +683,13 @@
 		}
 		if (global.g_preguntas.opcionesTurno.length === 0) {
 			global.g_preguntas.opcionesTurno = [
-				'Turno Noche 1: 20.00 a 21.00',
-				'Turno Noche 2: 21.00 a 22.00',
-				'Turno Noche 3: 22.00 a 23.00',
+				'Turno 1 — 20:00 a 21:00',
+				'Turno 2 — 21:00 a 22:00',
+				'Turno 3 — 22:00 a 23:00',
 			];
 		}
+
+		global.g_turnos_delivery = buildTurnosDeliveryConfig(cfg, global.g_preguntas.opcionesTurno);
 
 		global.g_pedido_storage_key =
 			(configGet(cfg, 'Alias pedido') || 'bravaburgers').toLowerCase().replace(/[^a-z0-9]/g, '') ||

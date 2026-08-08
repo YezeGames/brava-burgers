@@ -20,7 +20,14 @@ module.exports = async function handler(req, res) {
   if (isSupabaseConfigured()) {
     const data = await createOrderFromShop(order);
     if (!data.ok) {
-      return res.status(502).json(data);
+      const turnoErr =
+        data.error === 'turno_cupo_lleno' ||
+        data.error === 'turno_cerrado' ||
+        data.error === 'turno_no_abierto' ||
+        data.error === 'turno_invalid' ||
+        data.error === 'turno_no_disponible';
+      const code = turnoErr ? 409 : 502;
+      return res.status(code).json(data);
     }
     return res.status(200).json(data);
   }

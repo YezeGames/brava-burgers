@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — aviso cupo turno · Brava Burgers</title>
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="brava-brand.css?v=15" rel="stylesheet">
+	<style>
+		body {
+			margin: 0;
+			min-height: 100vh;
+			background: #0d0d0d;
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 24px 16px 48px;
+			font-family: system-ui, sans-serif;
+		}
+		.demo-hint {
+			max-width: 380px;
+			text-align: center;
+			font-size: 0.82rem;
+			color: #888;
+			margin-bottom: 16px;
+			line-height: 1.45;
+		}
+		.demo-hint strong { color: #ff6b35; }
+		.checkout-frame {
+			width: 350px;
+			max-width: calc(100vw - 24px);
+			padding: 44px;
+			box-sizing: border-box;
+			background: var(--brava-bg, #1a1a1a);
+			border-radius: 8px;
+			border: 1px solid #333;
+			box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+		}
+		.scenario-bar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			justify-content: center;
+			max-width: 520px;
+			margin-top: 20px;
+		}
+		.scenario-bar button {
+			padding: 8px 12px;
+			border-radius: 6px;
+			border: 1px solid #444;
+			background: #252525;
+			color: #eee;
+			font-size: 0.78rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.scenario-bar button.active {
+			background: #ff6b35;
+			border-color: #ff6b35;
+			color: #fff;
+		}
+	</style>
+</head>
+<body>
+	<p class="demo-hint">
+		<strong>Cartel en el checkout</strong> (mismo CSS que la tienda). Probá escenarios abajo — en producción solo se ve con
+		<code>Control turnos delivery = SI</code>.
+	</p>
+
+	<div id="preguntas_pedido" class="checkout-frame">
+		<div class="brava-checkout-inner">
+			<div class="brava-checkout-head">
+				<div id="preguntas_pedido_encabezado">¡Completá los datos para que preparemos tu pedido!</div>
+			</div>
+			<form class="brava-checkout-body">
+				<p class="brava-field brava-field-turno">
+					<label id="pregunta_6_label">Selecciona el turno*</label>
+					<select id="pregunta_6_respuesta" class="form-control brava-input" required></select>
+					<div id="brava-turno-cupo-notice" class="brava-turno-cupo-notice" role="status" aria-live="polite"></div>
+				</p>
+				<p class="brava-field" style="opacity:0.45;pointer-events:none;">
+					<label>… resto del formulario (nombre, dirección, zona) …</label>
+					<input type="text" class="form-control brava-input" disabled placeholder="Demo solo turno + aviso">
+				</p>
+			</form>
+		</div>
+	</div>
+
+	<div class="scenario-bar" id="scenarios"></div>
+
+	<script>
+		(function () {
+			'use strict';
+
+			var TURNOS = [
+				{ start: '20:00', end: '21:00', bucket: 20 },
+				{ start: '21:00', end: '22:00', bucket: 21 },
+				{ start: '22:00', end: '23:00', bucket: 22 },
+			];
+
+			var SCENARIOS = {
+				t1_lleno: {
+					label: 'Turno 1 lleno',
+					cupos: { 20: 4, 21: 1, 22: 0 },
+					max: 4,
+				},
+				t2_lleno: {
+					label: 'Turno 2 lleno',
+					cupos: { 20: 1, 21: 4, 22: 0 },
+					max: 4,
+				},
+				todos_llenos: {
+					label: 'Todos sin cupo',
+					cupos: { 20: 4, 21: 4, 22: 4 },
+					max: 4,
+				},
+				normal: {
+					label: 'Todos con cupo',
+					cupos: { 20: 1, 21: 2, 22: 0 },
+					max: 4,
+				},
+			};
+
+			var activeKey = 't1_lleno';
+
+			function label(i, t) {
+				return 'Turno ' + (i + 1) + ' — ' + t.start + ' a ' + t.end;
+			}
+
+			function evaluate(i, t, cupos, maxH) {
+				var count = cupos[t.bucket] || 0;
+				var full = count >= maxH;
+				return {
+					customerLabel: label(i, t),
+					available: !full,
+					full: full,
+					closedByTime: false,
+				};
+			}
+
+			function msg(r) {
+				if (r.full) {
+					return (
+						'<strong>' +
+						r.customerLabel +
+						'</strong>: el cupo de este turno está completo. Elegí otro turno con entrega en otro horario.'
+					);
+				}
+				if (r.closedByTime) {
+					return '<strong>' + r.customerLabel + '</strong>: ya no tomamos pedidos para este turno.';
+				}
+				return '';
+			}
+
+			function render(scenarioKey) {
+				activeKey = scenarioKey;
+				var sc = SCENARIOS[scenarioKey];
+				var cupos = sc.cupos;
+				var maxH = sc.max;
+
+				var results = TURNOS.map(function (t, i) {
+					return evaluate(i, t, cupos, maxH);
+				});
+				var available = results.filter(function (r) {
+					return r.available;
+				});
+
+				var sel = document.getElementById('pregunta_6_respuesta');
+				var notice = document.getElementById('brava-turno-cupo-notice');
+
+				sel.innerHTML = '';
+				if (!available.length) {
+					sel.appendChild(new Option('— Sin turnos disponibles —', ''));
+					sel.disabled = true;
+				} else {
+					sel.disabled = false;
+					available.forEach(function (r) {
+						sel.appendChild(new Option(r.customerLabel, r.customerLabel));
+					});
+				}
+
+				var lines = results
+					.filter(function (r) {
+						return !r.available;
+					})
+					.map(msg)
+					.filter(Boolean);
+
+				if (!lines.length) {
+					notice.classList.add('hidden');
+					notice.innerHTML = '';
+				} else {
+					var onlyFull =
+						!available.length &&
+						results.every(function (r) {
+							return r.full;
+						});
+					var title = onlyFull ? 'No hay cupo en ningún turno ahora' : 'Algunos turnos no están disponibles';
+					notice.innerHTML =
+						'<span class="brava-turno-cupo-notice-title">' +
+						title +
+						'</span><ul><li>' +
+						lines.join('</li><li>') +
+						'</li></ul>';
+					notice.classList.remove('hidden');
+				}
+
+				document.querySelectorAll('#scenarios button').forEach(function (btn) {
+					btn.classList.toggle('active', btn.getAttribute('data-key') === scenarioKey);
+				});
+			}
+
+			var bar = document.getElementById('scenarios');
+			Object.keys(SCENARIOS).forEach(function (key) {
+				var b = document.createElement('button');
+				b.type = 'button';
+				b.textContent = SCENARIOS[key].label;
+				b.setAttribute('data-key', key);
+				b.addEventListener('click', function () {
+					render(key);
+				});
+				bar.appendChild(b);
+			});
+
+			render('t1_lleno');
+		})();
+	</script>
+</body>
+</html>

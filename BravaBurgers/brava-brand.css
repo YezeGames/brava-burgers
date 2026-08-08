@@ -248,6 +248,47 @@ body.tienehover .producto_fila:hover small {
 	line-height: 1.35;
 }
 
+.brava-turno-cupo-notice {
+	margin-top: 8px;
+	padding: 10px 12px;
+	font-size: 12px;
+	line-height: 1.45;
+	border-radius: 4px;
+	background: rgba(255, 152, 0, 0.1);
+	border: 1px solid rgba(255, 107, 53, 0.5);
+	color: var(--brava-text, #eee);
+}
+
+.brava-turno-cupo-notice.hidden {
+	display: none;
+}
+
+/* Sin «Control turnos delivery» = SI en Sheet: nunca mostrar aviso de cupos */
+body.brava-turnos-delivery-off .brava-turno-cupo-notice {
+	display: none !important;
+}
+
+.brava-turno-cupo-notice-title {
+	display: block;
+	font-weight: 700;
+	color: var(--brava-accent, #ff6b35);
+	margin-bottom: 4px;
+	font-size: 12px;
+}
+
+.brava-turno-cupo-notice ul {
+	margin: 4px 0 0;
+	padding-left: 18px;
+}
+
+.brava-turno-cupo-notice li {
+	margin-bottom: 4px;
+}
+
+.brava-turno-cupo-notice li:last-child {
+	margin-bottom: 0;
+}
+
 .brava-addr-wrap {
 	position: relative;
 }

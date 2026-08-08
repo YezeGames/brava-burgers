@@ -120,41 +120,27 @@ async function createOrderFromShop(order) {
 
   const total = Number(order.total) || subtotal + envio;
 
+  const { validateShopOrder } = require('./turnosDelivery');
+  const turnCheck = await validateShopOrder(order);
+  if (!turnCheck.ok) return turnCheck;
+
   const row = {
-
     orn: ornVal,
-
     estado: 'pendiente',
-
     cliente: order.cliente || '',
-
     telefono: order.telefono || '',
-
     direccion: order.direccion || '',
-
     localidad: order.localidad || '',
-
     piso: order.piso || '',
-
     turno: order.turno || '',
-
     zona: order.zona || '',
-
     envio,
-
     pago: order.pago || '',
-
     items_json: order.items || [],
-
     subtotal,
-
     total,
-
     idempotency_key: idem || null,
-
   };
-
-
 
   const ins = await restInsert('orders', row);
 

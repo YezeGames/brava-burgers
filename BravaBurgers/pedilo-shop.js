@@ -750,7 +750,17 @@
 			return;
 		}
 		pre_abrir_preguntas();
-		$.fancybox.open(bravaModalPediloOpts('#preguntas_pedido'));
+		var opts = bravaModalPediloOpts('#preguntas_pedido');
+		var baseAfterShow = opts.afterShow;
+		opts.afterShow = function (instance, current) {
+			if (baseAfterShow) baseAfterShow(instance, current);
+			if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
+			if (window.bravaStartTurnosCheckoutTimer) window.bravaStartTurnosCheckoutTimer();
+		};
+		opts.afterClose = function () {
+			if (window.bravaStopTurnosCheckoutTimer) window.bravaStopTurnosCheckoutTimer();
+		};
+		$.fancybox.open(opts);
 	};
 
 	function normalizeLocalidadText(s) {
@@ -962,9 +972,23 @@
 			keepalive: true,
 		})
 			.then(function (r) {
-				return r.json();
+				return r.json().then(function (data) {
+					return { httpOk: r.ok, data: data };
+				});
 			})
-			.then(function (data) {
+			.then(function (pack) {
+				var data = pack.data;
+				if (data && !data.ok) {
+					var msgTurno =
+						window.bravaMensajeErrorTurno && window.bravaMensajeErrorTurno(data.error);
+					if (msgTurno) {
+						clearTimeout(tLimite);
+						$submit.prop('disabled', false);
+						alert(msgTurno);
+						if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
+						return;
+					}
+				}
 				if (data && data.ok) {
 					serverAck = true;
 					if (data.orn) ornListo = data.orn;
@@ -1147,9 +1171,11 @@
 		var turno = $('#pregunta_6_respuesta');
 		turno.empty();
 		turno.append('<option value="">-- Selecciona --</option>');
-		(p.opcionesTurno || []).forEach(function (o) {
-			turno.append($('<option></option>').val(o).text(o));
-		});
+		if (!window.bravaTurnosDeliveryActivo || !window.bravaTurnosDeliveryActivo()) {
+			(p.opcionesTurno || []).forEach(function (o) {
+				turno.append($('<option></option>').val(o).text(o));
+			});
+		}
 		if (!g_zonas_envios.length) {
 			$('#pregunta_10_respuesta').closest('p').hide();
 			$('#pregunta_10_respuesta').removeAttr('required');
@@ -1157,12 +1183,20 @@
 			$('#pregunta_10_respuesta').closest('p').show();
 			$('#pregunta_10_respuesta').attr('required', 'required');
 		}
+		if (window.bravaResetTurnoCupoNotice) window.bravaResetTurnoCupoNotice();
+	}
+
+	function syncTurnosDeliveryBodyClass() {
+		if (!document.body) return;
+		document.body.classList.toggle('brava-turnos-delivery-off', !window.bravaTurnosDeliveryActivo());
 	}
 
 	window.refrescar_desde_sheets = async function (silent) {
 		try {
 			await PediloData.cargar_datos_desde_sheets();
 			aplicarPreguntasCheckout();
+			syncTurnosDeliveryBodyClass();
+			bravaRefreshTurnosCheckout();
 			renderizar_catalogo_desde_datos();
 			calcular_total();
 			return true;

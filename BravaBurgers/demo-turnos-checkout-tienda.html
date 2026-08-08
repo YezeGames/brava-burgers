@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — checkout turnos · Brava Burgers (tienda)</title>
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="brava-brand.css?v=15" rel="stylesheet">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			background: #111;
+			color: #eee;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+		}
+		.demo-top {
+			background: #1a1a1a;
+			border-bottom: 3px solid #ff6b35;
+			padding: 14px 16px;
+			font-size: 0.85rem;
+			line-height: 1.45;
+			color: #bbb;
+		}
+		.demo-top strong { color: #ff6b35; }
+		.demo-top a { color: #ff6b35; }
+		.demo-layout {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 20px;
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 20px 16px 40px;
+		}
+		@media (min-width: 900px) {
+			.demo-layout { grid-template-columns: 320px 1fr; align-items: start; }
+		}
+		.demo-panel {
+			background: #252525;
+			border: 1px solid #333;
+			border-radius: 10px;
+			padding: 16px;
+		}
+		.demo-panel h2 {
+			margin: 0 0 12px;
+			font-size: 0.95rem;
+			color: #ff6b35;
+		}
+		.demo-panel label { display: block; font-size: 0.75rem; color: #999; margin-bottom: 4px; }
+		.demo-panel input[type="time"],
+		.demo-panel input[type="number"] {
+			width: 100%;
+			padding: 8px;
+			border-radius: 6px;
+			border: 1px solid #444;
+			background: #1a1a1a;
+			color: #eee;
+			margin-bottom: 10px;
+		}
+		.demo-panel .btn-demo {
+			display: inline-block;
+			padding: 8px 12px;
+			border-radius: 6px;
+			border: none;
+			background: #ff6b35;
+			color: #fff;
+			font-weight: 600;
+			cursor: pointer;
+			font-size: 0.82rem;
+			margin-right: 6px;
+			margin-top: 4px;
+		}
+		.demo-panel table { width: 100%; font-size: 0.75rem; border-collapse: collapse; }
+		.demo-panel td, .demo-panel th { padding: 6px 4px; border-bottom: 1px solid #333; text-align: left; }
+		.checkout-stage {
+			display: flex;
+			justify-content: center;
+			padding: 12px 0;
+		}
+		.checkout-frame {
+			width: 350px;
+			max-width: calc(100vw - 24px);
+			padding: 44px;
+			box-sizing: border-box;
+			background-color: var(--brava-bg, #1a1a1a);
+			border-radius: 8px;
+			box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+			border: 1px solid #333;
+		}
+		.checkout-frame-caption {
+			text-align: center;
+			font-size: 0.72rem;
+			color: #666;
+			margin-top: 10px;
+		}
+	</style>
+</head>
+<body>
+	<div class="demo-top">
+		<strong>Demo integración</strong> — Solo para probar en local. En
+		<a href="https://brava-burgers.vercel.app/" target="_blank" rel="noopener">la tienda</a> esto está
+		<strong>invisible</strong> hasta que en el Sheet pongas <code>Control turnos delivery</code> = <code>SI</code>
+		(sin esa fila, o con <code>NO</code>, el checkout sigue como siempre).
+	</div>
+
+	<div class="demo-layout">
+		<aside class="demo-panel">
+			<h2>Simular operación</h2>
+			<label for="sim-time">Hora actual</label>
+			<input type="time" id="sim-time" value="19:15" step="60">
+			<label for="pedidos-desde">Pedidos web desde</label>
+			<input type="time" id="pedidos-desde" value="19:00" step="60">
+			<label for="max-hora">Máx. pedidos / hora de entrega</label>
+			<input type="number" id="max-hora" min="1" max="20" value="4">
+			<button type="button" class="btn-demo" id="btn-refresh">Actualizar formulario</button>
+			<button type="button" class="btn-demo" id="btn-now" style="background:#444;">Hora real</button>
+			<p style="font-size:0.72rem;color:#777;margin:12px 0 8px;">Cupos tomados (demo)</p>
+			<table>
+				<thead><tr><th>Hora</th><th>#</th><th></th></tr></thead>
+				<tbody id="cupos-body"></tbody>
+			</table>
+		</aside>
+
+		<div>
+			<div class="checkout-stage">
+				<div>
+					<div id="preguntas_pedido" class="checkout-frame">
+						<div class="brava-checkout-inner">
+							<div class="brava-checkout-head">
+								<div id="preguntas_pedido_encabezado">¡Completá los datos para que preparemos tu pedido!</div>
+							</div>
+							<form class="brava-checkout-body" id="demo-checkout-form">
+								<p class="brava-field">
+									<label id="pregunta_1_label">Nombre*</label>
+									<input type="text" id="pregunta_1_respuesta" class="form-control brava-input" placeholder="Tu nombre" required>
+								</p>
+								<p class="brava-field">
+									<label for="brava_telefono">Teléfono (WhatsApp)*</label>
+									<input type="tel" id="brava_telefono" class="form-control brava-input" placeholder="Ej: 11 7372-1945" required inputmode="tel">
+								</p>
+								<p class="brava-field brava-field-address">
+									<label id="pregunta_2_label">Dirección (calle y altura)*</label>
+									<input type="text" id="pregunta_2_respuesta" class="form-control brava-input" placeholder="Ej: Maipú 120" required>
+								</p>
+								<p class="brava-field">
+									<label id="pregunta_3_label">Localidad*</label>
+									<input type="text" id="pregunta_3_respuesta" class="form-control brava-input" placeholder="Ej: Olivos" required>
+								</p>
+								<p class="brava-field">
+									<label id="pregunta_4_label">Piso/Dpto</label>
+									<input type="text" id="pregunta_4_respuesta" class="form-control brava-input" placeholder="Ej: 2B">
+								</p>
+								<p class="brava-field">
+									<label id="pregunta_5_label">Como va a abonar?*</label>
+									<select id="pregunta_5_respuesta" class="form-control brava-input" required>
+										<option value="">-- Selecciona --</option>
+										<option value="Efectivo">Efectivo</option>
+										<option value="Mercado Pago">Mercado Pago</option>
+									</select>
+								</p>
+								<p class="brava-field brava-field-turno">
+									<label id="pregunta_6_label">Selecciona el turno*</label>
+									<select id="pregunta_6_respuesta" class="form-control brava-input" required></select>
+									<div id="brava-turno-cupo-notice" class="brava-turno-cupo-notice hidden" role="status" aria-live="polite"></div>
+								</p>
+								<p class="brava-field">
+									<label id="pregunta_10_label">Lo enviamos a (seleccione la zona)</label>
+									<select id="pregunta_10_respuesta" class="form-control brava-input" required>
+										<option value="">-- Selecciona --</option>
+										<option value="Olivos ($800)">Olivos ($800)</option>
+										<option value="V. López/Florida ($500)">V. López/Florida ($500)</option>
+									</select>
+								</p>
+								<div id="preguntas_pedido_pie" class="brava-checkout-pie">🔥 Gracias por elegir Brava Burgers</div>
+								<div class="brava-checkout-foot">
+									<div class="brava-checkout-actions">
+										<button type="button" class="btn btn-outline-brava">Cancelar</button>
+										<input type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" id="demo-submit" value="Enviar Pedido">
+									</div>
+								</div>
+							</form>
+						</div>
+					</div>
+					<p class="checkout-frame-caption">Vista equivalente al Fancybox del checkout en producción</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="demo-turnos-checkout-logic.js"></script>
+</body>
+</html>
