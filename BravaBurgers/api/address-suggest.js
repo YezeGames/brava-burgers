@@ -6,7 +6,7 @@ const PROXIMITY = '-58.489,-34.513';
 module.exports = async function handler(req, res) {
   cors(res);
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Cache-Control', 'private, max-age=0, no-store');
+  res.setHeader('Cache-Control', 'public, max-age=120, s-maxage=300');
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
@@ -18,7 +18,7 @@ module.exports = async function handler(req, res) {
   const q = String(req.query.q || '')
     .trim()
     .slice(0, 120);
-  if (q.length < 3) {
+  if (q.length < 2) {
     return res.status(200).json({ ok: true, suggestions: [] });
   }
 
@@ -27,7 +27,7 @@ module.exports = async function handler(req, res) {
     encodeURIComponent(q) +
     '.json?country=ar&proximity=' +
     PROXIMITY +
-    '&types=address,place&limit=6&language=es&access_token=' +
+    '&types=address&limit=5&language=es&autocomplete=true&access_token=' +
     encodeURIComponent(token);
 
   try {

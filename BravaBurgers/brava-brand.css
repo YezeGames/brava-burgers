@@ -295,6 +295,16 @@ body.tienehover .producto_fila:hover small {
 	border-color: #6a9f6a !important;
 }
 
+.brava-addr-suggest li.brava-addr-loading {
+	cursor: default;
+	color: #888;
+	font-style: italic;
+}
+
+.brava-addr-suggest li.brava-addr-loading:hover {
+	background: transparent;
+}
+
 #preguntas_pedido label {
 	color: var(--brava-accent) !important;
 	font-weight: 700;
