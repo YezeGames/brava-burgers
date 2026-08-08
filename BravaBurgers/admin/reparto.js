@@ -421,9 +421,27 @@
     });
   }
 
+  function setMapShellVisible(show, message) {
+    var shell = $('reparto-map-shell');
+    var mapEl = $('reparto-map');
+    if (shell) {
+      if (message != null) shell.textContent = message;
+      shell.classList.toggle('hidden', !show);
+      shell.hidden = !show;
+    }
+    if (mapEl) {
+      mapEl.classList.toggle('hidden', show);
+      mapEl.hidden = show;
+    }
+  }
+
   function showMapContainer() {
-    $('reparto-map-shell').hidden = true;
-    $('reparto-map').hidden = false;
+    setMapShellVisible(false);
+    if (map && mapReady) {
+      try {
+        map.resize();
+      } catch (e) {}
+    }
   }
 
   function initMap(token) {
@@ -445,6 +463,7 @@
     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
     map.on('load', function () {
       mapReady = true;
+      showMapContainer();
       refreshRoute();
     });
   }
@@ -452,10 +471,9 @@
   function ensureMapInit() {
     if (mapInitStarted) return;
     mapInitStarted = true;
-    var shell = $('reparto-map-shell');
-    if (shell) shell.textContent = 'Cargando mapa…';
+    setMapShellVisible(true, 'Cargando mapa…');
     if (!/^https?:/i.test(window.location.protocol)) {
-      if (shell) shell.textContent = 'Mapa disponible con el admin en HTTPS (Vercel).';
+      setMapShellVisible(true, 'Mapa disponible con el admin en HTTPS (Vercel).');
       return;
     }
     fetch('/api/mapbox-config', { cache: 'no-store' })
@@ -464,10 +482,10 @@
       })
       .then(function (data) {
         if (data.ok && data.token) initMap(data.token);
-        else if (shell) shell.textContent = 'Falta MAPBOX_ACCESS_TOKEN en Vercel.';
+        else setMapShellVisible(true, 'Falta MAPBOX_ACCESS_TOKEN en Vercel.');
       })
       .catch(function () {
-        if (shell) shell.textContent = 'No se pudo cargar Mapbox.';
+        setMapShellVisible(true, 'No se pudo cargar Mapbox.');
       });
   }
 

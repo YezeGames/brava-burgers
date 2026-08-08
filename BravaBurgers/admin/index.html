@@ -396,14 +396,25 @@
 			background: var(--input-bg);
 			color: var(--text);
 		}
-		#reparto-map {
+		.reparto-map-wrap {
+			position: relative;
 			height: 220px;
 			width: 100%;
+			margin-bottom: 0;
+		}
+		.reparto-map-wrap #reparto-map,
+		.reparto-map-wrap #reparto-map-shell {
+			position: absolute;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			margin: 0;
+		}
+		#reparto-map {
 			border-radius: 8px;
 			border: 1px solid var(--border-input);
 		}
 		.reparto-map-shell {
-			height: 220px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -414,6 +425,7 @@
 			color: var(--text-subtle);
 			border: 1px dashed var(--border-input);
 			border-radius: 8px;
+			box-sizing: border-box;
 		}
 		.reparto-route-status { font-size: 0.72rem; min-height: 1.2em; margin: 6px 0 0; color: #2e7d32; }
 		[data-theme="dark"] .reparto-route-status { color: #81c784; }
@@ -1255,8 +1267,10 @@
 							<p class="reparto-empty hidden" id="reparto-empty">No hay aceptados con dirección en el rango de fechas.</p>
 							<p class="reparto-stats">Paradas: <strong id="reparto-n-stops">0</strong> · Efectivo: <strong id="reparto-ef-total">$0</strong></p>
 							<ol class="reparto-route-list" id="reparto-route-list" aria-label="Orden de paradas"></ol>
-							<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» o elegí paradas para cargar el mapa.</div>
-							<div id="reparto-map" hidden></div>
+							<div class="reparto-map-wrap">
+								<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» o elegí paradas para cargar el mapa.</div>
+								<div id="reparto-map" class="hidden" hidden></div>
+							</div>
 							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
 							<div class="reparto-actions">
 								<button type="button" class="btn-sm btn-accent" id="reparto-btn-wa" disabled>Enviar al deli (WA + Google)</button>
@@ -1425,7 +1439,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=2"></script>
+	<script src="/admin/reparto.js?v=3"></script>
 	<script src="/admin/admin.js?v=62"></script>
 </body>
 </html>
