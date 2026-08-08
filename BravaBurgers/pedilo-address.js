@@ -14,6 +14,7 @@
   var reqSeq = 0;
   var queryCache = Object.create(null);
   var CACHE_MAX = 24;
+  var zonaSyncTimer = null;
 
   function $(sel) {
     return document.querySelector(sel);
@@ -93,6 +94,16 @@
     inp.setAttribute('aria-expanded', 'true');
   }
 
+  function syncZonaFromLocalidad() {
+    if (zonaSyncTimer) clearTimeout(zonaSyncTimer);
+    zonaSyncTimer = setTimeout(function () {
+      var loc = localityEl() ? localityEl().value.trim() : '';
+      if (loc && typeof window.bravaSyncZonaEnvioFromLocalidad === 'function') {
+        window.bravaSyncZonaEnvioFromLocalidad(loc);
+      }
+    }, 180);
+  }
+
   function pick(index) {
     var s = lastSuggestions[index];
     if (!s) return;
@@ -103,6 +114,7 @@
     pickedFromList = true;
     inp && inp.classList.add('brava-addr-picked');
     hideList();
+    syncZonaFromLocalidad();
   }
 
   function locHintFromForm() {
@@ -204,7 +216,11 @@
 
     inp.addEventListener('input', onInput);
     var locInp = localityEl();
-    if (locInp) locInp.addEventListener('input', onInput);
+    if (locInp) {
+      locInp.addEventListener('input', onInput);
+      locInp.addEventListener('input', syncZonaFromLocalidad);
+      locInp.addEventListener('change', syncZonaFromLocalidad);
+    }
     var zonaSel = document.getElementById('pregunta_10_respuesta');
     if (zonaSel) zonaSel.addEventListener('change', onInput);
     inp.addEventListener('blur', function () {
