@@ -10,6 +10,14 @@ Pestaña **`configuracion`** (columnas Nombre / Valor). Independiente de **Contr
 
 Con **NO** o sin fila: la tienda sigue como antes (todos los turnos del desplegable Pedilo).
 
+**Sheet:** [BRAVA-BURGERS-Pedilo → pestaña `configuracion`](https://docs.google.com/spreadsheets/d/1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0/edit?gid=425907797).
+
+### Cargar en el Sheet (elegí una)
+
+1. **Pegar:** en celula **A63**, pegá el bloque de `sheets/PASTE_TURNOS_CONFIG.tsv` (copia columnas Nombre + Valor).
+2. **Apps Script (recomendado):** en el Sheet → **Extensiones → Apps Script** → pegá `apps-script/UpsertTurnosConfig.gs` → ejecutá **`upsertTurnosDeliveryConfig`** una vez (crea/actualiza filas por nombre).
+3. **Referencia repo:** `sheets/brava-configuracion.csv` incluye las mismas claves.
+
 ## Horarios y cupos
 
 | Nombre | Ejemplo |

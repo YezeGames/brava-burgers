@@ -43,7 +43,7 @@
 
     {
 
-      "source": "/(index.html|pedilo-data.js|pedilo-shop.js|brava-brand.css)",
+      "source": "/(index.html|pedilo-data.js|pedilo-shop.js|pedilo-turnos.js|brava-brand.css)",
 
       "headers": [
 

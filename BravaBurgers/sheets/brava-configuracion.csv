@@ -25,6 +25,18 @@ Extra al pedido 1 - Monto,
 Monto mínimo del pedido,0
 Control horario,SI
 Mensaje si está CERRADO,"¡Estamos cerrados! <BR>Horario: Sábados de 20:00 a 23:00 🔥"
+Control turnos delivery,SI
+Pedidos web desde,19:00
+Máx pedidos por hora,4
+Turno 1 - Entrega desde,20:00
+Turno 1 - Entrega hasta,21:00
+Turno 1 - Cierre pedidos,20:30
+Turno 2 - Entrega desde,21:00
+Turno 2 - Entrega hasta,22:00
+Turno 2 - Cierre pedidos,21:30
+Turno 3 - Entrega desde,22:00
+Turno 3 - Entrega hasta,23:00
+Turno 3 - Cierre pedidos,22:40
 Horario abierto LUNES,
 Horario abierto MARTES,
 Horario abierto MIERCOLES,
@@ -35,7 +47,7 @@ Horario abierto DOMINGO,
 Moneda signo,$
 Defina zonas y costos del envío,
 Modelo del pedido en Whatsapp,"*CANTIDAD* x *NOMBRE* *VARIEDAD* *ACLARACION*\nSubtotal = $*SUBTOTAL*\n"
-Zona de envío - Título,Lo enviamos a (seleccione la zona): *
+Zona de envío - Título,Lo enviamos a (seleccione la zona):
 Zona 1 - Nombre,Retiro por el local
 Zona 1 - Costo de envío,0
 Zona 2 - Nombre,V. López / Florida
@@ -57,6 +69,6 @@ Zona 9- Costo de envío,
 Zona 10 - Nombre,
 Zona 10- Costo de envío,
 Alias pedido,bravaburgers
-Texto al final del mensaje,BRAVA BURGERS 🔥
+Texto al final del mensaje,BRAVA BURGERS
 Agregar link con el pedido,NO
 Aceptar MercadoPago,

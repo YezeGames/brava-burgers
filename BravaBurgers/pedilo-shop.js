@@ -1196,7 +1196,7 @@
 			await PediloData.cargar_datos_desde_sheets();
 			aplicarPreguntasCheckout();
 			syncTurnosDeliveryBodyClass();
-			bravaRefreshTurnosCheckout();
+			if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
 			renderizar_catalogo_desde_datos();
 			calcular_total();
 			return true;
