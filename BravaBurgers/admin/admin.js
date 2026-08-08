@@ -76,13 +76,15 @@
 
   var cacheSignature = '';
 
-  var TAB_ESTADOS = ['pendiente', 'aceptado', 'rechazado', 'entregada', 'cancelada'];
+  var TAB_ESTADOS = ['pendiente', 'aceptado', 'en_camino', 'entregada', 'cancelada', 'rechazado'];
 
   var panelFrags = {
 
     pendiente: null,
 
     aceptado: null,
+
+    en_camino: null,
 
     rechazado: null,
 
@@ -127,6 +129,8 @@
       pendiente: null,
 
       aceptado: null,
+
+      en_camino: null,
 
       rechazado: null,
 
@@ -903,10 +907,10 @@
   function mensajeBloqueoOperarPedidos() {
     if (!cierresReady) return 'Esperá un momento: cargando el estado de caja…';
     if (findCierreForCurrentPeriod()) {
-      return 'Turno cerrado. Usá «Abrir caja» (columna derecha) antes de aceptar o marcar entregados.';
+      return 'Turno cerrado. Usá «Abrir caja» (columna derecha) antes de aceptar, marcar en camino o entregados.';
     }
     if (!isCajaMarcadaAbierta() || isNaN(getAperturaAtMs())) {
-      return 'La caja no está abierta. Tocá «Abrir caja» para aceptar pedidos y que sumen en el turno.';
+      return 'La caja no está abierta. Tocá «Abrir caja» para operar pedidos en el turno.';
     }
     return '';
   }
@@ -924,7 +928,7 @@
     el.innerHTML =
       '<strong>No podés operar pedidos en caja cerrada</strong>' +
       msg +
-      ' Podés rechazar pedidos o imprimir ticket; aceptar y entregar quedan bloqueados hasta abrir.';
+      ' Podés rechazar pedidos o imprimir ticket; preparación, en camino y entregado quedan bloqueados hasta abrir.';
   }
 
   function syncTurnoPedidosUi() {
@@ -1947,7 +1951,7 @@
 
   function renderTabCounts(orders) {
 
-    var counts = { pendiente: 0, aceptado: 0, rechazado: 0, entregada: 0, cancelada: 0 };
+    var counts = { pendiente: 0, aceptado: 0, en_camino: 0, rechazado: 0, entregada: 0, cancelada: 0 };
 
     orders.forEach(function (o) {
 
@@ -1982,14 +1986,14 @@
 
 
   function ordersTableColspan(panelEstado) {
-    return panelEstado === 'aceptado' ? 9 : 8;
+    return panelEstado === 'en_camino' ? 9 : 8;
   }
 
   function updateOrdersTableHead(panelEstado) {
     var row = document.querySelector('#orders-table thead tr');
     if (!row) return;
     var cols = ['Fecha', 'Cliente', 'Teléfono', 'Dirección', 'Pago', 'Total', 'ORN', 'Acciones'];
-    if (panelEstado === 'aceptado') cols.unshift('Ruta');
+    if (panelEstado === 'en_camino') cols.unshift('Ruta');
     row.innerHTML = cols
       .map(function (c) {
         return '<th>' + c + '</th>';
@@ -2035,7 +2039,9 @@
 
         'No hay pedidos pendientes. Los nuevos aparecen acá con aviso de sonido (si está activado).',
 
-      aceptado: 'No hay pedidos aceptados. Aceptá uno desde <strong>Pendientes</strong>.',
+      aceptado: 'No hay pedidos en preparación. Aceptá uno desde <strong>Pendientes</strong>.',
+
+      en_camino: 'No hay pedidos en camino. Marcá «En camino» desde <strong>En preparación</strong>.',
 
       rechazado: 'No hay pedidos rechazados.',
 
@@ -2130,7 +2136,7 @@
           'btn-sm btn-ok',
           'accept',
           o.orn,
-          cajaOk ? 'Aceptar pedido' : mensajeBloqueoOperarPedidos(),
+          cajaOk ? 'Aceptar → preparación' : mensajeBloqueoOperarPedidos(),
           !cajaOk
         );
 
@@ -2141,6 +2147,22 @@
       if (panelEstado === 'aceptado') {
 
         addActionBtn(actions, 'Editar', 'btn-sm btn-edit', 'edit', o.orn, 'Editar comanda');
+
+        addActionBtn(
+          actions,
+          'En camino',
+          'btn-sm btn-accent',
+          'dispatch',
+          o.orn,
+          cajaOk ? 'Marcar en camino (sale a reparto)' : mensajeBloqueoOperarPedidos(),
+          !cajaOk
+        );
+
+        addActionBtn(actions, '✕', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
+
+      }
+
+      if (panelEstado === 'en_camino') {
 
         addActionBtn(
           actions,
@@ -2190,7 +2212,7 @@
 
       tr.innerHTML =
 
-        (panelEstado === 'aceptado' ? repartoCheckboxCellHtml(o, tr) : '') +
+        (panelEstado === 'en_camino' ? repartoCheckboxCellHtml(o, tr) : '') +
 
         '<td>' +
 
@@ -2611,6 +2633,8 @@
         if (est === 'entregada' && !allOrdersCache[i].entregado_at) allOrdersCache[i].entregado_at = now;
 
         if (est === 'aceptado' && !allOrdersCache[i].aceptado_at) allOrdersCache[i].aceptado_at = now;
+
+        if (est === 'en_camino' && !allOrdersCache[i].en_camino_at) allOrdersCache[i].en_camino_at = now;
 
         if (est === 'cancelada' && !allOrdersCache[i].cancelado_at) allOrdersCache[i].cancelado_at = now;
 
@@ -3478,7 +3502,7 @@
 
     if (normalizeEstado(o.estado) !== 'aceptado') {
 
-      alert('Solo podés editar pedidos en Aceptados.');
+      alert('Solo podés editar pedidos en preparación (pestaña En preparación).');
 
       return;
 
@@ -4098,6 +4122,14 @@
     }
 
     if (action === 'reject') openRechazoModal(orn);
+
+    if (action === 'dispatch') {
+      if (!isCajaTurnoActivo()) {
+        alert(mensajeBloqueoOperarPedidos());
+        return;
+      }
+      sendOrderUpdate(orn, { estado: 'en_camino' });
+    }
 
     if (action === 'deliver') {
       if (!isCajaTurnoActivo()) {

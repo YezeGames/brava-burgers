@@ -6,6 +6,8 @@
  *   ORDER_SECRET     — debe coincoincidir con BRAVA_ORDER_SECRET en Vercel
  *   ADMIN_USER       — usuario panel admin
  *   ADMIN_PASSWORD   — contraseña panel (cambiar en producción)
+ *   OPERATIONS_SHEET_ID — Sheet privado pedidos + gastos (+ config_pedidos)
+ *   CATALOG_SHEET_ID   — (opcional) menú público; default BRAVA-BURGERS-Pedilo
  */
 
 var SHEET_PEDIDOS = 'pedidos';
@@ -38,8 +40,10 @@ var HEADERS = [
 
 var GASTOS_HEADERS = ['id', 'fecha', 'concepto', 'monto', 'pagado_con', 'creado_at'];
 
+var CATALOG_MENU_SHEET_ID_DEFAULT = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
+
 function doGet(e) {
-  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 7 });
+  return jsonOut({ ok: true, service: 'brava-burgers-gas', version: 8 });
 }
 
 function doPost(e) {
@@ -254,18 +258,7 @@ function validateToken_(token) {
 
 function listOrders_(opts) {
   opts = opts || {};
-  var cache = CacheService.getScriptCache();
-  if (!opts.skipCache) {
-    var cached = cache.get('orders_full_v1');
-    if (cached) {
-      try {
-        return JSON.parse(cached);
-      } catch (ignore) {}
-    }
-  }
-  var result = buildListOrders_(opts, 250);
-  cache.put('orders_full_v1', JSON.stringify(result), 2);
-  return result;
+  return buildListOrders_(opts, 250);
 }
 
 function listOrdersRecent_(opts) {
@@ -335,6 +328,7 @@ function updateOrder_(body) {
       setCell_(sh, headers, rowNum, 'estado', est);
       var now = new Date();
       if (est === 'aceptado') setCell_(sh, headers, rowNum, 'aceptado_at', now);
+      if (est === 'en_camino') setCell_(sh, headers, rowNum, 'en_camino_at', now);
       if (est === 'rechazado') {
         setCell_(sh, headers, rowNum, 'rechazado_at', now);
         if (body.rechazoMensaje != null) {
@@ -455,4 +449,71 @@ function deleteGasto_(body) {
     }
   }
   return { ok: false, error: 'not_found' };
+}
+
+/**
+ * Ejecutar una vez desde el editor (▶): copia pedidos + gastos del menú público al sheet OPERATIONS_SHEET_ID.
+ */
+function migrateCatalogOpsToOperationsSheet() {
+  var opsId = getProp_('OPERATIONS_SHEET_ID');
+  if (!opsId) throw new Error('Configurá OPERATIONS_SHEET_ID en Propiedades del script');
+  var catalogId = getProp_('CATALOG_SHEET_ID') || CATALOG_MENU_SHEET_ID_DEFAULT;
+  var cat = SpreadsheetApp.openById(catalogId);
+  var ops = SpreadsheetApp.openById(opsId);
+  var pedidosRows = copySheetValuesToOps_(cat, SHEET_PEDIDOS, ops, SHEET_PEDIDOS, HEADERS);
+  var gastosRows = copySheetValuesToOps_(cat, SHEET_GASTOS, ops, SHEET_GASTOS, GASTOS_HEADERS);
+  migrateConfigPedidos_(cat, ops);
+  removeBlankDefaultSheet_(ops);
+  return { ok: true, pedidosRows: pedidosRows, gastosRows: gastosRows, operationsSheetId: opsId };
+}
+
+function copySheetValuesToOps_(srcSs, srcName, destSs, destName, defaultHeaders) {
+  var src = srcSs.getSheetByName(srcName);
+  if (!src || src.getLastRow() < 1) {
+    ensureSheetWithHeaders_(destSs, destName, defaultHeaders);
+    return 0;
+  }
+  var existing = destSs.getSheetByName(destName);
+  if (existing) destSs.deleteSheet(existing);
+  var dest = destSs.insertSheet(destName);
+  var lastCol = src.getLastColumn();
+  var lastRow = src.getLastRow();
+  var values = src.getRange(1, 1, lastRow, lastCol).getValues();
+  dest.getRange(1, 1, values.length, values[0].length).setValues(values);
+  dest.setFrozenRows(1);
+  return Math.max(0, values.length - 1);
+}
+
+function ensureSheetWithHeaders_(ss, name, headers) {
+  var sh = ss.getSheetByName(name);
+  if (!sh) sh = ss.insertSheet(name);
+  if (sh.getLastRow() === 0) {
+    sh.appendRow(headers);
+    sh.setFrozenRows(1);
+  }
+}
+
+function migrateConfigPedidos_(cat, ops) {
+  var dest = ops.getSheetByName(SHEET_CONFIG);
+  if (!dest) {
+    dest = ops.insertSheet(SHEET_CONFIG);
+    dest.appendRow(['key', 'value']);
+    dest.setFrozenRows(1);
+  }
+  var src = cat.getSheetByName(SHEET_CONFIG);
+  if (!src || src.getLastRow() < 2) return;
+  var data = src.getDataRange().getValues();
+  for (var i = 1; i < data.length; i++) {
+    if (!String(data[i][0] || '').trim()) continue;
+    dest.appendRow(data[i]);
+  }
+}
+
+function removeBlankDefaultSheet_(ops) {
+  var names = ['Hoja 1', 'Sheet1'];
+  for (var n = 0; n < names.length; n++) {
+    var sh = ops.getSheetByName(names[n]);
+    if (!sh || ops.getSheets().length <= 1) continue;
+    if (sh.getLastRow() <= 1 && sh.getLastColumn() <= 1) ops.deleteSheet(sh);
+  }
 }

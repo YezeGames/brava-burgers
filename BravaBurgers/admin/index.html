@@ -1113,11 +1113,12 @@
 					</div>
 				</div>
 				<div class="tabs">
-					<button type="button" class="tab active" data-estado="pendiente">Pendientes</button>
-					<button type="button" class="tab" data-estado="aceptado">Aceptados</button>
-					<button type="button" class="tab" data-estado="rechazado">Rechazados</button>
-					<button type="button" class="tab" data-estado="entregada">Entregados</button>
-					<button type="button" class="tab" data-estado="cancelada">Cancelados</button>
+					<button type="button" class="tab active" data-estado="pendiente" data-label="Pendientes">Pendientes</button>
+					<button type="button" class="tab" data-estado="aceptado" data-label="En preparación">En preparación</button>
+					<button type="button" class="tab" data-estado="en_camino" data-label="En camino">En camino</button>
+					<button type="button" class="tab" data-estado="entregada" data-label="Entregados">Entregados</button>
+					<button type="button" class="tab" data-estado="cancelada" data-label="Cancelados">Cancelados</button>
+					<button type="button" class="tab" data-estado="rechazado" data-label="Rechazados">Rechazados</button>
 				</div>
 				<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
 				<div style="overflow-x:auto">
@@ -1225,7 +1226,7 @@
 					<div class="sidebar-menu-body sidebar-reparto-panel">
 						<aside class="sidebar-block reparto-box">
 							<h2>Ruta del turno</h2>
-							<p class="caja-hint">Tildá la columna <strong>Ruta</strong> en la pestaña Aceptados. Mapa Mapbox · el deli navega con Google.</p>
+							<p class="caja-hint">Tildá la columna <strong>Ruta</strong> en la pestaña En camino. Mapa Mapbox · el deli navega con Google.</p>
 							<div class="reparto-field">
 								<label for="reparto-origin">Salida cocina</label>
 								<input type="text" id="reparto-origin" autocomplete="off" placeholder="Diaz Velez 3231, Olivos" value="Diaz Velez 3231, Olivos">
@@ -1235,11 +1236,11 @@
 								<label for="reparto-deli-wa">WhatsApp repartidor</label>
 								<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…">
 							</div>
-							<p class="reparto-empty hidden" id="reparto-no-candidates">No hay aceptados con dirección en el rango de fechas.</p>
+							<p class="reparto-empty hidden" id="reparto-no-candidates">No hay pedidos en camino con dirección en el rango de fechas.</p>
 							<p class="reparto-stats">Paradas: <strong id="reparto-n-stops">0</strong> · Efectivo: <strong id="reparto-ef-total">$0</strong></p>
 							<ol class="reparto-route-list" id="reparto-route-list" aria-label="Orden de paradas"></ol>
 							<div class="reparto-map-wrap">
-								<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» y tildá paradas en Aceptados.</div>
+								<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» y tildá paradas en En camino.</div>
 								<div id="reparto-map" class="hidden" hidden></div>
 							</div>
 							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
@@ -1410,7 +1411,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=5"></script>
-	<script src="/admin/admin.js?v=62"></script>
+	<script src="/admin/reparto.js?v=6"></script>
+	<script src="/admin/admin.js?v=63"></script>
 </body>
 </html>

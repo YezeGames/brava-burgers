@@ -355,12 +355,12 @@
 
   function pickCandidatesFromOrders(orders) {
     var list = (orders || []).filter(function (o) {
-      if (normEst(o.estado) !== 'aceptado') return false;
+      if (normEst(o.estado) !== 'en_camino') return false;
       return String(o.direccion || '').trim().length > 0;
     });
     list.sort(function (a, b) {
-      var ta = a.aceptado_at || a.fecha_creado || '';
-      var tb = b.aceptado_at || b.fecha_creado || '';
+      var ta = a.en_camino_at || a.aceptado_at || a.fecha_creado || '';
+      var tb = b.en_camino_at || b.aceptado_at || b.fecha_creado || '';
       return String(ta).localeCompare(String(tb));
     });
     return list;

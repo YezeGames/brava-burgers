@@ -66,6 +66,8 @@ function rowToOrder(row) {
 
     aceptado_at: row.aceptado_at,
 
+    en_camino_at: row.en_camino_at,
+
     rechazado_at: row.rechazado_at,
 
     rechazo_mensaje: row.rechazo_mensaje,
@@ -213,6 +215,8 @@ async function updateOrder(body) {
     const now = new Date().toISOString();
 
     if (est === 'aceptado') patch.aceptado_at = now;
+
+    if (est === 'en_camino') patch.en_camino_at = now;
 
     if (est === 'rechazado') {
 

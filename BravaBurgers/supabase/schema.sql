@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS orders (
   entregado_at timestamptz,
   cancelado_at timestamptz,
   aceptado_at timestamptz,
+  en_camino_at timestamptz,
   rechazado_at timestamptz,
   rechazo_mensaje text NOT NULL DEFAULT '',
   idempotency_key text UNIQUE
@@ -158,3 +159,6 @@ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE cierres_caja;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- Migración: pedidos «en camino» (ejecutar en Supabase si orders ya existía)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_camino_at timestamptz;
