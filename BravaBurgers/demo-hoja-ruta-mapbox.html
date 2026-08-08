@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — ruta Mapbox (Brava)</title>
+	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 20px 14px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #0f0f0f;
+			color: #e4e4e4;
+		}
+		.wrap { max-width: 1200px; margin: 0 auto; }
+		.banner {
+			background: #1c1c1c;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 0.84rem;
+			line-height: 1.45;
+			color: #ccc;
+			margin-bottom: 18px;
+		}
+		.banner strong { color: #ff6b35; }
+		h1 { font-size: 1.3rem; margin: 0 0 6px; }
+		.lead { color: #9a9a9a; font-size: 0.88rem; margin: 0 0 20px; line-height: 1.45; }
+		.layout {
+			display: grid;
+			grid-template-columns: 1fr 440px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+		.card {
+			background: #1c1c1c;
+			border: 1px solid #333;
+			border-radius: 10px;
+			padding: 16px;
+		}
+		.card h2 {
+			margin: 0 0 12px;
+			font-size: 0.95rem;
+			border-bottom: 2px solid #ff6b35;
+			padding-bottom: 8px;
+		}
+		#map {
+			height: 400px;
+			width: 100%;
+			border-radius: 8px;
+			border: 1px solid #333;
+		}
+		.map-placeholder {
+			height: 400px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 20px;
+			color: #888;
+			font-size: 0.85rem;
+			line-height: 1.45;
+			border: 1px dashed #444;
+			border-radius: 8px;
+		}
+		.route-status { font-size: 0.78rem; margin-top: 8px; min-height: 1.2em; color: #81c784; }
+		.route-status.err { color: #ef9a9a; }
+		table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+		th, td {
+			text-align: left;
+			padding: 8px 6px;
+			border-bottom: 1px solid #2a2a2a;
+			vertical-align: top;
+		}
+		th { color: #888; font-size: 0.72rem; text-transform: uppercase; }
+		tr.selected { background: rgba(255, 107, 53, 0.08); }
+		.addr { font-weight: 600; line-height: 1.35; }
+		.addr-sub { font-size: 0.75rem; color: #888; margin-top: 2px; }
+		.badge {
+			display: inline-block;
+			font-size: 0.65rem;
+			font-weight: 700;
+			padding: 2px 6px;
+			border-radius: 4px;
+			text-transform: uppercase;
+		}
+		.badge-mp { background: #1e3a5f; color: #90caf9; }
+		.badge-ef { background: #3d2a14; color: #ffcc80; }
+		.field { margin-bottom: 12px; }
+		.field label {
+			display: block;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			color: #888;
+			margin-bottom: 6px;
+		}
+		.field input {
+			width: 100%;
+			padding: 9px 11px;
+			border-radius: 8px;
+			border: 1px solid #444;
+			background: #252525;
+			color: #eee;
+			font-size: 0.85rem;
+		}
+		.field input:read-only { opacity: 0.85; color: #bbb; }
+		.field .hint { font-size: 0.7rem; color: #666; margin-top: 5px; line-height: 1.35; }
+		.route-list { list-style: none; margin: 0; padding: 0; max-height: 130px; overflow-y: auto; }
+		.route-list li {
+			display: grid;
+			grid-template-columns: 22px 1fr auto;
+			gap: 6px;
+			padding: 6px 0;
+			border-bottom: 1px dashed #333;
+			font-size: 0.78rem;
+		}
+		.route-list .num { color: #ff6b35; font-weight: 800; }
+		.route-btns button {
+			width: 26px; height: 26px;
+			border: 1px solid #444;
+			background: #2a2a2a;
+			color: #eee;
+			border-radius: 5px;
+			cursor: pointer;
+		}
+		.actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+		.btn {
+			padding: 8px 12px;
+			border: none;
+			border-radius: 8px;
+			font-weight: 600;
+			font-size: 0.78rem;
+			cursor: pointer;
+			background: #ff6b35;
+			color: #fff;
+		}
+		.btn-ghost { background: #333; color: #ddd; }
+		.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+		.hoja {
+			width: 100%;
+			min-height: 80px;
+			font-family: ui-monospace, Consolas, monospace;
+			font-size: 0.72rem;
+			line-height: 1.45;
+			padding: 10px;
+			border-radius: 8px;
+			border: 1px solid #444;
+			background: #121212;
+			color: #81c784;
+			resize: vertical;
+		}
+		.stats { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+		.stats strong { color: #ff6b35; }
+		.pin {
+			width: 28px;
+			height: 28px;
+			border-radius: 50%;
+			font-weight: 800;
+			font-size: 12px;
+			line-height: 28px;
+			text-align: center;
+			color: #fff;
+			border: 2px solid #fff;
+			box-shadow: 0 1px 4px rgba(0,0,0,.45);
+		}
+		.pin.start { background: #2e7d32; font-size: 11px; }
+		.pin.stop { background: #ff6b35; }
+		.mapboxgl-ctrl-logo, .mapboxgl-ctrl-attrib { opacity: 0.65; }
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="banner">
+			<strong>Demo Mapbox</strong> — Mapa + ruta por calles (Directions API). Cuenta gratis en
+			<a href="https://account.mapbox.com/" style="color:#ffab91">mapbox.com</a> → token <code>pk.…</code>.
+			En Vercel: variable <code>MAPBOX_ACCESS_TOKEN</code> y abrí
+			<code>/demo-hoja-ruta-mapbox.html</code> en https. Navegación en celular: botón Google Maps (gratis, sin API Google).
+		</div>
+		<h1>Demo — delivery con Mapbox</h1>
+		<p class="lead">Tildás paradas, ordenás ↑↓, ves el recorrido en el mapa y copiás la hoja para el repartidor.</p>
+
+		<div class="layout">
+			<div class="card">
+				<h2>Pedidos — tildar para la ronda</h2>
+				<div style="overflow-x:auto">
+					<table>
+						<thead>
+							<tr><th></th><th>Cliente</th><th>Dirección</th><th>Cobro</th></tr>
+						</thead>
+						<tbody id="orders-body"></tbody>
+					</table>
+				</div>
+				<div class="actions-row">
+					<button type="button" class="btn btn-ghost" id="btn-all">Todos</button>
+					<button type="button" class="btn btn-ghost" id="btn-none">Ninguno</button>
+				</div>
+			</div>
+
+			<div class="card">
+				<div id="key-block" class="field">
+					<label for="mb-token">Token Mapbox (pk.…)</label>
+					<input type="password" id="mb-token" autocomplete="off" placeholder="pk.eyJ…">
+					<p class="hint" id="key-hint">Conectando…</p>
+					<button type="button" class="btn" id="btn-init" style="margin-top:8px">Cargar mapa</button>
+				</div>
+
+				<h2>Recorrido</h2>
+				<div class="field">
+					<label>Salida</label>
+					<input type="text" readonly value="Díaz Vélez 3231, Olivos, Provincia de Buenos Aires">
+				</div>
+
+				<div id="map-shell" class="map-placeholder">Token Mapbox → «Cargar mapa»</div>
+				<div id="map" hidden></div>
+				<p class="route-status" id="route-status"></p>
+
+				<p class="stats">Paradas: <strong id="n-stops">0</strong> · Efectivo: <strong id="ef-total">$0</strong></p>
+				<ol class="route-list" id="route-list"></ol>
+				<div class="actions-row">
+					<button type="button" class="btn btn-ghost" id="btn-gmaps">Abrir ruta en Google Maps (celular)</button>
+					<button type="button" class="btn btn-ghost" id="btn-copy">Copiar hoja</button>
+				</div>
+				<textarea class="hoja" id="hoja" readonly style="margin-top:10px"></textarea>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+	<script>
+	(function () {
+		var TOKEN_KEY = 'brava_demo_mapbox_token_v1';
+		var ORIGIN_ADDR = 'Díaz Vélez 3231, Olivos, Provincia de Buenos Aires, Argentina';
+		var ORIGIN = { lng: -58.515235, lat: -34.50853 };
+
+		var MOCK = [
+			{ orn: 'ORN-DEL-0042', cliente: 'Lucía M.', direccion: 'Díaz Vélez 2123', localidad: 'Olivos', piso: '', pago: 'Mercado Pago', total: 18500, lng: -58.503111, lat: -34.503106 },
+			{ orn: 'ORN-DEL-0043', cliente: 'Martín R.', direccion: 'Av. Maipú 2356', localidad: 'Olivos', piso: '4 B', pago: 'Efectivo', total: 23456, lng: -58.489339, lat: -34.51363 },
+			{ orn: 'ORN-DEL-0044', cliente: 'Caro + Tomi', direccion: 'Gobernador Marcelino Ugarte 2278', localidad: 'Olivos', piso: '', pago: 'Mercado Pago', total: 15200, lng: -58.498255, lat: -34.517419 },
+			{ orn: 'ORN-DEL-0045', cliente: 'Pedro', direccion: 'Av. del Libertador 3450', localidad: 'Olivos', piso: 'PB', pago: 'Efectivo', total: 9800, lng: -58.4821, lat: -34.501982 }
+		];
+
+		var selected = ['ORN-DEL-0042', 'ORN-DEL-0043', 'ORN-DEL-0044'];
+		var routeOrder = selected.slice();
+		var map = null;
+		var mapReady = false;
+		var accessToken = '';
+		var markers = [];
+
+		function fmt(n) {
+			return '$' + Math.round(n).toLocaleString('es-AR');
+		}
+		function payLine(o) {
+			if (/efectivo/i.test(o.pago)) return fmt(o.total) + ' (COBRAR EN EFECTIVO)';
+			if (/mercado/i.test(o.pago)) return 'PAGO (MERCADO PAGO)';
+			return 'PAGO (' + (o.pago || '').toUpperCase() + ')';
+		}
+		function fullAddr(o) {
+			var p = [o.direccion];
+			if (o.piso) p.push('Piso ' + o.piso);
+			p.push(o.localidad, 'Provincia de Buenos Aires', 'Argentina');
+			return p.filter(Boolean).join(', ');
+		}
+		function stops() {
+			return routeOrder.map(function (orn) {
+				return MOCK.find(function (m) { return m.orn === orn; });
+			}).filter(Boolean);
+		}
+		function buildHoja(list) {
+			return list.map(function (o) {
+				return (o.direccion || '').toUpperCase() + ' — ' + payLine(o);
+			}).join('\n') || '(Sin paradas)';
+		}
+		function gmapsUrl(list) {
+			if (!list.length) return '';
+			var parts = [encodeURIComponent(ORIGIN_ADDR)];
+			list.forEach(function (o) { parts.push(encodeURIComponent(fullAddr(o))); });
+			return 'https://www.google.com/maps/dir/' + parts.join('/') + '/?travelmode=driving';
+		}
+		function setStatus(msg, err) {
+			var el = document.getElementById('route-status');
+			el.textContent = msg || '';
+			el.className = 'route-status' + (err ? ' err' : '');
+		}
+		function coordPair(lng, lat) {
+			return lng.toFixed(6) + ',' + lat.toFixed(6);
+		}
+
+		function clearMapLayers() {
+			markers.forEach(function (m) { m.remove(); });
+			markers = [];
+			if (!map) return;
+			if (map.getLayer('route-line')) map.removeLayer('route-line');
+			if (map.getSource('route')) map.removeSource('route');
+		}
+
+		function addPin(lng, lat, label, isStart) {
+			var el = document.createElement('div');
+			el.className = 'pin ' + (isStart ? 'start' : 'stop');
+			el.textContent = label;
+			var m = new mapboxgl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+			markers.push(m);
+		}
+
+		function refreshRoute() {
+			if (!mapReady || !accessToken) return;
+			var list = stops();
+			clearMapLayers();
+			if (!list.length) {
+				setStatus('Elegí al menos una parada.');
+				return;
+			}
+
+			addPin(ORIGIN.lng, ORIGIN.lat, 'S', true);
+			list.forEach(function (o, i) {
+				addPin(o.lng, o.lat, String(i + 1), false);
+			});
+
+			var coords = [coordPair(ORIGIN.lng, ORIGIN.lat)];
+			list.forEach(function (o) { coords.push(coordPair(o.lng, o.lat)); });
+			var url = 'https://api.mapbox.com/directions/v5/mapbox/driving/' +
+				encodeURIComponent(coords.join(';')) +
+				'?geometries=geojson&overview=full&language=es&access_token=' +
+				encodeURIComponent(accessToken);
+
+			setStatus('Calculando ruta…');
+			fetch(url)
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (!data.routes || !data.routes.length) {
+						setStatus((data.message || 'Sin ruta') + (data.code ? ' (' + data.code + ')' : ''), true);
+						return;
+					}
+					var route = data.routes[0];
+					map.addSource('route', {
+						type: 'geojson',
+						data: { type: 'Feature', properties: {}, geometry: route.geometry }
+					});
+					map.addLayer({
+						id: 'route-line',
+						type: 'line',
+						source: 'route',
+						layout: { 'line-join': 'round', 'line-cap': 'round' },
+						paint: { 'line-color': '#4285F4', 'line-width': 5, 'line-opacity': 0.85 }
+					});
+					var bounds = new mapboxgl.LngLatBounds();
+					route.geometry.coordinates.forEach(function (c) { bounds.extend(c); });
+					map.fitBounds(bounds, { padding: 48, maxZoom: 15 });
+					var km = (route.distance / 1000).toFixed(1);
+					var min = Math.round(route.duration / 60);
+					setStatus('Ruta en auto (Mapbox): ~' + km + ' km · ~' + min + ' min');
+				})
+				.catch(function (e) {
+					setStatus('Error de red Mapbox: ' + e.message, true);
+				});
+		}
+
+		function renderRouteList() {
+			var ul = document.getElementById('route-list');
+			ul.innerHTML = '';
+			stops().forEach(function (o, idx) {
+				var li = document.createElement('li');
+				li.innerHTML =
+					'<span class="num">' + (idx + 1) + '</span>' +
+					'<span>' + o.direccion + '<br><span style="color:#888">' + payLine(o) + '</span></span>' +
+					'<span class="route-btns">' +
+					'<button type="button" data-u="' + o.orn + '">↑</button> ' +
+					'<button type="button" data-d="' + o.orn + '">↓</button></span>';
+				ul.appendChild(li);
+			});
+			ul.querySelectorAll('[data-u]').forEach(function (b) {
+				b.onclick = function () { move(b.getAttribute('data-u'), -1); };
+			});
+			ul.querySelectorAll('[data-d]').forEach(function (b) {
+				b.onclick = function () { move(b.getAttribute('data-d'), 1); };
+			});
+
+			var list = stops();
+			var ef = list.filter(function (o) { return /efectivo/i.test(o.pago); });
+			var sum = ef.reduce(function (s, o) { return s + o.total; }, 0);
+			document.getElementById('n-stops').textContent = String(list.length);
+			document.getElementById('ef-total').textContent = fmt(sum);
+			document.getElementById('hoja').value = buildHoja(list);
+			document.getElementById('btn-gmaps').disabled = !list.length;
+			refreshRoute();
+		}
+
+		function move(orn, dir) {
+			var i = routeOrder.indexOf(orn);
+			if (i < 0) return;
+			var j = i + dir;
+			if (j < 0 || j >= routeOrder.length) return;
+			var t = routeOrder[j];
+			routeOrder[j] = routeOrder[i];
+			routeOrder[i] = t;
+			renderRouteList();
+		}
+
+		function syncRoute() {
+			routeOrder = selected.slice();
+			renderRouteList();
+		}
+
+		function renderTable() {
+			var tb = document.getElementById('orders-body');
+			tb.innerHTML = '';
+			MOCK.forEach(function (o) {
+				var tr = document.createElement('tr');
+				if (selected.indexOf(o.orn) !== -1) tr.className = 'selected';
+				var chk = selected.indexOf(o.orn) !== -1;
+				tr.innerHTML =
+					'<td><input type="checkbox" data-o="' + o.orn + '"' + (chk ? ' checked' : '') + '></td>' +
+					'<td>' + o.cliente + '</td>' +
+					'<td><div class="addr">' + o.direccion + '</div><div class="addr-sub">' +
+					[o.piso, o.localidad].filter(Boolean).join(' · ') + '</div></td>' +
+					'<td><span class="badge ' + (/efectivo/i.test(o.pago) ? 'badge-ef' : 'badge-mp') + '">' + o.pago + '</span></td>';
+				tb.appendChild(tr);
+			});
+			tb.querySelectorAll('input').forEach(function (cb) {
+				cb.onchange = function () {
+					var orn = cb.getAttribute('data-o');
+					var ix = selected.indexOf(orn);
+					if (cb.checked && ix === -1) selected.push(orn);
+					if (!cb.checked && ix !== -1) selected.splice(ix, 1);
+					syncRoute();
+					renderTable();
+				};
+			});
+		}
+
+		function initMap(token) {
+			accessToken = token;
+			mapboxgl.accessToken = token;
+			if (map) {
+				mapReady = true;
+				refreshRoute();
+				return;
+			}
+			document.getElementById('map-shell').hidden = true;
+			document.getElementById('map').hidden = false;
+			map = new mapboxgl.Map({
+				container: 'map',
+				style: 'mapbox://styles/mapbox/dark-v11',
+				center: [ORIGIN.lng, ORIGIN.lat],
+				zoom: 13
+			});
+			map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+			map.on('load', function () {
+				mapReady = true;
+				document.getElementById('key-block').hidden = true;
+				refreshRoute();
+			});
+		}
+
+		function bootstrap() {
+			var hint = document.getElementById('key-hint');
+			if (!/^https?:/i.test(window.location.protocol)) {
+				hint.textContent = 'Abrí desde Vercel (https) o pegá token pk.… abajo.';
+				try {
+					var saved = sessionStorage.getItem(TOKEN_KEY);
+					if (saved) document.getElementById('mb-token').value = saved;
+				} catch (e) {}
+				return;
+			}
+			fetch('/api/mapbox-config', { cache: 'no-store' })
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (data.ok && data.token) {
+						hint.textContent = 'Token del servidor OK — cargando…';
+						initMap(data.token);
+					} else {
+						hint.textContent = 'Falta MAPBOX_ACCESS_TOKEN en Vercel, o pegá pk.… abajo.';
+					}
+				})
+				.catch(function () {
+					hint.textContent = 'Pegá tu token Mapbox (pk.…) y «Cargar mapa».';
+				});
+		}
+
+		document.getElementById('btn-init').onclick = function () {
+			var t = document.getElementById('mb-token').value.trim();
+			if (!t) {
+				alert('Necesitás un token público pk.… de Mapbox.');
+				return;
+			}
+			try { sessionStorage.setItem(TOKEN_KEY, t); } catch (e) {}
+			initMap(t);
+		};
+		document.getElementById('btn-gmaps').onclick = function () {
+			var u = gmapsUrl(stops());
+			if (u) window.open(u, '_blank', 'noopener');
+		};
+		document.getElementById('btn-copy').onclick = function () {
+			var ta = document.getElementById('hoja');
+			ta.select();
+			navigator.clipboard.writeText(ta.value).catch(function () {
+				document.execCommand('copy');
+			});
+		};
+		document.getElementById('btn-all').onclick = function () {
+			selected = MOCK.map(function (m) { return m.orn; });
+			syncRoute();
+			renderTable();
+		};
+		document.getElementById('btn-none').onclick = function () {
+			selected = [];
+			syncRoute();
+			renderTable();
+		};
+
+		renderTable();
+		syncRoute();
+		bootstrap();
+	})();
+	</script>
+</body>
+</html>
