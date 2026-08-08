@@ -345,30 +345,6 @@
 			font-size: 0.75rem;
 			line-height: 1.35;
 		}
-		.reparto-pick-actions { display: flex; gap: 6px; margin-bottom: 8px; }
-		.reparto-pick-list {
-			list-style: none;
-			margin: 0 0 10px;
-			padding: 0;
-			max-height: 140px;
-			overflow-y: auto;
-			border: 1px solid var(--border);
-			border-radius: 6px;
-			background: var(--bg-surface-alt);
-		}
-		.reparto-pick-list li {
-			display: grid;
-			grid-template-columns: auto 1fr;
-			gap: 8px;
-			align-items: start;
-			padding: 7px 8px;
-			border-bottom: 1px solid var(--border);
-			font-size: 0.78rem;
-		}
-		.reparto-pick-list li:last-child { border-bottom: none; }
-		.reparto-pick-list li.is-on { background: rgba(255, 107, 53, 0.08); }
-		.reparto-pick-list .addr { font-weight: 600; line-height: 1.3; }
-		.reparto-pick-list .sub { color: var(--text-subtle); font-size: 0.72rem; margin-top: 2px; }
 		.reparto-empty { font-size: 0.78rem; color: var(--text-muted); margin: 0 0 10px; }
 		.reparto-stats { font-size: 0.78rem; margin: 0 0 8px; color: var(--text-muted); }
 		.reparto-route-list {
@@ -1249,7 +1225,7 @@
 					<div class="sidebar-menu-body sidebar-reparto-panel">
 						<aside class="sidebar-block reparto-box">
 							<h2>Ruta del turno</h2>
-							<p class="caja-hint">Armá la ruta con pedidos <strong>Aceptados</strong> que tengan dirección. Vista Mapbox · el deli navega con Google.</p>
+							<p class="caja-hint">Tildá la columna <strong>Ruta</strong> en la pestaña Aceptados. Mapa Mapbox · el deli navega con Google.</p>
 							<div class="reparto-field">
 								<label for="reparto-origin">Salida cocina</label>
 								<input type="text" id="reparto-origin" autocomplete="off" placeholder="Calle y número, localidad">
@@ -1259,16 +1235,11 @@
 								<label for="reparto-deli-wa">WhatsApp repartidor</label>
 								<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…">
 							</div>
-							<div class="reparto-pick-actions">
-								<button type="button" class="btn-sm" id="reparto-btn-all">Todos</button>
-								<button type="button" class="btn-sm" id="reparto-btn-none">Ninguno</button>
-							</div>
-							<ul class="reparto-pick-list" id="reparto-pick-list" aria-label="Pedidos aceptados"></ul>
-							<p class="reparto-empty hidden" id="reparto-empty">No hay aceptados con dirección en el rango de fechas.</p>
+							<p class="reparto-empty hidden" id="reparto-no-candidates">No hay aceptados con dirección en el rango de fechas.</p>
 							<p class="reparto-stats">Paradas: <strong id="reparto-n-stops">0</strong> · Efectivo: <strong id="reparto-ef-total">$0</strong></p>
 							<ol class="reparto-route-list" id="reparto-route-list" aria-label="Orden de paradas"></ol>
 							<div class="reparto-map-wrap">
-								<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» o elegí paradas para cargar el mapa.</div>
+								<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» y tildá paradas en Aceptados.</div>
 								<div id="reparto-map" class="hidden" hidden></div>
 							</div>
 							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
@@ -1439,7 +1410,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=3"></script>
+	<script src="/admin/reparto.js?v=4"></script>
 	<script src="/admin/admin.js?v=62"></script>
 </body>
 </html>

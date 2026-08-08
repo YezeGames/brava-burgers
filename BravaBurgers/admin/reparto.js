@@ -328,25 +328,12 @@
     });
   }
 
-  function syncPickListChecks() {
-    var ul = $('reparto-pick-list');
-    if (!ul) return;
-    ul.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
-      var orn = cb.getAttribute('data-o');
-      var on = isOrnSelected(orn);
-      cb.checked = on;
-      var li = cb.closest('li');
-      if (li) li.classList.toggle('is-on', on);
-    });
-  }
-
   function setOrderSelected(orn, on) {
     if (!canSelectOrn(orn)) return;
     var ix = selected.indexOf(orn);
     if (on && ix === -1) selected.push(orn);
     if (!on && ix !== -1) selected.splice(ix, 1);
     syncRouteFromSelection();
-    syncPickListChecks();
     syncMainTableRepartoUi();
   }
 
@@ -356,47 +343,13 @@
         return c.orn === orn;
       });
     });
+    updateRepartoMeta();
     renderRouteList();
   }
 
-  function renderPickList() {
-    var ul = $('reparto-pick-list');
-    var empty = $('reparto-empty');
-    if (!ul) return;
-    ul.innerHTML = '';
-    if (!candidates.length) {
-      empty.classList.remove('hidden');
-      ul.classList.add('hidden');
-      syncRouteFromSelection();
-      return;
-    }
-    empty.classList.add('hidden');
-    ul.classList.remove('hidden');
-    candidates.forEach(function (o) {
-      var on = selected.indexOf(o.orn) !== -1;
-      var li = document.createElement('li');
-      if (on) li.className = 'is-on';
-      li.innerHTML =
-        '<label><input type="checkbox" data-o="' +
-        escapeAttr(o.orn) +
-        '"' +
-        (on ? ' checked' : '') +
-        '></label><div><div class="addr">' +
-        escapeHtml(o.direccion) +
-        '</div><div class="sub">' +
-        escapeHtml(o.cliente) +
-        ' · ' +
-        escapeHtml(o.pago) +
-        '</div></div>';
-      ul.appendChild(li);
-    });
-    ul.querySelectorAll('input[type=checkbox]').forEach(function (cb) {
-      cb.onchange = function () {
-        setOrderSelected(cb.getAttribute('data-o'), cb.checked);
-      };
-    });
-    syncRouteFromSelection();
-    syncMainTableRepartoUi();
+  function updateRepartoMeta() {
+    var noCand = $('reparto-no-candidates');
+    if (noCand) noCand.classList.toggle('hidden', candidates.length > 0);
   }
 
   function pickCandidatesFromOrders(orders) {
@@ -492,7 +445,8 @@
   function onOrdersUpdated(orders) {
     candidates = pickCandidatesFromOrders(orders);
     pruneSelection();
-    renderPickList();
+    syncRouteFromSelection();
+    syncMainTableRepartoUi();
     if ($('sidebar-fold-reparto') && $('sidebar-fold-reparto').open) ensureMapInit();
   }
 
@@ -530,16 +484,6 @@
         if (savedWa) waEl.value = savedWa;
       } catch (eWa) {}
     }
-    $('reparto-btn-all').onclick = function () {
-      selected = candidates.map(function (c) {
-        return c.orn;
-      });
-      renderPickList();
-    };
-    $('reparto-btn-none').onclick = function () {
-      selected = [];
-      renderPickList();
-    };
     $('reparto-btn-gmaps').onclick = function () {
       var u = gmapsUrl(stops());
       if (u) window.open(u, '_blank', 'noopener');
@@ -564,7 +508,7 @@
   }
 
   function init() {
-    if (!$('reparto-pick-list')) return;
+    if (!$('reparto-route-list')) return;
     bindUi();
     onOrdersUpdated([]);
   }
