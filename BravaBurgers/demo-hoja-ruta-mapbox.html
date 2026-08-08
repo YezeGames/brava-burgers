@@ -218,10 +218,17 @@
 				<div id="map" hidden></div>
 				<p class="route-status" id="route-status"></p>
 
+				<div class="field" style="margin-top:12px">
+					<label for="deli-wa">WhatsApp del repartidor (opcional)</label>
+					<input type="tel" id="deli-wa" autocomplete="off" placeholder="54911… sin + ni espacios">
+					<p class="hint">Si lo dejás vacío, WhatsApp te deja elegir contacto. Se guarda solo en este navegador.</p>
+				</div>
+
 				<p class="stats">Paradas: <strong id="n-stops">0</strong> · Efectivo: <strong id="ef-total">$0</strong></p>
 				<ol class="route-list" id="route-list"></ol>
 				<div class="actions-row">
-					<button type="button" class="btn btn-ghost" id="btn-gmaps">Abrir ruta en Google Maps (celular)</button>
+					<button type="button" class="btn" id="btn-wa-deli">Enviar al deli (WhatsApp + Google)</button>
+					<button type="button" class="btn btn-ghost" id="btn-gmaps">Abrir Google Maps</button>
 					<button type="button" class="btn btn-ghost" id="btn-copy">Copiar hoja</button>
 				</div>
 				<textarea class="hoja" id="hoja" readonly style="margin-top:10px"></textarea>
@@ -233,6 +240,7 @@
 	<script>
 	(function () {
 		var TOKEN_KEY = 'brava_demo_mapbox_token_v1';
+		var DELI_WA_KEY = 'brava_demo_deli_wa_v1';
 		var ORIGIN_ADDR = 'Díaz Vélez 3231, Olivos, Provincia de Buenos Aires, Argentina';
 		var ORIGIN = { lng: -58.515235, lat: -34.50853 };
 
@@ -279,6 +287,34 @@
 			var parts = [encodeURIComponent(ORIGIN_ADDR)];
 			list.forEach(function (o) { parts.push(encodeURIComponent(fullAddr(o))); });
 			return 'https://www.google.com/maps/dir/' + parts.join('/') + '/?travelmode=driving';
+		}
+
+		function buildDeliWhatsAppText(list) {
+			var lines = ['*Ruta delivery — Brava*', ''];
+			list.forEach(function (o, i) {
+				lines.push((i + 1) + '. ' + (o.direccion || '').toUpperCase() + ' — ' + payLine(o));
+			});
+			var g = gmapsUrl(list);
+			if (g) {
+				lines.push('');
+				lines.push('*Navegar (Google Maps, mismo orden):*');
+				lines.push(g);
+			}
+			return lines.join('\n');
+		}
+
+		function normalizeWaPhone(raw) {
+			var d = String(raw || '').replace(/\D/g, '');
+			if (!d) return '';
+			if (d.indexOf('54') !== 0) d = '54' + d.replace(/^0+/, '');
+			return d;
+		}
+
+		function whatsAppSendUrl(text, phone) {
+			var q = 'text=' + encodeURIComponent(text);
+			var p = normalizeWaPhone(phone);
+			if (p) return 'https://wa.me/' + p + '?' + q;
+			return 'https://wa.me/?' + q;
 		}
 		function setStatus(msg, err) {
 			var el = document.getElementById('route-status');
@@ -385,6 +421,8 @@
 			document.getElementById('ef-total').textContent = fmt(sum);
 			document.getElementById('hoja').value = buildHoja(list);
 			document.getElementById('btn-gmaps').disabled = !list.length;
+			var btnWa = document.getElementById('btn-wa-deli');
+			if (btnWa) btnWa.disabled = !list.length;
 			refreshRoute();
 		}
 
@@ -493,6 +531,13 @@
 			var u = gmapsUrl(stops());
 			if (u) window.open(u, '_blank', 'noopener');
 		};
+		document.getElementById('btn-wa-deli').onclick = function () {
+			var list = stops();
+			if (!list.length) return;
+			var phone = document.getElementById('deli-wa').value;
+			try { sessionStorage.setItem(DELI_WA_KEY, phone); } catch (e) {}
+			window.open(whatsAppSendUrl(buildDeliWhatsAppText(list), phone), '_blank', 'noopener');
+		};
 		document.getElementById('btn-copy').onclick = function () {
 			var ta = document.getElementById('hoja');
 			ta.select();
@@ -510,6 +555,11 @@
 			syncRoute();
 			renderTable();
 		};
+
+		try {
+			var savedWa = sessionStorage.getItem(DELI_WA_KEY);
+			if (savedWa) document.getElementById('deli-wa').value = savedWa;
+		} catch (eWa) {}
 
 		renderTable();
 		syncRoute();

@@ -6,6 +6,7 @@
 	<meta name="robots" content="noindex,nofollow">
 	<title>Brava — Admin</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<script>
 		(function () {
 			try {
@@ -317,6 +318,124 @@
 			border-top: none;
 		}
 		.sidebar-stock-panel .stock-cocina-block.hidden { display: none; }
+		.sidebar-reparto-panel .reparto-field { margin-bottom: 10px; }
+		.sidebar-reparto-panel .reparto-field label {
+			display: block;
+			font-size: 0.68rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.03em;
+			color: var(--text-subtle);
+			margin-bottom: 4px;
+		}
+		.sidebar-reparto-panel .reparto-field input,
+		.sidebar-reparto-panel .reparto-hoja {
+			width: 100%;
+			padding: 8px 10px;
+			border-radius: 6px;
+			border: 1px solid var(--border-input);
+			background: var(--input-bg);
+			color: var(--text);
+			font-size: 0.82rem;
+		}
+		.sidebar-reparto-panel .reparto-hoja {
+			margin-top: 8px;
+			min-height: 72px;
+			resize: vertical;
+			font-size: 0.75rem;
+			line-height: 1.35;
+		}
+		.reparto-pick-actions { display: flex; gap: 6px; margin-bottom: 8px; }
+		.reparto-pick-list {
+			list-style: none;
+			margin: 0 0 10px;
+			padding: 0;
+			max-height: 140px;
+			overflow-y: auto;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			background: var(--bg-surface-alt);
+		}
+		.reparto-pick-list li {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 8px;
+			align-items: start;
+			padding: 7px 8px;
+			border-bottom: 1px solid var(--border);
+			font-size: 0.78rem;
+		}
+		.reparto-pick-list li:last-child { border-bottom: none; }
+		.reparto-pick-list li.is-on { background: rgba(255, 107, 53, 0.08); }
+		.reparto-pick-list .addr { font-weight: 600; line-height: 1.3; }
+		.reparto-pick-list .sub { color: var(--text-subtle); font-size: 0.72rem; margin-top: 2px; }
+		.reparto-empty { font-size: 0.78rem; color: var(--text-muted); margin: 0 0 10px; }
+		.reparto-stats { font-size: 0.78rem; margin: 0 0 8px; color: var(--text-muted); }
+		.reparto-route-list {
+			list-style: none;
+			margin: 0 0 10px;
+			padding: 0;
+			max-height: 100px;
+			overflow-y: auto;
+		}
+		.reparto-route-list li {
+			display: grid;
+			grid-template-columns: 20px 1fr auto;
+			gap: 6px;
+			padding: 5px 0;
+			border-bottom: 1px dashed var(--border);
+			font-size: 0.74rem;
+		}
+		.reparto-route-list .num { font-weight: 700; color: var(--brava); }
+		.reparto-route-list button {
+			font-size: 0.7rem;
+			padding: 2px 6px;
+			cursor: pointer;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			background: var(--input-bg);
+			color: var(--text);
+		}
+		#reparto-map {
+			height: 220px;
+			width: 100%;
+			border-radius: 8px;
+			border: 1px solid var(--border-input);
+		}
+		.reparto-map-shell {
+			height: 220px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 12px;
+			font-size: 0.75rem;
+			line-height: 1.4;
+			color: var(--text-subtle);
+			border: 1px dashed var(--border-input);
+			border-radius: 8px;
+		}
+		.reparto-route-status { font-size: 0.72rem; min-height: 1.2em; margin: 6px 0 0; color: #2e7d32; }
+		[data-theme="dark"] .reparto-route-status { color: #81c784; }
+		.reparto-route-status.is-err { color: #c62828; }
+		[data-theme="dark"] .reparto-route-status.is-err { color: #ef9a9a; }
+		.reparto-actions { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+		.reparto-actions .btn-sm { width: 100%; text-align: center; }
+		.reparto-pin {
+			width: 26px;
+			height: 26px;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 11px;
+			font-weight: 800;
+			color: #fff;
+			border: 2px solid #fff;
+			box-shadow: 0 1px 4px rgba(0,0,0,.35);
+		}
+		.reparto-pin.start { background: #ff6b35; }
+		.reparto-pin.stop { background: #4285f4; }
 		.card, .sidebar-block { background: var(--bg-surface); border-radius: 8px; padding: 24px; box-shadow: var(--shadow-card); color: var(--text); }
 		.sidebar-block { padding: 20px 16px; margin-bottom: 16px; }
 		.sidebar-block:last-child { margin-bottom: 0; }
@@ -1107,6 +1226,41 @@
 						</div>
 					</div>
 				</details>
+				<details class="sidebar-menu-fold" id="sidebar-fold-reparto">
+					<summary>Reparto</summary>
+					<div class="sidebar-menu-body sidebar-reparto-panel">
+						<aside class="sidebar-block reparto-box">
+							<h2>Ruta del turno</h2>
+							<p class="caja-hint">Armá la ruta con pedidos <strong>Aceptados</strong> que tengan dirección. Vista Mapbox · el deli navega con Google.</p>
+							<div class="reparto-field">
+								<label for="reparto-origin">Salida cocina</label>
+								<input type="text" id="reparto-origin" autocomplete="off" placeholder="Calle y número, localidad">
+								<p class="caja-hint" style="margin-top:4px;">Solo se guarda en este navegador.</p>
+							</div>
+							<div class="reparto-field">
+								<label for="reparto-deli-wa">WhatsApp repartidor</label>
+								<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…">
+							</div>
+							<div class="reparto-pick-actions">
+								<button type="button" class="btn-sm" id="reparto-btn-all">Todos</button>
+								<button type="button" class="btn-sm" id="reparto-btn-none">Ninguno</button>
+							</div>
+							<ul class="reparto-pick-list" id="reparto-pick-list" aria-label="Pedidos aceptados"></ul>
+							<p class="reparto-empty hidden" id="reparto-empty">No hay aceptados con dirección en el rango de fechas.</p>
+							<p class="reparto-stats">Paradas: <strong id="reparto-n-stops">0</strong> · Efectivo: <strong id="reparto-ef-total">$0</strong></p>
+							<ol class="reparto-route-list" id="reparto-route-list" aria-label="Orden de paradas"></ol>
+							<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» o elegí paradas para cargar el mapa.</div>
+							<div id="reparto-map" hidden></div>
+							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
+							<div class="reparto-actions">
+								<button type="button" class="btn-sm btn-accent" id="reparto-btn-wa" disabled>Enviar al deli (WA + Google)</button>
+								<button type="button" class="btn-sm" id="reparto-btn-gmaps" disabled>Abrir Google Maps</button>
+								<button type="button" class="btn-sm" id="reparto-btn-copy" disabled>Copiar hoja</button>
+							</div>
+							<textarea class="reparto-hoja" id="reparto-hoja" readonly placeholder="Hoja para el repartidor…"></textarea>
+						</aside>
+					</div>
+				</details>
 			</div>
 		</div>
 	</div>
@@ -1264,6 +1418,8 @@
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=12"></script>
-	<script src="/admin/admin.js?v=60"></script>
+	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+	<script src="/admin/reparto.js?v=1"></script>
+	<script src="/admin/admin.js?v=61"></script>
 </body>
 </html>

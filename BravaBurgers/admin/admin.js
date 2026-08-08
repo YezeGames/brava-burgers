@@ -1741,17 +1741,17 @@
 
   function playAlertTone(ctx, startTime, note) {
 
-    var o = ctx.createOscillator();
+      var o = ctx.createOscillator();
 
-    var g = ctx.createGain();
+      var g = ctx.createGain();
 
     o.type = note.wave || 'sine';
 
     o.frequency.value = note.freq;
 
-    o.connect(g);
+      o.connect(g);
 
-    g.connect(ctx.destination);
+      g.connect(ctx.destination);
 
     var t0 = startTime + (note.at || 0);
 
@@ -1759,13 +1759,13 @@
 
     var peak = note.vol != null ? note.vol : 0.25;
 
-    g.gain.setValueAtTime(0.001, t0);
+      g.gain.setValueAtTime(0.001, t0);
 
     g.gain.exponentialRampToValueAtTime(peak, t0 + 0.025);
 
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
 
-    o.start(t0);
+      o.start(t0);
 
     o.stop(t0 + dur + 0.06);
 
@@ -2250,11 +2250,11 @@
 
   function handleAuthFailure() {
 
-    sessionStorage.removeItem('brava_admin_token');
+          sessionStorage.removeItem('brava_admin_token');
 
     token = '';
 
-    showLogin();
+          showLogin();
 
   }
 
@@ -2276,7 +2276,7 @@
 
     ordersForEstado(allOrdersCache, 'pendiente').forEach(function (o) {
 
-      if (o.orn) knownOrns.add(o.orn);
+          if (o.orn) knownOrns.add(o.orn);
 
     });
 
@@ -2351,6 +2351,10 @@
     updateCajaUI();
 
     updatePollStatusLabel();
+
+    if (window.BravaReparto && typeof window.BravaReparto.onOrdersUpdated === 'function') {
+      window.BravaReparto.onOrdersUpdated(allOrdersCache);
+    }
 
   }
 
@@ -3809,7 +3813,7 @@
 
       .then(function (res) {
 
-        if (!res.data.ok) {
+      if (!res.data.ok) {
 
           var msg =
 
@@ -3829,17 +3833,17 @@
 
           $('login-err').textContent = msg;
 
-          $('login-err').hidden = false;
+        $('login-err').hidden = false;
 
-          return;
+        return;
 
-        }
+      }
 
-        token = res.data.token;
+      token = res.data.token;
 
-        sessionStorage.setItem('brava_admin_token', token);
+      sessionStorage.setItem('brava_admin_token', token);
 
-        knownOrns = new Set();
+      knownOrns = new Set();
 
         newPendingOrns = new Set();
 
@@ -3859,7 +3863,7 @@
 
         });
 
-        showApp();
+      showApp();
 
         if (res.data.realtime) bootstrapRealtimeAfterLogin(res.data.realtime);
 
@@ -4095,7 +4099,7 @@
   }
 
   function initSidebarMenuFolds() {
-    ['sidebar-fold-caja', 'sidebar-fold-stock'].forEach(function (id) {
+    ['sidebar-fold-caja', 'sidebar-fold-stock', 'sidebar-fold-reparto'].forEach(function (id) {
       var el = $(id);
       if (!el) return;
       var key = 'brava_admin_sidebar_' + id;
@@ -4113,6 +4117,10 @@
   }
 
   initSidebarMenuFolds();
+
+  if (window.BravaReparto && typeof window.BravaReparto.init === 'function') {
+    window.BravaReparto.init();
+  }
 
   updateThemeToggleButtons();
   document.querySelectorAll('.theme-toggle-btn').forEach(function (btn) {
