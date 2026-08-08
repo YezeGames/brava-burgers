@@ -2,6 +2,7 @@
   'use strict';
 
   var ORIGIN_KEY = 'brava_reparto_origin_v1';
+  var DEFAULT_ORIGIN = 'Diaz Velez 3231, Olivos';
   var DELI_WA_KEY = 'brava_demo_deli_wa_v1';
   var geocodeCache = Object.create(null);
 
@@ -462,7 +463,8 @@
     if (originEl) {
       try {
         var savedO = sessionStorage.getItem(ORIGIN_KEY);
-        if (savedO) originEl.value = savedO;
+        if (savedO != null && String(savedO).trim() !== '') originEl.value = savedO;
+        else originEl.value = DEFAULT_ORIGIN;
       } catch (e) {}
       originEl.addEventListener('change', function () {
         try {
