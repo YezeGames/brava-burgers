@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — ruta Google Maps (local)</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 20px 14px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #0f0f0f;
+			color: #e4e4e4;
+		}
+		.wrap { max-width: 1200px; margin: 0 auto; }
+		.banner {
+			background: #1c1c1c;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 0.84rem;
+			line-height: 1.45;
+			color: #ccc;
+			margin-bottom: 18px;
+		}
+		.banner strong { color: #ff6b35; }
+		h1 { font-size: 1.3rem; margin: 0 0 6px; }
+		.lead { color: #9a9a9a; font-size: 0.88rem; margin: 0 0 20px; line-height: 1.45; }
+		.layout {
+			display: grid;
+			grid-template-columns: 1fr 440px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 960px) { .layout { grid-template-columns: 1fr; } }
+		.card {
+			background: #1c1c1c;
+			border: 1px solid #333;
+			border-radius: 10px;
+			padding: 16px;
+		}
+		.card h2 {
+			margin: 0 0 12px;
+			font-size: 0.95rem;
+			border-bottom: 2px solid #ff6b35;
+			padding-bottom: 8px;
+		}
+		#google-map {
+			height: 400px;
+			width: 100%;
+			border-radius: 8px;
+			border: 1px solid #333;
+			background: #1a1a1a;
+		}
+		.route-status {
+			font-size: 0.78rem;
+			margin-top: 8px;
+			min-height: 1.2em;
+			color: #81c784;
+		}
+		.route-status.err { color: #ef9a9a; }
+		table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+		th, td {
+			text-align: left;
+			padding: 8px 6px;
+			border-bottom: 1px solid #2a2a2a;
+			vertical-align: top;
+		}
+		th { color: #888; font-size: 0.72rem; text-transform: uppercase; }
+		tr.selected { background: rgba(255, 107, 53, 0.08); }
+		.addr { font-weight: 600; line-height: 1.35; }
+		.addr-sub { font-size: 0.75rem; color: #888; margin-top: 2px; }
+		.badge {
+			display: inline-block;
+			font-size: 0.65rem;
+			font-weight: 700;
+			padding: 2px 6px;
+			border-radius: 4px;
+			text-transform: uppercase;
+		}
+		.badge-mp { background: #1e3a5f; color: #90caf9; }
+		.badge-ef { background: #3d2a14; color: #ffcc80; }
+		.field { margin-bottom: 12px; }
+		.field label {
+			display: block;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			color: #888;
+			margin-bottom: 6px;
+		}
+		.field input {
+			width: 100%;
+			padding: 9px 11px;
+			border-radius: 8px;
+			border: 1px solid #444;
+			background: #252525;
+			color: #eee;
+			font-size: 0.85rem;
+		}
+		.field input:read-only { opacity: 0.85; color: #bbb; }
+		.field .hint { font-size: 0.7rem; color: #666; margin-top: 5px; line-height: 1.35; }
+		.route-list { list-style: none; margin: 0; padding: 0; max-height: 130px; overflow-y: auto; }
+		.route-list li {
+			display: grid;
+			grid-template-columns: 22px 1fr auto;
+			gap: 6px;
+			padding: 6px 0;
+			border-bottom: 1px dashed #333;
+			font-size: 0.78rem;
+		}
+		.route-list .num { color: #ff6b35; font-weight: 800; }
+		.route-btns button {
+			width: 26px; height: 26px;
+			border: 1px solid #444;
+			background: #2a2a2a;
+			color: #eee;
+			border-radius: 5px;
+			cursor: pointer;
+		}
+		.actions-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+		.btn {
+			padding: 8px 12px;
+			border: none;
+			border-radius: 8px;
+			font-weight: 600;
+			font-size: 0.78rem;
+			cursor: pointer;
+			background: #ff6b35;
+			color: #fff;
+		}
+		.btn-ghost { background: #333; color: #ddd; }
+		.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+		.hoja {
+			width: 100%;
+			min-height: 80px;
+			font-family: ui-monospace, Consolas, monospace;
+			font-size: 0.72rem;
+			line-height: 1.45;
+			padding: 10px;
+			border-radius: 8px;
+			border: 1px solid #444;
+			background: #121212;
+			color: #81c784;
+			resize: vertical;
+		}
+		.stats { font-size: 0.75rem; color: #888; margin-bottom: 8px; }
+		.stats strong { color: #ff6b35; }
+		.key-block {
+			margin-bottom: 14px;
+			padding-bottom: 14px;
+			border-bottom: 1px dashed #333;
+		}
+		.map-placeholder {
+			height: 400px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 20px;
+			color: #888;
+			font-size: 0.85rem;
+			line-height: 1.45;
+			border: 1px dashed #444;
+			border-radius: 8px;
+		}
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="banner">
+			<strong>Demo — Google Directions</strong> Ruta por calles (auto). En Vercel cargá <code>GOOGLE_MAPS_API_KEY</code> y abrí esta página desde
+			<code>https://brava-burgers.vercel.app/demo-hoja-ruta-mapa.html</code> — el mapa se inicia solo.
+			Activá en Google Cloud: <strong>Maps JavaScript API</strong> + <strong>Directions API</strong>.
+		</div>
+		<h1>Demo — recorrido delivery (Google Maps)</h1>
+		<p class="lead">Tildás paradas → el mapa dibuja el camino desde salida hasta la última parada, respetando el orden ↑↓.</p>
+
+		<div class="layout">
+			<div class="card">
+				<h2>Pedidos — tildar para la ronda</h2>
+				<div style="overflow-x:auto">
+					<table>
+						<thead>
+							<tr><th></th><th>Cliente</th><th>Dirección</th><th>Cobro</th></tr>
+						</thead>
+						<tbody id="orders-body"></tbody>
+					</table>
+				</div>
+				<div class="actions-row">
+					<button type="button" class="btn btn-ghost" id="btn-all">Todos</button>
+					<button type="button" class="btn btn-ghost" id="btn-none">Ninguno</button>
+				</div>
+			</div>
+
+			<div class="card">
+				<div class="key-block" id="key-block">
+					<div class="field">
+						<label for="gmaps-key">API key (solo si no estás en Vercel con env configurada)</label>
+						<input type="password" id="gmaps-key" autocomplete="off" placeholder="AIza…">
+					</div>
+					<button type="button" class="btn" id="btn-init-map">Cargar mapa</button>
+					<p class="hint" id="key-hint" style="margin-top:8px;color:#888;font-size:0.75rem">Conectando al servidor…</p>
+				</div>
+
+				<h2>Recorrido</h2>
+				<div class="field">
+					<label for="origin-text">Salida</label>
+					<input type="text" id="origin-text" readonly value="Díaz Vélez 3231, Olivos, Provincia de Buenos Aires, Argentina">
+				</div>
+
+				<div id="map-shell" class="map-placeholder">
+					Pegá la API key y tocá «Cargar mapa y rutas».
+				</div>
+				<div id="google-map" hidden></div>
+				<p class="route-status" id="route-status"></p>
+
+				<p class="stats">Paradas: <strong id="n-stops">0</strong> · Efectivo: <strong id="ef-total">$0</strong></p>
+				<ol class="route-list" id="route-list"></ol>
+				<div class="actions-row">
+					<button type="button" class="btn" id="btn-maps">Abrir misma ruta en app Maps</button>
+					<button type="button" class="btn btn-ghost" id="btn-copy">Copiar hoja</button>
+				</div>
+				<textarea class="hoja" id="hoja" readonly style="margin-top:10px"></textarea>
+			</div>
+		</div>
+	</div>
+
+	<script>
+	(function () {
+		var GMAPS_KEY = 'brava_demo_gmaps_key_v2';
+		var ORIGIN = 'Díaz Vélez 3231, Olivos, Provincia de Buenos Aires, Argentina';
+
+		var MOCK = [
+			{ orn: 'ORN-DEL-0042', cliente: 'Lucía M.', direccion: 'Díaz Vélez 2123', localidad: 'Olivos', piso: '', pago: 'Mercado Pago', total: 18500 },
+			{ orn: 'ORN-DEL-0043', cliente: 'Martín R.', direccion: 'Av. Maipú 2356', localidad: 'Olivos', piso: '4 B', pago: 'Efectivo', total: 23456 },
+			{ orn: 'ORN-DEL-0044', cliente: 'Caro + Tomi', direccion: 'Gobernador Marcelino Ugarte 2278', localidad: 'Olivos', piso: '', pago: 'Mercado Pago', total: 15200 },
+			{ orn: 'ORN-DEL-0045', cliente: 'Pedro', direccion: 'Av. del Libertador 3450', localidad: 'Olivos', piso: 'PB', pago: 'Efectivo', total: 9800 }
+		];
+
+		var selected = ['ORN-DEL-0042', 'ORN-DEL-0043', 'ORN-DEL-0044'];
+		var routeOrder = selected.slice();
+
+		var googleMap = null;
+		var directionsService = null;
+		var directionsRenderer = null;
+		var mapReady = false;
+		var mapsJsKey = '';
+		var useServerDirections = true;
+
+		function fmt(n) {
+			return '$' + Math.round(n).toLocaleString('es-AR');
+		}
+		function payLine(o) {
+			if (/efectivo/i.test(o.pago)) return fmt(o.total) + ' (COBRAR EN EFECTIVO)';
+			if (/mercado/i.test(o.pago)) return 'PAGO (MERCADO PAGO)';
+			return 'PAGO (' + (o.pago || '').toUpperCase() + ')';
+		}
+		function fullAddr(o) {
+			var parts = [o.direccion];
+			if (o.piso) parts.push('Piso ' + o.piso);
+			parts.push(o.localidad, 'Provincia de Buenos Aires', 'Argentina');
+			return parts.filter(Boolean).join(', ');
+		}
+		function stops() {
+			return routeOrder.map(function (orn) {
+				return MOCK.find(function (m) { return m.orn === orn; });
+			}).filter(Boolean);
+		}
+		function buildHoja(list) {
+			return list.map(function (o) {
+				return (o.direccion || '').toUpperCase() + ' — ' + payLine(o);
+			}).join('\n') || '(Sin paradas)';
+		}
+		function mapsUrl(list) {
+			if (!list.length) return '';
+			var parts = [encodeURIComponent(ORIGIN)];
+			list.forEach(function (o) {
+				parts.push(encodeURIComponent(fullAddr(o)));
+			});
+			return 'https://www.google.com/maps/dir/' + parts.join('/') + '/?travelmode=driving';
+		}
+
+		function setRouteStatus(msg, isErr) {
+			var el = document.getElementById('route-status');
+			el.textContent = msg || '';
+			el.className = 'route-status' + (isErr ? ' err' : '');
+		}
+
+		function refreshDirections() {
+			if (!mapReady || !directionsRenderer) return;
+			var list = stops();
+			if (!list.length) {
+				setRouteStatus('Elegí al menos una parada.');
+				return;
+			}
+			setRouteStatus('Calculando ruta…');
+
+			function onResult(result, status) {
+				if (status === 'OK' || (result && result.status === 'OK')) {
+					var payload = result.status ? result : { routes: result.routes, status: status };
+					directionsRenderer.setDirections(payload);
+					var legs = payload.routes[0].legs;
+					var dist = 0;
+					var dur = 0;
+					legs.forEach(function (l) {
+						dist += l.distance.value;
+						dur += l.duration.value;
+					});
+					setRouteStatus('Ruta en auto: ~' + (dist / 1000).toFixed(1) + ' km · ~' + Math.round(dur / 60) + ' min');
+				} else {
+					var err = (result && result.status) || status || 'ERROR';
+					setRouteStatus('No se pudo calcular la ruta: ' + err, true);
+				}
+			}
+
+			if (useServerDirections && /^https?:/i.test(window.location.protocol)) {
+				fetch('/api/directions', {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						origin: ORIGIN,
+						stops: list.map(fullAddr)
+					})
+				})
+					.then(function (r) { return r.json(); })
+					.then(function (data) {
+						if (data.error === 'maps_not_configured') {
+							useServerDirections = false;
+							refreshDirectionsClient(list, onResult);
+							return;
+						}
+						onResult(data, data.status);
+					})
+					.catch(function () {
+						useServerDirections = false;
+						refreshDirectionsClient(list, onResult);
+					});
+				return;
+			}
+			refreshDirectionsClient(list, onResult);
+		}
+
+		function refreshDirectionsClient(list, onResult) {
+			if (!directionsService) {
+				setRouteStatus('Falta API key de Maps.', true);
+				return;
+			}
+			var destination = fullAddr(list[list.length - 1]);
+			var waypoints = [];
+			if (list.length > 1) {
+				for (var i = 0; i < list.length - 1; i++) {
+					waypoints.push({ location: fullAddr(list[i]), stopover: true });
+				}
+			}
+			directionsService.route(
+				{
+					origin: ORIGIN,
+					destination: destination,
+					waypoints: waypoints,
+					optimizeWaypoints: false,
+					travelMode: google.maps.TravelMode.DRIVING,
+					region: 'AR'
+				},
+				onResult
+			);
+		}
+
+		function renderRouteList() {
+			var ul = document.getElementById('route-list');
+			ul.innerHTML = '';
+			stops().forEach(function (o, idx) {
+				var li = document.createElement('li');
+				li.innerHTML =
+					'<span class="num">' + (idx + 1) + '</span>' +
+					'<span>' + o.direccion + '<br><span style="color:#888">' + payLine(o) + '</span></span>' +
+					'<span class="route-btns">' +
+					'<button type="button" data-u="' + o.orn + '">↑</button> ' +
+					'<button type="button" data-d="' + o.orn + '">↓</button></span>';
+				ul.appendChild(li);
+			});
+			ul.querySelectorAll('[data-u]').forEach(function (b) {
+				b.onclick = function () { move(b.getAttribute('data-u'), -1); };
+			});
+			ul.querySelectorAll('[data-d]').forEach(function (b) {
+				b.onclick = function () { move(b.getAttribute('data-d'), 1); };
+			});
+
+			var list = stops();
+			var ef = list.filter(function (o) { return /efectivo/i.test(o.pago); });
+			var sum = ef.reduce(function (s, o) { return s + o.total; }, 0);
+			document.getElementById('n-stops').textContent = String(list.length);
+			document.getElementById('ef-total').textContent = fmt(sum);
+			document.getElementById('hoja').value = buildHoja(list);
+			document.getElementById('btn-maps').disabled = !list.length;
+			refreshDirections();
+		}
+
+		function move(orn, dir) {
+			var i = routeOrder.indexOf(orn);
+			if (i < 0) return;
+			var j = i + dir;
+			if (j < 0 || j >= routeOrder.length) return;
+			var t = routeOrder[j];
+			routeOrder[j] = routeOrder[i];
+			routeOrder[i] = t;
+			renderRouteList();
+		}
+
+		function syncRoute() {
+			routeOrder = selected.slice();
+			renderRouteList();
+		}
+
+		function renderTable() {
+			var tb = document.getElementById('orders-body');
+			tb.innerHTML = '';
+			MOCK.forEach(function (o) {
+				var tr = document.createElement('tr');
+				if (selected.indexOf(o.orn) !== -1) tr.className = 'selected';
+				var chk = selected.indexOf(o.orn) !== -1;
+				tr.innerHTML =
+					'<td><input type="checkbox" data-o="' + o.orn + '"' + (chk ? ' checked' : '') + '></td>' +
+					'<td>' + o.cliente + '</td>' +
+					'<td><div class="addr">' + o.direccion + '</div><div class="addr-sub">' +
+					[o.piso, o.localidad].filter(Boolean).join(' · ') + '</div></td>' +
+					'<td><span class="badge ' + (/efectivo/i.test(o.pago) ? 'badge-ef' : 'badge-mp') + '">' + o.pago + '</span></td>';
+				tb.appendChild(tr);
+			});
+			tb.querySelectorAll('input').forEach(function (cb) {
+				cb.onchange = function () {
+					var orn = cb.getAttribute('data-o');
+					var ix = selected.indexOf(orn);
+					if (cb.checked && ix === -1) selected.push(orn);
+					if (!cb.checked && ix !== -1) selected.splice(ix, 1);
+					syncRoute();
+					renderTable();
+				};
+			});
+		}
+
+		function initGoogleMaps(key) {
+			mapsJsKey = key;
+			if (window.google && googleMap) {
+				mapReady = true;
+				refreshDirections();
+				return;
+			}
+			var existing = document.getElementById('gmaps-script');
+			if (existing) existing.remove();
+			var s = document.createElement('script');
+			s.id = 'gmaps-script';
+			s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(key);
+			s.onload = function () {
+				document.getElementById('map-shell').hidden = true;
+				var mapEl = document.getElementById('google-map');
+				mapEl.hidden = false;
+				googleMap = new google.maps.Map(mapEl, {
+					center: { lat: -34.5085, lng: -58.505 },
+					zoom: 14,
+					mapTypeControl: true,
+					streetViewControl: false,
+					fullscreenControl: true
+				});
+				directionsService = new google.maps.DirectionsService();
+				directionsRenderer = new google.maps.DirectionsRenderer({
+					map: googleMap,
+					suppressMarkers: false,
+					polylineOptions: {
+						strokeColor: '#4285F4',
+						strokeWeight: 5,
+						strokeOpacity: 0.85
+					}
+				});
+				mapReady = true;
+				document.getElementById('key-block').hidden = true;
+				refreshDirections();
+			};
+			s.onerror = function () {
+				setRouteStatus('Error al cargar Google Maps. Revisá la API key y referrer.', true);
+			};
+			document.head.appendChild(s);
+		}
+
+		function bootstrapMaps() {
+			var hint = document.getElementById('key-hint');
+			if (!/^https?:/i.test(window.location.protocol)) {
+				hint.textContent = 'Abrí esta demo desde Vercel (https) o pegá API key abajo.';
+				return;
+			}
+			fetch('/api/maps-config', { cache: 'no-store' })
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (data.ok && data.key) {
+						hint.textContent = 'Key del servidor OK — cargando mapa…';
+						initGoogleMaps(data.key);
+					} else {
+						hint.textContent = 'Falta GOOGLE_MAPS_API_KEY en Vercel → pegá key manual abajo.';
+					}
+				})
+				.catch(function () {
+					hint.textContent = 'No se pudo leer /api/maps-config — pegá key manual abajo.';
+				});
+		}
+
+		document.getElementById('btn-init-map').onclick = function () {
+			var key = document.getElementById('gmaps-key').value.trim();
+			if (!key) {
+				alert('Pegá tu API key de Google Cloud.');
+				return;
+			}
+			try { sessionStorage.setItem(GMAPS_KEY, key); } catch (e) {}
+			initGoogleMaps(key);
+		};
+
+		document.getElementById('btn-maps').onclick = function () {
+			var u = mapsUrl(stops());
+			if (u) window.open(u, '_blank', 'noopener');
+		};
+		document.getElementById('btn-copy').onclick = function () {
+			var ta = document.getElementById('hoja');
+			ta.select();
+			navigator.clipboard.writeText(ta.value).catch(function () {
+				document.execCommand('copy');
+			});
+		};
+		document.getElementById('btn-all').onclick = function () {
+			selected = MOCK.map(function (m) { return m.orn; });
+			syncRoute();
+			renderTable();
+		};
+		document.getElementById('btn-none').onclick = function () {
+			selected = [];
+			syncRoute();
+			renderTable();
+		};
+
+		try {
+			var gk = sessionStorage.getItem(GMAPS_KEY);
+			if (gk) document.getElementById('gmaps-key').value = gk;
+		} catch (e2) {}
+
+		renderTable();
+		syncRoute();
+		bootstrapMaps();
+	})();
+	</script>
+</body>
+</html>
