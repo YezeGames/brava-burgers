@@ -105,8 +105,27 @@
     hideList();
   }
 
+  function locHintFromForm() {
+    var loc = localityEl() ? localityEl().value.trim() : '';
+    if (loc) return loc;
+    var sel = document.getElementById('pregunta_10_respuesta');
+    if (!sel || sel.selectedIndex < 0) return '';
+    var opt = sel.options[sel.selectedIndex];
+    var zona = (opt && (opt.getAttribute('data-nombre') || opt.textContent)) || '';
+    zona = String(zona).trim();
+    if (!zona || /retiro/i.test(zona)) return '';
+    if (/florida/i.test(zona)) return 'Florida';
+    if (/olivos/i.test(zona)) return 'Olivos';
+    if (/mart[ií]nez/i.test(zona)) return 'Martínez';
+    if (/v\.?\s*l[oó]pez/i.test(zona)) return 'Vicente Lopez';
+    var slash = zona.indexOf('/');
+    if (slash !== -1) return zona.slice(slash + 1).trim();
+    return zona.split(/\s+/)[0] || '';
+  }
+
   function fetchSuggestions(q) {
-    var key = cacheKey(q);
+    var hint = locHintFromForm();
+    var key = cacheKey(q + '|' + hint);
     if (queryCache[key]) {
       showList(queryCache[key]);
       return;
@@ -122,6 +141,7 @@
     showLoading();
 
     var url = '/api/address-suggest?q=' + encodeURIComponent(q);
+    if (hint) url += '&loc=' + encodeURIComponent(hint);
     var opts = { cache: 'default' };
     if (fetchAbort) opts.signal = fetchAbort.signal;
 
@@ -137,7 +157,7 @@
         }
         cacheSet(key, data.suggestions);
         var inp = inputEl();
-        if (inp && cacheKey(inp.value.trim()) !== key) return;
+        if (inp && cacheKey(inp.value.trim() + '|' + hint) !== key) return;
         showList(data.suggestions);
       })
       .catch(function (err) {
@@ -163,7 +183,8 @@
       hideList();
       return;
     }
-    var cached = queryCache[cacheKey(q)];
+    var hint = locHintFromForm();
+    var cached = queryCache[cacheKey(q + '|' + hint)];
     if (cached) {
       showList(cached);
     }
@@ -182,6 +203,10 @@
     inp.setAttribute('aria-controls', 'brava-addr-suggest');
 
     inp.addEventListener('input', onInput);
+    var locInp = localityEl();
+    if (locInp) locInp.addEventListener('input', onInput);
+    var zonaSel = document.getElementById('pregunta_10_respuesta');
+    if (zonaSel) zonaSel.addEventListener('change', onInput);
     inp.addEventListener('blur', function () {
       setTimeout(hideList, 180);
     });
