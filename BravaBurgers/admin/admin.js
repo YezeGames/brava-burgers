@@ -2039,9 +2039,9 @@
 
         'No hay pedidos pendientes. Los nuevos aparecen acá con aviso de sonido (si está activado).',
 
-      aceptado: 'No hay pedidos en preparación. Aceptá uno desde <strong>Pendientes</strong>.',
+      aceptado: 'No hay pedidos aceptados. Aceptá uno desde <strong>Pendientes</strong>.',
 
-      en_camino: 'No hay pedidos en camino. Marcá «En camino» desde <strong>En preparación</strong>.',
+      en_camino: 'No hay pedidos en camino. Usá <strong>En camino</strong> desde <strong>Aceptados</strong>.',
 
       rechazado: 'No hay pedidos rechazados.',
 
@@ -2136,7 +2136,7 @@
           'btn-sm btn-ok',
           'accept',
           o.orn,
-          cajaOk ? 'Aceptar → preparación' : mensajeBloqueoOperarPedidos(),
+          cajaOk ? 'Aceptar pedido' : mensajeBloqueoOperarPedidos(),
           !cajaOk
         );
 
@@ -3502,7 +3502,7 @@
 
     if (normalizeEstado(o.estado) !== 'aceptado') {
 
-      alert('Solo podés editar pedidos en preparación (pestaña En preparación).');
+      alert('Solo podés editar pedidos en Aceptados.');
 
       return;
 

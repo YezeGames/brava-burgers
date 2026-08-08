@@ -11,6 +11,7 @@ const {
   createCierre,
   deleteCierre,
 } = require('../lib/bravaSupabase');
+const { migrateEnCaminoColumn } = require('../lib/dbMigrate');
 
 function parseRequestBody(req) {
   let body = req.body;
@@ -86,6 +87,10 @@ async function handleSupabaseAdmin(body) {
     const realtime = await createAdminSupabaseSession();
     if (!realtime) return { ok: false, error: 'realtime_not_configured' };
     return { ok: true, realtime };
+  }
+
+  if (action === 'migrateEnCaminoColumn') {
+    return migrateEnCaminoColumn();
   }
 
   return { ok: false, error: 'unknown_action' };
