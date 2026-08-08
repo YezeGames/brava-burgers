@@ -283,7 +283,25 @@
     $('reparto-btn-gmaps').disabled = !has;
     $('reparto-btn-wa').disabled = !has;
     $('reparto-btn-copy').disabled = !has;
+    updateDispatchButton();
     scheduleRefreshRoute();
+  }
+
+  function selectedOrnsInPreparacion() {
+    return routeOrder.filter(function (orn) {
+      var o = candidates.find(function (c) {
+        return c.orn === orn;
+      });
+      return o && normEst(o.estado) === 'en_preparacion';
+    });
+  }
+
+  function updateDispatchButton() {
+    var btn = $('reparto-btn-dispatch');
+    if (!btn) return;
+    var n = selectedOrnsInPreparacion().length;
+    btn.disabled = n === 0;
+    btn.textContent = n > 0 ? 'Marcar en camino (' + n + ')' : 'Marcar en camino';
   }
 
   function escapeHtml(s) {
@@ -355,12 +373,13 @@
 
   function pickCandidatesFromOrders(orders) {
     var list = (orders || []).filter(function (o) {
-      if (normEst(o.estado) !== 'en_camino') return false;
+      var e = normEst(o.estado);
+      if (e !== 'en_preparacion' && e !== 'en_camino') return false;
       return String(o.direccion || '').trim().length > 0;
     });
     list.sort(function (a, b) {
-      var ta = a.en_camino_at || a.aceptado_at || a.fecha_creado || '';
-      var tb = b.en_camino_at || b.aceptado_at || b.fecha_creado || '';
+      var ta = a.en_camino_at || a.en_preparacion_at || a.aceptado_at || a.fecha_creado || '';
+      var tb = b.en_camino_at || b.en_preparacion_at || b.aceptado_at || b.fecha_creado || '';
       return String(ta).localeCompare(String(tb));
     });
     return list;
@@ -489,6 +508,26 @@
     $('reparto-btn-gmaps').onclick = function () {
       var u = gmapsUrl(stops());
       if (u) window.open(u, '_blank', 'noopener');
+    };
+    $('reparto-btn-dispatch').onclick = function () {
+      var orns = selectedOrnsInPreparacion();
+      if (!orns.length) return;
+      if (!window.BravaAdminBatchEnCamino) return;
+      var btn = $('reparto-btn-dispatch');
+      if (btn) btn.disabled = true;
+      setStatus('Marcando en camino…');
+      window.BravaAdminBatchEnCamino(orns, function (result) {
+        if (!result) {
+          updateDispatchButton();
+          return;
+        }
+        if (result.fail) {
+          setStatus('En camino: ' + result.ok + ' ok, ' + result.fail + ' con error.', true);
+        } else {
+          setStatus(result.ok === 1 ? '1 pedido en camino.' : result.ok + ' pedidos en camino.');
+        }
+        updateDispatchButton();
+      });
     };
     $('reparto-btn-wa').onclick = function () {
       var list = stops();

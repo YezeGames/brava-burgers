@@ -1990,14 +1990,14 @@
 
 
   function ordersTableColspan(panelEstado) {
-    return panelEstado === 'en_camino' ? 9 : 8;
+    return panelEstado === 'en_preparacion' ? 9 : 8;
   }
 
   function updateOrdersTableHead(panelEstado) {
     var row = document.querySelector('#orders-table thead tr');
     if (!row) return;
     var cols = ['Fecha', 'Cliente', 'Teléfono', 'Dirección', 'Pago', 'Total', 'ORN', 'Acciones'];
-    if (panelEstado === 'en_camino') cols.unshift('Ruta');
+    if (panelEstado === 'en_preparacion') cols.unshift('Ruta');
     row.innerHTML = cols
       .map(function (c) {
         return '<th>' + c + '</th>';
@@ -2234,7 +2234,7 @@
 
       tr.innerHTML =
 
-        (panelEstado === 'en_camino' ? repartoCheckboxCellHtml(o, tr) : '') +
+        (panelEstado === 'en_preparacion' ? repartoCheckboxCellHtml(o, tr) : '') +
 
         '<td>' +
 
@@ -3734,11 +3734,11 @@
 
     if (patch.total != null) body.total = patch.total;
 
-    api(body).then(function (res) {
+    return api(body).then(function (res) {
 
       if (res.data.ok) {
         updateCajaUI();
-        return;
+        return { ok: true, orn: orn };
       }
 
       if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
@@ -3753,9 +3753,48 @@
 
       }
 
+      return { ok: false, orn: orn, error: res.data.error };
+
     });
 
   }
+
+  function batchSendEnCamino(orns, done) {
+
+    if (!orns || !orns.length) {
+      if (done) done({ ok: 0, fail: 0 });
+      return;
+    }
+
+    if (!isCajaTurnoActivo()) {
+      alert(mensajeBloqueoOperarPedidos());
+      if (done) done(null);
+      return;
+    }
+
+    var queue = orns.slice();
+    var ok = 0;
+    var fail = 0;
+
+    function step() {
+      if (!queue.length) {
+        fetchOrdersFromServer(true);
+        if (done) done({ ok: ok, fail: fail });
+        return;
+      }
+      var orn = queue.shift();
+      sendOrderUpdate(orn, { estado: 'en_camino' }).then(function (r) {
+        if (r && r.ok) ok++;
+        else fail++;
+        step();
+      });
+    }
+
+    step();
+
+  }
+
+  window.BravaAdminBatchEnCamino = batchSendEnCamino;
 
 
 
