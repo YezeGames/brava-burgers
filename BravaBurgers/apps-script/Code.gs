@@ -328,6 +328,7 @@ function updateOrder_(body) {
       setCell_(sh, headers, rowNum, 'estado', est);
       var now = new Date();
       if (est === 'aceptado') setCell_(sh, headers, rowNum, 'aceptado_at', now);
+      if (est === 'en_preparacion') setCell_(sh, headers, rowNum, 'en_preparacion_at', now);
       if (est === 'en_camino') setCell_(sh, headers, rowNum, 'en_camino_at', now);
       if (est === 'rechazado') {
         setCell_(sh, headers, rowNum, 'rechazado_at', now);

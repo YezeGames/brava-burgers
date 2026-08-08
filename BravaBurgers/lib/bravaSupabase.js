@@ -68,6 +68,8 @@ function rowToOrder(row) {
 
     en_camino_at: row.en_camino_at,
 
+    en_preparacion_at: row.en_preparacion_at,
+
     rechazado_at: row.rechazado_at,
 
     rechazo_mensaje: row.rechazo_mensaje,
@@ -216,6 +218,8 @@ async function updateOrder(body) {
 
     if (est === 'aceptado') patch.aceptado_at = now;
 
+    if (est === 'en_preparacion') patch.en_preparacion_at = now;
+
     if (est === 'en_camino') patch.en_camino_at = now;
 
     if (est === 'rechazado') {
@@ -250,11 +254,13 @@ async function updateOrder(body) {
 
   let r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
 
-  if (!r.ok && patch.en_camino_at) {
+  if (!r.ok && (patch.en_camino_at || patch.en_preparacion_at)) {
 
     const retry = Object.assign({}, patch);
 
     delete retry.en_camino_at;
+
+    delete retry.en_preparacion_at;
 
     r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), retry);
 

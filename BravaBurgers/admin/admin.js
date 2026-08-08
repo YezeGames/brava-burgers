@@ -76,13 +76,15 @@
 
   var cacheSignature = '';
 
-  var TAB_ESTADOS = ['pendiente', 'aceptado', 'en_camino', 'entregada', 'cancelada', 'rechazado'];
+  var TAB_ESTADOS = ['pendiente', 'aceptado', 'en_preparacion', 'en_camino', 'entregada', 'cancelada', 'rechazado'];
 
   var panelFrags = {
 
     pendiente: null,
 
     aceptado: null,
+
+    en_preparacion: null,
 
     en_camino: null,
 
@@ -129,6 +131,8 @@
       pendiente: null,
 
       aceptado: null,
+
+      en_preparacion: null,
 
       en_camino: null,
 
@@ -1951,7 +1955,7 @@
 
   function renderTabCounts(orders) {
 
-    var counts = { pendiente: 0, aceptado: 0, en_camino: 0, rechazado: 0, entregada: 0, cancelada: 0 };
+    var counts = { pendiente: 0, aceptado: 0, en_preparacion: 0, en_camino: 0, rechazado: 0, entregada: 0, cancelada: 0 };
 
     orders.forEach(function (o) {
 
@@ -2041,7 +2045,9 @@
 
       aceptado: 'No hay pedidos aceptados. Aceptá uno desde <strong>Pendientes</strong>.',
 
-      en_camino: 'No hay pedidos en camino. Usá <strong>En camino</strong> desde <strong>Aceptados</strong>.',
+      en_preparacion: 'No hay pedidos en preparación. Usá <strong>Preparar</strong> desde <strong>Aceptados</strong>.',
+
+      en_camino: 'No hay pedidos en camino. Marcá <strong>En camino</strong> desde <strong>En preparación</strong>.',
 
       rechazado: 'No hay pedidos rechazados.',
 
@@ -2145,6 +2151,22 @@
       }
 
       if (panelEstado === 'aceptado') {
+
+        addActionBtn(
+          actions,
+          'Preparar',
+          'btn-sm btn-accent',
+          'prep',
+          o.orn,
+          cajaOk ? 'Pasar a preparación en cocina' : mensajeBloqueoOperarPedidos(),
+          !cajaOk
+        );
+
+        addActionBtn(actions, '✕', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
+
+      }
+
+      if (panelEstado === 'en_preparacion') {
 
         addActionBtn(actions, 'Editar', 'btn-sm btn-edit', 'edit', o.orn, 'Editar comanda');
 
@@ -2633,6 +2655,8 @@
         if (est === 'entregada' && !allOrdersCache[i].entregado_at) allOrdersCache[i].entregado_at = now;
 
         if (est === 'aceptado' && !allOrdersCache[i].aceptado_at) allOrdersCache[i].aceptado_at = now;
+
+        if (est === 'en_preparacion' && !allOrdersCache[i].en_preparacion_at) allOrdersCache[i].en_preparacion_at = now;
 
         if (est === 'en_camino' && !allOrdersCache[i].en_camino_at) allOrdersCache[i].en_camino_at = now;
 
@@ -3500,9 +3524,9 @@
 
     }
 
-    if (normalizeEstado(o.estado) !== 'aceptado') {
+    if (normalizeEstado(o.estado) !== 'en_preparacion') {
 
-      alert('Solo podés editar pedidos en Aceptados.');
+      alert('Solo podés editar pedidos en En preparación.');
 
       return;
 
@@ -4122,6 +4146,14 @@
     }
 
     if (action === 'reject') openRechazoModal(orn);
+
+    if (action === 'prep') {
+      if (!isCajaTurnoActivo()) {
+        alert(mensajeBloqueoOperarPedidos());
+        return;
+      }
+      sendOrderUpdate(orn, { estado: 'en_preparacion' });
+    }
 
     if (action === 'dispatch') {
       if (!isCajaTurnoActivo()) {

@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS orders (
   cancelado_at timestamptz,
   aceptado_at timestamptz,
   en_camino_at timestamptz,
+  en_preparacion_at timestamptz,
   rechazado_at timestamptz,
   rechazo_mensaje text NOT NULL DEFAULT '',
   idempotency_key text UNIQUE
@@ -160,5 +161,6 @@ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
 
--- Migración: pedidos «en camino» (ejecutar en Supabase si orders ya existía)
+-- Migración: pedidos en preparación / en camino (ejecutar en Supabase si orders ya existía)
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_camino_at timestamptz;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_preparacion_at timestamptz;

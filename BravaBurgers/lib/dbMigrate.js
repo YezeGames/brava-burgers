@@ -36,6 +36,7 @@ async function migrateEnCaminoColumn() {
   try {
     await client.connect();
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_camino_at timestamptz;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_preparacion_at timestamptz;');
     return { ok: true, migrated: true };
   } catch (e) {
     return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
