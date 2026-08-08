@@ -248,7 +248,17 @@ async function updateOrder(body) {
 
 
 
-  const r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
+  let r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
+
+  if (!r.ok && patch.en_camino_at) {
+
+    const retry = Object.assign({}, patch);
+
+    delete retry.en_camino_at;
+
+    r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), retry);
+
+  }
 
   if (!r.ok) return supabaseFail(r, r.error);
 
