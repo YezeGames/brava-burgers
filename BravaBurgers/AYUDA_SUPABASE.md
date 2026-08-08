@@ -134,10 +134,32 @@ Proyecto **brava-burgers** → **Settings** → **Environment Variables**.
 | Productos, precios, menú | Google Sheet Pedilo |
 | Pedido del cliente (web) | Supabase `orders` + WhatsApp |
 | Aceptar / rechazar / entregar | Supabase (panel) |
+| Estados delivery (aceptado → preparación → en camino) | Supabase `orders.estado` |
+| Reparto / ruta (sidebar) | Pedidos `en_camino` con dirección |
 | Gastos y caja | Supabase `gastos` (panel) |
 | Cierre de caja + conteo hamburguesas | Supabase `cierres_caja` (panel) |
 
 **Cierre de caja:** ejecutá `cierres_caja_migration.sql` en Supabase si el cierre falla al guardar.
+
+### Flujo delivery en el admin (pestañas)
+
+Orden operativo: **Pendientes → Aceptados → En preparación → En camino → Entregados** (más Cancelados / Rechazados).
+
+En la tabla `orders` lo que mueve el panel es el campo **`estado`**: `pendiente`, `aceptado`, `en_preparacion`, `en_camino`, `entregada`, etc. **No hace falta SQL extra** para usar ese flujo.
+
+**Opcional — timestamps por paso** (`en_preparacion_at`, `en_camino_at`):
+
+- Guardan **a qué hora** el pedido pasó a cocina y a reparto (auditoría, orden en **Reparto**, reportes).
+- Si **no** existen esas columnas, el admin **igual** cambia de pestaña; la API guarda el `estado` y omite las fechas si Supabase no las tiene.
+
+Cuando quieras activarlas, en **SQL Editor** → **Run** (o el archivo `supabase/en_camino_at_migration.sql`):
+
+```sql
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_preparacion_at timestamptz;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_camino_at timestamptz;
+```
+
+**Migración desde Vercel (opcional):** con sesión admin, el API acepta `action: migrateEnCaminoColumn` (misma SQL). Necesita en Vercel `POSTGRES_URL` o `SUPABASE_DB_PASSWORD` (contraseña de **Database** del proyecto Supabase, no la del login Auth).
 
 - **Abrir caja** → empezás el turno (en este navegador).
 - **Cierre de caja** → un cierre por período de fechas; queda en `cierres_caja`.
