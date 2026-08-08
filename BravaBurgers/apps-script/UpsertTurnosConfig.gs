@@ -26,9 +26,10 @@ function upsertTurnosDeliveryConfig() {
     ['Turno 3 - Cierre pedidos', '22:40'],
   ];
 
-  var lastRow = Math.max(sh.getLastRow(), 1);
-	var numRows = lastRow - 1;
-	var names = numRows > 0 ? sh.getRange(2, 1, lastRow, 1).getValues() : [];
+	var lastRow = Math.max(sh.getLastRow(), 1);
+	var numDataRows = Math.max(0, lastRow - 1);
+	var names =
+		numDataRows > 0 ? sh.getRange(2, 1, numDataRows, 1).getValues() : [];
 
   var indexByName = {};
   for (var i = 0; i < names.length; i++) {
