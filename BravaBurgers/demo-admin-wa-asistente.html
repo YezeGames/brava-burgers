@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — admin + asistente WhatsApp (opción B)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+			padding: 16px 16px 48px;
+		}
+		.demo-banner {
+			max-width: 1280px;
+			margin: 0 auto 12px;
+			padding: 10px 14px;
+			background: #1a1a1a;
+			color: #fff;
+			border-radius: 8px;
+			border-left: 4px solid #ff6b35;
+			font-size: 0.82rem;
+			line-height: 1.45;
+		}
+		.demo-banner strong { color: #ff6b35; }
+		.app-shell {
+			max-width: 1280px;
+			margin: 0 auto;
+			display: grid;
+			grid-template-columns: 1fr 272px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 980px) {
+			.app-shell { grid-template-columns: 1fr; }
+			.sidebar-col { order: -1; }
+		}
+		.main-panel {
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+			padding: 20px 20px 16px;
+		}
+		.app-header {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			margin-bottom: 12px;
+		}
+		.app-header h1 {
+			margin: 0;
+			font-size: 1.5rem;
+			font-weight: 400;
+			color: #444;
+		}
+		.header-actions { display: flex; gap: 8px; }
+		.btn-sm {
+			padding: 6px 10px;
+			font-size: 0.75rem;
+			cursor: pointer;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			background: #fff;
+		}
+		.sound-row {
+			display: flex;
+			gap: 8px;
+			flex-wrap: wrap;
+			margin-bottom: 12px;
+			font-size: 0.75rem;
+			color: #666;
+		}
+		.tabs {
+			display: flex;
+			gap: 2px;
+			margin-bottom: 12px;
+			border-bottom: 1px solid #eee;
+			flex-wrap: wrap;
+		}
+		.tab {
+			padding: 10px 14px;
+			border: none;
+			background: none;
+			cursor: pointer;
+			font-size: 0.85rem;
+			color: #666;
+			border-bottom: 2px solid transparent;
+			margin-bottom: -1px;
+		}
+		.tab.active {
+			color: #111;
+			font-weight: 600;
+			border-bottom-color: #ff6b35;
+		}
+		.tab .count {
+			display: inline-block;
+			min-width: 1.1rem;
+			padding: 0 5px;
+			margin-left: 4px;
+			background: #eee;
+			border-radius: 10px;
+			font-size: 0.72rem;
+		}
+		.filters {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+			gap: 10px;
+			align-items: end;
+			margin-bottom: 12px;
+			padding-bottom: 12px;
+			border-bottom: 1px solid #eee;
+		}
+		.filters label {
+			display: block;
+			font-size: 0.72rem;
+			color: #666;
+			margin-bottom: 4px;
+		}
+		.filters input, .filters select {
+			width: 100%;
+			padding: 7px 9px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			font-size: 0.85rem;
+		}
+		.filters-actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+		.btn-accent {
+			background: #ff6b35;
+			color: #fff;
+			border-color: #ff6b35;
+			font-weight: 600;
+		}
+		.batch-bar {
+			display: none;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 10px;
+			padding: 10px 12px;
+			margin-bottom: 12px;
+			background: #fff8f3;
+			border: 1px solid #ffd8c2;
+			border-radius: 6px;
+			font-size: 0.82rem;
+		}
+		.batch-bar.visible { display: flex; }
+		.batch-bar .btn-batch {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 8px 12px;
+			border-radius: 6px;
+			border: none;
+			background: #ff6b35;
+			color: #fff;
+			font-weight: 600;
+			font-size: 0.8rem;
+			cursor: pointer;
+		}
+		.batch-bar .btn-batch:disabled { opacity: 0.45; cursor: not-allowed; }
+		.table-wrap { overflow-x: auto; }
+		table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+		th, td { padding: 9px 7px; text-align: left; border-bottom: 1px solid #eee; vertical-align: middle; }
+		th { font-weight: 600; color: #555; font-size: 0.75rem; white-space: nowrap; }
+		td.total { font-weight: 600; }
+		tr.row-selected td { background: #fff8f3; }
+		.actions { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+		.btn-wa {
+			display: inline-flex;
+			align-items: center;
+			padding: 5px 8px;
+			background: #25d366;
+			color: #fff;
+			border: none;
+			border-radius: 4px;
+			font-size: 0.72rem;
+			cursor: pointer;
+		}
+		.btn-flow {
+			padding: 5px 8px;
+			font-size: 0.72rem;
+			border-radius: 4px;
+			border: 1px solid #ccc;
+			background: #fff;
+			cursor: pointer;
+		}
+		.btn-ok { border-color: #2e7d32; color: #2e7d32; font-weight: 700; }
+		.btn-x { border-color: #c62828; color: #c62828; font-weight: 700; }
+		.empty { text-align: center; padding: 28px; color: #999; font-size: 0.88rem; }
+		.sidebar-col { position: sticky; top: 16px; }
+		.sidebar-block {
+			background: #fff;
+			border-radius: 8px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+			padding: 16px 14px;
+			margin-bottom: 12px;
+		}
+		.sidebar-block h2 {
+			margin: 0 0 10px;
+			font-size: 0.95rem;
+			color: #444;
+			border-bottom: 2px solid #ff6b35;
+			padding-bottom: 6px;
+		}
+		.caja-row {
+			display: flex;
+			justify-content: space-between;
+			margin: 5px 0;
+			font-size: 0.8rem;
+		}
+		.caja-row.section {
+			margin-top: 8px;
+			font-weight: 600;
+			color: #666;
+			font-size: 0.7rem;
+			text-transform: uppercase;
+		}
+		.caja-hint { font-size: 0.68rem; color: #888; margin-top: 10px; line-height: 1.35; }
+		.modal-backdrop {
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.45);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			z-index: 200;
+		}
+		.modal-backdrop.hidden { display: none; }
+		.modal {
+			background: #fff;
+			border-radius: 8px;
+			max-width: 440px;
+			width: 100%;
+			padding: 20px 22px;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+		}
+		.modal h2 { margin: 0 0 4px; font-size: 1.05rem; }
+		.modal .sub { margin: 0 0 12px; font-size: 0.8rem; color: #666; }
+		.progress {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 12px;
+			font-size: 0.78rem;
+		}
+		.progress-bar {
+			flex: 1;
+			height: 6px;
+			background: #eee;
+			border-radius: 999px;
+			overflow: hidden;
+		}
+		.progress-bar span {
+			display: block;
+			height: 100%;
+			background: #ff6b35;
+			border-radius: 999px;
+		}
+		.client-chip {
+			background: #f5f5f5;
+			border-radius: 6px;
+			padding: 10px 12px;
+			margin-bottom: 10px;
+			font-size: 0.82rem;
+		}
+		.client-chip strong { display: block; margin-bottom: 3px; }
+		.client-chip span { color: #666; font-size: 0.75rem; }
+		textarea {
+			width: 100%;
+			min-height: 84px;
+			padding: 9px 10px;
+			border: 1px solid #ccc;
+			border-radius: 4px;
+			font-size: 0.85rem;
+			font-family: inherit;
+		}
+		.modal-foot {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin-top: 14px;
+			justify-content: flex-end;
+		}
+		.btn-wa-modal {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 8px 12px;
+			background: #25d366;
+			color: #fff;
+			border: none;
+			border-radius: 6px;
+			font-size: 0.82rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.hidden { display: none !important; }
+		.done-box { text-align: center; padding: 8px 0; }
+		.done-box i { font-size: 1.8rem; color: #25d366; }
+	</style>
+</head>
+<body>
+	<p class="demo-banner">
+		<strong>Demo admin simulado</strong> — Misma idea que <code>/admin/</code> (pestañas, tabla, caja).
+		En <strong>Aceptados</strong> y <strong>En camino</strong> marcá filas y usá el asistente <strong>opción B</strong> (wa.me, de a un cliente).
+	</p>
+
+	<div class="app-shell">
+		<div class="main-panel">
+			<div class="app-header">
+				<h1>Brava Burgers — Órdenes</h1>
+				<div class="header-actions">
+					<button type="button" class="btn-sm" disabled title="Demo">Modo noche</button>
+					<button type="button" class="btn-sm">Salir</button>
+				</div>
+			</div>
+			<div class="sound-row">
+				<button type="button" class="btn-sm">Activar sonido</button>
+				<span>Simulación — sin Supabase</span>
+			</div>
+
+			<div class="tabs" id="tabs"></div>
+
+			<div class="filters">
+				<div>
+					<label for="desde">Desde</label>
+					<input type="date" id="desde" value="2026-08-08">
+				</div>
+				<div>
+					<label for="hasta">Hasta</label>
+					<input type="date" id="hasta" value="2026-08-08">
+				</div>
+				<div>
+					<label for="pago">Pago</label>
+					<select id="pago">
+						<option value="">Todos</option>
+						<option>Efectivo</option>
+						<option>Mercado Pago</option>
+					</select>
+				</div>
+				<div class="filters-actions">
+					<button type="button" class="btn-sm btn-accent">APLICAR</button>
+					<button type="button" class="btn-sm">RESTABLECER</button>
+				</div>
+			</div>
+
+			<div class="batch-bar" id="batch-bar">
+				<span id="batch-hint">Seleccioná pedidos con la casilla.</span>
+				<button type="button" class="btn-batch" id="batch-wa" disabled>
+					<i class="fab fa-whatsapp"></i>
+					<span id="batch-label">Avisar confirmado</span>
+					(<span id="batch-n">0</span>)
+				</button>
+			</div>
+
+			<div class="table-wrap">
+				<table>
+					<thead id="thead"></thead>
+					<tbody id="tbody"></tbody>
+				</table>
+				<p class="empty hidden" id="empty">No hay pedidos en esta pestaña.</p>
+			</div>
+		</div>
+
+		<div class="sidebar-col">
+			<aside class="sidebar-block">
+				<h2>Caja (demo)</h2>
+				<div class="caja-row section">Ventas entregadas</div>
+				<div class="caja-row"><span>Efectivo</span><span>$84.500</span></div>
+				<div class="caja-row"><span>Mercado Pago</span><span>$32.000</span></div>
+				<div class="caja-row section">Turno</div>
+				<p class="caja-hint">El asistente WhatsApp no mueve caja; solo abre chats con texto precargado.</p>
+			</aside>
+			<aside class="sidebar-block">
+				<h2>Flujo demo</h2>
+				<p class="caja-hint" style="margin:0;">
+					<strong>Aceptados:</strong> casilla + «Avisar confirmado».<br>
+					<strong>En camino:</strong> casilla + «Avisar en camino».<br>
+					O por fila: icono WA = mensaje libre (saludo).
+				</p>
+			</aside>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="wizard" role="dialog" aria-modal="true">
+		<div class="modal">
+			<div id="wizard-steps">
+				<h2 id="wiz-title">Avisar al cliente</h2>
+				<p class="sub" id="wiz-kind"></p>
+				<div class="progress">
+					<span id="wiz-step-label">1 de 3</span>
+					<div class="progress-bar"><span id="wiz-bar" style="width:33%"></span></div>
+				</div>
+				<div class="client-chip">
+					<strong id="wiz-name">—</strong>
+					<span id="wiz-meta">—</span>
+				</div>
+				<label style="font-size:0.72rem;color:#666;">Mensaje (editable)</label>
+				<textarea id="wiz-msg"></textarea>
+				<div class="modal-foot">
+					<button type="button" class="btn-sm" id="wiz-cancel">Cancelar</button>
+					<button type="button" class="btn-sm" id="wiz-skip">Omitir</button>
+					<button type="button" class="btn-wa-modal" id="wiz-wa">
+						<i class="fab fa-whatsapp"></i> Abrir WhatsApp
+					</button>
+					<button type="button" class="btn-sm btn-accent" id="wiz-next">Siguiente</button>
+				</div>
+			</div>
+			<div id="wizard-done" class="hidden">
+				<div class="done-box">
+					<div><i class="fas fa-check-circle"></i></div>
+					<h2>Listo</h2>
+					<p class="sub" id="wiz-done-text"></p>
+					<div class="modal-foot" style="justify-content:center;">
+						<button type="button" class="btn-sm btn-accent" id="wiz-close">Cerrar</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var TAB_META = [
+			{ id: 'pendiente', label: 'Pendientes' },
+			{ id: 'aceptado', label: 'Aceptados', batch: 'confirmado', batchLabel: 'Avisar confirmado' },
+			{ id: 'en_preparacion', label: 'En preparación' },
+			{ id: 'en_camino', label: 'En camino', batch: 'camino', batchLabel: 'Avisar en camino' },
+			{ id: 'entregada', label: 'Entregados' },
+			{ id: 'cancelada', label: 'Cancelados' },
+			{ id: 'rechazado', label: 'Rechazados' },
+		];
+
+		var ORDERS = [
+			{
+				id: 'a1',
+				estado: 'pendiente',
+				fecha: '20:41',
+				cliente: 'Carla Díaz',
+				tel: '11 6011-2233',
+				dir: 'Maipú 120',
+				pago: 'Efectivo',
+				total: 24500,
+				orn: 'ORN-DEL-1050',
+			},
+			{
+				id: 'a2',
+				estado: 'aceptado',
+				fecha: '20:38',
+				cliente: 'María González',
+				tel: '11 6234-5678',
+				dir: 'Av. del Libertador 4500',
+				pago: 'Mercado Pago',
+				total: 31200,
+				orn: 'ORN-DEL-1049',
+			},
+			{
+				id: 'a3',
+				estado: 'aceptado',
+				fecha: '20:35',
+				cliente: 'Ezequiel Pérez',
+				tel: '11 7372-1945',
+				dir: 'La Lucila',
+				pago: 'Efectivo',
+				total: 19800,
+				orn: 'ORN-DEL-1048',
+			},
+			{
+				id: 'a4',
+				estado: 'en_preparacion',
+				fecha: '20:30',
+				cliente: 'Lucas Martínez',
+				tel: '11 5555-1212',
+				dir: 'Olivos',
+				pago: 'Efectivo',
+				total: 42100,
+				orn: 'ORN-DEL-1047',
+			},
+			{
+				id: 'a5',
+				estado: 'en_camino',
+				fecha: '20:22',
+				cliente: 'Ana Ruiz',
+				tel: '11 4444-9090',
+				dir: 'Martínez',
+				pago: 'Mercado Pago',
+				total: 27500,
+				orn: 'ORN-DEL-1046',
+			},
+			{
+				id: 'a6',
+				estado: 'en_camino',
+				fecha: '20:18',
+				cliente: 'Tomás Vega',
+				tel: '11 3333-8080',
+				dir: 'Villa Adelina',
+				pago: 'Efectivo',
+				total: 18900,
+				orn: 'ORN-DEL-1045',
+			},
+		];
+
+		var currentTab = 'aceptado';
+		var selected = {};
+		var queue = [];
+		var index = 0;
+		var kind = 'confirmado';
+
+		function $(id) {
+			return document.getElementById(id);
+		}
+
+		function firstName(full) {
+			return String(full || '').trim().split(/\s+/)[0] || 'Hola';
+		}
+
+		function buildMessage(k, o) {
+			var n = firstName(o.cliente);
+			if (k === 'camino') return '¡' + n + ', tu pedido ya está en camino!';
+			return 'Hola ' + n + ', pedido confirmado!';
+		}
+
+		function telWa(raw) {
+			var d = String(raw || '').replace(/\D/g, '');
+			if (!d) return '';
+			if (d.indexOf('54') !== 0) d = '54' + d.replace(/^0+/, '');
+			return d;
+		}
+
+		function fmt(n) {
+			return '$' + Number(n).toLocaleString('es-AR');
+		}
+
+		function tabMeta(id) {
+			for (var i = 0; i < TAB_META.length; i++) {
+				if (TAB_META[i].id === id) return TAB_META[i];
+			}
+			return TAB_META[0];
+		}
+
+		function ordersForTab() {
+			return ORDERS.filter(function (o) {
+				return o.estado === currentTab;
+			});
+		}
+
+		function countByEstado(id) {
+			var n = 0;
+			ORDERS.forEach(function (o) {
+				if (o.estado === id) n++;
+			});
+			return n;
+		}
+
+		function renderTabs() {
+			var html = '';
+			TAB_META.forEach(function (t) {
+				html +=
+					'<button type="button" class="tab' +
+					(t.id === currentTab ? ' active' : '') +
+					'" data-tab="' +
+					t.id +
+					'">' +
+					t.label +
+					' <span class="count">' +
+					countByEstado(t.id) +
+					'</span></button>';
+			});
+			$('tabs').innerHTML = html;
+			$('tabs').querySelectorAll('.tab').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					currentTab = btn.getAttribute('data-tab');
+					selected = {};
+					renderTabs();
+					renderTable();
+				});
+			});
+		}
+
+		function batchMode() {
+			var m = tabMeta(currentTab);
+			return m.batch || null;
+		}
+
+		function selectedInTab() {
+			return ordersForTab().filter(function (o) {
+				return selected[o.id];
+			});
+		}
+
+		function updateBatchBar() {
+			var mode = batchMode();
+			var bar = $('batch-bar');
+			if (!mode) {
+				bar.classList.remove('visible');
+				return;
+			}
+			bar.classList.add('visible');
+			var m = tabMeta(currentTab);
+			$('batch-label').textContent = m.batchLabel;
+			var n = selectedInTab().length;
+			$('batch-n').textContent = n;
+			$('batch-wa').disabled = n === 0;
+			$('batch-hint').textContent =
+				n === 0
+					? 'Marcá uno o más pedidos con la casilla.'
+					: n + ' pedido(s) seleccionado(s).';
+		}
+
+		function toggleSelect(id, on) {
+			if (on) selected[id] = true;
+			else delete selected[id];
+			updateBatchBar();
+			renderTable();
+		}
+
+		function renderTable() {
+			var list = ordersForTab();
+			var withChk = !!batchMode();
+			var head =
+				'<tr>' +
+				(withChk ? '<th><input type="checkbox" id="chk-all" aria-label="Todos"></th>' : '') +
+				'<th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Dirección</th><th>Pago</th><th>Total</th><th>ORN</th><th>Acciones</th></tr>';
+			$('thead').innerHTML = head;
+
+			if (!list.length) {
+				$('tbody').innerHTML = '';
+				$('empty').classList.remove('hidden');
+				updateBatchBar();
+				return;
+			}
+			$('empty').classList.add('hidden');
+
+			$('tbody').innerHTML = list
+				.map(function (o) {
+					var chk = selected[o.id];
+					return (
+						'<tr class="' +
+						(chk ? 'row-selected' : '') +
+						'">' +
+						(withChk
+							? '<td><input type="checkbox" class="row-cb" data-id="' +
+							  o.id +
+							  '"' +
+							  (chk ? ' checked' : '') +
+							  '></td>'
+							: '') +
+						'<td>' +
+						o.fecha +
+						'</td><td>' +
+						o.cliente +
+						'</td><td>' +
+						o.tel +
+						'</td><td>' +
+						o.dir +
+						'</td><td>' +
+						o.pago +
+						'</td><td class="total">' +
+						fmt(o.total) +
+						'</td><td>' +
+						o.orn +
+						'</td><td class="actions">' +
+						'<button type="button" class="btn-wa" data-wa-id="' +
+						o.id +
+						'" title="WhatsApp libre"><i class="fab fa-whatsapp"></i></button>' +
+						renderFlowButtons(o) +
+						'</td></tr>'
+					);
+				})
+				.join('');
+
+			if (withChk) {
+				var all = list.every(function (o) {
+					return selected[o.id];
+				});
+				var chkAll = $('chk-all');
+				if (chkAll) {
+					chkAll.checked = all && list.length > 0;
+					chkAll.onchange = function () {
+						list.forEach(function (o) {
+							if (chkAll.checked) selected[o.id] = true;
+							else delete selected[o.id];
+						});
+						updateBatchBar();
+						renderTable();
+					};
+				}
+				$('tbody').querySelectorAll('.row-cb').forEach(function (cb) {
+					cb.onchange = function () {
+						toggleSelect(cb.getAttribute('data-id'), cb.checked);
+					};
+				});
+			}
+
+			$('tbody').querySelectorAll('[data-wa-id]').forEach(function (btn) {
+				btn.onclick = function () {
+					var id = btn.getAttribute('data-wa-id');
+					var o = ORDERS.find(function (x) {
+						return x.id === id;
+					});
+					if (!o) return;
+					var text = 'Hola ' + firstName(o.cliente) + ', somos Brava Burgers.';
+					var wa = telWa(o.tel);
+					if (wa) window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(text), '_blank');
+				};
+			});
+
+			updateBatchBar();
+		}
+
+		function renderFlowButtons(o) {
+			if (o.estado === 'pendiente') {
+				return (
+					'<button type="button" class="btn-flow btn-ok">✓</button>' +
+					'<button type="button" class="btn-flow btn-x">✕</button>'
+				);
+			}
+			if (o.estado === 'aceptado') {
+				return '<button type="button" class="btn-flow btn-accent">Prep.</button>';
+			}
+			if (o.estado === 'en_preparacion') {
+				return '<button type="button" class="btn-flow">Editar</button><button type="button" class="btn-flow btn-accent">Camino</button>';
+			}
+			if (o.estado === 'en_camino') {
+				return '<button type="button" class="btn-flow btn-ok">✓</button>';
+			}
+			return '';
+		}
+
+		function showStep() {
+			$('wizard-steps').classList.remove('hidden');
+			$('wizard-done').classList.add('hidden');
+			if (index >= queue.length) {
+				finishWizard();
+				return;
+			}
+			var o = queue[index];
+			var total = queue.length;
+			var step = index + 1;
+			$('wiz-step-label').textContent = step + ' de ' + total;
+			$('wiz-bar').style.width = Math.round((step / total) * 100) + '%';
+			$('wiz-name').textContent = o.cliente;
+			$('wiz-meta').textContent = o.tel + ' · ' + o.orn + ' · ' + fmt(o.total);
+			$('wiz-msg').value = buildMessage(kind, o);
+			$('wiz-next').textContent = step === total ? 'Finalizar' : 'Siguiente';
+		}
+
+		function finishWizard() {
+			$('wizard-steps').classList.add('hidden');
+			$('wizard-done').classList.remove('hidden');
+			$('wiz-done-text').textContent =
+				'Recorriste ' + queue.length + ' cliente(s). Volvé al panel cuando quieras.';
+		}
+
+		function startWizard(k) {
+			queue = selectedInTab().slice();
+			if (!queue.length) return;
+			kind = k;
+			index = 0;
+			$('wiz-kind').textContent =
+				k === 'camino' ? 'Plantilla: en camino' : 'Plantilla: pedido confirmado';
+			$('wizard').classList.remove('hidden');
+			showStep();
+		}
+
+		function closeWizard() {
+			$('wizard').classList.add('hidden');
+			queue = [];
+			index = 0;
+		}
+
+		$('batch-wa').onclick = function () {
+			var mode = batchMode();
+			if (mode) startWizard(mode);
+		};
+		$('wiz-cancel').onclick = closeWizard;
+		$('wiz-close').onclick = closeWizard;
+		$('wiz-skip').onclick = function () {
+			index++;
+			showStep();
+		};
+		$('wiz-next').onclick = function () {
+			index++;
+			showStep();
+		};
+		$('wiz-wa').onclick = function () {
+			var o = queue[index];
+			if (!o) return;
+			var wa = telWa(o.tel);
+			var text = $('wiz-msg').value || buildMessage(kind, o);
+			if (wa) window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(text), '_blank');
+		};
+		$('wizard').onclick = function (e) {
+			if (e.target.id === 'wizard') closeWizard();
+		};
+
+		renderTabs();
+		renderTable();
+	</script>
+</body>
+</html>

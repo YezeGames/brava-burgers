@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — asistente WhatsApp (opción B)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 24px 16px 48px;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: #f5f5f5;
+			color: #333;
+		}
+		.wrap { max-width: 920px; margin: 0 auto; }
+		.banner {
+			background: #1a1a1a;
+			color: #fff;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 16px;
+			border-radius: 8px;
+			font-size: 0.85rem;
+			margin-bottom: 20px;
+			line-height: 1.45;
+		}
+		.banner strong { color: #ff6b35; }
+		h1 { font-size: 1.25rem; margin: 0 0 6px; }
+		.lead { font-size: 0.88rem; color: #666; margin: 0 0 16px; line-height: 1.45; }
+		.card {
+			background: #fff;
+			border-radius: 8px;
+			padding: 16px;
+			box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+		}
+		table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+		th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #eee; }
+		th { font-size: 0.75rem; color: #666; }
+		tr.selected td { background: #fff8f3; }
+		.toolbar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin-top: 16px;
+			align-items: center;
+		}
+		.btn {
+			padding: 8px 14px;
+			border-radius: 6px;
+			border: 1px solid #ccc;
+			background: #fff;
+			font-size: 0.85rem;
+			cursor: pointer;
+			font-weight: 600;
+		}
+		.btn-accent {
+			background: #ff6b35;
+			border-color: #ff6b35;
+			color: #fff;
+		}
+		.btn-wa {
+			background: #25d366;
+			border-color: #25d366;
+			color: #fff;
+		}
+		.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+		.hint { font-size: 0.78rem; color: #888; margin-top: 8px; }
+
+		.modal-backdrop {
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.45);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			z-index: 1000;
+		}
+		.modal-backdrop.hidden { display: none; }
+		.modal {
+			background: #fff;
+			border-radius: 10px;
+			max-width: 440px;
+			width: 100%;
+			padding: 20px 22px;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+		}
+		.modal h2 { margin: 0 0 4px; font-size: 1.1rem; }
+		.modal .sub { margin: 0 0 14px; font-size: 0.82rem; color: #666; }
+		.progress {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 14px;
+			font-size: 0.8rem;
+			color: #444;
+		}
+		.progress-bar {
+			flex: 1;
+			height: 6px;
+			background: #eee;
+			border-radius: 999px;
+			overflow: hidden;
+		}
+		.progress-bar span {
+			display: block;
+			height: 100%;
+			background: #ff6b35;
+			border-radius: 999px;
+			transition: width 0.2s ease;
+		}
+		.client-chip {
+			background: #f5f5f5;
+			border-radius: 8px;
+			padding: 10px 12px;
+			margin-bottom: 12px;
+			font-size: 0.85rem;
+		}
+		.client-chip strong { display: block; margin-bottom: 4px; }
+		.client-chip span { color: #666; font-size: 0.8rem; }
+		label.msg-label {
+			display: block;
+			font-size: 0.75rem;
+			color: #666;
+			margin-bottom: 6px;
+		}
+		textarea {
+			width: 100%;
+			min-height: 88px;
+			padding: 10px;
+			border: 1px solid #ccc;
+			border-radius: 6px;
+			font-size: 0.88rem;
+			font-family: inherit;
+			resize: vertical;
+		}
+		.modal-foot {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin-top: 16px;
+			justify-content: flex-end;
+		}
+		.done-box {
+			text-align: center;
+			padding: 12px 0 4px;
+		}
+		.done-box i { font-size: 2rem; color: #25d366; margin-bottom: 8px; }
+		.hidden { display: none !important; }
+	</style>
+</head>
+<body>
+	<div class="wrap">
+		<div class="banner">
+			<strong>Demo — opción B</strong> · Asistente paso a paso para avisar por WhatsApp (wa.me).
+			No envía solo: abrís un chat, mandás, volvés y tocás <em>Siguiente</em>.
+		</div>
+		<h1>Pedidos en preparación (simulado)</h1>
+		<p class="lead">Marcá varios clientes y probá el asistente. En producción usaría el teléfono real de cada pedido.</p>
+
+		<div class="card">
+			<table>
+				<thead>
+					<tr>
+						<th><input type="checkbox" id="chk-all" aria-label="Seleccionar todos"></th>
+						<th>Cliente</th>
+						<th>Teléfono</th>
+						<th>ORN</th>
+					</tr>
+				</thead>
+				<tbody id="order-rows"></tbody>
+			</table>
+			<div class="toolbar">
+				<button type="button" class="btn btn-accent" id="btn-confirmado" disabled>
+					<i class="fab fa-whatsapp"></i> Avisar confirmado (<span id="sel-count">0</span>)
+				</button>
+				<button type="button" class="btn btn-accent" id="btn-camino" disabled>
+					<i class="fab fa-whatsapp"></i> Avisar en camino (<span id="sel-count2">0</span>)
+				</button>
+			</div>
+			<p class="hint">Los botones se habilitan con al menos un pedido seleccionado.</p>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="wizard" role="dialog" aria-modal="true" aria-labelledby="wiz-title">
+		<div class="modal">
+			<div id="wizard-steps">
+				<h2 id="wiz-title">Avisar al cliente</h2>
+				<p class="sub" id="wiz-kind"></p>
+				<div class="progress">
+					<span id="wiz-step-label">1 de 3</span>
+					<div class="progress-bar"><span id="wiz-bar" style="width:33%"></span></div>
+				</div>
+				<div class="client-chip">
+					<strong id="wiz-name">—</strong>
+					<span id="wiz-meta">—</span>
+				</div>
+				<label class="msg-label" for="wiz-msg">Mensaje (editable)</label>
+				<textarea id="wiz-msg"></textarea>
+				<div class="modal-foot">
+					<button type="button" class="btn" id="wiz-cancel">Cancelar</button>
+					<button type="button" class="btn" id="wiz-skip">Omitir</button>
+					<button type="button" class="btn btn-wa" id="wiz-wa">
+						<i class="fab fa-whatsapp"></i> Abrir WhatsApp
+					</button>
+					<button type="button" class="btn btn-accent" id="wiz-next">Siguiente</button>
+				</div>
+			</div>
+			<div id="wizard-done" class="hidden">
+				<div class="done-box">
+					<div><i class="fas fa-check-circle"></i></div>
+					<h2>Listo</h2>
+					<p class="sub" id="wiz-done-text">Recorriste todos los clientes seleccionados.</p>
+					<div class="modal-foot" style="justify-content: center;">
+						<button type="button" class="btn btn-accent" id="wiz-close">Cerrar</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var ORDERS = [
+			{ id: '1', cliente: 'María González', telefono: '11 6234-5678', orn: 'ORN-DEL-1042' },
+			{ id: '2', cliente: 'Ezequiel Pérez', telefono: '11 7372-1945', orn: 'ORN-DEL-1043' },
+			{ id: '3', cliente: 'Lucas Martínez', telefono: '11 5555-1212', orn: 'ORN-DEL-1044' },
+			{ id: '4', cliente: 'Ana Ruiz', telefono: '11 4444-9090', orn: 'ORN-DEL-1045' },
+		];
+
+		var queue = [];
+		var index = 0;
+		var kind = 'confirmado';
+		var openedWaThisStep = false;
+
+		function firstName(full) {
+			return String(full || '').trim().split(/\s+/)[0] || 'Hola';
+		}
+
+		function buildMessage(k, order) {
+			var n = firstName(order.cliente);
+			if (k === 'camino') {
+				return '¡' + n + ', tu pedido ya está en camino!';
+			}
+			return 'Hola ' + n + ', pedido confirmado!';
+		}
+
+		function telWa(raw) {
+			var d = String(raw || '').replace(/\D/g, '');
+			if (!d) return '';
+			if (d.indexOf('54') !== 0) d = '54' + d.replace(/^0+/, '');
+			return d;
+		}
+
+		function selectedOrders() {
+			return ORDERS.filter(function (o) {
+				var cb = document.querySelector('.row-cb[data-id="' + o.id + '"]');
+				return cb && cb.checked;
+			});
+		}
+
+		function updateToolbar() {
+			var n = selectedOrders().length;
+			document.getElementById('sel-count').textContent = n;
+			document.getElementById('sel-count2').textContent = n;
+			document.getElementById('btn-confirmado').disabled = n === 0;
+			document.getElementById('btn-camino').disabled = n === 0;
+		}
+
+		function renderTable() {
+			var tbody = document.getElementById('order-rows');
+			tbody.innerHTML = ORDERS.map(function (o) {
+				return (
+					'<tr data-id="' +
+					o.id +
+					'">' +
+					'<td><input type="checkbox" class="row-cb" data-id="' +
+					o.id +
+					'" checked></td>' +
+					'<td>' +
+					o.cliente +
+					'</td>' +
+					'<td>' +
+					o.telefono +
+					'</td>' +
+					'<td>' +
+					o.orn +
+					'</td></tr>'
+				);
+			}).join('');
+			tbody.querySelectorAll('.row-cb').forEach(function (cb) {
+				cb.addEventListener('change', function () {
+					var tr = cb.closest('tr');
+					if (tr) tr.classList.toggle('selected', cb.checked);
+					updateToolbar();
+				});
+				cb.dispatchEvent(new Event('change'));
+			});
+			updateToolbar();
+		}
+
+		function showStep() {
+			document.getElementById('wizard-steps').classList.remove('hidden');
+			document.getElementById('wizard-done').classList.add('hidden');
+			openedWaThisStep = false;
+
+			if (index >= queue.length) {
+				finishWizard();
+				return;
+			}
+
+			var o = queue[index];
+			var total = queue.length;
+			var step = index + 1;
+			document.getElementById('wiz-step-label').textContent = step + ' de ' + total;
+			document.getElementById('wiz-bar').style.width = Math.round((step / total) * 100) + '%';
+			document.getElementById('wiz-name').textContent = o.cliente;
+			document.getElementById('wiz-meta').textContent = o.telefono + ' · ' + o.orn;
+			document.getElementById('wiz-msg').value = buildMessage(kind, o);
+			document.getElementById('wiz-next').textContent = step === total ? 'Finalizar' : 'Siguiente';
+		}
+
+		function finishWizard() {
+			document.getElementById('wizard-steps').classList.add('hidden');
+			document.getElementById('wizard-done').classList.remove('hidden');
+			document.getElementById('wiz-done-text').textContent =
+				'Recorriste ' + queue.length + ' cliente(s). En el panel real no se marca “enviado” automáticamente.';
+		}
+
+		function startWizard(k) {
+			queue = selectedOrders().slice();
+			if (!queue.length) return;
+			kind = k;
+			index = 0;
+			document.getElementById('wiz-kind').textContent =
+				k === 'camino' ? 'Plantilla: pedido en camino' : 'Plantilla: pedido confirmado';
+			document.getElementById('wizard').classList.remove('hidden');
+			showStep();
+		}
+
+		function closeWizard() {
+			document.getElementById('wizard').classList.add('hidden');
+			queue = [];
+			index = 0;
+		}
+
+		function openWhatsApp() {
+			var o = queue[index];
+			if (!o) return;
+			var wa = telWa(o.telefono);
+			var text = document.getElementById('wiz-msg').value || buildMessage(kind, o);
+			if (!wa) {
+				alert('Sin teléfono válido (demo).');
+				return;
+			}
+			var url = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(text);
+			window.open(url, '_blank', 'noopener');
+			openedWaThisStep = true;
+		}
+
+		function nextStep() {
+			index++;
+			showStep();
+		}
+
+		document.getElementById('chk-all').addEventListener('change', function (e) {
+			var on = e.target.checked;
+			document.querySelectorAll('.row-cb').forEach(function (cb) {
+				cb.checked = on;
+				cb.dispatchEvent(new Event('change'));
+			});
+		});
+
+		document.getElementById('btn-confirmado').addEventListener('click', function () {
+			startWizard('confirmado');
+		});
+		document.getElementById('btn-camino').addEventListener('click', function () {
+			startWizard('camino');
+		});
+		document.getElementById('wiz-cancel').addEventListener('click', closeWizard);
+		document.getElementById('wiz-close').addEventListener('click', closeWizard);
+		document.getElementById('wiz-wa').addEventListener('click', openWhatsApp);
+		document.getElementById('wiz-skip').addEventListener('click', nextStep);
+		document.getElementById('wiz-next').addEventListener('click', nextStep);
+
+		document.getElementById('wizard').addEventListener('click', function (e) {
+			if (e.target.id === 'wizard') closeWizard();
+		});
+
+		renderTable();
+	</script>
+</body>
+</html>

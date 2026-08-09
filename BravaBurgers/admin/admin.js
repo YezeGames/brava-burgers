@@ -70,6 +70,14 @@
 
   var EDIT_MENU_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 
+  var waNotifySelected = {};
+
+  var waNotifyQueue = [];
+
+  var waNotifyIndex = 0;
+
+  var waNotifyKind = 'confirmado';
+
 
 
   var allOrdersCache = [];
@@ -1925,6 +1933,286 @@
 
 
 
+  function waNotifyTabEnabled(panelEstado) {
+
+    return panelEstado === 'aceptado' || panelEstado === 'en_camino';
+
+  }
+
+
+
+  function orderHasWaPhone(o) {
+
+    return String(o && o.telefono ? o.telefono : '').replace(/\D/g, '').length >= 8;
+
+  }
+
+
+
+  function waNotifyFirstName(o) {
+
+    return String(o && o.cliente ? o.cliente : '')
+      .trim()
+      .split(/\s+/)[0] || 'Hola';
+
+  }
+
+
+
+  function buildWaNotifyMessage(kind, o) {
+
+    var n = waNotifyFirstName(o);
+
+    if (kind === 'camino') return '¡' + n + ', tu pedido ya está en camino!';
+
+    return 'Hola ' + n + ', pedido confirmado!';
+
+  }
+
+
+
+  function waNotifySelectedOrders(estado) {
+
+    return ordersForEstado(allOrdersCache, estado).filter(function (o) {
+
+      return waNotifySelected[o.orn];
+
+    });
+
+  }
+
+
+
+  function waNotifySelectedCount(estado) {
+
+    return waNotifySelectedOrders(estado).length;
+
+  }
+
+
+
+  function updateWaBatchBar() {
+
+    var bar = $('wa-batch-bar');
+
+    if (!bar) return;
+
+    if (!waNotifyTabEnabled(currentEstado)) {
+
+      bar.classList.add('hidden');
+
+      return;
+
+    }
+
+    bar.classList.remove('hidden');
+
+    var kind = currentEstado === 'en_camino' ? 'camino' : 'confirmado';
+
+    if ($('wa-batch-label')) {
+
+      $('wa-batch-label').textContent = kind === 'camino' ? 'Avisar en camino' : 'Avisar confirmado';
+
+    }
+
+    var n = waNotifySelectedCount(currentEstado);
+
+    if ($('wa-batch-n')) $('wa-batch-n').textContent = String(n);
+
+    if ($('wa-batch-btn')) $('wa-batch-btn').disabled = n === 0;
+
+    if ($('wa-batch-hint')) {
+
+      $('wa-batch-hint').textContent = n
+
+        ? n + ' pedido(s) seleccionado(s).'
+
+        : 'Marcá pedidos con la casilla para avisar por WhatsApp.';
+
+    }
+
+  }
+
+
+
+  function waNotifyCheckboxCellHtml(o, tr) {
+
+    if (!orderHasWaPhone(o)) return '<td class="td-wa-notify-chk"></td>';
+
+    var on = !!waNotifySelected[o.orn];
+
+    if (on) tr.className = (tr.className ? tr.className + ' ' : '') + 'row-wa-notify-on';
+
+    return (
+
+      '<td class="td-wa-notify-chk"><input type="checkbox" class="wa-notify-order-cb" data-orn="' +
+
+      escapeHtml(o.orn) +
+
+      '"' +
+
+      (on ? ' checked' : '') +
+
+      ' title="Incluir en aviso WhatsApp"></td>'
+
+    );
+
+  }
+
+
+
+  function bindWaNotifySelectAll() {
+
+    var chk = $('wa-chk-all');
+
+    if (!chk) return;
+
+    chk.onchange = function () {
+
+      var on = chk.checked;
+
+      ordersForEstado(allOrdersCache, currentEstado).forEach(function (o) {
+
+        if (!orderHasWaPhone(o)) return;
+
+        if (on) waNotifySelected[o.orn] = true;
+
+        else delete waNotifySelected[o.orn];
+
+      });
+
+      paintCurrentTab();
+
+    };
+
+  }
+
+
+
+  function openWaNotifyWizard(kind, orders) {
+
+    if (!orders || !orders.length) return;
+
+    waNotifyQueue = orders.slice();
+
+    waNotifyIndex = 0;
+
+    waNotifyKind = kind === 'camino' ? 'camino' : 'confirmado';
+
+    if ($('wa-notify-kind')) {
+
+      $('wa-notify-kind').textContent =
+
+        waNotifyKind === 'camino' ? 'Plantilla: pedido en camino' : 'Plantilla: pedido confirmado';
+
+    }
+
+    if ($('wa-notify-steps')) $('wa-notify-steps').classList.remove('hidden');
+
+    if ($('wa-notify-done')) $('wa-notify-done').classList.add('hidden');
+
+    if ($('wa-notify-modal')) $('wa-notify-modal').classList.remove('hidden');
+
+    renderWaNotifyStep();
+
+  }
+
+
+
+  function closeWaNotifyWizard() {
+
+    waNotifyQueue = [];
+
+    waNotifyIndex = 0;
+
+    if ($('wa-notify-modal')) $('wa-notify-modal').classList.add('hidden');
+
+  }
+
+
+
+  function renderWaNotifyStep() {
+
+    if (waNotifyIndex >= waNotifyQueue.length) {
+
+      if ($('wa-notify-steps')) $('wa-notify-steps').classList.add('hidden');
+
+      if ($('wa-notify-done')) $('wa-notify-done').classList.remove('hidden');
+
+      if ($('wa-notify-done-text')) {
+
+        $('wa-notify-done-text').textContent =
+
+          'Recorriste ' + waNotifyQueue.length + ' cliente(s). Recordá apretar Enviar en WhatsApp.';
+
+      }
+
+      return;
+
+    }
+
+    var o = waNotifyQueue[waNotifyIndex];
+
+    var total = waNotifyQueue.length;
+
+    var step = waNotifyIndex + 1;
+
+    if ($('wa-notify-step-label')) $('wa-notify-step-label').textContent = step + ' de ' + total;
+
+    if ($('wa-notify-bar')) $('wa-notify-bar').style.width = Math.round((step / total) * 100) + '%';
+
+    if ($('wa-notify-name')) $('wa-notify-name').textContent = o.cliente || '—';
+
+    if ($('wa-notify-meta')) {
+
+      $('wa-notify-meta').textContent =
+
+        (o.telefono || '—') + ' · ' + (o.orn || '') + ' · ' + fmt(Number(o.total) || 0);
+
+    }
+
+    if ($('wa-notify-msg')) $('wa-notify-msg').value = buildWaNotifyMessage(waNotifyKind, o);
+
+    if ($('wa-notify-next')) $('wa-notify-next').textContent = step === total ? 'Finalizar' : 'Siguiente';
+
+  }
+
+
+
+  function openWaNotifyWhatsAppForCurrent() {
+
+    var o = waNotifyQueue[waNotifyIndex];
+
+    if (!o) return;
+
+    var wa = telWa(o.telefono);
+
+    if (!wa) {
+
+      alert('Este pedido no tiene teléfono válido.');
+
+      return;
+
+    }
+
+    var text = ($('wa-notify-msg') && $('wa-notify-msg').value) || buildWaNotifyMessage(waNotifyKind, o);
+
+    window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
+
+  }
+
+
+
+  function waNotifyWizardNext() {
+
+    waNotifyIndex++;
+
+    renderWaNotifyStep();
+
+  }
+
+
+
   function ordersForEstado(orders, estado) {
 
     return orders.filter(function (o) {
@@ -1992,19 +2280,53 @@
 
 
   function ordersTableColspan(panelEstado) {
-    return panelEstado === 'en_preparacion' ? 9 : 8;
+
+    if (panelEstado === 'en_preparacion') return 9;
+
+    if (waNotifyTabEnabled(panelEstado)) return 9;
+
+    return 8;
+
   }
 
   function updateOrdersTableHead(panelEstado) {
+
     var row = document.querySelector('#orders-table thead tr');
+
     if (!row) return;
+
     var cols = ['Fecha', 'Cliente', 'Teléfono', 'Dirección', 'Pago', 'Total', 'ORN', 'Acciones'];
-    if (panelEstado === 'en_preparacion') cols.unshift('Ruta');
-    row.innerHTML = cols
-      .map(function (c) {
-        return '<th>' + c + '</th>';
-      })
-      .join('');
+
+    var prefix = '';
+
+    if (panelEstado === 'en_preparacion') {
+
+      prefix = '<th class="td-reparto-chk">Ruta</th>';
+
+    } else if (waNotifyTabEnabled(panelEstado)) {
+
+      prefix =
+
+        '<th class="td-wa-notify-chk"><input type="checkbox" id="wa-chk-all" title="Seleccionar todos" aria-label="Seleccionar todos"></th>';
+
+    }
+
+    row.innerHTML =
+
+      prefix +
+
+      cols
+
+        .map(function (c) {
+
+          return '<th>' + c + '</th>';
+
+        })
+
+        .join('');
+
+    bindWaNotifySelectAll();
+
   }
 
   function formatOrderAddressCell(o) {
@@ -2242,6 +2564,8 @@
 
         (panelEstado === 'en_preparacion' ? repartoCheckboxCellHtml(o, tr) : '') +
 
+        (waNotifyTabEnabled(panelEstado) ? waNotifyCheckboxCellHtml(o, tr) : '') +
+
         '<td>' +
 
         fecha +
@@ -2329,6 +2653,8 @@
     if (frag) tb.appendChild(frag.cloneNode(true));
 
     else appendEmptyRow(tb, currentEstado);
+
+    updateWaBatchBar();
 
   }
 
@@ -4088,6 +4414,8 @@
 
     currentEstado = estado;
 
+    waNotifySelected = {};
+
     paintCurrentTab();
 
   }
@@ -4428,10 +4756,22 @@
 
   $('orders-table').addEventListener('change', function (e) {
     var cb = e.target;
-    if (!cb || !cb.classList || !cb.classList.contains('reparto-order-cb')) return;
-    var orn = cb.getAttribute('data-orn');
-    if (!orn || !window.BravaReparto || typeof window.BravaReparto.setOrderSelected !== 'function') return;
-    window.BravaReparto.setOrderSelected(orn, cb.checked);
+    if (!cb || !cb.classList) return;
+    if (cb.classList.contains('reparto-order-cb')) {
+      var orn = cb.getAttribute('data-orn');
+      if (!orn || !window.BravaReparto || typeof window.BravaReparto.setOrderSelected !== 'function') return;
+      window.BravaReparto.setOrderSelected(orn, cb.checked);
+      return;
+    }
+    if (cb.classList.contains('wa-notify-order-cb')) {
+      var ornW = cb.getAttribute('data-orn');
+      if (!ornW) return;
+      if (cb.checked) waNotifySelected[ornW] = true;
+      else delete waNotifySelected[ornW];
+      var tr = cb.closest('tr');
+      if (tr) tr.classList.toggle('row-wa-notify-on', cb.checked);
+      updateWaBatchBar();
+    }
   });
 
   $('orders-table').addEventListener('click', function (e) {
@@ -4715,6 +5055,40 @@
     $('edit-modal').addEventListener('click', function (e) {
 
       if (e.target === $('edit-modal')) closeEditModal();
+
+    });
+
+  }
+
+
+
+  if ($('wa-batch-btn')) {
+
+    $('wa-batch-btn').onclick = function () {
+
+      var kind = currentEstado === 'en_camino' ? 'camino' : 'confirmado';
+
+      openWaNotifyWizard(kind, waNotifySelectedOrders(currentEstado));
+
+    };
+
+  }
+
+  if ($('wa-notify-cancel')) $('wa-notify-cancel').onclick = closeWaNotifyWizard;
+
+  if ($('wa-notify-close')) $('wa-notify-close').onclick = closeWaNotifyWizard;
+
+  if ($('wa-notify-skip')) $('wa-notify-skip').onclick = waNotifyWizardNext;
+
+  if ($('wa-notify-next')) $('wa-notify-next').onclick = waNotifyWizardNext;
+
+  if ($('wa-notify-open-wa')) $('wa-notify-open-wa').onclick = openWaNotifyWhatsAppForCurrent;
+
+  if ($('wa-notify-modal')) {
+
+    $('wa-notify-modal').addEventListener('click', function (e) {
+
+      if (e.target === $('wa-notify-modal')) closeWaNotifyWizard();
 
     });
 

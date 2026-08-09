@@ -803,8 +803,69 @@
 		#orders-table .orders-addr-sub { font-size: 0.72rem; color: var(--text-subtle); margin-top: 2px; }
 		#orders-table .orders-addr-muted { color: var(--text-faint); }
 		#orders-table tbody tr.row-reparto-on td { background: rgba(255, 107, 53, 0.08); }
-		#orders-table .td-reparto-chk { width: 40px; text-align: center; vertical-align: middle; }
-		#orders-table .reparto-order-cb { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brava); }
+		#orders-table tbody tr.row-wa-notify-on td { background: rgba(37, 211, 102, 0.1); }
+		#orders-table .td-reparto-chk,
+		#orders-table .td-wa-notify-chk { width: 40px; text-align: center; vertical-align: middle; }
+		#orders-table .reparto-order-cb,
+		#orders-table .wa-notify-order-cb { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brava); }
+		.wa-batch-bar {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 10px;
+			padding: 10px 12px;
+			margin-bottom: 12px;
+			background: var(--banner-bg, #fff8f3);
+			border: 1px solid var(--banner-border, #ffd8c2);
+			border-radius: 6px;
+			font-size: 0.82rem;
+		}
+		.wa-batch-bar.hidden { display: none; }
+		.wa-batch-bar .wa-batch-hint { color: var(--text-muted); flex: 1; min-width: 140px; }
+		.wa-batch-bar .btn-wa-batch {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 8px 12px;
+			border: none;
+			border-radius: 6px;
+			background: #25d366;
+			color: #fff;
+			font-weight: 600;
+			font-size: 0.8rem;
+			cursor: pointer;
+		}
+		.wa-batch-bar .btn-wa-batch:disabled { opacity: 0.45; cursor: not-allowed; }
+		.wa-notify-progress {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			margin-bottom: 12px;
+			font-size: 0.78rem;
+			color: var(--text-muted);
+		}
+		.wa-notify-progress-bar {
+			flex: 1;
+			height: 6px;
+			background: var(--border);
+			border-radius: 999px;
+			overflow: hidden;
+		}
+		.wa-notify-progress-bar span {
+			display: block;
+			height: 100%;
+			background: var(--brava);
+			border-radius: 999px;
+		}
+		.wa-notify-client {
+			background: var(--bg-surface-muted, #f5f5f5);
+			border-radius: 6px;
+			padding: 10px 12px;
+			margin-bottom: 10px;
+			font-size: 0.85rem;
+		}
+		.wa-notify-client strong { display: block; margin-bottom: 3px; }
+		.wa-notify-client span { font-size: 0.75rem; color: var(--text-muted); }
 		@media print {
 			html.printing-comanda,
 			html.printing-comanda body,
@@ -1157,6 +1218,14 @@
 					<button type="button" class="tab" data-estado="rechazado" data-label="Rechazados">Rechazados</button>
 				</div>
 				<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
+				<div class="wa-batch-bar hidden" id="wa-batch-bar">
+					<span class="wa-batch-hint" id="wa-batch-hint">Marcá pedidos con la casilla.</span>
+					<button type="button" class="btn-wa-batch" id="wa-batch-btn" disabled>
+						<i class="fab fa-whatsapp"></i>
+						<span id="wa-batch-label">Avisar confirmado</span>
+						(<span id="wa-batch-n">0</span>)
+					</button>
+				</div>
 				<div style="overflow-x:auto">
 					<table id="orders-table">
 						<thead>
@@ -1341,6 +1410,38 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="wa-notify-modal" role="dialog" aria-modal="true" aria-labelledby="wa-notify-title">
+		<div class="modal">
+			<div id="wa-notify-steps">
+				<h2 id="wa-notify-title">Avisar al cliente</h2>
+				<p class="sub" id="wa-notify-kind"></p>
+				<div class="wa-notify-progress">
+					<span id="wa-notify-step-label">1 de 1</span>
+					<div class="wa-notify-progress-bar"><span id="wa-notify-bar" style="width:100%"></span></div>
+				</div>
+				<div class="wa-notify-client">
+					<strong id="wa-notify-name">—</strong>
+					<span id="wa-notify-meta">—</span>
+				</div>
+				<label class="field" for="wa-notify-msg">Mensaje (editable)</label>
+				<textarea id="wa-notify-msg"></textarea>
+				<div class="modal-foot">
+					<button type="button" class="btn-sm" id="wa-notify-cancel">Cancelar</button>
+					<button type="button" class="btn-sm" id="wa-notify-skip">Omitir</button>
+					<button type="button" class="btn-wa-modal" id="wa-notify-open-wa"><i class="fab fa-whatsapp"></i> Abrir WhatsApp</button>
+					<button type="button" class="btn-sm btn-accent" id="wa-notify-next">Siguiente</button>
+				</div>
+			</div>
+			<div id="wa-notify-done" class="hidden">
+				<h2>Listo</h2>
+				<p class="sub" id="wa-notify-done-text"></p>
+				<div class="modal-foot">
+					<button type="button" class="btn-sm btn-accent" id="wa-notify-close">Cerrar</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal-backdrop hidden" id="rechazo-modal" role="dialog" aria-labelledby="rechazo-title">
 		<div class="modal">
 			<h2 id="rechazo-title">Rechazar pedido</h2>
@@ -1461,6 +1562,6 @@
 	<script src="/admin/comanda.js?v=12"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=7"></script>
-	<script src="/admin/admin.js?v=67"></script>
+	<script src="/admin/admin.js?v=68"></script>
 </body>
 </html>
