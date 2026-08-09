@@ -4901,9 +4901,10 @@
 
     }
 
-    if (!window.BravaComanda.printOrderTicket || window.BravaComanda.COMANDA_VER !== 12) {
+    var comandaVer = window.BravaComanda.COMANDA_VER || 0;
+    if (!window.BravaComanda.printOrderTicket || comandaVer < 12) {
 
-      alert('Versión vieja de comanda.js. Recargá el admin con Ctrl+Shift+R (necesitás comanda v12).');
+      alert('Versión vieja de comanda.js. Recargá el admin con Ctrl+Shift+R.');
 
       return;
 
