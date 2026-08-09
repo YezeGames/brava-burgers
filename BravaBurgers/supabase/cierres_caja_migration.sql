@@ -40,6 +40,8 @@ BEGIN
 END;
 $$;
 
+ALTER TABLE cierres_caja ADD COLUMN IF NOT EXISTS ingresos numeric NOT NULL DEFAULT 0;
+
 ALTER TABLE cierres_caja ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "admin_all_cierres" ON cierres_caja;

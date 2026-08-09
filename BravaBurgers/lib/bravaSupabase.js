@@ -598,7 +598,22 @@ async function createCierre(body) {
 
   const ins = await restInsert('cierres_caja', row);
 
-  if (!ins.ok) return supabaseFail(ins, ins.error);
+  if (!ins.ok) {
+    const errBlob = String(ins.error || ins.detail || '').toLowerCase();
+    if (errBlob.indexOf('ingresos') >= 0) {
+      const legacy = Object.assign({}, row);
+      delete legacy.ingresos;
+      const retry = await restInsert('cierres_caja', legacy);
+      if (retry.ok) {
+        return {
+          ok: true,
+          warning: 'ingresos_column_missing',
+          cierre: Object.assign({ id: idVal, cerrado_at: new Date().toISOString(), ingresos: Number(body.ingresos) || 0 }, legacy),
+        };
+      }
+    }
+    return supabaseFail(ins, ins.error);
+  }
 
   return { ok: true, cierre: Object.assign({ id: idVal, cerrado_at: new Date().toISOString() }, row) };
 

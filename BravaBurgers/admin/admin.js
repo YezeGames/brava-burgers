@@ -1649,10 +1649,24 @@
             printCierreResumenModal();
           });
         });
+        if (res.data.warning === 'ingresos_column_missing') {
+          alert(
+            'Cierre guardado.\n\nPara guardar ingresos en Supabase y usar + Ingreso, ejecutá una vez:\n' +
+              'supabase/ingresos_migration.sql (SQL Editor).'
+          );
+        }
       } else {
         if (res.status === 401) handleAuthFailure();
         else {
-          alert('No se pudo guardar. Ejecutá en Supabase: supabase/cierres_caja_migration.sql');
+          var errHint =
+            'No se pudo guardar el cierre.\n\n' +
+            'En Supabase → SQL Editor pegá y ejecutá:\n' +
+            'supabase/ingresos_migration.sql\n\n' +
+            '(Si nunca tuviste cierres de caja: supabase/cierres_caja_migration.sql)';
+          if (res.data.error) {
+            errHint += '\n\nDetalle: ' + res.data.error;
+          }
+          alert(errHint);
         }
         updateCierreStatusUI();
       }
