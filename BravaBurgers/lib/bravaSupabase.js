@@ -236,6 +236,20 @@ async function updateOrder(body) {
 
   if (body.total != null) patch.total = Number(body.total);
 
+  if (body.direccion != null) patch.direccion = String(body.direccion).trim();
+
+  if (body.localidad != null) patch.localidad = String(body.localidad).trim();
+
+  if (body.piso != null) patch.piso = String(body.piso).trim();
+
+  if (body.zona != null) patch.zona = String(body.zona).trim();
+
+  if (body.envio != null) patch.envio = Number(body.envio) || 0;
+
+  if (body.modificado != null) patch.modificado = String(body.modificado);
+
+  if (body.modificadoAt != null) patch.modificado_at = String(body.modificadoAt);
+
 
 
   let r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);

@@ -131,6 +131,13 @@ async function handleGasAdmin(body) {
       if (subtotal != null) payload.subtotal = subtotal;
       if (total != null) payload.total = total;
       if (rechazoMensaje != null) payload.rechazoMensaje = rechazoMensaje;
+      if (body.direccion != null) payload.direccion = body.direccion;
+      if (body.localidad != null) payload.localidad = body.localidad;
+      if (body.piso != null) payload.piso = body.piso;
+      if (body.zona != null) payload.zona = body.zona;
+      if (body.envio != null) payload.envio = body.envio;
+      if (body.modificado != null) payload.modificado = body.modificado;
+      if (body.modificadoAt != null) payload.modificadoAt = body.modificadoAt;
     }
     if (action === 'listGastos') {
       payload.desde = desde || '';

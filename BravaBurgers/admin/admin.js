@@ -64,6 +64,8 @@
 
   var editExtrasCatalog = null;
 
+  var editDeliveryZones = null;
+
   var editMenuLoadPromise = null;
 
   var EDIT_MENU_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
@@ -2882,6 +2884,232 @@
 
 
 
+  function editConfigGet(cfg, key) {
+
+    if (!cfg) return '';
+
+    if (cfg[key] !== undefined) return cfg[key];
+
+    var lower = key.toLowerCase();
+
+    var k;
+
+    for (k in cfg) {
+
+      if (Object.prototype.hasOwnProperty.call(cfg, k) && k.toLowerCase() === lower) return cfg[k];
+
+    }
+
+    return '';
+
+  }
+
+
+
+  function buildEditConfigMap(rows) {
+
+    var cfg = {};
+
+    (rows || []).forEach(function (r) {
+
+      var k = editRowVal(r, ['Nombre', 'nombre', 'llave', 'key']);
+
+      var v = editRowVal(r, ['Valor', 'valor', 'value']);
+
+      if (k) cfg[k] = v;
+
+    });
+
+    return cfg;
+
+  }
+
+
+
+  function editParsePrice(raw) {
+
+    if (raw == null || raw === '') return 0;
+
+    var s = String(raw).replace(/[^\d.,-]/g, '').replace(',', '.');
+
+    var n = parseFloat(s);
+
+    return isNaN(n) ? 0 : n;
+
+  }
+
+
+
+  function buildEditDeliveryZones(cfg) {
+
+    var zones = [];
+
+    var i;
+
+    for (i = 1; i <= 10; i++) {
+
+      var nombre =
+
+        editConfigGet(cfg, 'Zona ' + i + ' - Nombre') || editConfigGet(cfg, 'Zona ' + i + '- Nombre');
+
+      if (!nombre || !String(nombre).trim()) continue;
+
+      var costoRaw =
+
+        editConfigGet(cfg, 'Zona ' + i + ' - Costo de envío') ||
+
+        editConfigGet(cfg, 'Zona ' + i + '- Costo de envío') ||
+
+        editConfigGet(cfg, 'Zona ' + i + ' - Costo de envio');
+
+      zones.push({ nombre: String(nombre).trim(), costo: editParsePrice(costoRaw) });
+
+    }
+
+    return zones;
+
+  }
+
+
+
+  function editEnvioForZonaName(nombre) {
+
+    var name = String(nombre || '').trim();
+
+    if (!name) return 0;
+
+    var i;
+
+    for (i = 0; i < (editDeliveryZones || []).length; i++) {
+
+      if (editDeliveryZones[i].nombre === name) return editDeliveryZones[i].costo;
+
+    }
+
+    return null;
+
+  }
+
+
+
+  function fillEditZonaSelect(currentZona) {
+
+    var sel = $('edit-zona');
+
+    if (!sel) return;
+
+    var cur = String(currentZona || '').trim();
+
+    var html = '<option value="">— Sin zona —</option>';
+
+    (editDeliveryZones || []).forEach(function (z) {
+
+      html +=
+
+        '<option value="' +
+
+        escapeHtml(z.nombre) +
+
+        '">' +
+
+        escapeHtml(z.nombre) +
+
+        ' ($' +
+
+        fmt(z.costo) +
+
+        ')</option>';
+
+    });
+
+    if (cur && !editEnvioForZonaName(cur) && cur !== '') {
+
+      html +=
+
+        '<option value="' + escapeHtml(cur) + '">' + escapeHtml(cur) + ' (actual)</option>';
+
+    }
+
+    sel.innerHTML = html;
+
+    sel.value = cur;
+
+  }
+
+
+
+  function setEditDeliveryForm(o) {
+
+    if ($('edit-direccion')) $('edit-direccion').value = o.direccion || '';
+
+    if ($('edit-localidad')) $('edit-localidad').value = o.localidad || '';
+
+    if ($('edit-piso')) $('edit-piso').value = o.piso || '';
+
+    fillEditZonaSelect(o.zona || '');
+
+  }
+
+
+
+  function readEditDeliveryPatch(baseOrder) {
+
+    var patch = {};
+
+    if ($('edit-direccion')) patch.direccion = ($('edit-direccion').value || '').trim();
+
+    if ($('edit-localidad')) patch.localidad = ($('edit-localidad').value || '').trim();
+
+    if ($('edit-piso')) patch.piso = ($('edit-piso').value || '').trim();
+
+    if ($('edit-zona')) patch.zona = ($('edit-zona').value || '').trim();
+
+    var envFromZona = editEnvioForZonaName(patch.zona);
+
+    if (envFromZona != null) patch.envio = envFromZona;
+
+    else if (baseOrder) patch.envio = Number(baseOrder.envio) || 0;
+
+    var b = baseOrder || {};
+
+    if (
+
+      patch.direccion !== (b.direccion || '').trim() ||
+
+      patch.localidad !== (b.localidad || '').trim() ||
+
+      patch.piso !== (b.piso || '').trim() ||
+
+      patch.zona !== (b.zona || '').trim() ||
+
+      Number(patch.envio) !== (Number(b.envio) || 0)
+
+    ) {
+
+      patch.deliveryChanged = true;
+
+    }
+
+    return patch;
+
+  }
+
+
+
+  function onEditZonaChange() {
+
+    var z = $('edit-zona') ? $('edit-zona').value : '';
+
+    var cost = editEnvioForZonaName(z);
+
+    if (cost != null) editEnvio = cost;
+
+    renderEditModalItems();
+
+  }
+
+
+
   function editRowVal(row, keys) {
 
     if (!row) return '';
@@ -3206,7 +3434,7 @@
 
   function loadEditMenu(done) {
 
-    if (editProductGroups && editExtrasCatalog) {
+    if (editProductGroups && editExtrasCatalog && editDeliveryZones !== null) {
 
       done(editProductGroups);
 
@@ -3219,6 +3447,8 @@
       editProductGroups = [];
 
       editExtrasCatalog = [];
+
+      editDeliveryZones = [];
 
       done([]);
 
@@ -3252,6 +3482,12 @@
 
       }),
 
+      fetch(editSheetCsvUrl('configuracion')).then(function (r) {
+
+        return r.text();
+
+      }),
+
     ])
 
       .then(function (pair) {
@@ -3260,9 +3496,13 @@
 
         var ext = Papa.parse(pair[1], { header: true, skipEmptyLines: true });
 
+        var cfgRows = Papa.parse(pair[2], { header: true, skipEmptyLines: true });
+
         editProductGroups = buildEditProductGroups(prod.data || []);
 
         editExtrasCatalog = buildEditExtrasCatalog(ext.data || []);
+
+        editDeliveryZones = buildEditDeliveryZones(buildEditConfigMap(cfgRows.data || []));
 
         editCatalog = editProductGroups;
 
@@ -3273,6 +3513,8 @@
         editProductGroups = [];
 
         editExtrasCatalog = [];
+
+        editDeliveryZones = [];
 
         editCatalog = [];
 
@@ -3588,6 +3830,12 @@
 
       fillEditAddSelect(groups);
 
+      setEditDeliveryForm(o);
+
+      var envZ = editEnvioForZonaName(o.zona);
+
+      if (envZ != null) editEnvio = envZ;
+
       renderEditModalItems();
 
       $('edit-modal').classList.remove('hidden');
@@ -3698,13 +3946,21 @@
 
     var now = new Date().toISOString();
 
-    sendOrderUpdate(editOrn, {
+    var baseOrder = findOrderByOrn(editOrn);
+
+    var deliveryPatch = readEditDeliveryPatch(baseOrder);
+
+    editEnvio = deliveryPatch.envio != null ? deliveryPatch.envio : editEnvio;
+
+    totals = recalcEditTotals();
+
+    var patch = {
 
       items: items,
 
       subtotal: totals.subtotal,
 
-      total: totals.total,
+      total: totals.subtotal + (Number(editEnvio) || 0),
 
       modificado: 'SI',
 
@@ -3712,7 +3968,19 @@
 
       items_json: JSON.stringify(items),
 
-    });
+      direccion: deliveryPatch.direccion,
+
+      localidad: deliveryPatch.localidad,
+
+      piso: deliveryPatch.piso,
+
+      zona: deliveryPatch.zona,
+
+      envio: Number(editEnvio) || 0,
+
+    };
+
+    sendOrderUpdate(editOrn, patch);
 
     closeEditModal();
 
@@ -3737,6 +4005,20 @@
     if (patch.subtotal != null) body.subtotal = patch.subtotal;
 
     if (patch.total != null) body.total = patch.total;
+
+    if (patch.direccion != null) body.direccion = patch.direccion;
+
+    if (patch.localidad != null) body.localidad = patch.localidad;
+
+    if (patch.piso != null) body.piso = patch.piso;
+
+    if (patch.zona != null) body.zona = patch.zona;
+
+    if (patch.envio != null) body.envio = patch.envio;
+
+    if (patch.modificado != null) body.modificado = patch.modificado;
+
+    if (patch.modificado_at != null) body.modificadoAt = patch.modificado_at;
 
     return api(body).then(function (res) {
 
@@ -4387,6 +4669,8 @@
   if ($('edit-close')) $('edit-close').onclick = closeEditModal;
 
   if ($('edit-save')) $('edit-save').onclick = saveEditModal;
+
+  if ($('edit-zona')) $('edit-zona').addEventListener('change', onEditZonaChange);
 
   if ($('edit-add-btn')) $('edit-add-btn').onclick = addEditCatalogLine;
 

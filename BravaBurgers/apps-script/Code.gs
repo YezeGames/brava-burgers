@@ -346,6 +346,13 @@ function updateOrder_(body) {
     }
     if (body.subtotal != null) setCell_(sh, headers, rowNum, 'subtotal', Number(body.subtotal));
     if (body.total != null) setCell_(sh, headers, rowNum, 'total', Number(body.total));
+    if (body.direccion != null) setCell_(sh, headers, rowNum, 'direccion', String(body.direccion).trim());
+    if (body.localidad != null) setCell_(sh, headers, rowNum, 'localidad', String(body.localidad).trim());
+    if (body.piso != null) setCell_(sh, headers, rowNum, 'piso', String(body.piso).trim());
+    if (body.zona != null) setCell_(sh, headers, rowNum, 'zona', String(body.zona).trim());
+    if (body.envio != null) setCell_(sh, headers, rowNum, 'envio', Number(body.envio) || 0);
+    if (body.modificado != null) setCell_(sh, headers, rowNum, 'modificado', String(body.modificado));
+    if (body.modificadoAt != null) setCell_(sh, headers, rowNum, 'modificado_at', body.modificadoAt);
     clearOrdersListCache_();
     return { ok: true, orn: orn };
   }

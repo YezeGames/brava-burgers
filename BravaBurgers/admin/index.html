@@ -509,6 +509,41 @@
 			margin-left: 4px;
 			font-weight: 600;
 		}
+		.edit-delivery-fields {
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			padding: 10px 12px;
+			margin-bottom: 12px;
+		}
+		.edit-delivery-fields legend {
+			font-size: 0.8rem;
+			font-weight: 600;
+			padding: 0 4px;
+			color: var(--text);
+		}
+		.edit-delivery-fields label {
+			display: block;
+			font-size: 0.72rem;
+			color: var(--muted);
+			margin: 8px 0 4px;
+		}
+		.edit-delivery-fields label:first-of-type { margin-top: 0; }
+		.edit-delivery-fields input,
+		.edit-delivery-fields select {
+			width: 100%;
+			padding: 8px 10px;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			font-size: 0.85rem;
+			background: var(--surface);
+			color: var(--text);
+		}
+		.edit-delivery-hint {
+			font-size: 0.72rem;
+			color: var(--muted);
+			margin: 6px 0 0;
+			line-height: 1.35;
+		}
 		.modal-items { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 12px; max-height: 280px; overflow-y: auto; }
 		.modal-item {
 			display: grid;
@@ -1355,6 +1390,18 @@
 		<div class="modal" style="max-width:520px;">
 			<h2 id="edit-title">Editar comanda</h2>
 			<p class="sub" id="edit-sub"></p>
+			<fieldset class="edit-delivery-fields">
+				<legend>Entrega</legend>
+				<label for="edit-direccion">Dirección (calle y altura)</label>
+				<input type="text" id="edit-direccion" autocomplete="off" placeholder="Ej: Maipú 120">
+				<label for="edit-localidad">Localidad</label>
+				<input type="text" id="edit-localidad" autocomplete="off" placeholder="Ej: Olivos">
+				<label for="edit-piso">Piso / dpto / aclaración</label>
+				<input type="text" id="edit-piso" autocomplete="off" placeholder="Ej: 2B, timbre García">
+				<label for="edit-zona">Zona de envío</label>
+				<select id="edit-zona" aria-label="Zona de envío"></select>
+				<p class="edit-delivery-hint">La zona define el costo de envío en el total. Corregila si la confundieron con la dirección.</p>
+			</fieldset>
 			<div class="modal-items" id="edit-items"></div>
 			<div class="modal-add">
 				<select id="edit-add-select" aria-label="Agregar producto del menú"></select>
@@ -1414,6 +1461,6 @@
 	<script src="/admin/comanda.js?v=12"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=7"></script>
-	<script src="/admin/admin.js?v=66"></script>
+	<script src="/admin/admin.js?v=67"></script>
 </body>
 </html>
