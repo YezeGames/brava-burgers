@@ -47,4 +47,68 @@ async function migrateEnCaminoColumn() {
   }
 }
 
-module.exports = { migrateEnCaminoColumn };
+async function migrateIngresosSchema() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL. La service key no alcanza para migrar.',
+    };
+  }
+  const client = new Client({
+    connectionString: conn,
+    ssl: { rejectUnauthorized: false },
+  });
+  try {
+    await client.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ingresos (
+        id text PRIMARY KEY,
+        fecha date NOT NULL DEFAULT CURRENT_DATE,
+        concepto text NOT NULL,
+        monto numeric NOT NULL,
+        cobrado_con text NOT NULL DEFAULT '',
+        creado_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await client.query('CREATE INDEX IF NOT EXISTS ingresos_fecha_idx ON ingresos (fecha DESC);');
+    await client.query(
+      "INSERT INTO admin_counters (key, value) VALUES ('ingreso_id', 0) ON CONFLICT (key) DO NOTHING;"
+    );
+    await client.query(`
+      CREATE OR REPLACE FUNCTION public.next_ingreso_id()
+      RETURNS text
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path = public
+      AS $$
+      DECLARE n bigint;
+      BEGIN
+        INSERT INTO admin_counters (key, value) VALUES ('ingreso_id', 0)
+        ON CONFLICT (key) DO NOTHING;
+        UPDATE admin_counters SET value = value + 1 WHERE key = 'ingreso_id' RETURNING value INTO n;
+        RETURN 'ING-' || lpad(n::text, 4, '0');
+      END;
+      $$;
+    `);
+    await client.query('ALTER TABLE ingresos REPLICA IDENTITY FULL;');
+    await client.query('ALTER TABLE ingresos ENABLE ROW LEVEL SECURITY;');
+    await client.query('DROP POLICY IF EXISTS "admin_all_ingresos" ON ingresos;');
+    await client.query(
+      'CREATE POLICY "admin_all_ingresos" ON ingresos FOR ALL TO authenticated USING (true) WITH CHECK (true);'
+    );
+    await client.query(
+      'ALTER TABLE cierres_caja ADD COLUMN IF NOT EXISTS ingresos numeric NOT NULL DEFAULT 0;'
+    );
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
+module.exports = { migrateEnCaminoColumn, migrateIngresosSchema };

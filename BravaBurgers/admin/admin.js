@@ -1969,6 +1969,28 @@
 
     });
 
+    ensureIngresosSchemaOnce();
+
+  }
+
+  /** Una vez por sesión: migración ingresos si Vercel tiene SUPABASE_DB_PASSWORD o POSTGRES_URL. */
+  function ensureIngresosSchemaOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_ingresos_schema_try') === '1') return;
+      sessionStorage.setItem('brava_ingresos_schema_try', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migrateIngresosSchema', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_ingresos_schema_ok', '1');
+        } catch (e2) {}
+        loadIngresos(true);
+        loadCierres(true);
+      }
+    });
   }
 
 
