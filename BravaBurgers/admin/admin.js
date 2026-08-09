@@ -1666,6 +1666,9 @@
           if (res.data.error) {
             errHint += '\n\nDetalle: ' + res.data.error;
           }
+          if (res.data.detail) {
+            errHint += '\n' + String(res.data.detail).slice(0, 280);
+          }
           alert(errHint);
         }
         updateCierreStatusUI();

@@ -82,7 +82,7 @@ function rowToOrder(row) {
 
 function supabaseFail(r, fallback) {
 
-  return { ok: false, error: fallback || r.error, detail: r.detail };
+  return { ok: false, error: fallback || r.error, detail: r.detail || '' };
 
 }
 
@@ -599,20 +599,32 @@ async function createCierre(body) {
   const ins = await restInsert('cierres_caja', row);
 
   if (!ins.ok) {
-    const errBlob = String(ins.error || ins.detail || '').toLowerCase();
-    if (errBlob.indexOf('ingresos') >= 0) {
-      const legacy = Object.assign({}, row);
-      delete legacy.ingresos;
-      const retry = await restInsert('cierres_caja', legacy);
-      if (retry.ok) {
-        return {
-          ok: true,
-          warning: 'ingresos_column_missing',
-          cierre: Object.assign({ id: idVal, cerrado_at: new Date().toISOString(), ingresos: Number(body.ingresos) || 0 }, legacy),
-        };
-      }
+    const legacy = Object.assign({}, row);
+    delete legacy.ingresos;
+    let retry = await restInsert('cierres_caja', legacy);
+    if (!retry.ok) {
+      delete legacy.ventana_desde;
+      delete legacy.ventana_hasta;
+      retry = await restInsert('cierres_caja', legacy);
     }
-    return supabaseFail(ins, ins.error);
+    if (retry.ok) {
+      return {
+        ok: true,
+        warning: 'ingresos_column_missing',
+        cierre: Object.assign(
+          { id: idVal, cerrado_at: new Date().toISOString(), ingresos: Number(body.ingresos) || 0 },
+          legacy
+        ),
+      };
+    }
+    console.error('createCierre insert failed', { first: ins.detail, retry: retry.detail });
+    const errDetail = String(retry.detail || ins.detail || '');
+    return {
+      ok: false,
+      error: retry.error || ins.error,
+      detail: errDetail.slice(0, 400),
+      hint: 'supabase_migration',
+    };
   }
 
   return { ok: true, cierre: Object.assign({ id: idVal, cerrado_at: new Date().toISOString() }, row) };
