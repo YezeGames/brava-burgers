@@ -1525,17 +1525,17 @@
 
   function getCierreThermalPrintCss() {
     return (
-      '@page { size: 80mm auto; margin: 0; }' +
-      'html, body { margin: 0; padding: 0; width: 80mm; max-width: 80mm; height: auto; min-height: 0; overflow: visible; box-sizing: border-box; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
-      '.resumen.resumen-cierre { width: 100%; max-width: 100%; margin: 0; padding: 0 2mm; box-sizing: border-box; border: none; border-radius: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
-      '.resumen-cierre .resumen-top { background: #000; color: #fff; padding: 8px 4px; text-align: center; }' +
+      '@page { margin: 0; }' +
+      'html, body { margin: 0; padding: 0; width: 100%; max-width: 100%; height: auto; min-height: 0; overflow: visible; box-sizing: border-box; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '.resumen.resumen-cierre { width: 100%; max-width: none; margin: 0; padding: 0; box-sizing: border-box; border: none; border-radius: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '.resumen-cierre .resumen-top { background: #000; color: #fff; padding: 8px 2mm; text-align: center; width: 100%; box-sizing: border-box; }' +
       '.resumen-cierre .resumen-top .brand { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; color: #fff; }' +
       '.resumen-cierre .resumen-top .meta { font-size: 10px; margin-top: 4px; line-height: 1.4; color: #fff; opacity: 1; }' +
-      '.resumen-cierre .resumen-block { padding: 6px 4px; border-bottom: 1px solid #ddd; background: #fff; }' +
+      '.resumen-cierre .resumen-block { padding: 6px 2mm; border-bottom: 1px solid #ddd; background: #fff; box-sizing: border-box; }' +
       '.resumen-cierre .resumen-block h3 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }' +
       '.resumen-cierre .resumen-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }' +
-      '.resumen-cierre .res-l { width: 58%; text-align: left; vertical-align: top; padding: 2px 0; word-break: break-word; font-size: 11px; color: #000; }' +
-      '.resumen-cierre .res-r { width: 42%; text-align: right; vertical-align: top; padding: 2px 0; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; color: #000; }' +
+      '.resumen-cierre .res-l { width: 62%; text-align: left; vertical-align: top; padding: 2px 0; word-break: break-word; font-size: 11px; color: #000; }' +
+      '.resumen-cierre .res-r { width: 38%; text-align: right; vertical-align: top; padding: 2px 0; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; color: #000; }' +
       '.resumen-cierre tr.res-total .res-l, .resumen-cierre tr.res-total .res-r { font-weight: 700; border-top: 1px dashed #000; padding-top: 5px; }' +
       '.resumen-cierre tr.res-muted .res-l, .resumen-cierre tr.res-muted .res-r { color: #777; font-size: 10px; }' +
       '.resumen-cierre tr.res-result .res-l, .resumen-cierre tr.res-result .res-r { font-weight: 700; font-size: 12px; color: #000; }' +
@@ -1543,7 +1543,7 @@
       '.resumen-cierre .producto-cell { display: flex; justify-content: space-between; gap: 4px; min-width: 0; }' +
       '.resumen-cierre .producto-cell .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000; }' +
       '.resumen-cierre .producto-cell .q { font-weight: 700; flex-shrink: 0; color: #000; }' +
-      '.resumen-cierre .resumen-foot { padding: 8px 4px; font-size: 9px; color: #fff; background: #000; text-align: center; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+      '.resumen-cierre .resumen-foot { padding: 8px 2mm; font-size: 9px; color: #fff; background: #000; text-align: center; width: 100%; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
     );
   }
 

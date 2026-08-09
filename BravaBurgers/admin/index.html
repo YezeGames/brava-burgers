@@ -884,8 +884,8 @@
 			html.printing-comanda body,
 			html.printing-cierre-caja,
 			html.printing-cierre-caja body {
-				width: 80mm !important;
-				max-width: 80mm !important;
+				width: 100% !important;
+				max-width: 100% !important;
 				margin: 0 !important;
 				padding: 0 !important;
 				-webkit-print-color-adjust: exact;
@@ -938,12 +938,12 @@
 			body.printing-cierre-caja .cierre-resumen-wrap {
 				border: none;
 				max-width: none;
-				width: 80mm !important;
+				width: 100% !important;
 				margin: 0 !important;
 			}
 			body.printing-comanda .ticket.ticket-comanda {
-				width: 80mm !important;
-				max-width: 80mm !important;
+				width: 100% !important;
+				max-width: 100% !important;
 				padding: 0 !important;
 				margin: 0 !important;
 				font-size: 11px;
@@ -977,8 +977,8 @@
 				color: #000 !important;
 			}
 			body.printing-comanda .ticket:not(.ticket-comanda) {
-				width: 80mm !important;
-				max-width: 80mm !important;
+				width: 100% !important;
+				max-width: 100% !important;
 				padding: 1mm 0 !important;
 				margin: 0 !important;
 				font-size: 11px;
@@ -988,9 +988,10 @@
 				print-color-adjust: exact;
 			}
 			body.printing-cierre-caja .resumen.resumen-cierre {
-				width: 80mm !important;
-				max-width: 80mm !important;
+				width: 100% !important;
+				max-width: none !important;
 				margin: 0 !important;
+				padding: 0 !important;
 				border: none !important;
 				border-radius: 0 !important;
 				box-sizing: border-box;
@@ -1002,7 +1003,9 @@
 			body.printing-cierre-caja .resumen-cierre .resumen-top {
 				background: #000 !important;
 				color: #fff !important;
-				padding: 8px 4px !important;
+				padding: 8px 2mm !important;
+				width: 100% !important;
+				box-sizing: border-box !important;
 				border-bottom: none !important;
 				-webkit-print-color-adjust: exact;
 				print-color-adjust: exact;
@@ -1014,7 +1017,7 @@
 			}
 			body.printing-cierre-caja .resumen-cierre .resumen-block {
 				background: #fff !important;
-				padding: 6px 4px !important;
+				padding: 6px 2mm !important;
 				border-bottom-color: #ddd !important;
 			}
 			body.printing-cierre-caja .resumen-cierre h3,
@@ -1028,7 +1031,9 @@
 			body.printing-cierre-caja .resumen-cierre .resumen-foot {
 				background: #000 !important;
 				color: #fff !important;
-				padding: 8px 4px !important;
+				padding: 8px 2mm !important;
+				width: 100% !important;
+				box-sizing: border-box !important;
 				-webkit-print-color-adjust: exact;
 				print-color-adjust: exact;
 			}
@@ -1053,7 +1058,7 @@
 			body.printing-comanda .ticket.ticket-comanda .comanda-foot {
 				color: #555 !important;
 			}
-			@page { size: 80mm auto; margin: 0; }
+			@page { margin: 0; }
 		}
 		.cierre-confirm-text { font-size: 0.88rem; line-height: 1.5; margin: 0; white-space: pre-wrap; }
 		.cierre-resumen-modal-box { max-width: 360px; }
@@ -1601,9 +1606,9 @@
 
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-	<script src="/admin/comanda.js?v=14"></script>
+	<script src="/admin/comanda.js?v=15"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=7"></script>
-	<script src="/admin/admin.js?v=72"></script>
+	<script src="/admin/admin.js?v=73"></script>
 </body>
 </html>

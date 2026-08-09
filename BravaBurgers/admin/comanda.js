@@ -1,5 +1,5 @@
 (function (global) {
-  var COMANDA_VER = 14;
+  var COMANDA_VER = 15;
 
   function $(id) {
     return document.getElementById(id);
@@ -185,7 +185,7 @@
     var brandStyle =
       'display:inline-block;background:transparent;color:#000;font-size:13px;font-weight:800;line-height:1.15;letter-spacing:0.04em;padding:2px 0;margin:0;border:0;';
     var metaStyle =
-      'padding:6px 8px;font-size:11px;line-height:1.4;color:#000;background:#fff;border-bottom:1px dashed #000;margin:0;';
+      'padding:6px 2mm;font-size:11px;line-height:1.4;color:#000;background:#fff;border-bottom:1px dashed #000;margin:0;';
     var footStyle =
       'padding:6px 4px 2px;font-size:8px;color:#555;text-align:center;border-top:1px dashed #000;background:#fff;margin:0;';
 
@@ -276,17 +276,17 @@
 
   function getThermalPrintCss() {
     return (
-      '@page { size: 80mm auto; margin: 0; }' +
-      'html { font-size: 12px; margin: 0; padding: 0; }' +
-      'body { margin: 0; padding: 0 3mm; width: 80mm; max-width: 80mm; box-sizing: border-box; background: #fff; }' +
+      '@page { margin: 0; }' +
+      'html { font-size: 12px; margin: 0; padding: 0; width: 100%; }' +
+      'body { margin: 0; padding: 0; width: 100%; max-width: 100%; box-sizing: border-box; background: #fff; }' +
       '.ticket.ticket-comanda { width: 100%; max-width: 100%; box-sizing: border-box; margin: 0; padding: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 400; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
       '.ticket-comanda .comanda-head { background: transparent !important; padding: 4px 0 2px; text-align: center; }' +
       '.ticket-comanda .comanda-head .brand, .ticket-comanda .comanda-top .brand { display: inline-block; background: transparent; color: #000; font-size: 13px; font-weight: 800; line-height: 1.15; letter-spacing: 0.04em; padding: 2px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
       '.ticket-comanda .comanda-top { background: transparent !important; padding: 4px 0 2px; text-align: center; }' +
-      '.ticket-comanda .comanda-meta { padding: 6px 2px 6px; color: #000; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #000; }' +
+      '.ticket-comanda .comanda-meta { padding: 6px 2mm 6px; color: #000; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #000; }' +
       '.ticket-comanda .comanda-meta .meta-line { margin: 0 0 2px; }' +
       '.ticket-comanda .comanda-meta .edit-note { font-size: 10px; font-weight: 700; margin-top: 6px; color: #000; }' +
-      '.ticket-comanda .comanda-body { padding: 6px 2px 8px; color: #000; }' +
+      '.ticket-comanda .comanda-body { padding: 6px 2mm 8px; color: #000; }' +
       '.ticket-comanda .bold { font-weight: 700; }' +
       '.ticket-comanda .line { border-top: 1px dashed #000; margin: 6px 0; }' +
       '.ticket-comanda .section-title { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #555; margin: 2px 0 4px; }' +
@@ -298,7 +298,7 @@
       '.ticket-comanda .row > span:last-child { white-space: nowrap; text-align: right; flex-shrink: 0; }' +
       '.ticket-comanda .total-row { font-weight: 700; font-size: 13px; margin-top: 4px; }' +
       '.ticket-comanda .pago-line { font-weight: 700; margin: 4px 0; font-size: 11px; }' +
-      '.ticket-comanda .comanda-foot { background: transparent; color: #555; font-size: 8px; font-weight: 400; text-align: center; padding: 6px 2px 0; border-top: 1px dashed #000; }'
+      '.ticket-comanda .comanda-foot { background: transparent; color: #555; font-size: 8px; font-weight: 400; text-align: center; padding: 6px 2mm 0; border-top: 1px dashed #000; }'
     );
   }
 
