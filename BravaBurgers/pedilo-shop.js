@@ -918,7 +918,6 @@
 
 	window.finalizar_pedido = function () {
 		calcular_total();
-		var url = $('#form_url').val();
 		var payload = buildBravaOrderPayload();
 		payload.idempotencyKey =
 			'brava-' +
@@ -929,15 +928,8 @@
 		var $submit = $('.brava-btn-submit');
 		$submit.prop('disabled', true);
 
-		function irWhatsApp(orn) {
-			if (orn) {
-				var pedido = $('#form_order_text').val() || '';
-				var ref = '*Ref:* ' + orn;
-				if (pedido.indexOf(ref) === -1) {
-					pedido = ref + '\n\n' + pedido;
-					url = 'https://wa.me/' + g_telefono + '?text=' + encodeURIComponent(pedido);
-				}
-			}
+		function irWhatsApp() {
+			var url = $('#form_url').val();
 			$.fancybox.close();
 			if (url) window.location.href = url;
 			$submit.prop('disabled', false);
@@ -945,12 +937,11 @@
 
 		var waAbierto = false;
 		var serverAck = false;
-		var ornListo = null;
 
-		function abrirWhatsApp(orn) {
+		function abrirWhatsApp() {
 			if (waAbierto) return;
 			waAbierto = true;
-			irWhatsApp(orn || ornListo || null);
+			irWhatsApp();
 		}
 
 		function beaconRespaldo() {
@@ -962,7 +953,7 @@
 		// WhatsApp ~450 ms; un solo fetch keepalive (sin beacon al abrir WA — evita duplicados)
 		var WA_ORN_ESPERA_MS = 450;
 		var tLimite = setTimeout(function () {
-			abrirWhatsApp(null);
+			abrirWhatsApp();
 		}, WA_ORN_ESPERA_MS);
 
 		fetch('/api/pedido', {
@@ -991,11 +982,10 @@
 				}
 				if (data && data.ok) {
 					serverAck = true;
-					if (data.orn) ornListo = data.orn;
 				}
-				if (!waAbierto && data && data.ok && data.orn) {
+				if (!waAbierto && data && data.ok) {
 					clearTimeout(tLimite);
-					abrirWhatsApp(data.orn);
+					abrirWhatsApp();
 				}
 			})
 			.catch(function () {

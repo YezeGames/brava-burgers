@@ -2206,7 +2206,11 @@
 
       a.className = 'btn-wa';
 
-      a.href = 'https://wa.me/' + wa + '?text=' + encodeURIComponent('Hola, pedido ' + o.orn);
+      var waFirst = (o.cliente || '').trim().split(/\s+/)[0];
+      var waIntro = waFirst
+        ? 'Hola ' + waFirst + ', somos Brava Burgers.'
+        : 'Hola, somos Brava Burgers.';
+      a.href = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waIntro);
 
       a.target = '_blank';
 
@@ -3822,7 +3826,11 @@
 
     var first = (o.cliente || '').split(' ')[0] || 'Hola';
 
-    var lines = ['Hola ' + first + ', somos Brava Burgers.', '', 'Lamentamos informarte que no podemos tomar tu pedido ' + o.orn + '.'];
+    var lines = [
+      'Hola ' + first + ', somos Brava Burgers.',
+      '',
+      'Lamentamos informarte que no podemos tomar tu pedido.',
+    ];
 
     if (motivos.length) {
 
