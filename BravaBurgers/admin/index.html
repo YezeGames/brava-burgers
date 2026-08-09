@@ -697,13 +697,16 @@
 			padding: 4px 0 2px;
 			text-align: center;
 		}
-		.ticket-comanda .comanda-logo {
-			display: block;
-			margin: 0 auto;
-			height: 20px;
-			width: auto;
-			max-width: 52px;
-			object-fit: contain;
+		.ticket-comanda .comanda-head .brand,
+		.ticket-comanda .comanda-top .brand {
+			display: inline-block;
+			background: transparent;
+			color: #000;
+			font-size: 13px;
+			font-weight: 800;
+			line-height: 1.15;
+			letter-spacing: 0.04em;
+			padding: 2px 0;
 			-webkit-print-color-adjust: exact;
 			print-color-adjust: exact;
 		}
@@ -953,9 +956,10 @@
 				background: transparent !important;
 				padding: 4px 0 2px !important;
 			}
-			body.printing-comanda .ticket-comanda .comanda-logo {
-				height: 20px !important;
-				max-width: 52px !important;
+			body.printing-comanda .ticket-comanda .comanda-head .brand,
+			body.printing-comanda .ticket-comanda .comanda-top .brand {
+				background: transparent !important;
+				color: #000 !important;
 				-webkit-print-color-adjust: exact;
 				print-color-adjust: exact;
 			}
@@ -1040,9 +1044,9 @@
 			body.printing-cierre-caja .resumen-cierre .producto-cell .q { color: #000 !important; }
 			body.printing-cierre-caja .ticket * { color: #000 !important; }
 			body.printing-comanda .ticket:not(.ticket-comanda) * { color: #000 !important; }
-			body.printing-comanda .ticket.ticket-comanda .comanda-logo {
-				height: 20px !important;
-				max-width: 52px !important;
+			body.printing-comanda .ticket.ticket-comanda .comanda-head .brand,
+			body.printing-comanda .ticket.ticket-comanda .comanda-top .brand {
+				color: #000 !important;
 				-webkit-print-color-adjust: exact;
 				print-color-adjust: exact;
 			}
@@ -1597,7 +1601,7 @@
 
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-	<script src="/admin/comanda.js?v=13"></script>
+	<script src="/admin/comanda.js?v=14"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=7"></script>
 	<script src="/admin/admin.js?v=72"></script>

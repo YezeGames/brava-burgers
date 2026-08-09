@@ -1,6 +1,5 @@
 (function (global) {
-  var COMANDA_LOGO_SRC = '/admin/comanda-logo.png?v=1';
-  var COMANDA_VER = 13;
+  var COMANDA_VER = 14;
 
   function $(id) {
     return document.getElementById(id);
@@ -183,6 +182,8 @@
 
     var headWrap =
       'text-align:center;padding:4px 0 2px;margin:0;background:transparent !important;';
+    var brandStyle =
+      'display:inline-block;background:transparent;color:#000;font-size:13px;font-weight:800;line-height:1.15;letter-spacing:0.04em;padding:2px 0;margin:0;border:0;';
     var metaStyle =
       'padding:6px 8px;font-size:11px;line-height:1.4;color:#000;background:#fff;border-bottom:1px dashed #000;margin:0;';
     var footStyle =
@@ -191,9 +192,9 @@
     return (
       '<div class="comanda-head" style="' +
       headWrap +
-      '"><img class="comanda-logo" src="' +
-      COMANDA_LOGO_SRC +
-      '" alt="Brava Burgers"></div>' +
+      '"><div class="brand" style="' +
+      brandStyle +
+      '">BRAVA BURGERS</div></div>' +
       '<div class="comanda-meta" style="' +
       metaStyle +
       '">' +
@@ -280,7 +281,7 @@
       'body { margin: 0; padding: 0 3mm; width: 80mm; max-width: 80mm; box-sizing: border-box; background: #fff; }' +
       '.ticket.ticket-comanda { width: 100%; max-width: 100%; box-sizing: border-box; margin: 0; padding: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 400; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
       '.ticket-comanda .comanda-head { background: transparent !important; padding: 4px 0 2px; text-align: center; }' +
-      '.ticket-comanda .comanda-logo { display: block; margin: 0 auto; height: 20px; width: auto; max-width: 52px; object-fit: contain; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '.ticket-comanda .comanda-head .brand, .ticket-comanda .comanda-top .brand { display: inline-block; background: transparent; color: #000; font-size: 13px; font-weight: 800; line-height: 1.15; letter-spacing: 0.04em; padding: 2px 0; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
       '.ticket-comanda .comanda-top { background: transparent !important; padding: 4px 0 2px; text-align: center; }' +
       '.ticket-comanda .comanda-meta { padding: 6px 2px 6px; color: #000; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #000; }' +
       '.ticket-comanda .comanda-meta .meta-line { margin: 0 0 2px; }' +
