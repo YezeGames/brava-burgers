@@ -4954,6 +4954,45 @@
 
   }
 
+  var COMANDA_AUTO_PRINT_KEY = 'brava_comanda_auto_print';
+
+  function isComandaAutoPrintOn() {
+    try {
+      return localStorage.getItem(COMANDA_AUTO_PRINT_KEY) !== '0';
+    } catch (e) {
+      return true;
+    }
+  }
+
+  function setComandaAutoPrintOn(on) {
+    try {
+      localStorage.setItem(COMANDA_AUTO_PRINT_KEY, on ? '1' : '0');
+    } catch (e2) {}
+    var cb = $('comanda-auto-print');
+    if (cb) cb.checked = !!on;
+  }
+
+  function syncComandaAutoPrintCheckbox() {
+    var cb = $('comanda-auto-print');
+    if (cb) cb.checked = isComandaAutoPrintOn();
+  }
+
+  function printComandaForOrder(order) {
+    if (!order || !window.BravaComanda) return false;
+    if (window.BravaComanda.storeOrderForPrint) window.BravaComanda.storeOrderForPrint(order);
+    if (window.BravaComanda.printOrderTicket && window.BravaComanda.printOrderTicket(order)) return true;
+    return false;
+  }
+
+  function autoPrintComandaOnAccept(orn) {
+    if (!isComandaAutoPrintOn()) return;
+    var comandaVer = window.BravaComanda && window.BravaComanda.COMANDA_VER ? window.BravaComanda.COMANDA_VER : 0;
+    if (!window.BravaComanda || !window.BravaComanda.printOrderTicket || comandaVer < 12) return;
+    var o = findOrderByOrn(orn);
+    if (!o) return;
+    printComandaForOrder(o);
+  }
+
 
 
   function printComandaModal() {
@@ -5054,6 +5093,7 @@
         return;
       }
       sendOrderUpdate(orn, { estado: 'aceptado' });
+      autoPrintComandaOnAccept(orn);
     }
 
     if (action === 'reject') openRechazoModal(orn);
@@ -5237,6 +5277,13 @@
   if ($('comanda-close')) $('comanda-close').onclick = closeComandaModal;
 
   if ($('comanda-print')) $('comanda-print').onclick = printComandaModal;
+
+  syncComandaAutoPrintCheckbox();
+  if ($('comanda-auto-print')) {
+    $('comanda-auto-print').addEventListener('change', function () {
+      setComandaAutoPrintOn(!!this.checked);
+    });
+  }
 
   if ($('comanda-modal')) {
 

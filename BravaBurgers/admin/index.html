@@ -510,6 +510,17 @@
 		.motivo-list input { width: auto; margin: 0; }
 		.msg-preview { margin-top: 8px; padding: 10px 12px; background: var(--preview-bg); border-radius: 6px; font-size: 0.8rem; white-space: pre-wrap; color: var(--preview-text); max-height: 140px; overflow-y: auto; }
 		.modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+		.comanda-modal-chrome .comanda-auto-print-lbl {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			margin-right: auto;
+			font-size: 0.82rem;
+			color: var(--text-muted);
+			cursor: pointer;
+			user-select: none;
+		}
+		.comanda-modal-chrome .comanda-auto-print-lbl input { accent-color: var(--brava); cursor: pointer; }
 		.btn-wa-modal { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: #25D366; color: #fff; border: none; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
 		.btn-edit { border-color: #FF6B35; color: #c44; font-weight: 600; }
 		.badge-mod {
@@ -1598,6 +1609,10 @@
 				<article class="ticket ticket-comanda" id="comanda-ticket-inner" aria-label="Comanda térmica"></article>
 			</div>
 			<div class="modal-foot comanda-modal-chrome">
+				<label class="comanda-auto-print-lbl" for="comanda-auto-print">
+					<input type="checkbox" id="comanda-auto-print" checked>
+					Imprimir al aceptar (Enter en el cuadro)
+				</label>
 				<button type="button" class="btn-sm" id="comanda-close">Cerrar</button>
 				<button type="button" class="btn-sm btn-accent" id="comanda-print">Imprimir comanda</button>
 			</div>
@@ -1609,6 +1624,6 @@
 	<script src="/admin/comanda.js?v=15"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=7"></script>
-	<script src="/admin/admin.js?v=73"></script>
+	<script src="/admin/admin.js?v=74"></script>
 </body>
 </html>
