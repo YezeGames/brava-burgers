@@ -7,6 +7,9 @@ const {
   listGastos,
   createGasto,
   deleteGasto,
+  listIngresos,
+  createIngreso,
+  deleteIngreso,
   listCierres,
   createCierre,
   deleteCierre,
@@ -69,6 +72,18 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'deleteGasto') {
     return deleteGasto(body.id);
+  }
+
+  if (action === 'listIngresos') {
+    return listIngresos(body.desde || '', body.hasta || '');
+  }
+
+  if (action === 'createIngreso') {
+    return createIngreso(body);
+  }
+
+  if (action === 'deleteIngreso') {
+    return deleteIngreso(body.id);
   }
 
   if (action === 'listCierres') {

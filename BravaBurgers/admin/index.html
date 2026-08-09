@@ -463,9 +463,10 @@
 		#poll-status { color: var(--text-muted) !important; }
 		.hidden { display: none !important; }
 		.text-muted { color: var(--text-muted); }
-		.caja-box h2, .gastos-box h2 { margin: 0 0 12px; font-size: 1rem; color: var(--text-heading); border-bottom: 2px solid var(--brava); padding-bottom: 8px; }
+		.caja-box h2, .movimientos-box h2 { margin: 0 0 12px; font-size: 1rem; color: var(--text-heading); border-bottom: 2px solid var(--brava); padding-bottom: 8px; }
 		.caja-row { display: flex; justify-content: space-between; margin: 6px 0; font-size: 0.85rem; }
 		.caja-row.section { margin-top: 10px; font-weight: 600; color: var(--section-muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; }
+		.caja-row.positive { color: #2e7d32; }
 		.caja-row.negative { color: #c62828; }
 		.caja-row.total-ventas { font-weight: 600; padding-top: 8px; border-top: 1px dashed var(--border); }
 		.caja-row.resultado { font-weight: 700; font-size: 1.05rem; margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--brava); }
@@ -477,13 +478,25 @@
 		.caja-estado.cerrada { color: #e65100; }
 		.ventas-box h2 { margin: 0 0 12px; font-size: 1rem; color: var(--text-heading); border-bottom: 2px solid var(--brava); padding-bottom: 8px; }
 		.range-label { margin-bottom: 8px; }
-		.gasto-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 180px; overflow-y: auto; }
-		.gasto-list li { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border-strong); font-size: 0.8rem; }
-		.gasto-list .concept { flex: 1; }
-		.gasto-list .concept small { display: block; color: var(--text-subtle); margin-top: 2px; }
-		.gasto-list .monto { font-weight: 600; white-space: nowrap; }
-		.gasto-list .btn-del { border: none; background: none; color: #c62828; cursor: pointer; padding: 2px 4px; }
-		.gastos-empty { font-size: 0.8rem; color: var(--text-faint); margin: 8px 0 0; }
+		.movimientos-box { overflow: hidden; }
+		.mov-list { list-style: none; margin: 0; padding: 0; max-height: 220px; overflow-x: hidden; overflow-y: auto; scrollbar-gutter: stable; }
+		.mov-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-strong); font-size: 0.85rem; line-height: 1.35; }
+		.mov-list .concept { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 0; }
+		.mov-list .concept-text { color: var(--text); word-break: break-word; width: 100%; }
+		.mov-list .concept small { display: block; color: var(--text-subtle); font-size: 0.78rem; }
+		.mov-list .monto-row { display: flex; align-items: center; gap: 4px; justify-self: end; }
+		.mov-list .monto { font-weight: 600; white-space: nowrap; font-size: 0.82rem; }
+		.mov-list .monto.ing { color: #2e7d32; }
+		.mov-list .monto.eg { color: #c62828; }
+		.mov-list .btn-del { border: none; background: none; color: #c62828; cursor: pointer; padding: 4px 6px; line-height: 1; font-size: 0.85rem; flex-shrink: 0; }
+		.mov-empty { font-size: 0.82rem; color: var(--text-faint); margin: 14px 0 0; line-height: 1.4; }
+		.mov-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 2px 0 14px; }
+		.mov-actions .btn-sm { width: 100%; text-align: center; padding: 9px 12px; font-size: 0.8rem; }
+		.mov-actions .btn-outline { background: transparent; border-color: #FF6B35; color: #FF6B35; font-weight: 600; }
+		.movimientos-box .mov-hint { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border-strong); }
+		.mov-list .tag { display: inline-block; font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; padding: 3px 7px; border-radius: 4px; background: var(--bg-surface-muted); flex-shrink: 0; }
+		.mov-list .tag.ing { color: #2e7d32; }
+		.mov-list .tag.eg { color: #c62828; }
 		.modal-backdrop { position: fixed; inset: 0; background: var(--modal-backdrop); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 100; }
 		.modal-backdrop.hidden { display: none !important; }
 		.modal { background: var(--bg-surface); border-radius: 8px; max-width: 480px; width: 100%; padding: 20px; box-shadow: var(--shadow-modal); color: var(--text); }
@@ -894,8 +907,10 @@
 			body.printing-cierre-caja #app-view { display: none !important; }
 			body.printing-comanda #rechazo-modal,
 			body.printing-comanda #gasto-modal,
+			body.printing-comanda #ingreso-modal,
 			body.printing-cierre-caja #rechazo-modal,
 			body.printing-cierre-caja #gasto-modal,
+			body.printing-cierre-caja #ingreso-modal,
 			body.printing-cierre-caja #edit-modal,
 			body.printing-cierre-caja #comanda-modal,
 			body.printing-cierre-caja #cierre-confirm-modal { display: none !important; }
@@ -1250,10 +1265,14 @@
 					<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
 					<div class="caja-row total-ventas"><span>Total ventas</span><span id="caja-ventas">$0</span></div>
 					<div class="caja-row negative"><span>Cancelados (info)</span><span id="caja-cancel">$0</span></div>
+					<div class="caja-row section">Ingresos extra (mostrador / fuera web)</div>
+					<div class="caja-row positive"><span>Efectivo</span><span id="caja-ef-ing">+$0</span></div>
+					<div class="caja-row positive"><span>Mercado Pago</span><span id="caja-mp-ing">+$0</span></div>
+					<div class="caja-row total-ventas positive"><span>Total ingresos</span><span id="caja-ing-total">+$0</span></div>
 					<div class="caja-row section">Salidas</div>
-					<div class="caja-row negative"><span>Gastos</span><span id="caja-gastos">−$0</span></div>
+					<div class="caja-row negative"><span>Egresos</span><span id="caja-gastos">−$0</span></div>
 					<div class="caja-row resultado pos" id="row-resultado"><span>Resultado</span><span id="caja-resultado">$0</span></div>
-					<p class="caja-hint">Solo suma ventas ✓ entregadas <strong>después de abrir caja</strong>. Sin abrir o ya cerrado → todo en 0.</p>
+					<p class="caja-hint">Ventas ✓ entregadas + ingresos manuales − egresos. Solo con caja abierta; al cerrar, todo en 0.</p>
 					<p class="range-label caja-estado" id="caja-estado">—</p>
 					<p class="range-label" id="caja-cierre-detalle" hidden></p>
 					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-abrir-caja">Abrir caja</button>
@@ -1268,12 +1287,15 @@
 					<div class="caja-row total-ventas"><span>Vendidas total</span><span id="ventas-hamb-total">0</span></div>
 					<p class="caja-hint" id="ventas-turno-hint">Solo cuenta con caja abierta; al cerrar turno vuelve a 0.</p>
 				</aside>
-				<aside class="sidebar-block gastos-box">
-					<h2>Gastos</h2>
-					<button type="button" class="btn-sm btn-accent" style="width:100%;" id="btn-add-gasto">+ Agregar gasto</button>
-					<ul class="gasto-list" id="gasto-list"></ul>
-					<p class="gastos-empty hidden" id="gastos-empty">Sin gastos en este turno.</p>
-					<p class="caja-hint">Igual que la caja: solo gastos cargados con la caja abierta; al cerrar, lista en 0.</p>
+				<aside class="sidebar-block movimientos-box">
+					<h2>Ingresos y egresos</h2>
+					<div class="mov-actions">
+						<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
+						<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
+					</div>
+					<ul class="mov-list" id="mov-list"></ul>
+					<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
+					<p class="caja-hint mov-hint">Ingreso: venta fuera de la web. Egreso: insumos, delivery, etc. Solo con caja abierta.</p>
 				</aside>
 					</div>
 				</details>
@@ -1464,9 +1486,31 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="ingreso-modal">
+		<div class="modal">
+			<h2>Agregar ingreso</h2>
+			<label class="field" for="i-concepto">Concepto</label>
+			<input type="text" id="i-concepto" placeholder="Ej. 2 cheese mostrador, Coca 1.5L…">
+			<label class="field" for="i-monto">Monto ($)</label>
+			<input type="number" id="i-monto" min="1" step="1">
+			<label class="field" for="i-fecha">Fecha</label>
+			<input type="date" id="i-fecha">
+			<label class="field" for="i-cobro">Cobrado con</label>
+			<select id="i-cobro">
+				<option value="efectivo">Efectivo</option>
+				<option value="transferencia">Mercado Pago</option>
+				<option value="otro">Otro</option>
+			</select>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="i-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="i-save">Guardar</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal-backdrop hidden" id="gasto-modal">
 		<div class="modal">
-			<h2>Agregar gasto</h2>
+			<h2>Agregar egreso</h2>
 			<label class="field" for="g-concepto">Concepto</label>
 			<input type="text" id="g-concepto" placeholder="Ej. Pan, carne, bolsas…">
 			<label class="field" for="g-monto">Monto ($)</label>
@@ -1562,6 +1606,6 @@
 	<script src="/admin/comanda.js?v=12"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=7"></script>
-	<script src="/admin/admin.js?v=68"></script>
+	<script src="/admin/admin.js?v=69"></script>
 </body>
 </html>

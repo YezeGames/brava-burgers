@@ -378,6 +378,106 @@ async function deleteGasto(id) {
 
 
 
+async function listIngresos(desde, hasta) {
+
+  let q = 'select=*&order=fecha.desc';
+
+  if (desde) q += '&fecha=gte.' + encodeURIComponent(desde);
+
+  if (hasta) q += '&fecha=lte.' + encodeURIComponent(hasta);
+
+  const r = await restSelect('ingresos', q);
+
+  if (!r.ok) return supabaseFail(r, r.error);
+
+  const ingresos = (r.data || []).map(function (g) {
+
+    return {
+
+      id: g.id,
+
+      fecha: g.fecha,
+
+      concepto: g.concepto,
+
+      monto: Number(g.monto) || 0,
+
+      cobrado_con: g.cobrado_con,
+
+      creado_at: g.creado_at,
+
+    };
+
+  });
+
+  return { ok: true, ingresos };
+
+}
+
+
+
+async function createIngreso(body) {
+
+  const concepto = String(body.concepto || '').trim();
+
+  const monto = Number(body.monto);
+
+  if (!concepto || !monto || monto <= 0) return { ok: false, error: 'invalid_ingreso' };
+
+  const idRes = await restRpc('next_ingreso_id');
+
+  if (!idRes.ok || !idRes.data) return supabaseFail(idRes, 'id_failed');
+
+  const idVal = idRes.data;
+
+  const fecha = body.fecha || new Date().toISOString().slice(0, 10);
+
+  const cobrado = String(body.cobroCon || body.cobrado_con || body.cobradoCon || '').trim();
+
+  const ins = await restInsert('ingresos', {
+
+    id: idVal,
+
+    fecha,
+
+    concepto,
+
+    monto,
+
+    cobrado_con: cobrado,
+
+  });
+
+  if (!ins.ok) return supabaseFail(ins, ins.error);
+
+  return {
+
+    ok: true,
+
+    ingreso: { id: idVal, fecha, concepto, monto, cobrado_con: cobrado },
+
+  };
+
+}
+
+
+
+async function deleteIngreso(id) {
+
+  const iid = String(id || '').trim();
+
+  if (!iid) return { ok: false, error: 'missing_id' };
+
+  const r = await restDelete('ingresos', 'id=eq.' + encodeURIComponent(iid));
+
+  if (!r.ok) return supabaseFail(r, r.error);
+
+  return { ok: true, id: iid };
+
+}
+
+
+
 async function listCierres(limit) {
 
   const n = Math.min(Math.max(Number(limit) || 40, 1), 100);
@@ -407,6 +507,8 @@ async function listCierres(limit) {
       ventas_total: Number(c.ventas_total) || 0,
 
       gastos: Number(c.gastos) || 0,
+
+      ingresos: Number(c.ingresos) || 0,
 
       resultado: Number(c.resultado) || 0,
 
@@ -470,6 +572,8 @@ async function createCierre(body) {
 
     gastos: Number(body.gastos) || 0,
 
+    ingresos: Number(body.ingresos) || 0,
+
     resultado: Number(body.resultado) || 0,
 
     cancelados: Number(body.cancelados) || 0,
@@ -531,6 +635,12 @@ module.exports = {
   createGasto,
 
   deleteGasto,
+
+  listIngresos,
+
+  createIngreso,
+
+  deleteIngreso,
 
   listCierres,
 

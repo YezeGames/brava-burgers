@@ -40,6 +40,8 @@
 
   var gastosFetchInFlight = null;
 
+  var ingresosFetchInFlight = null;
+
   var sbClient = null;
 
   var sbChannels = [];
@@ -108,6 +110,8 @@
 
   var rechazoOrn = null;
   var gastosCache = [];
+
+  var ingresosCache = [];
   var cierresCache = [];
   var cierresFetchInFlight = null;
   var cierresReady = false;
@@ -200,6 +204,8 @@
 
     loadGastos(true);
 
+    loadIngresos(true);
+
   }
 
   function initSupabaseRealtime(cfg) {
@@ -258,6 +264,8 @@
 
               loadGastos(true);
 
+              loadIngresos(true);
+
               updateCajaUI();
 
             }
@@ -266,7 +274,29 @@
 
           .subscribe();
 
-        sbChannels.push(chOrders, chGastos);
+        var chIngresos = sbClient
+
+          .channel('brava-admin-ingresos')
+
+          .on(
+
+            'postgres_changes',
+
+            { event: '*', schema: 'public', table: 'ingresos' },
+
+            function () {
+
+              loadIngresos(true);
+
+              updateCajaUI();
+
+            }
+
+          )
+
+          .subscribe();
+
+        sbChannels.push(chOrders, chGastos, chIngresos);
 
         realtimeLive = true;
 
@@ -785,7 +815,7 @@
     return sub.indexOf('doble') >= 0 || sub.indexOf('triple') >= 0;
   }
 
-  function gastoTimestampMs(g) {
+  function movimientoTimestampMs(g) {
     if (g && g.creado_at) {
       var t = new Date(g.creado_at).getTime();
       if (!isNaN(t)) return t;
@@ -801,6 +831,9 @@
       mp: 0,
       ventas: 0,
       cancel: 0,
+      efIng: 0,
+      mpIng: 0,
+      iTotal: 0,
       gTotal: 0,
       resultado: 0,
       simples: 0,
@@ -876,9 +909,23 @@
     });
     var ventas = ef + mp;
     var gTotal = 0;
+    var efIng = 0;
+    var mpIng = 0;
+    var otroIng = 0;
+    ingresosCache.forEach(function (g) {
+      if (!movimientoInFilterRange(g)) return;
+      var gt = movimientoTimestampMs(g);
+      if (gt < desdeMs || gt > hastaMs) return;
+      var m = Number(g.monto) || 0;
+      var cob = String(g.cobrado_con || '').trim();
+      if (cob === 'efectivo') efIng += m;
+      else if (cob === 'transferencia') mpIng += m;
+      else otroIng += m;
+    });
+    var iTotal = efIng + mpIng + otroIng;
     gastosCache.forEach(function (g) {
-      if (!gastoInFilterRange(g)) return;
-      var gt = gastoTimestampMs(g);
+      if (!movimientoInFilterRange(g)) return;
+      var gt = movimientoTimestampMs(g);
       if (gt >= desdeMs && gt <= hastaMs) gTotal += Number(g.monto) || 0;
     });
     return {
@@ -886,8 +933,11 @@
       mp: mp,
       ventas: ventas,
       cancel: cancel,
+      efIng: efIng,
+      mpIng: mpIng,
+      iTotal: iTotal,
       gTotal: gTotal,
-      resultado: ventas - gTotal,
+      resultado: ventas + iTotal - gTotal,
       simples: simples,
       dobles: dobles,
       hambTotal: simples + dobles,
@@ -957,11 +1007,11 @@
     }
   }
 
-  function gastoInSesionTurno(g) {
+  function movimientoInSesionTurno(g) {
     if (!g || !isCajaTurnoActivo()) return false;
     var desdeMs = getAperturaAtMs();
-    if (!gastoInFilterRange(g)) return false;
-    var gt = gastoTimestampMs(g);
+    if (!movimientoInFilterRange(g)) return false;
+    var gt = movimientoTimestampMs(g);
     return gt >= desdeMs;
   }
 
@@ -969,15 +1019,27 @@
     if (!cierresReady) return [];
     if (findCierreForCurrentPeriod()) return [];
     if (!isCajaMarcadaAbierta() || isNaN(getAperturaAtMs())) return [];
-    return gastosCache.filter(gastoInSesionTurno);
+    return gastosCache.filter(movimientoInSesionTurno);
   }
 
-  function updateGastosChrome() {
-    var btn = $('btn-add-gasto');
+  function ingresosVisiblesTurno() {
+    if (!cierresReady) return [];
+    if (findCierreForCurrentPeriod()) return [];
+    if (!isCajaMarcadaAbierta() || isNaN(getAperturaAtMs())) return [];
+    return ingresosCache.filter(movimientoInSesionTurno);
+  }
+
+  function updateMovimientosChrome() {
+    var btnG = $('btn-add-gasto');
+    var btnI = $('btn-add-ingreso');
     var active = isCajaTurnoActivo();
-    if (btn) {
-      btn.disabled = !active;
-      btn.title = active ? '' : 'Abrí la caja para agregar gastos del turno';
+    if (btnG) {
+      btnG.disabled = !active;
+      btnG.title = active ? '' : 'Abrí la caja para agregar egresos del turno';
+    }
+    if (btnI) {
+      btnI.disabled = !active;
+      btnI.title = active ? '' : 'Abrí la caja para agregar ingresos del turno';
     }
   }
 
@@ -1017,6 +1079,11 @@
     });
     var ventas = ef + mp;
     var gTotal = 0;
+    var iTotal = 0;
+    ingresosCache.forEach(function (g) {
+      if (!movimientoInFilterRange(g)) return;
+      iTotal += Number(g.monto) || 0;
+    });
     gastosCache.forEach(function (g) {
       gTotal += Number(g.monto) || 0;
     });
@@ -1025,8 +1092,11 @@
       mp: mp,
       ventas: ventas,
       cancel: cancel,
+      efIng: 0,
+      mpIng: 0,
+      iTotal: iTotal,
       gTotal: gTotal,
-      resultado: ventas - gTotal,
+      resultado: ventas + iTotal - gTotal,
       simples: simples,
       dobles: dobles,
       hambTotal: simples + dobles,
@@ -1134,6 +1204,9 @@
     $('caja-mp').textContent = '$' + fmt(st.mp);
     $('caja-ventas').textContent = '$' + fmt(st.ventas);
     $('caja-cancel').textContent = '$' + fmt(st.cancel);
+    if ($('caja-ef-ing')) $('caja-ef-ing').textContent = '+$' + fmt(st.efIng || 0);
+    if ($('caja-mp-ing')) $('caja-mp-ing').textContent = '+$' + fmt(st.mpIng || 0);
+    if ($('caja-ing-total')) $('caja-ing-total').textContent = '+$' + fmt(st.iTotal || 0);
     $('caja-gastos').textContent = '−$' + fmt(st.gTotal);
     $('caja-resultado').textContent = (st.resultado < 0 ? '−$' : '$') + fmt(Math.abs(st.resultado));
     var row = $('row-resultado');
@@ -1162,7 +1235,7 @@
       }
     }
     updateCierreStatusUI();
-    updateGastosChrome();
+    updateMovimientosChrome();
     syncTurnoPedidosUi();
     updateStockChrome();
   }
@@ -1175,7 +1248,7 @@
           cierresCache = res.data.cierres || [];
           syncCajaLocalConServidor();
           updateCajaUI();
-          renderGastosList();
+          renderMovimientosList();
           return true;
         }
         if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
@@ -1184,7 +1257,7 @@
       .finally(function () {
         cierresReady = true;
         cierresFetchInFlight = null;
-        renderGastosList();
+        renderMovimientosList();
       });
     return cierresFetchInFlight;
   }
@@ -1212,7 +1285,7 @@
             setCajaMarcadaAbierta(true);
             setAperturaNow();
             updateCajaUI();
-            renderGastosList();
+            renderMovimientosList();
             loadCierres(true);
           } else {
             if (res.status === 401) handleAuthFailure();
@@ -1226,7 +1299,7 @@
       setCajaMarcadaAbierta(true);
       setAperturaNow();
       updateCajaUI();
-      renderGastosList();
+      renderMovimientosList();
     });
   }
 
@@ -1244,15 +1317,35 @@
     return pagado;
   }
 
-  function gastosEnTurnoParaCierre() {
+  function ingresoCobroLabel(g) {
+    var cob = (g && g.cobrado_con) || '';
+    if (cob === 'efectivo') return 'Efectivo';
+    if (cob === 'transferencia') return 'Mercado Pago';
+    if (cob === 'otro') return 'Otro';
+    return cob;
+  }
+
+  function movimientosEnTurnoParaCierre() {
     var desdeMs = getAperturaAtMs();
-    if (isNaN(desdeMs)) return [];
+    if (isNaN(desdeMs)) return { ingresos: [], gastos: [] };
     var hastaMs = Date.now();
-    return gastosCache.filter(function (g) {
-      if (!gastoInFilterRange(g)) return false;
-      var gt = gastoTimestampMs(g);
+    function inWin(g) {
+      if (!movimientoInFilterRange(g)) return false;
+      var gt = movimientoTimestampMs(g);
       return gt >= desdeMs && gt <= hastaMs;
-    });
+    }
+    return {
+      ingresos: ingresosCache.filter(inWin),
+      gastos: gastosCache.filter(inWin),
+    };
+  }
+
+  function gastosEnTurnoParaCierre() {
+    return movimientosEnTurnoParaCierre().gastos;
+  }
+
+  function ingresosEnTurnoParaCierre() {
+    return movimientosEnTurnoParaCierre().ingresos;
   }
 
   function buildCierreConfirmMessage(st, periodoLbl) {
@@ -1267,7 +1360,10 @@
       ' · MP $' +
       fmt(st.mp) +
       ')\n' +
-      'Gastos: $' +
+      'Ingresos extra: $' +
+      fmt(st.iTotal || 0) +
+      '\n' +
+      'Egresos: $' +
       fmt(st.gTotal) +
       '\n' +
       'Resultado: $' +
@@ -1330,6 +1426,16 @@
       return x.qty > 0;
     });
     var gastosList = snapshot.gastos || [];
+    var ingresosList = snapshot.ingresos || [];
+    var ingresosRows = [];
+    ingresosList.forEach(function (g) {
+      var cob = ingresoCobroLabel(g);
+      var lbl = escapeHtml(g.concepto || '') + (cob ? ' (' + escapeHtml(cob) + ')' : '');
+      ingresosRows.push({ l: lbl, r: '+$' + fmt(g.monto) });
+    });
+    if (!ingresosRows.length) {
+      ingresosRows.push({ l: 'Sin ingresos extra', r: '$0', c: 'res-muted' });
+    }
     var gastosRows = [];
     gastosList.forEach(function (g) {
       var pag = gastoPagadoLabel(g);
@@ -1337,7 +1443,7 @@
       gastosRows.push({ l: lbl, r: '−$' + fmt(g.monto) });
     });
     if (!gastosRows.length) {
-      gastosRows.push({ l: 'Sin gastos', r: '$0', c: 'res-muted' });
+      gastosRows.push({ l: 'Sin egresos', r: '$0', c: 'res-muted' });
     }
     var resultadoStr = (neg ? '−$' : '$') + fmt(Math.abs(st.resultado));
     return (
@@ -1360,11 +1466,20 @@
         { l: 'Cancelados (info)', r: '$' + fmt(st.cancel), c: 'res-muted' },
       ]) +
       '</div>' +
-      '<div class="resumen-block"><h3>Gastos</h3>' +
-      resumenTblRows(gastosRows.concat([
-        { l: 'Total gastos', r: '−$' + fmt(st.gTotal), c: 'res-total' },
-        { l: 'Resultado turno', r: resultadoStr, c: 'res-total res-result' },
-      ])) +
+      '<div class="resumen-block"><h3>Ingresos extra</h3>' +
+      resumenTblRows(
+        ingresosRows.concat([
+          { l: 'Total ingresos', r: '+$' + fmt(st.iTotal || 0), c: 'res-total' },
+        ])
+      ) +
+      '</div>' +
+      '<div class="resumen-block"><h3>Egresos</h3>' +
+      resumenTblRows(
+        gastosRows.concat([{ l: 'Total egresos', r: '−$' + fmt(st.gTotal), c: 'res-total' }])
+      ) +
+      '</div>' +
+      '<div class="resumen-block"><h3>Resultado turno</h3>' +
+      resumenTblRows([{ l: 'Ventas + ingresos − egresos', r: resultadoStr, c: 'res-total res-result' }]) +
       '</div>' +
       '<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
       cierreProductosGridHtml(productos) +
@@ -1511,6 +1626,7 @@
       mercado_pago: st.mp,
       ventas_total: st.ventas,
       gastos: st.gTotal,
+      ingresos: st.iTotal || 0,
       resultado: st.resultado,
       cancelados: st.cancel,
       hamb_simples: Math.round(st.simples),
@@ -1524,7 +1640,7 @@
         clearApertura();
         cierresCache.unshift(c);
         updateCajaUI();
-        renderGastosList();
+        renderMovimientosList();
         loadCierres(true);
         var html = buildCierreResumenHtml(snapshot, c.id, c.cerrado_at);
         openCierreResumenModal(html);
@@ -1560,64 +1676,121 @@
       periodoLbl: cierrePeriodoLabel(),
       aperturaIso: isNaN(apMs) ? null : new Date(apMs).toISOString(),
       gastos: gastosEnTurnoParaCierre(),
+      ingresos: ingresosEnTurnoParaCierre(),
     };
     openCierreConfirmModal();
   }
 
-  function renderGastosList() {
-    var ul = $('gasto-list');
-    var empty = $('gastos-empty');
+  function renderMovimientosList() {
+    var ul = $('mov-list');
+    var empty = $('mov-empty');
     if (!ul) return;
-    ul.innerHTML = '';
-    updateGastosChrome();
-    var visibles = gastosVisiblesTurno();
-    if (!visibles.length) {
+    updateMovimientosChrome();
+    var items = [];
+    ingresosVisiblesTurno().forEach(function (x) {
+      items.push({
+        kind: 'ing',
+        id: x.id,
+        concepto: x.concepto,
+        monto: x.monto,
+        sub: ingresoCobroLabel(x),
+        seq: movimientoTimestampMs(x),
+      });
+    });
+    gastosVisiblesTurno().forEach(function (x) {
+      items.push({
+        kind: 'eg',
+        id: x.id,
+        concepto: x.concepto,
+        monto: x.monto,
+        sub: gastoPagadoLabel(x),
+        seq: movimientoTimestampMs(x),
+      });
+    });
+    items.sort(function (a, b) {
+      return b.seq - a.seq;
+    });
+    if (!items.length) {
+      ul.innerHTML = '';
       if (empty) {
         empty.classList.remove('hidden');
         if (!isCajaTurnoActivo()) {
-          empty.textContent = 'Sin gastos — abrí la caja para cargar gastos del turno (ahora $0).';
+          empty.textContent =
+            'Sin movimientos — abrí la caja para cargar ingresos y egresos del turno (ahora $0).';
         } else {
-          empty.textContent = 'Sin gastos en este turno.';
+          empty.textContent = 'Sin movimientos en este turno.';
         }
       }
       updateCajaUI();
       return;
     }
     if (empty) empty.classList.add('hidden');
-    visibles.forEach(function (g) {
-      var li = document.createElement('li');
-      var pagado = g.pagado_con || '';
-      var pagadoLbl =
-        pagado === 'efectivo' ? 'Efectivo' : pagado === 'transferencia' ? 'Transferencia' : pagado;
-      li.innerHTML =
-        '<div class="concept">' +
-        escapeHtml(g.concepto || '') +
-        (pagadoLbl ? '<small>' + escapeHtml(pagadoLbl) + '</small>' : '') +
-        '</div><span class="monto">−$' +
-        fmt(g.monto) +
-        '</span><button type="button" class="btn-del" data-gasto-id="' +
-        escapeHtml(g.id) +
-        '" title="Eliminar">✕</button>';
-      ul.appendChild(li);
-    });
-    ul.querySelectorAll('.btn-del').forEach(function (btn) {
+    ul.innerHTML = items
+      .map(function (x) {
+        var tag = x.kind === 'ing' ? 'Ingreso' : 'Egreso';
+        var mClass = x.kind === 'ing' ? 'ing' : 'eg';
+        var sign = x.kind === 'ing' ? '+' : '−';
+        return (
+          '<li><div class="concept"><span class="tag ' +
+          mClass +
+          '">' +
+          tag +
+          '</span><span class="concept-text">' +
+          escapeHtml(x.concepto || '') +
+          '</span><small>' +
+          escapeHtml(x.sub || '') +
+          '</small></div><div class="monto-row"><span class="monto ' +
+          mClass +
+          '">' +
+          sign +
+          '$' +
+          fmt(x.monto) +
+          '</span><button type="button" class="btn-del" data-del-kind="' +
+          x.kind +
+          '" data-del-id="' +
+          escapeHtml(x.id) +
+          '" title="Eliminar">✕</button></div></li>'
+        );
+      })
+      .join('');
+    ul.querySelectorAll('[data-del-id]').forEach(function (btn) {
       btn.onclick = function () {
-        var gid = btn.getAttribute('data-gasto-id');
-        if (!gid || !confirm('¿Eliminar gasto ' + gid + '?')) return;
-        var prev = gastosCache.slice();
-        gastosCache = gastosCache.filter(function (g) {
-          return g.id !== gid;
-        });
-        renderGastosList();
-        api({ action: 'deleteGasto', token: token, id: gid }).then(function (res) {
-          if (res.data.ok) loadGastos(true);
-          else {
-            gastosCache = prev;
-            renderGastosList();
-            if (res.status === 401) handleAuthFailure();
-            else alert('No se pudo eliminar el gasto.');
-          }
-        });
+        var kind = btn.getAttribute('data-del-kind');
+        var id = btn.getAttribute('data-del-id');
+        if (!id) return;
+        var label = kind === 'ing' ? 'ingreso' : 'egreso';
+        if (!confirm('¿Eliminar ' + label + ' ' + id + '?')) return;
+        if (kind === 'ing') {
+          var prevI = ingresosCache.slice();
+          ingresosCache = ingresosCache.filter(function (g) {
+            return g.id !== id;
+          });
+          renderMovimientosList();
+          api({ action: 'deleteIngreso', token: token, id: id }).then(function (res) {
+            if (res.data.ok) loadIngresos(true);
+            else {
+              ingresosCache = prevI;
+              renderMovimientosList();
+              if (res.status === 401) handleAuthFailure();
+              else alert('No se pudo eliminar el ingreso.');
+            }
+          });
+        } else {
+          var prevG = gastosCache.slice();
+          gastosCache = gastosCache.filter(function (g) {
+            return g.id !== id;
+          });
+          renderMovimientosList();
+          api({ action: 'deleteGasto', token: token, id: id }).then(function (res) {
+            if (res.data.ok) loadGastos(true);
+            else {
+              gastosCache = prevG;
+              renderMovimientosList();
+              if (res.status === 401) handleAuthFailure();
+              else alert('No se pudo eliminar el egreso.');
+            }
+          });
+        }
       };
     });
     updateCajaUI();
@@ -1629,7 +1802,7 @@
     return d.innerHTML;
   }
 
-  function gastoInFilterRange(g) {
+  function movimientoInFilterRange(g) {
     var iso = String(g.fecha || '').slice(0, 10);
     if (!iso) return true;
     if (filterDesde && iso < filterDesde) return false;
@@ -1649,7 +1822,7 @@
       .then(function (res) {
         if (res.data.ok) {
           gastosCache = res.data.gastos || [];
-          renderGastosList();
+          renderMovimientosList();
           return true;
         }
         if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
@@ -1661,12 +1834,37 @@
     return gastosFetchInFlight;
   }
 
+  function loadIngresos(force) {
+    readDateFiltersFromUi();
+    if (ingresosFetchInFlight && !force) return ingresosFetchInFlight;
+    ingresosFetchInFlight = api({
+      action: 'listIngresos',
+      token: token,
+      desde: filterDesde,
+      hasta: filterHasta,
+    })
+      .then(function (res) {
+        if (res.data.ok) {
+          ingresosCache = res.data.ingresos || [];
+          renderMovimientosList();
+          return true;
+        }
+        if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
+        return false;
+      })
+      .finally(function () {
+        ingresosFetchInFlight = null;
+      });
+    return ingresosFetchInFlight;
+  }
+
   function applyDateFilter() {
     readDateFiltersFromUi();
     fetchOrdersFromServer(true);
     cierresReady = false;
     loadCierres(true).then(function () {
       loadGastos(true);
+      loadIngresos(true);
     });
     updateCajaUI();
   }
@@ -1742,6 +1940,7 @@
     cierresReady = false;
     loadCierres(true).then(function () {
       loadGastos(true);
+      loadIngresos(true);
     });
     loadHambMenuMeta().then(function () {
       updateCajaUI();
@@ -2854,7 +3053,10 @@
 
     pollTick += 1;
 
-    if (pollTick % gastosPollEvery === 0) loadGastos();
+    if (pollTick % gastosPollEvery === 0) {
+      loadGastos();
+      loadIngresos();
+    }
 
     var action = fullSync || pollTick % 10 === 0 ? 'listOrders' : 'listOrdersRecent';
 
@@ -5174,10 +5376,92 @@
   if ($('cierre-resumen-close')) $('cierre-resumen-close').onclick = closeCierreResumenModal;
   if ($('cierre-resumen-print')) $('cierre-resumen-print').onclick = printCierreResumenCompleto;
 
+  if ($('btn-add-ingreso')) {
+    $('btn-add-ingreso').onclick = function () {
+      if (!isCajaTurnoActivo()) {
+        alert('Abrí la caja antes de agregar ingresos. Sin apertura la lista queda en 0.');
+        return;
+      }
+      $('i-concepto').value = '';
+      $('i-monto').value = '';
+      $('i-fecha').value = filterHasta || todayIsoLocal();
+      $('i-cobro').value = 'efectivo';
+      $('ingreso-modal').classList.remove('hidden');
+      $('i-concepto').focus();
+    };
+  }
+
+  if ($('i-cancel')) {
+    $('i-cancel').onclick = function () {
+      $('ingreso-modal').classList.add('hidden');
+    };
+  }
+
+  if ($('i-save')) {
+    $('i-save').onclick = function () {
+      var concepto = $('i-concepto').value.trim();
+      var monto = parseFloat($('i-monto').value, 10);
+      var fecha = $('i-fecha').value || todayIsoLocal();
+      var cobroCon = $('i-cobro').value;
+      if (!concepto || !monto || monto <= 0) {
+        alert('Completá concepto y monto.');
+        return;
+      }
+      var tempId = 'tmp-i-' + Date.now();
+      var optimistic = {
+        id: tempId,
+        fecha: fecha,
+        concepto: concepto,
+        monto: monto,
+        cobrado_con: cobroCon,
+        creado_at: new Date().toISOString(),
+      };
+      if (isCajaTurnoActivo()) {
+        ingresosCache.unshift(optimistic);
+        renderMovimientosList();
+      }
+      $('ingreso-modal').classList.add('hidden');
+      api({
+        action: 'createIngreso',
+        token: token,
+        concepto: concepto,
+        monto: monto,
+        fecha: fecha,
+        cobroCon: cobroCon,
+      }).then(function (res) {
+        if (res.data.ok) {
+          ingresosCache = ingresosCache.filter(function (g) {
+            return g.id !== tempId;
+          });
+          if (res.data.ingreso) {
+            var ing = res.data.ingreso;
+            if (!ing.creado_at) ing.creado_at = new Date().toISOString();
+            if (movimientoInSesionTurno(ing)) ingresosCache.unshift(ing);
+          }
+          renderMovimientosList();
+          loadIngresos(true);
+        } else {
+          ingresosCache = ingresosCache.filter(function (g) {
+            return g.id !== tempId;
+          });
+          renderMovimientosList();
+          if (res.status === 401) handleAuthFailure();
+          else {
+            alert(
+              res.data.error === 'invalid_ingreso'
+                ? 'Concepto y monto inválidos.'
+                : 'No se pudo guardar el ingreso. ¿Ejecutaste supabase/ingresos_migration.sql?'
+            );
+          }
+        }
+      });
+    };
+  }
+
   if ($('btn-add-gasto')) {
     $('btn-add-gasto').onclick = function () {
       if (!isCajaTurnoActivo()) {
-        alert('Abrí la caja antes de agregar gastos. Sin apertura la lista queda en 0.');
+        alert('Abrí la caja antes de agregar egresos. Sin apertura la lista queda en 0.');
         return;
       }
       $('g-concepto').value = '';
@@ -5216,7 +5500,7 @@
       };
       if (isCajaTurnoActivo()) {
         gastosCache.unshift(optimistic);
-        renderGastosList();
+        renderMovimientosList();
       }
       $('gasto-modal').classList.add('hidden');
       api({
@@ -5234,17 +5518,17 @@
           if (res.data.gasto) {
             var g = res.data.gasto;
             if (!g.creado_at) g.creado_at = new Date().toISOString();
-            if (gastoInSesionTurno(g)) gastosCache.unshift(g);
+            if (movimientoInSesionTurno(g)) gastosCache.unshift(g);
           }
-          renderGastosList();
+          renderMovimientosList();
           loadGastos(true);
         } else {
           gastosCache = gastosCache.filter(function (g) {
             return g.id !== tempId;
           });
-          renderGastosList();
+          renderMovimientosList();
           if (res.status === 401) handleAuthFailure();
-          else alert('No se pudo guardar el gasto.');
+          else alert('No se pudo guardar el egreso.');
         }
       });
     };
@@ -5256,6 +5540,7 @@
 
       fetchOrdersFromServer(true);
       loadGastos();
+      loadIngresos();
 
     }
 

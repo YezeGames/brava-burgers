@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — Ingresos + Egresos (admin Brava)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<script>
+		(function () {
+			try {
+				if (localStorage.getItem('brava_admin_theme') === 'dark') {
+					document.documentElement.setAttribute('data-theme', 'dark');
+				}
+			} catch (e) {}
+		})();
+	</script>
+	<style>
+		:root {
+			--bg-page: #f5f5f5;
+			--bg-surface: #fff;
+			--bg-surface-muted: #f9f9f9;
+			--text: #333;
+			--text-heading: #444;
+			--text-muted: #666;
+			--text-subtle: #888;
+			--text-faint: #999;
+			--border: #eee;
+			--border-strong: #f0f0f0;
+			--border-input: #ccc;
+			--shadow-card: 0 1px 4px rgba(0, 0, 0, 0.08);
+			--modal-backdrop: rgba(0, 0, 0, 0.45);
+			--input-bg: #fff;
+			--brava: #ff6b35;
+			--caja-estado: #666;
+		}
+		html[data-theme="dark"] {
+			color-scheme: dark;
+			--bg-page: #0f0f0f;
+			--bg-surface: #1c1c1c;
+			--bg-surface-muted: #252525;
+			--text: #e4e4e4;
+			--text-heading: #ddd;
+			--text-muted: #b3b3b3;
+			--text-subtle: #9a9a9a;
+			--text-faint: #777;
+			--border: #3a3a3a;
+			--border-strong: #333;
+			--border-input: #505050;
+			--input-bg: #2a2a2a;
+			--caja-estado: #aaa;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: var(--bg-page);
+			color: var(--text);
+			padding: 16px;
+		}
+		.demo-banner {
+			max-width: 1200px;
+			margin: 0 auto 12px;
+			padding: 10px 14px;
+			background: #1a1a1a;
+			color: #fff;
+			border-left: 4px solid var(--brava);
+			border-radius: 8px;
+			font-size: 0.82rem;
+			line-height: 1.45;
+		}
+		.demo-banner strong { color: var(--brava); }
+		.layout {
+			max-width: 1200px;
+			margin: 0 auto;
+			display: grid;
+			grid-template-columns: 1fr 280px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 960px) {
+			.layout { grid-template-columns: 1fr; }
+			.sidebar { order: -1; }
+		}
+		@media (min-width: 961px) {
+			.sidebar { position: sticky; top: 16px; }
+		}
+		.wrap {
+			background: var(--bg-surface);
+			border-radius: 8px;
+			box-shadow: var(--shadow-card);
+			padding: 20px;
+		}
+		.app-header {
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			flex-wrap: wrap;
+			gap: 10px;
+			margin-bottom: 12px;
+		}
+		.app-header h1 { margin: 0; font-size: 1.45rem; font-weight: 400; color: var(--text-heading); }
+		.btn-sm {
+			padding: 6px 10px;
+			font-size: 0.75rem;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			background: var(--bg-surface);
+			color: var(--text);
+			cursor: pointer;
+		}
+		.btn-sm.btn-accent { background: var(--brava); border-color: var(--brava); color: #fff; font-weight: 600; }
+		.orders-placeholder {
+			border: 1px dashed var(--border-input);
+			border-radius: 8px;
+			padding: 24px;
+			text-align: center;
+			color: var(--text-subtle);
+			font-size: 0.85rem;
+			background: var(--bg-surface-muted);
+		}
+		.sidebar-block {
+			background: var(--bg-surface);
+			border-radius: 8px;
+			box-shadow: var(--shadow-card);
+			padding: 18px 16px;
+			margin-bottom: 14px;
+		}
+		.sidebar-block h2 {
+			margin: 0 0 14px;
+			font-size: 1rem;
+			color: var(--text-heading);
+			border-bottom: 2px solid var(--brava);
+			padding-bottom: 10px;
+		}
+		.caja-row {
+			display: flex;
+			justify-content: space-between;
+			margin: 6px 0;
+			font-size: 0.85rem;
+		}
+		.caja-row.section {
+			margin-top: 10px;
+			font-weight: 600;
+			color: var(--text-muted);
+			font-size: 0.72rem;
+			text-transform: uppercase;
+			letter-spacing: 0.03em;
+		}
+		.caja-row.total-ventas {
+			font-weight: 600;
+			padding-top: 8px;
+			border-top: 1px dashed var(--border);
+		}
+		.caja-row.positive { color: #2e7d32; }
+		html[data-theme="dark"] .caja-row.positive { color: #81c784; }
+		.caja-row.negative { color: #c62828; }
+		html[data-theme="dark"] .caja-row.negative { color: #ef9a9a; }
+		.caja-row.resultado {
+			font-weight: 700;
+			font-size: 1.05rem;
+			margin-top: 12px;
+			padding-top: 12px;
+			border-top: 2px solid var(--brava);
+		}
+		.caja-row.resultado.pos { color: #2e7d32; }
+		.caja-row.resultado.neg { color: #c62828; }
+		.range-label { font-size: 0.75rem; color: var(--caja-estado); margin: 0 0 8px; }
+		.caja-hint { font-size: 0.68rem; color: var(--text-faint); margin: 10px 0 0; line-height: 1.35; }
+		.movimientos-box { overflow: hidden; }
+		.mov-list {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+			max-height: 220px;
+			overflow-x: hidden;
+			overflow-y: auto;
+			scrollbar-gutter: stable;
+		}
+		.mov-list li {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) auto;
+			column-gap: 10px;
+			align-items: center;
+			padding: 12px 0;
+			border-bottom: 1px solid var(--border-strong);
+			font-size: 0.85rem;
+			line-height: 1.35;
+		}
+		.mov-list li:first-child { padding-top: 4px; }
+		.mov-list .concept {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 5px;
+			min-width: 0;
+		}
+		.mov-list .concept-text {
+			color: var(--text);
+			word-break: break-word;
+			width: 100%;
+		}
+		.mov-list .concept small {
+			display: block;
+			color: var(--text-subtle);
+			font-size: 0.78rem;
+			line-height: 1.3;
+		}
+		.mov-list .monto-row {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+			justify-self: end;
+		}
+		.mov-list .monto { font-weight: 600; white-space: nowrap; font-size: 0.82rem; }
+		.mov-list .monto.ing { color: #2e7d32; }
+		html[data-theme="dark"] .mov-list .monto.ing { color: #81c784; }
+		.mov-list .monto.eg { color: #c62828; }
+		.mov-list .btn-del {
+			border: none;
+			background: none;
+			color: #c62828;
+			cursor: pointer;
+			padding: 4px 6px;
+			line-height: 1;
+			font-size: 0.85rem;
+			flex-shrink: 0;
+		}
+		.mov-empty { font-size: 0.82rem; color: var(--text-faint); margin: 14px 0 0; line-height: 1.4; }
+		.mov-actions {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 10px;
+			margin: 2px 0 14px;
+		}
+		.mov-actions .btn-sm {
+			width: 100%;
+			text-align: center;
+			padding: 9px 12px;
+			font-size: 0.8rem;
+		}
+		.movimientos-box .mov-hint {
+			margin-top: 14px;
+			padding-top: 12px;
+			border-top: 1px solid var(--border-strong);
+		}
+		.mov-actions .btn-outline {
+			background: transparent;
+			border-color: var(--brava);
+			color: var(--brava);
+			font-weight: 600;
+		}
+		html[data-theme="dark"] .mov-actions .btn-outline { color: #ffab91; }
+		.mov-list .tag {
+			display: inline-block;
+			font-size: 0.62rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			padding: 3px 7px;
+			border-radius: 4px;
+			background: var(--bg-surface-muted);
+			color: var(--text-subtle);
+			flex-shrink: 0;
+		}
+		.mov-list .tag.ing { color: #2e7d32; }
+		html[data-theme="dark"] .mov-list .tag.ing { color: #81c784; }
+		.mov-list .tag.eg { color: #c62828; }
+		html[data-theme="dark"] .mov-list .tag.eg { color: #ef9a9a; }
+		.modal-backdrop {
+			position: fixed;
+			inset: 0;
+			background: var(--modal-backdrop);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			z-index: 100;
+		}
+		.modal-backdrop.hidden { display: none; }
+		.modal {
+			background: var(--bg-surface);
+			border-radius: 8px;
+			max-width: 400px;
+			width: 100%;
+			padding: 20px;
+			box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+		}
+		.modal h2 { margin: 0 0 14px; font-size: 1.1rem; }
+		.modal label.field {
+			display: block;
+			font-size: 0.75rem;
+			color: var(--text-muted);
+			margin: 10px 0 4px;
+		}
+		.modal input, .modal select {
+			width: 100%;
+			padding: 8px 10px;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			font-size: 0.9rem;
+			background: var(--input-bg);
+			color: var(--text);
+		}
+		.modal-foot {
+			display: flex;
+			justify-content: flex-end;
+			gap: 8px;
+			margin-top: 18px;
+		}
+		.hidden { display: none !important; }
+	</style>
+</head>
+<body>
+	<p class="demo-banner">
+		<strong>Propuesta — demo admin</strong> · Una sola caja <strong>Ingresos y egresos</strong> (ahorra espacio). La caja arriba sigue mostrando totales.
+	</p>
+
+	<div class="layout">
+		<div class="wrap">
+			<div class="app-header">
+				<h1>Brava Burgers — Órdenes</h1>
+				<div>
+					<button type="button" class="btn-sm" id="theme-toggle" aria-pressed="false">Modo noche</button>
+					<button type="button" class="btn-sm">Salir</button>
+				</div>
+			</div>
+			<div class="orders-placeholder">
+				Tabla de pedidos (igual que hoy en <code>/admin/</code>).<br>
+				En esta demo probás <strong>Caja</strong> + movimientos unificados a la derecha.
+			</div>
+		</div>
+
+		<div class="sidebar">
+			<aside class="sidebar-block caja-box">
+				<h2>Caja</h2>
+				<p class="range-label" id="caja-range">Turno abierto · demo</p>
+				<div class="caja-row section">Ventas web (entregados ✓)</div>
+				<div class="caja-row"><span>Efectivo</span><span id="caja-ef-web">$45.000</span></div>
+				<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp-web">$31.200</span></div>
+				<div class="caja-row total-ventas"><span>Subtotal ventas</span><span id="caja-ventas-web">$76.200</span></div>
+
+				<div class="caja-row section">Ingresos extra (mostrador / fuera web)</div>
+				<div class="caja-row positive"><span>Efectivo</span><span id="caja-ef-ing">+$0</span></div>
+				<div class="caja-row positive"><span>Mercado Pago</span><span id="caja-mp-ing">+$0</span></div>
+				<div class="caja-row total-ventas positive"><span>Total ingresos</span><span id="caja-ing-total">+$0</span></div>
+
+				<div class="caja-row section">Salidas</div>
+				<div class="caja-row negative"><span>Egresos</span><span id="caja-gastos">−$0</span></div>
+
+				<div class="caja-row resultado pos" id="row-resultado">
+					<span>Resultado</span><span id="caja-resultado">$76.200</span>
+				</div>
+				<p class="caja-hint">
+					Resultado = ventas entregadas + ingresos manuales − egresos.
+					Solo con caja abierta (como egresos hoy).
+				</p>
+				<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;">Cierre de caja</button>
+			</aside>
+
+			<aside class="sidebar-block movimientos-box">
+				<h2>Ingresos y egresos</h2>
+				<div class="mov-actions">
+					<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
+					<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
+				</div>
+				<ul class="mov-list" id="mov-list"></ul>
+				<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
+				<p class="caja-hint mov-hint">Ingreso: venta fuera de la web. Egreso: insumos, delivery, etc.</p>
+			</aside>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="ingreso-modal">
+		<div class="modal">
+			<h2>Agregar ingreso</h2>
+			<label class="field" for="i-concepto">Concepto</label>
+			<input type="text" id="i-concepto" placeholder="Ej. 2 cheese mostrador, Coca 1.5L…">
+			<label class="field" for="i-monto">Monto ($)</label>
+			<input type="number" id="i-monto" min="1" step="1" placeholder="17000">
+			<label class="field" for="i-fecha">Fecha</label>
+			<input type="date" id="i-fecha">
+			<label class="field" for="i-cobro">Cobrado con</label>
+			<select id="i-cobro">
+				<option value="efectivo">Efectivo</option>
+				<option value="transferencia">Mercado Pago / transferencia</option>
+				<option value="otro">Otro</option>
+			</select>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="i-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="i-save">Guardar</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="gasto-modal">
+		<div class="modal">
+			<h2>Agregar egreso</h2>
+			<label class="field" for="g-concepto">Concepto</label>
+			<input type="text" id="g-concepto" placeholder="Ej. Pan, carne, bolsas…">
+			<label class="field" for="g-monto">Monto ($)</label>
+			<input type="number" id="g-monto" min="1" step="1">
+			<label class="field" for="g-fecha">Fecha</label>
+			<input type="date" id="g-fecha">
+			<label class="field" for="g-pagado">Salió de (opcional)</label>
+			<select id="g-pagado">
+				<option value="">—</option>
+				<option value="efectivo">Efectivo</option>
+				<option value="transferencia">Transferencia / MP</option>
+				<option value="otro">Otro</option>
+			</select>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="g-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="g-save">Guardar</button>
+			</div>
+		</div>
+	</div>
+
+	<script>
+		var VENTAS_EF = 45000;
+		var VENTAS_MP = 31200;
+		var ingresos = [
+			{ id: 'i1', concepto: 'Grasa vicente', monto: 30000, cobro: 'efectivo', fecha: todayIso(), seq: 2 },
+		];
+		var gastos = [
+			{ id: 'g1', concepto: 'Pan — mayorista', monto: 12000, pagado: 'efectivo', fecha: todayIso(), seq: 1 },
+		];
+		var nextI = 2;
+		var nextG = 2;
+
+		function todayIso() {
+			var d = new Date();
+			return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+		}
+		function fmt(n) {
+			return Math.round(n).toLocaleString('es-AR');
+		}
+		function pagadoLabel(v) {
+			if (v === 'efectivo') return 'Efectivo';
+			if (v === 'transferencia') return 'Mercado Pago';
+			if (v === 'otro') return 'Otro';
+			return '—';
+		}
+		function sumIngresosByCobro(cobro) {
+			var t = 0;
+			ingresos.forEach(function (x) {
+				if (x.cobro === cobro) t += Number(x.monto) || 0;
+			});
+			return t;
+		}
+		function sumGastos() {
+			var t = 0;
+			gastos.forEach(function (x) {
+				t += Number(x.monto) || 0;
+			});
+			return t;
+		}
+		function recalcCaja() {
+			var efIng = sumIngresosByCobro('efectivo');
+			var mpIng = sumIngresosByCobro('transferencia');
+			var totIng = efIng + mpIng + sumIngresosByCobro('otro');
+			var gTot = sumGastos();
+			var ventas = VENTAS_EF + VENTAS_MP;
+			var res = ventas + totIng - gTot;
+			document.getElementById('caja-ef-ing').textContent = '+$' + fmt(efIng);
+			document.getElementById('caja-mp-ing').textContent = '+$' + fmt(mpIng);
+			document.getElementById('caja-ing-total').textContent = '+$' + fmt(totIng);
+			document.getElementById('caja-gastos').textContent = '−$' + fmt(gTot);
+			var el = document.getElementById('caja-resultado');
+			var row = document.getElementById('row-resultado');
+			el.textContent = (res < 0 ? '−$' : '$') + fmt(Math.abs(res));
+			row.className = 'caja-row resultado ' + (res >= 0 ? 'pos' : 'neg');
+		}
+		function renderMovimientos() {
+			var ul = document.getElementById('mov-list');
+			var empty = document.getElementById('mov-empty');
+			var items = [];
+			ingresos.forEach(function (x) {
+				items.push({
+					kind: 'ing',
+					id: x.id,
+					concepto: x.concepto,
+					monto: x.monto,
+					sub: pagadoLabel(x.cobro),
+					seq: x.seq || 0,
+				});
+			});
+			gastos.forEach(function (x) {
+				items.push({
+					kind: 'eg',
+					id: x.id,
+					concepto: x.concepto,
+					monto: x.monto,
+					sub: pagadoLabel(x.pagado),
+					seq: x.seq || 0,
+				});
+			});
+			items.sort(function (a, b) {
+				return b.seq - a.seq;
+			});
+			if (!items.length) {
+				ul.innerHTML = '';
+				empty.classList.remove('hidden');
+				return;
+			}
+			empty.classList.add('hidden');
+			ul.innerHTML = items
+				.map(function (x) {
+					var tag = x.kind === 'ing' ? 'Ingreso' : 'Egreso';
+					var mClass = x.kind === 'ing' ? 'ing' : 'eg';
+					var sign = x.kind === 'ing' ? '+' : '−';
+					return (
+						'<li><div class="concept"><span class="tag ' +
+						mClass +
+						'">' +
+						tag +
+						'</span><span class="concept-text">' +
+						escapeHtml(x.concepto) +
+						'</span><small>' +
+						escapeHtml(x.sub) +
+						'</small></div><div class="monto-row"><span class="monto ' +
+						mClass +
+						'">' +
+						sign +
+						'$' +
+						fmt(x.monto) +
+						'</span><button type="button" class="btn-del" data-del-kind="' +
+						x.kind +
+						'" data-del-id="' +
+						x.id +
+						'" title="Quitar (demo)">✕</button></div></li>'
+					);
+				})
+				.join('');
+			ul.querySelectorAll('[data-del-id]').forEach(function (btn) {
+				btn.onclick = function () {
+					var kind = btn.getAttribute('data-del-kind');
+					var id = btn.getAttribute('data-del-id');
+					if (kind === 'ing') {
+						ingresos = ingresos.filter(function (x) {
+							return x.id !== id;
+						});
+					} else {
+						gastos = gastos.filter(function (x) {
+							return x.id !== id;
+						});
+					}
+					renderMovimientos();
+					recalcCaja();
+				};
+			});
+		}
+		function escapeHtml(s) {
+			return String(s || '')
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+		}
+
+		document.getElementById('caja-ef-web').textContent = '$' + fmt(VENTAS_EF);
+		document.getElementById('caja-mp-web').textContent = '$' + fmt(VENTAS_MP);
+		document.getElementById('caja-ventas-web').textContent = '$' + fmt(VENTAS_EF + VENTAS_MP);
+
+		document.getElementById('btn-add-ingreso').onclick = function () {
+			document.getElementById('i-concepto').value = '';
+			document.getElementById('i-monto').value = '';
+			document.getElementById('i-fecha').value = todayIso();
+			document.getElementById('i-cobro').value = 'efectivo';
+			document.getElementById('ingreso-modal').classList.remove('hidden');
+		};
+		document.getElementById('i-cancel').onclick = function () {
+			document.getElementById('ingreso-modal').classList.add('hidden');
+		};
+		document.getElementById('i-save').onclick = function () {
+			var c = (document.getElementById('i-concepto').value || '').trim();
+			var m = parseInt(document.getElementById('i-monto').value, 10);
+			if (!c || !m || m < 1) {
+				alert('Concepto y monto válidos.');
+				return;
+			}
+			ingresos.push({
+				id: 'i' + nextI++,
+				concepto: c,
+				monto: m,
+				cobro: document.getElementById('i-cobro').value,
+				fecha: document.getElementById('i-fecha').value,
+				seq: Date.now(),
+			});
+			document.getElementById('ingreso-modal').classList.add('hidden');
+			renderMovimientos();
+			recalcCaja();
+		};
+
+		document.getElementById('btn-add-gasto').onclick = function () {
+			document.getElementById('g-concepto').value = '';
+			document.getElementById('g-monto').value = '';
+			document.getElementById('g-fecha').value = todayIso();
+			document.getElementById('g-pagado').value = '';
+			document.getElementById('gasto-modal').classList.remove('hidden');
+		};
+		document.getElementById('g-cancel').onclick = function () {
+			document.getElementById('gasto-modal').classList.add('hidden');
+		};
+		document.getElementById('g-save').onclick = function () {
+			var c = (document.getElementById('g-concepto').value || '').trim();
+			var m = parseInt(document.getElementById('g-monto').value, 10);
+			if (!c || !m || m < 1) {
+				alert('Concepto y monto válidos.');
+				return;
+			}
+			gastos.push({
+				id: 'g' + nextG++,
+				concepto: c,
+				monto: m,
+				pagado: document.getElementById('g-pagado').value,
+				fecha: document.getElementById('g-fecha').value,
+				seq: Date.now(),
+			});
+			document.getElementById('gasto-modal').classList.add('hidden');
+			renderMovimientos();
+			recalcCaja();
+		};
+
+		document.getElementById('theme-toggle').onclick = function () {
+			var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+			if (dark) {
+				document.documentElement.removeAttribute('data-theme');
+				localStorage.removeItem('brava_admin_theme');
+				this.setAttribute('aria-pressed', 'false');
+				this.textContent = 'Modo noche';
+			} else {
+				document.documentElement.setAttribute('data-theme', 'dark');
+				localStorage.setItem('brava_admin_theme', 'dark');
+				this.setAttribute('aria-pressed', 'true');
+				this.textContent = 'Modo claro';
+			}
+		};
+		if (document.documentElement.getAttribute('data-theme') === 'dark') {
+			var tb = document.getElementById('theme-toggle');
+			tb.setAttribute('aria-pressed', 'true');
+			tb.textContent = 'Modo claro';
+		}
+
+		renderMovimientos();
+		recalcCaja();
+	</script>
+</body>
+</html>
