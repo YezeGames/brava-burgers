@@ -151,6 +151,27 @@
 
 
 
+  /** ORN de comanda (ORN-DEL). Rechazados y refs PEND no cuentan como ORN. */
+  function orderDisplayOrn(o) {
+
+    if (!o) return '—';
+
+    if (normalizeEstado(o.estado) === 'rechazado') return '—';
+
+    var orn = String(o.orn || '').trim();
+
+    if (!orn) return '—';
+
+    if (orn.indexOf('ORN-DEL-') === 0) return orn;
+
+    if (orn.indexOf('PEND-DEL-') === 0) return orn;
+
+    return orn;
+
+  }
+
+
+
   function emptyPanelFrags() {
 
     panelFrags = {
@@ -2192,7 +2213,7 @@
     }
     slot.innerHTML =
       '<p class="caja-hint">' +
-      escapeHtml(o.orn || '') +
+      escapeHtml(orderDisplayOrn(o)) +
       ' · ' +
       escapeHtml(o.cliente || '') +
       '</p>';
@@ -2219,7 +2240,7 @@
         '</td><td>$' +
         fmt(Number(o.total) || 0) +
         '</td><td><strong>' +
-        escapeHtml(o.orn || '—') +
+        escapeHtml(orderDisplayOrn(o)) +
         '</strong></td><td>' +
         escapeHtml(normalizeEstado(o.estado)) +
         '</td></tr>';
@@ -3643,7 +3664,7 @@
 
         '</td><td>' +
 
-        (o.orn || '') +
+        orderDisplayOrn(o) +
 
         '</td>';
 
@@ -4021,6 +4042,20 @@
           allOrdersCache[i][k] = patch[k];
 
         });
+
+        if (patch.orn && patch.orn !== orn) {
+
+          if (newPendingOrns.has(orn)) {
+
+            newPendingOrns.delete(orn);
+
+            newPendingOrns.add(patch.orn);
+
+          }
+
+          dismissPendingAlert(orn);
+
+        }
 
         var est = patch.estado ? normalizeEstado(patch.estado) : prevEst;
 
@@ -5391,8 +5426,12 @@
     return api(body).then(function (res) {
 
       if (res.data.ok) {
+        var serverOrn = res.data.orn || orn;
+        if (serverOrn !== orn) {
+          patchOrderInCache(orn, { orn: serverOrn });
+        }
         updateCajaUI();
-        return { ok: true, orn: orn };
+        return { ok: true, orn: serverOrn };
       }
 
       if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
@@ -5536,7 +5575,7 @@
 
     rechazoOrn = orn;
 
-    $('rechazo-sub').textContent = o.orn + ' · ' + (o.cliente || '') + ' · ' + (o.telefono || '');
+    $('rechazo-sub').textContent = orderDisplayOrn(o) + ' · ' + (o.cliente || '') + ' · ' + (o.telefono || '');
 
     document.querySelectorAll('#rechazo-motivos input').forEach(function (cb) {
 
@@ -5580,7 +5619,7 @@
 
     }
 
-    if (!confirm('¿Confirmar rechazo de ' + o.orn + '?')) return;
+    if (!confirm('¿Confirmar rechazo de ' + (orderDisplayOrn(o) !== '—' ? orderDisplayOrn(o) : (o.cliente || o.orn)) + '?')) return;
 
     var msg = buildRechazoMessage(o);
 
@@ -5883,8 +5922,9 @@
         alert(mensajeBloqueoOperarPedidos());
         return;
       }
-      sendOrderUpdate(orn, { estado: 'aceptado' });
-      autoPrintComandaOnAccept(orn);
+      sendOrderUpdate(orn, { estado: 'aceptado' }).then(function (r) {
+        if (r && r.ok) autoPrintComandaOnAccept(r.orn || orn);
+      });
     }
 
     if (action === 'reject') openRechazoModal(orn);

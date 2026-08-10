@@ -106,7 +106,7 @@ async function createOrderFromShop(order) {
 
 
 
-  const ornRes = await restRpc('next_orn_del');
+  const ornRes = await restRpc('next_pend_del');
 
   if (!ornRes.ok || !ornRes.data) return supabaseFail(ornRes, 'orn_failed');
 
@@ -248,6 +248,14 @@ async function searchOrders(opts) {
 
 
 
+function isOrnDelId(orn) {
+
+  return String(orn || '').indexOf('ORN-DEL-') === 0;
+
+}
+
+
+
 async function updateOrder(body) {
 
   const orn = body.orn;
@@ -258,11 +266,25 @@ async function updateOrder(body) {
 
   const patch = {};
 
+  var outOrn = orn;
+
   if (body.estado) {
 
     const est = String(body.estado).trim().toLowerCase();
 
     patch.estado = est;
+
+    if (est === 'aceptado' && !isOrnDelId(orn)) {
+
+      const ornRes = await restRpc('next_orn_del');
+
+      if (!ornRes.ok || !ornRes.data) return supabaseFail(ornRes, 'orn_failed');
+
+      patch.orn = ornRes.data;
+
+      outOrn = patch.orn;
+
+    }
 
     const now = new Date().toISOString();
 
@@ -332,7 +354,7 @@ async function updateOrder(body) {
 
   if (!r.ok) return supabaseFail(r, r.error);
 
-  return { ok: true, orn };
+  return { ok: true, orn: outOrn };
 
 }
 
