@@ -1082,10 +1082,10 @@
   function mensajeBloqueoOperarPedidos() {
     if (!cierresReady) return 'Esperá un momento: cargando el estado de caja…';
     if (findCierreForCurrentPeriod()) {
-      return 'Turno cerrado. Usá «Abrir caja» (columna derecha) antes de aceptar, marcar en camino o entregados.';
+      return 'Turno cerrado. Usá «Abrir turno» (✓ arriba) antes de aceptar, marcar en camino o entregados.';
     }
     if (!isCajaMarcadaAbierta() || isNaN(getAperturaAtMs())) {
-      return 'La caja no está abierta. Tocá «Abrir caja» para operar pedidos en el turno.';
+      return 'La caja no está abierta. Tocá «Abrir turno» (✓ arriba) para operar pedidos.';
     }
     return '';
   }
@@ -1312,7 +1312,6 @@
     var cierre = cierresReady ? findCierreForCurrentPeriod() : null;
     var abierta = cierresReady && isCajaTurnoActivo();
     var btnCierre = $('btn-cierre-caja');
-    var btnAbrir = $('btn-abrir-caja');
     var estado = $('caja-estado');
     var detalle = $('caja-cierre-detalle');
     if (cierre) {
@@ -1332,7 +1331,6 @@
           ' · abrí de nuevo para un turno en 0';
       }
       if (btnCierre) btnCierre.classList.add('hidden');
-      if (btnAbrir) btnAbrir.classList.remove('hidden');
     } else if (abierta) {
       if (estado) {
         estado.textContent = 'Caja abierta';
@@ -1341,7 +1339,6 @@
       }
       if (detalle) detalle.hidden = true;
       if (btnCierre) btnCierre.classList.remove('hidden');
-      if (btnAbrir) btnAbrir.classList.add('hidden');
     } else {
       if (estado) {
         estado.textContent = 'Caja sin abrir';
@@ -1349,7 +1346,6 @@
       }
       if (detalle) detalle.hidden = true;
       if (btnCierre) btnCierre.classList.add('hidden');
-      if (btnAbrir) btnAbrir.classList.remove('hidden');
     }
   }
 
@@ -2528,11 +2524,11 @@
 
   function performCierreCaja() {
     if (findCierreForCurrentPeriod()) {
-      alert('Este período ya está cerrado. Usá «Abrir caja» si querés operar de nuevo.');
+      alert('Este período ya está cerrado. Usá «Abrir turno» (✓ arriba) si querés operar de nuevo.');
       return;
     }
     if (!isCajaMarcadaAbierta()) {
-      alert('Primero abrí la caja con el botón «Abrir caja».');
+      alert('Primero abrí el turno con el botón ✓ arriba.');
       return;
     }
     readDateFiltersFromUi();
@@ -6230,7 +6226,6 @@
 
   $('rechazo-confirm').onclick = confirmRechazo;
 
-  if ($('btn-abrir-caja')) $('btn-abrir-caja').onclick = performAbrirCaja;
 
   if ($('btn-stock-recontar')) {
     $('btn-stock-recontar').onclick = function () {
