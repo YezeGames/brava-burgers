@@ -14,6 +14,7 @@
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 	<link href="https://fonts.googleapis.com/css?family=Montserrat:400,700" rel="stylesheet">
 	<link href="https://fonts.googleapis.com/css?family=Open+Sans:400,800&display=swap" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/3.7.2/animate.min.css">
 	<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css">
@@ -36,7 +37,7 @@
 		var g_telefono = '';
 	</script>
 	<script src="pedilo-data.js?v=21"></script>
-	<link href="brava-brand.css?v=15" rel="stylesheet">
+	<link href="brava-brand.css?v=16" rel="stylesheet">
 	<style>
 		#preguntas_pedido.fancybox-content,
 		#pregunta_variedades.fancybox-content,
@@ -94,34 +95,36 @@
 	<style id="pedilo-theme"></style>
 </head>
 
-<body id="page-top">
+<body id="page-top" class="brava-shop-b">
 
-	<nav class="navbar navbar-expand-lg fixed-top" id="mainNav">
-		<div class="container" style="min-height:50px;">
-			<div id="mySidenav" class="sidenav">
-				<a href="javascript:void(0)" class="sidenav-closebtn" onclick="closeNav()">&times;</a>
-				<div id="sidenav_categorias"></div>
-			</div>
-			<div style="position:absolute;">
-				<a id="link_logo" href="./"><img src="" alt="Brava Burgers" referrerpolicy="no-referrer" style="border-radius:50%;height:50px;width:50px;"></a>
-				<a id="link_titulo" class="navbar-brand" href="./" style="font-size:17px;"><font color="#FF6B35">BRAVA BURGERS</font></a>
-			</div>
-			<div style="padding-left:10px;z-index:999999;margin-left:auto;">
-				<button class="btn btn-primary helper_changuito my-btn-primary" style="display:none;" type="button" onclick="mostrar_resumen_pedido();">
-					<i id="icono_resumen_pedido" class="fas fa-shopping-cart"></i>
-					<span class="badge badge-light pedido_productos_cantidad_total">0</span>
-				</button>
-				<button class="btn btn-primary my-btn-primary" id="boton_buscador" style="display:none;" type="button" onclick="mostrar_buscador();">
+	<div id="mySidenav" class="sidenav">
+		<a href="javascript:void(0)" class="sidenav-closebtn" onclick="closeNav()">&times;</a>
+		<div id="sidenav_categorias"></div>
+	</div>
+
+	<header class="brava-hero" id="mainNav">
+		<div class="brava-hero-inner">
+			<a id="link_logo" class="brava-hero-logo" href="./">
+				<img src="" alt="Brava Burgers" referrerpolicy="no-referrer">
+			</a>
+			<h1 id="link_titulo" class="brava-hero-title"><font color="#FF6B35">BRAVA BURGERS</font></h1>
+			<p id="brava_hero_sub" class="brava-hero-sub">Pedí online · Delivery</p>
+			<div class="brava-hero-actions">
+				<button type="button" class="brava-hero-icon" id="boton_buscador" style="display:none;" onclick="mostrar_buscador();" aria-label="Buscar">
 					<i class="fas fa-search"></i>
 				</button>
-				<button type="button" style="display:none;" onclick="openNav()" class="btn btn-primary my-btn-primary" id="mobile-nav-toggle">
+				<button type="button" class="brava-hero-icon" id="mobile-nav-toggle" style="display:none;" onclick="openNav();" aria-label="Menú categorías">
 					<i class="fa fa-bars"></i>
+				</button>
+				<button type="button" class="brava-hero-icon brava-hero-cart helper_changuito my-btn-primary" style="display:none;" onclick="mostrar_resumen_pedido();" aria-label="Ver pedido">
+					<i id="icono_resumen_pedido" class="fas fa-shopping-cart"></i>
+					<span class="pedido_productos_cantidad_total">0</span>
 				</button>
 			</div>
 		</div>
-	</nav>
+	</header>
 
-	<div class="container" style="max-width:600px;">
+	<div class="container brava-shop-wrap">
 		<div class="row" id="productos" style="margin-top:10px;">
 			<div id="mipedido"></div>
 
@@ -137,6 +140,7 @@
 				<input type="search" id="input_buscador" class="form-control" style="margin-top:-4px;width:calc(100% - 62px);" placeholder="Texto a buscar" onkeyup="buscar();">
 			</div>
 
+			<div id="brava_cat_chips" class="col-12"></div>
 			<div id="catalogo_dinamico" class="col-12"></div>
 		</div>
 	</div>
@@ -232,15 +236,17 @@
 		</div>
 	</footer>
 
-	<div id="footer_enviar">
-		<a href="javascript:void(0)" onclick="enviar_pedido()" class="btn my-btn-primary" id="boton_enviar">Enviar pedido</a>
+	<div id="footer_enviar" class="brava-send-bar">
+		<div class="brava-shop-wrap">
+			<a href="javascript:void(0)" onclick="enviar_pedido()" class="btn my-btn-primary brava-send-btn" id="boton_enviar">Enviar pedido</a>
+		</div>
 	</div>
 	<div class="helper_footer_padding" style="height:70px;display:none;"></div>
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.js"></script>
 	<script src="pedilo-turnos.js?v=2"></script>
-	<script src="pedilo-shop.js?v=33"></script>
+	<script src="pedilo-shop.js?v=34"></script>
 	<script src="pedilo-address.js?v=4"></script>
 </body>
 </html>

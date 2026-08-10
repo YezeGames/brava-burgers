@@ -237,70 +237,45 @@
 
 	window.scrollToCategoria = function (n) {
 		abrir_categoria(String(n));
+		closeNav();
 		var el = document.getElementById('categoria_' + n);
-		if (el) el.scrollIntoView({ behavior: 'smooth' });
+		if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+	};
+
+	window.bravaSelectCatalogCat = function (catIndex) {
+		var c = String(catIndex);
+		$('.brava-cat-chip').removeClass('is-on');
+		$('.brava-cat-chip[data-cat="' + c + '"]').addClass('is-on');
+		$('.brava-cat-panel').removeClass('is-on');
+		$('.brava-cat-panel[data-cat="' + c + '"]').addClass('is-on');
 	};
 
 	window.ver_todas_las_categorias = function () {
 		$('.producto').show();
-		$('.subcategoria').show();
-		$('.categoria_titulo .categoria_icono').removeClass('fa-angle-down').addClass('fa-angle-up');
 	};
 
 	window.mostrar_categoria = function (p_categoria) {
-		if ($('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono').hasClass('fa-angle-down')) {
-			abrir_categoria(p_categoria);
-		} else {
-			cerrar_categoria(p_categoria);
-		}
+		bravaSelectCatalogCat(p_categoria);
 	};
 
 	window.abrir_categoria = function (p_categoria) {
-		$('.subcategoria[data-categoria="' + p_categoria + '"]').show();
-		$('.producto[data-categoria="' + p_categoria + '"]').hide();
-		$('.subcategoria[data-categoria="' + p_categoria + '"] .subcategoria_icono')
-			.removeClass('fa-angle-up')
-			.addClass('fa-angle-down');
-		$('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono')
-			.removeClass('fa-angle-down')
-			.addClass('fa-angle-up');
+		bravaSelectCatalogCat(p_categoria);
 	};
 
 	function colapsar_catalogo_inicial() {
-		$('.producto').hide();
-		$('.subcategoria').hide();
-		$('.categoria_titulo .categoria_icono').removeClass('fa-angle-up').addClass('fa-angle-down');
-		$('.subcategoria_titulo .subcategoria_icono').removeClass('fa-angle-up').addClass('fa-angle-down');
+		bravaSelectCatalogCat('1');
 	}
 
-	window.cerrar_categoria = function (p_categoria) {
-		$('.producto[data-categoria="' + p_categoria + '"]').hide();
-		$('.subcategoria[data-categoria="' + p_categoria + '"]').hide();
-		$('.categoria[data-categoria="' + p_categoria + '"] .categoria_icono')
-			.removeClass('fa-angle-up')
-			.addClass('fa-angle-down');
-	};
+	window.cerrar_categoria = function () {};
 
-	window.mostrar_subcategoria = function (p_subcategoria, p_categoria) {
-		var selProd = '.producto[data-subcategoria="' + p_subcategoria + '"]';
-		var selSub = '.subcategoria[data-subcategoria="' + p_subcategoria + '"]';
-		if (p_categoria) {
-			selProd += '[data-categoria="' + p_categoria + '"]';
-			selSub += '[data-categoria="' + p_categoria + '"]';
-		}
-		var $icono = $(selSub + ' .subcategoria_icono');
-		var abrir = $icono.hasClass('fa-angle-down');
-		$(selProd).toggle(abrir);
-		$icono.toggleClass('fa-angle-down', !abrir).toggleClass('fa-angle-up', abrir);
-	};
+	window.mostrar_subcategoria = function () {};
 
 	window.mostrar_resumen_pedido = function () {
 		if (g_viendo_buscador) mostrar_buscador();
 		ver_todas_las_categorias();
 		if (!g_viendo_resumen) {
 			$('.producto_imagen').hide();
-			$('.categoria').hide();
-			$('.subcategoria').hide();
+			$('body').addClass('brava-viendo-resumen');
 			$('.producto').hide();
 			$('.helper_resumen').show();
 			g_pedido.productos.forEach(function (producto) {
@@ -313,13 +288,12 @@
 			g_viendo_resumen = true;
 		} else {
 			$('.producto_imagen').show();
-			$('.categoria').show();
-			$('.subcategoria').show();
+			$('body').removeClass('brava-viendo-resumen');
 			$('.producto').show();
 			$('.helper_resumen').hide();
 			$('#icono_resumen_pedido').addClass('fa-shopping-cart').removeClass('fa-cart-plus');
 			$('.pedido_productos_cantidad_total').show();
-			$('.categoria_titulo').first().click();
+			bravaSelectCatalogCat('1');
 			$(window).scrollTop(0);
 			g_viendo_resumen = false;
 		}
@@ -345,8 +319,7 @@
 		ver_todas_las_categorias();
 		if (!g_viendo_buscador) {
 			$('.producto_imagen').hide();
-			$('.categoria').hide();
-			$('.subcategoria').hide();
+			$('body').addClass('brava-catalog-search');
 			$('.producto').hide();
 			$('.helper_buscador').show();
 			$(window).scrollTop(0);
@@ -355,10 +328,10 @@
 			g_viendo_buscador = true;
 		} else {
 			$('.producto_imagen').show();
-			$('.categoria').show();
-			$('.subcategoria').show();
+			$('body').removeClass('brava-catalog-search');
 			$('.producto').show();
 			$('.helper_buscador').hide();
+			bravaSelectCatalogCat('1');
 			$(window).scrollTop(0);
 			g_viendo_buscador = false;
 		}
@@ -612,67 +585,64 @@
 
 		total = 0;
 		var total_cantidad_de_productos = 0;
-		$('.producto_fila').removeClass('producto_pedido');
+		$('.producto_fila').removeClass('producto_pedido brava-product-active');
 		$('.producto_cantidades').empty().hide();
 		$('.helper_variedades_agregar').hide();
 
 		var html_por_producto = {};
 
+		function bravaStepperHtml(producto) {
+			var aclEsc = escapeAttr(producto.aclaraciones || '');
+			var minusOn =
+				"restar_una_unidad_del_pedido(\"" +
+				producto.id +
+				'"' +
+				(producto.variedad
+					? ', "' + escapeAttr(producto.variedad) + '", "' + aclEsc + '"'
+					: '') +
+				')';
+			var plusOn =
+				'agregar_al_pedido("' +
+				producto.id +
+				'"' +
+				(producto.variedad ? ', "' + escapeAttr(producto.variedad) + '"' : '') +
+				')';
+			return (
+				"<div class='brava-stepper'>" +
+				"<button type='button' onclick=\"" +
+				minusOn +
+				'">-</button>' +
+				"<span class='n'>" +
+				producto.cantidad +
+				'</span>' +
+				"<button type='button' onclick=\"" +
+				plusOn +
+				'">+</button>' +
+				'</div>'
+			);
+		}
+
 		g_pedido.productos.forEach(function (producto) {
 			var id = producto.id;
-			$('#fila_' + id).addClass('producto_pedido');
-
-			var aclEsc = escapeAttr(producto.aclaraciones || '');
-			var v_html_boton = "<div class='btn-group float-right'>";
-			if (producto.variedad) {
-				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' onclick='restar_una_unidad_del_pedido(\"" +
-					producto.id +
-					'", "' +
-					escapeAttr(producto.variedad) +
-					'", "' +
-					aclEsc +
-					"\")'>-</button>";
-				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' style='background-color:#333;'>" +
-					producto.cantidad +
-					'</button>';
-				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' onclick='agregar_al_pedido(\"" +
-					producto.id +
-					'", "' +
-					escapeAttr(producto.variedad) +
-					"\")'>+</button>";
-			} else {
-				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' onclick='restar_una_unidad_del_pedido(\"" +
-					producto.id +
-					"\")'>-</button>";
-				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' style='background-color:#333;'>" +
-					producto.cantidad +
-					'</button>';
-				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' onclick='agregar_al_pedido(\"" +
-					producto.id +
-					"\")'>+</button>";
-			}
-			v_html_boton += '</div>';
+			$('#fila_' + id).addClass('producto_pedido brava-product-active');
 
 			var precioLinea =
 				parseFloat(producto.precio) * parseFloat(producto.cantidad) +
 				parseFloat(producto.adicionales || 0) * parseFloat(producto.cantidad);
 			var variedad_mostrar = producto.variedad ? ' ' + producto.variedad : '';
 			var v_html_texto =
-				"<div style='float-left;padding-top:8px;'>" +
+				"<span class='brava-expand-label'>" +
 				producto.cantidad +
-				' x' +
+				'×' +
 				escapeHtml(variedad_mostrar) +
-				' = $' +
+				' · $' +
 				formatear_moneda(precioLinea) +
-				'</div>';
+				'</span>';
 			var block =
-				"<div style='margin-top:5px;' class='clearfix'>" + v_html_boton + v_html_texto + '</div>';
+				"<div class='brava-expand-line clearfix'>" +
+				v_html_texto +
+				bravaStepperHtml(producto) +
+				'</div>';
 			html_por_producto[id] = (html_por_producto[id] || '') + block;
 
 			total +=
@@ -1069,80 +1039,92 @@
 		});
 
 		var html = '';
+		var chipsHtml = '<nav class="brava-cat-chips" aria-label="Categorías">';
 		var cat_index = 1;
 		cat_order.forEach(function (categoria) {
+			chipsHtml +=
+				'<button type="button" class="brava-cat-chip' +
+				(cat_index === 1 ? ' is-on' : '') +
+				'" data-cat="' +
+				cat_index +
+				'" onclick="bravaSelectCatalogCat(\'' +
+				cat_index +
+				'\')">' +
+				escapeHtml(categoria) +
+				'</button>';
+			cat_index++;
+		});
+		chipsHtml += '</nav>';
+		$('#brava_cat_chips').html(chipsHtml);
+
+		cat_index = 1;
+		cat_order.forEach(function (categoria) {
 			html +=
-				'<div class="col-md-12 categoria" data-categoria="' +
+				'<div class="brava-cat-panel' +
+				(cat_index === 1 ? ' is-on' : '') +
+				'" data-cat="' +
 				cat_index +
 				'" id="categoria_' +
 				cat_index +
 				'">';
 			html +=
-				'<div class="categoria_titulo" onclick="mostrar_categoria(\'' +
-				cat_index +
-				'\');"><i class="fas fa-angle-down float-right categoria_icono"></i> ' +
-				escapeHtml(categoria.toUpperCase()) +
-				'</div></div>';
+				'<h2 class="brava-section-title">' + escapeHtml(categoria.toUpperCase()) + '</h2>';
+			html += '<div class="brava-menu-list">';
 
 			var sub_index = 1;
 			productos_por_cat[categoria].order.forEach(function (subcategoria) {
-				html +=
-					'<div class="col-md-12 subcategoria" data-categoria="' +
-					cat_index +
-					'" data-subcategoria="' +
-					sub_index +
-					'" style="display:none;">';
-				html +=
-					'<div class="subcategoria_titulo" onclick="mostrar_subcategoria(\'' +
-					sub_index +
-					"', '" +
-					cat_index +
-					'\');"><i class="fas fa-angle-down float-right subcategoria_icono"></i> ' +
-					escapeHtml(subcategoria.toUpperCase()) +
-					'</div></div>';
+				var subs = productos_por_cat[categoria].subs[subcategoria];
+				var showSubTitle = productos_por_cat[categoria].order.length > 1 || subcategoria !== 'General';
+				if (showSubTitle) {
+					html +=
+						'<h3 class="brava-sub-title">' + escapeHtml(subcategoria.toUpperCase()) + '</h3>';
+				}
 
-				productos_por_cat[categoria].subs[subcategoria].forEach(function (producto) {
+				subs.forEach(function (producto) {
 					var precioLabel = 'Desde $' + formatear_moneda(producto.precio);
 					html +=
-						'<div class="col-md-12 producto" data-categoria="' +
+						'<div class="col-12 producto brava-row-item" data-categoria="' +
 						cat_index +
 						'" data-subcategoria="' +
 						sub_index +
-						'" style="display:none;" id="producto_' +
+						'" id="producto_' +
 						producto.id +
 						'">';
-					html += '<div class="producto_fila" id="fila_' + producto.id + '">';
+					html += '<div class="producto_fila brava-product-row" id="fila_' + producto.id + '">';
+					html += '<div class="brava-row-head">';
+					html += '<div class="brava-thumb" aria-hidden="true"></div>';
+					html += '<div class="brava-row-copy">';
 					html +=
-						'<div onclick="agregar_al_pedido(\'' +
-						producto.id +
-						'\');" style="cursor:pointer;display:flow-root;padding:7px;min-height:50px;">';
-					html +=
-						'<div style="display:none;float:left;font-weight:900" class="animated fadeIn product-add-icon"><span class="fa fa-plus-circle"></span></div>';
-					html +=
-						'<div class="precio-box" style="float:right;font-weight:900;"><span style="vertical-align:middle;">' +
-						precioLabel +
-						'</span></div>';
-					html +=
-						'<div style="float:left;"><span id="producto_titulo_' +
+						'<span class="brava-row-title" id="producto_titulo_' +
 						producto.id +
 						'">' +
 						escapeHtml(producto.nombre) +
-						'</span><br><small>' +
-						escapeHtml(producto.descripcion) +
-						'</small></div>';
+						'</span>';
+					if (producto.descripcion) {
+						html += '<small>' + escapeHtml(producto.descripcion) + '</small>';
+					}
+					html +=
+						'<div class="precio-box brava-row-price">' + precioLabel + '</div>';
 					html += '</div>';
 					html +=
-						'<div class="producto_cantidades" id="cantidades_' +
+						'<button type="button" class="brava-btn-add product-add-icon" style="display:none;" onclick="agregar_al_pedido(\'' +
 						producto.id +
-						'" style="display:none;margin-top:5px;padding:7px;border-top:1px solid #bbb;font-weight:bold;"></div>';
+						'\');" aria-label="Agregar">+</button>';
+					html += '</div>';
 					html +=
-						'<div class="helper_variedades_agregar clearfix" style="display:none;padding:7px;"><button class="btn btn-dark float-right" onclick="agregar_al_pedido(\'' +
+						'<div class="producto_cantidades brava-row-expand" id="cantidades_' +
+						producto.id +
+						'"></div>';
+					html +=
+						'<div class="helper_variedades_agregar brava-row-extra-btn clearfix" style="display:none;"><button type="button" class="btn btn-dark btn-sm" onclick="agregar_al_pedido(\'' +
 						producto.id +
 						'\');">Agregar otra opción</button></div>';
 					html += '</div></div>';
 				});
 				sub_index++;
 			});
+
+			html += '</div></div>';
 			cat_index++;
 		});
 
@@ -1213,7 +1195,7 @@
 		await refrescar_desde_sheets(true);
 
 		$('#boton_buscador,#mobile-nav-toggle').show();
-		if (g_telefono) $('.product-add-icon').show();
+		if (g_telefono) $('.product-add-icon,.brava-btn-add').show();
 
 		var storageKey = g_pedido_storage_key || 'pedido-bravaburgers';
 		var saved = localStorage.getItem(storageKey);
