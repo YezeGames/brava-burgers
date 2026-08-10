@@ -377,13 +377,10 @@
     var t = todayIsoLocal();
     filterDesde = t;
     filterHasta = t;
-    if ($('filtro-desde')) $('filtro-desde').value = t;
-    if ($('filtro-hasta')) $('filtro-hasta').value = t;
   }
 
   function readDateFiltersFromUi() {
-    filterDesde = ($('filtro-desde') && $('filtro-desde').value) || filterDesde;
-    filterHasta = ($('filtro-hasta') && $('filtro-hasta').value) || filterHasta;
+    if (!filterDesde || !filterHasta) initDateFilters();
   }
 
   function orderDateIso(o) {
@@ -2707,19 +2704,6 @@
     return ingresosFetchInFlight;
   }
 
-  function applyDateFilter() {
-    readDateFiltersFromUi();
-    fetchOrdersFromServer(true);
-    cierresReady = false;
-    loadCierres(true).then(function () {
-      loadGastos(true);
-      loadIngresos(true);
-    });
-    updateCajaUI();
-  }
-
-
-
   function api(body) {
 
     return fetch(API, {
@@ -3614,22 +3598,6 @@
       a.innerHTML = '<i class="fab fa-whatsapp"></i>';
 
       actions.appendChild(a);
-
-      var print = document.createElement('button');
-
-      print.type = 'button';
-
-      print.className = 'btn-sm';
-
-      print.textContent = 'Ticket';
-
-      print.dataset.action = 'ticket';
-
-      print.dataset.orn = o.orn;
-
-      actions.appendChild(print);
-
-
 
       tr.innerHTML =
 
@@ -5896,16 +5864,6 @@
 
     var action = btn.dataset.action;
 
-    if (action === 'ticket') {
-
-      var ornTicket = btn.dataset.orn;
-
-      if (ornTicket) openComanda(ornTicket);
-
-      return;
-
-    }
-
     if (action === 'edit') {
 
       var ornEdit = btn.dataset.orn;
@@ -6210,15 +6168,6 @@
   };
 
   $('rechazo-confirm').onclick = confirmRechazo;
-
-  if ($('btn-filtro-aplicar')) $('btn-filtro-aplicar').onclick = applyDateFilter;
-
-  if ($('btn-filtro-hoy')) {
-    $('btn-filtro-hoy').onclick = function () {
-      initDateFilters();
-      applyDateFilter();
-    };
-  }
 
   if ($('btn-abrir-caja')) $('btn-abrir-caja').onclick = performAbrirCaja;
 
