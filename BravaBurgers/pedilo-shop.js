@@ -478,8 +478,17 @@
 		}
 
 		if (!_brava_pers_line) {
-			var acl = $('#aclaracion_' + p_id).val();
-			if (acl) producto.aclaraciones = acl;
+			if (p_variedad !== undefined && p_variedad !== null) {
+				g_pedido.productos.forEach(function (item) {
+					if (item.id == producto.id && item.variedad == p_variedad) {
+						producto.precio = item.precio;
+						producto.adicionales = item.adicionales;
+						producto.aclaraciones = item.aclaraciones;
+						producto.step = item.step;
+						producto.minimo = item.minimo;
+					}
+				});
+			}
 		}
 
 		var agrupado = false;
@@ -511,6 +520,24 @@
 		calcular_total();
 	};
 
+	window.restar_una_unidad_del_pedido = function (p_id, p_variedad, p_aclaraciones) {
+		for (var i = 0; i < g_pedido.productos.length; i++) {
+			var producto = g_pedido.productos[i];
+			if (producto.id != p_id) continue;
+			if (p_variedad !== undefined && p_variedad !== null) {
+				if (producto.variedad != p_variedad) continue;
+				if ((producto.aclaraciones || '') != (p_aclaraciones || '')) continue;
+			}
+			var step = parseFloat(producto.step || 1);
+			producto.cantidad = parseFloat(producto.cantidad) - step;
+			if (producto.cantidad <= 0) {
+				g_pedido.productos.splice(i, 1);
+			}
+			break;
+		}
+		calcular_total();
+	};
+
 	window.quitar_del_pedido = function (p_id, p_variedad, p_aclaraciones) {
 		g_pedido.productos = g_pedido.productos.filter(function (producto) {
 			if (p_variedad === undefined) {
@@ -526,15 +553,7 @@
 	};
 
 	window.cambiar_cantidad_producto = function (btn, p_id, p_variedad) {
-		g_pedido.productos.forEach(function (producto) {
-			if (producto.id == p_id && (p_variedad === undefined || producto.variedad == p_variedad)) {
-				producto.cantidad = Math.max(0, parseFloat(producto.cantidad) - 1);
-				if (producto.cantidad <= 0) {
-					quitar_del_pedido(p_id, p_variedad, producto.aclaraciones);
-				}
-			}
-		});
-		calcular_total();
+		restar_una_unidad_del_pedido(p_id, p_variedad);
 	};
 
 	function whatsappBoldLabel(raw) {
@@ -595,7 +614,6 @@
 		var total_cantidad_de_productos = 0;
 		$('.producto_fila').removeClass('producto_pedido');
 		$('.producto_cantidades').empty().hide();
-		$('.helper_aclaracion').hide();
 		$('.helper_variedades_agregar').hide();
 
 		var html_por_producto = {};
@@ -608,7 +626,7 @@
 			var v_html_boton = "<div class='btn-group float-right'>";
 			if (producto.variedad) {
 				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' onclick='quitar_del_pedido(\"" +
+					"<button class='btn btn-dark btn-sm' onclick='restar_una_unidad_del_pedido(\"" +
 					producto.id +
 					'", "' +
 					escapeAttr(producto.variedad) +
@@ -627,7 +645,7 @@
 					"\")'>+</button>";
 			} else {
 				v_html_boton +=
-					"<button class='btn btn-dark btn-sm' onclick='quitar_del_pedido(\"" +
+					"<button class='btn btn-dark btn-sm' onclick='restar_una_unidad_del_pedido(\"" +
 					producto.id +
 					"\")'>-</button>";
 				v_html_boton +=
@@ -661,8 +679,6 @@
 				parseFloat(producto.precio) * parseFloat(producto.cantidad) +
 				parseFloat(producto.adicionales || 0) * parseFloat(producto.cantidad);
 			total_cantidad_de_productos += parseFloat(producto.cantidad);
-
-			$('#fila_' + id + ' .helper_aclaracion').show();
 			if (producto.variedad) {
 				$('#fila_' + id + ' .helper_variedades_agregar').show();
 			}
@@ -862,20 +878,7 @@
 	};
 
 	function syncAclaracionesFromInputs() {
-		$('[id^="aclaracion_"]').each(function () {
-			var p_id = this.id.replace('aclaracion_', '');
-			var val = ($(this).val() || '').trim();
-			if (!val) return;
-			g_pedido.productos.forEach(function (item) {
-				if (String(item.id) !== String(p_id)) return;
-				var prev = (item.aclaraciones || '').trim();
-				if (prev) {
-					if (prev.indexOf(val) === -1) item.aclaraciones = prev + ' · ' + val;
-				} else {
-					item.aclaraciones = val;
-				}
-			});
-		});
+		/* Aclaraciones solo en el modal de personalización (ya van en el ítem del pedido). */
 	}
 
 	function buildBravaOrderPayload() {
@@ -1136,10 +1139,6 @@
 						'<div class="helper_variedades_agregar clearfix" style="display:none;padding:7px;"><button class="btn btn-dark float-right" onclick="agregar_al_pedido(\'' +
 						producto.id +
 						'\');">Agregar otra opción</button></div>';
-					html +=
-						'<div class="helper_aclaracion clearfix" style="display:none;padding:0 7px 7px;"><input type="text" id="aclaracion_' +
-						producto.id +
-						'" class="form-control" placeholder="Agregar aclaraciones" onchange="calcular_total()"></div>';
 					html += '</div></div>';
 				});
 				sub_index++;
@@ -1236,10 +1235,6 @@
 			console.error('Falta pedilo-data.js');
 			return;
 		}
-		$(document).on('change input', '[id^="aclaracion_"]', function () {
-			syncAclaracionesFromInputs();
-			calcular_total();
-		});
 		inicializar_tienda();
 	});
 
