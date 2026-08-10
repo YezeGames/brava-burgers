@@ -937,6 +937,7 @@
 
 		var waAbierto = false;
 		var serverAck = false;
+		var serverFailed = false;
 
 		function abrirWhatsApp() {
 			if (waAbierto) return;
@@ -944,15 +945,26 @@
 			irWhatsApp();
 		}
 
+		function falloGuardarPedido(mensaje) {
+			serverFailed = true;
+			clearTimeout(tLimite);
+			$submit.prop('disabled', false);
+			alert(
+				mensaje ||
+					'No pudimos registrar el pedido en el sistema. Probá de nuevo en unos segundos o escribinos por WhatsApp.'
+			);
+		}
+
 		function beaconRespaldo() {
-			if (serverAck || typeof navigator.sendBeacon !== 'function') return;
+			if (serverAck || serverFailed || typeof navigator.sendBeacon !== 'function') return;
 			var blob = new Blob([payloadJson], { type: 'application/json' });
 			navigator.sendBeacon('/api/pedido', blob);
 		}
 
-		// WhatsApp ~450 ms; un solo fetch keepalive (sin beacon al abrir WA — evita duplicados)
+		// WhatsApp ~450 ms si el servidor ya confirmó; si falló, no abrir WA
 		var WA_ORN_ESPERA_MS = 450;
 		var tLimite = setTimeout(function () {
+			if (serverFailed || !serverAck) return;
 			abrirWhatsApp();
 		}, WA_ORN_ESPERA_MS);
 
@@ -969,16 +981,18 @@
 			})
 			.then(function (pack) {
 				var data = pack.data;
-				if (data && !data.ok) {
+				if (!pack.httpOk || (data && !data.ok)) {
 					var msgTurno =
-						window.bravaMensajeErrorTurno && window.bravaMensajeErrorTurno(data.error);
+						data &&
+						window.bravaMensajeErrorTurno &&
+						window.bravaMensajeErrorTurno(data.error);
 					if (msgTurno) {
-						clearTimeout(tLimite);
-						$submit.prop('disabled', false);
-						alert(msgTurno);
+						falloGuardarPedido(msgTurno);
 						if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
 						return;
 					}
+					falloGuardarPedido();
+					return;
 				}
 				if (data && data.ok) {
 					serverAck = true;

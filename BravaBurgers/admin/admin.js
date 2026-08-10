@@ -2807,6 +2807,7 @@
     });
 
     ensureIngresosSchemaOnce();
+    ensurePendOrnDelOnce();
     initDefaultAlertSound();
 
   }
@@ -2827,6 +2828,26 @@
         } catch (e2) {}
         loadIngresos(true);
         loadCierres(true);
+      }
+    });
+  }
+
+
+
+  /** Una vez por sesión: next_pend_del() si falta en Supabase (Vercel: SUPABASE_DB_PASSWORD). */
+  function ensurePendOrnDelOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_pend_orn_try') === '1') return;
+      sessionStorage.setItem('brava_pend_orn_try', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migratePendOrnDel', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_pend_orn_ok', '1');
+        } catch (e2) {}
       }
     });
   }

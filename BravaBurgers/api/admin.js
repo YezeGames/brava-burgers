@@ -15,7 +15,7 @@ const {
   createCierre,
   deleteCierre,
 } = require('../lib/bravaSupabase');
-const { migrateEnCaminoColumn, migrateIngresosSchema } = require('../lib/dbMigrate');
+const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel } = require('../lib/dbMigrate');
 
 function parseRequestBody(req) {
   let body = req.body;
@@ -121,6 +121,10 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateIngresosSchema') {
     return migrateIngresosSchema();
+  }
+
+  if (action === 'migratePendOrnDel') {
+    return migratePendOrnDel();
   }
 
   return { ok: false, error: 'unknown_action' };

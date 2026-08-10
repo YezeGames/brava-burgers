@@ -111,4 +111,48 @@ async function migrateIngresosSchema() {
   }
 }
 
-module.exports = { migrateEnCaminoColumn, migrateIngresosSchema };
+async function migratePendOrnDel() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL.',
+    };
+  }
+  const client = new Client({
+    connectionString: conn,
+    ssl: { rejectUnauthorized: false },
+  });
+  try {
+    await client.connect();
+    await client.query(
+      "INSERT INTO admin_counters (key, value) VALUES ('pend_del', 0) ON CONFLICT (key) DO NOTHING;"
+    );
+    await client.query(`
+      CREATE OR REPLACE FUNCTION public.next_pend_del()
+      RETURNS text
+      LANGUAGE plpgsql
+      SECURITY DEFINER
+      SET search_path = public
+      AS $$
+      DECLARE n bigint;
+      BEGIN
+        INSERT INTO admin_counters (key, value) VALUES ('pend_del', 0)
+        ON CONFLICT (key) DO NOTHING;
+        UPDATE admin_counters SET value = value + 1 WHERE key = 'pend_del' RETURNING value INTO n;
+        RETURN 'PEND-DEL-' || lpad(n::text, 4, '0');
+      END;
+      $$;
+    `);
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
+module.exports = { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel };
