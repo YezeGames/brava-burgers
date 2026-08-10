@@ -2157,9 +2157,6 @@
     printCierreResumenThermal(inner.outerHTML);
   }
 
-    printCierreResumenThermal(inner.outerHTML);
-  }
-
   function orderProformaFechaIso(o) {
     if (!o || !o.fecha_creado) return '';
     return String(o.fecha_creado).slice(0, 10);
