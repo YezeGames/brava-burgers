@@ -170,7 +170,8 @@ CREATE TABLE IF NOT EXISTS cierres_caja (
   notas text NOT NULL DEFAULT '',
   turno text NOT NULL DEFAULT '',
   ventana_desde timestamptz,
-  ventana_hasta timestamptz
+  ventana_hasta timestamptz,
+  snapshot_json jsonb
 );
 
 CREATE INDEX IF NOT EXISTS cierres_caja_cerrado_idx ON cierres_caja (cerrado_at DESC);

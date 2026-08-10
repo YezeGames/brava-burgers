@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — Búsqueda de comandas (admin Brava)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<script>
+		(function () {
+			try {
+				if (localStorage.getItem('brava_admin_theme') === 'dark') {
+					document.documentElement.setAttribute('data-theme', 'dark');
+				}
+			} catch (e) {}
+		})();
+	</script>
+	<style>
+		:root {
+			--bg-page: #f5f5f5;
+			--bg-surface: #fff;
+			--bg-surface-muted: #f9f9f9;
+			--text: #333;
+			--text-heading: #444;
+			--text-muted: #666;
+			--text-subtle: #888;
+			--text-faint: #999;
+			--border: #eee;
+			--border-input: #ccc;
+			--shadow-card: 0 1px 4px rgba(0, 0, 0, 0.08);
+			--modal-backdrop: rgba(0, 0, 0, 0.45);
+			--input-bg: #fff;
+			--brava: #ff6b35;
+		}
+		html[data-theme="dark"] {
+			color-scheme: dark;
+			--bg-page: #0f0f0f;
+			--bg-surface: #1c1c1c;
+			--bg-surface-muted: #252525;
+			--text: #e4e4e4;
+			--text-heading: #ddd;
+			--text-muted: #b3b3b3;
+			--text-subtle: #9a9a9a;
+			--text-faint: #777;
+			--border: #3a3a3a;
+			--border-input: #505050;
+			--input-bg: #2a2a2a;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+			background: var(--bg-page);
+			color: var(--text);
+			padding: 16px;
+		}
+		.demo-banner {
+			max-width: 1200px;
+			margin: 0 auto 12px;
+			padding: 12px 14px;
+			background: #1a1a1a;
+			color: #fff;
+			border-left: 4px solid var(--brava);
+			border-radius: 8px;
+			font-size: 0.82rem;
+			line-height: 1.5;
+		}
+		.demo-banner strong { color: var(--brava); }
+		.demo-banner ul { margin: 8px 0 0; padding-left: 1.2rem; }
+		.layout {
+			max-width: 1200px;
+			margin: 0 auto;
+			display: grid;
+			grid-template-columns: 1fr 300px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 960px) {
+			.layout { grid-template-columns: 1fr; }
+			.sidebar { order: -1; }
+		}
+		.card {
+			background: var(--bg-surface);
+			border-radius: 8px;
+			box-shadow: var(--shadow-card);
+			padding: 20px;
+		}
+		.card h1 { margin: 0 0 4px; font-size: 1.35rem; font-weight: 500; color: var(--text-heading); }
+		.card .sub { margin: 0 0 16px; font-size: 0.82rem; color: var(--text-muted); }
+		.filters {
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+			gap: 10px;
+			align-items: end;
+			margin-bottom: 12px;
+		}
+		.filters label {
+			display: block;
+			font-size: 0.72rem;
+			color: var(--text-muted);
+			margin-bottom: 4px;
+		}
+		.filters input, .filters select {
+			width: 100%;
+			padding: 8px;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			font-size: 0.85rem;
+			background: var(--input-bg);
+			color: var(--text);
+		}
+		.search-wrap { grid-column: 1 / -1; }
+		.search-wrap input { font-size: 0.95rem; padding: 10px 12px; }
+		.filters-actions { display: flex; flex-wrap: wrap; gap: 8px; grid-column: 1 / -1; }
+		.btn-sm {
+			padding: 8px 12px;
+			font-size: 0.78rem;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			background: var(--bg-surface);
+			color: var(--text);
+			cursor: pointer;
+		}
+		.btn-sm.btn-accent { background: var(--brava); border-color: var(--brava); color: #fff; font-weight: 600; }
+		.meta-bar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 12px;
+			font-size: 0.78rem;
+			color: var(--text-subtle);
+			margin-bottom: 12px;
+		}
+		.meta-bar strong { color: var(--text); }
+		table {
+			width: 100%;
+			border-collapse: collapse;
+			font-size: 0.82rem;
+		}
+		th, td {
+			text-align: left;
+			padding: 10px 8px;
+			border-bottom: 1px solid var(--border);
+		}
+		th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-muted); }
+		tbody tr { cursor: pointer; }
+		tbody tr:hover td { background: var(--bg-surface-muted); }
+		tbody tr.row-active td { background: rgba(255, 107, 53, 0.12); }
+		tbody tr.row-hidden { display: none; }
+		.badge {
+			display: inline-block;
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			padding: 2px 8px;
+			border-radius: 4px;
+		}
+		.badge-entregada { background: #e8f5e9; color: #2e7d32; }
+		.badge-aceptado { background: #e3f2fd; color: #1565c0; }
+		.badge-cancelada { background: #ffebee; color: #c62828; }
+		html[data-theme="dark"] .badge-entregada { background: #1b3d1f; color: #81c784; }
+		html[data-theme="dark"] .badge-aceptado { background: #1a2a3d; color: #90caf9; }
+		html[data-theme="dark"] .badge-cancelada { background: #3d1a1a; color: #ef9a9a; }
+		.tel-link { color: var(--brava); text-decoration: none; font-weight: 600; }
+		.empty-msg { padding: 32px; text-align: center; color: var(--text-subtle); }
+		.sidebar-block {
+			background: var(--bg-surface);
+			border-radius: 8px;
+			box-shadow: var(--shadow-card);
+			padding: 16px;
+			margin-bottom: 14px;
+		}
+		.sidebar-block h2 {
+			margin: 0 0 10px;
+			font-size: 0.95rem;
+			border-bottom: 2px solid var(--brava);
+			padding-bottom: 8px;
+			color: var(--text-heading);
+		}
+		.sidebar-block p, .sidebar-block li {
+			font-size: 0.8rem;
+			line-height: 1.45;
+			color: var(--text-muted);
+		}
+		.turno-chip {
+			display: block;
+			font-size: 0.75rem;
+			padding: 8px 10px;
+			margin-bottom: 6px;
+			border-radius: 6px;
+			border: 1px solid var(--border);
+			background: var(--bg-surface-muted);
+		}
+		.turno-chip strong { display: block; color: var(--text); margin-bottom: 2px; }
+		.comanda-preview {
+			border: 1px solid var(--border);
+			border-radius: 8px;
+			overflow: hidden;
+			background: #fff;
+			color: #000;
+			font-size: 11px;
+			line-height: 1.35;
+			max-height: 420px;
+			overflow-y: auto;
+		}
+		.comanda-preview .brand {
+			text-align: center;
+			font-weight: 800;
+			font-size: 13px;
+			padding: 8px 0 4px;
+			letter-spacing: 0.04em;
+		}
+		.comanda-preview .meta {
+			padding: 6px 10px;
+			border-bottom: 1px dashed #000;
+			font-size: 10px;
+		}
+		.comanda-preview .body { padding: 8px 10px 12px; }
+		.comanda-preview .item { margin: 6px 0; font-weight: 700; }
+		.comanda-preview .total { font-weight: 800; font-size: 13px; margin-top: 8px; }
+		.comanda-placeholder {
+			padding: 24px 12px;
+			text-align: center;
+			color: var(--text-faint);
+			font-size: 0.82rem;
+			border: 1px dashed var(--border-input);
+			border-radius: 8px;
+		}
+		.retention-note {
+			font-size: 0.75rem;
+			color: var(--text-faint);
+			margin-top: 10px;
+		}
+	</style>
+</head>
+<body>
+	<div class="demo-banner">
+		<strong>Demo local</strong> — Búsqueda de comandas guardadas (sin tocar el admin de producción).
+		<ul>
+			<li><strong>Búsqueda libre:</strong> nombre, ORN o dígitos del tel (ej. últimos 4: <code>1945</code>).</li>
+			<li><strong>Fechas:</strong> Desde / Hasta acotan por día del pedido; vacíos = todo el histórico cargado.</li>
+			<li>En prod: las comandas se conservan desde el <strong>primer día de caja</strong> (sin borrar a los 15 días). Reset a cero solo cuando lo pidamos al terminar pruebas.</li>
+		</ul>
+	</div>
+
+	<div class="layout">
+		<main class="card">
+			<h1>Pedidos — búsqueda</h1>
+			<p class="sub">Misma idea que el panel: encontrar cliente rápido y ver la comanda.</p>
+
+			<div class="filters">
+				<div class="search-wrap">
+					<label for="q">Buscar (tel, ORN, cliente)</label>
+					<input type="search" id="q" placeholder="Ej. 7372, ORN-DEL-0003, mario" autocomplete="off">
+				</div>
+				<div>
+					<label for="desde">Desde</label>
+					<input type="date" id="desde">
+				</div>
+				<div>
+					<label for="hasta">Hasta</label>
+					<input type="date" id="hasta">
+				</div>
+				<div>
+					<label for="estado">Estado</label>
+					<select id="estado">
+						<option value="">Todos</option>
+						<option value="entregada">Entregada</option>
+						<option value="aceptado">Aceptado</option>
+						<option value="cancelada">Cancelada</option>
+					</select>
+				</div>
+				<div class="filters-actions">
+					<button type="button" class="btn-sm btn-accent" id="btn-aplicar">APLICAR</button>
+					<button type="button" class="btn-sm" id="btn-hoy">Hoy</button>
+					<button type="button" class="btn-sm" id="btn-limpiar">Limpiar búsqueda</button>
+				</div>
+			</div>
+
+			<div class="meta-bar">
+				<span>Mostrando <strong id="count-visible">0</strong> de <strong id="count-total">0</strong> comandas guardadas</span>
+			</div>
+
+			<div style="overflow-x: auto;">
+				<table>
+					<thead>
+						<tr>
+							<th>Fecha</th>
+							<th>ORN</th>
+							<th>Cliente</th>
+							<th>Teléfono</th>
+							<th>Total</th>
+							<th>Estado</th>
+						</tr>
+					</thead>
+					<tbody id="tbody"></tbody>
+				</table>
+			</div>
+			<p class="empty-msg hidden" id="empty-msg">Nada coincide con filtros o búsqueda.</p>
+		</main>
+
+		<aside class="sidebar">
+			<div class="sidebar-block">
+				<h2>Comanda seleccionada</h2>
+				<div id="comanda-slot">
+					<div class="comanda-placeholder">Clic en una fila de la tabla.</div>
+				</div>
+				<p class="retention-note">Datos de ejemplo: varios sábados con ORN que vuelve a 0001 cada turno. Filtrá por fecha arriba.</p>
+			</div>
+		</aside>
+	</div>
+
+	<script>
+	(function () {
+		function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+		function isoDate(d) {
+			return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+		}
+
+		function fmtDisplay(iso) {
+			var p = iso.split('-');
+			return pad(parseInt(p[2], 10)) + '/' + pad(parseInt(p[1], 10)) + '/' + p[0];
+		}
+
+		function fmtMoney(n) {
+			return '$' + (Number(n) || 0).toLocaleString('es-AR', { maximumFractionDigits: 0 });
+		}
+
+		function digitsOnly(s) {
+			return String(s || '').replace(/\D/g, '');
+		}
+
+		function todayLocal() {
+			return isoDate(new Date());
+		}
+
+		function addDays(iso, delta) {
+			var p = iso.split('-');
+			var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+			d.setDate(d.getDate() + delta);
+			return isoDate(d);
+		}
+
+		var today = todayLocal();
+		var turnoActual = addDays(today, 0);
+		var turnoAnterior = addDays(today, -7);
+		var turnoViejo = addDays(today, -20);
+
+		var TURNOS = [
+			{ id: 'CH-0024', label: 'Sábado actual', fecha: turnoActual, ornDesde: 1, ornHasta: 5 },
+			{ id: 'CH-0023', label: 'Sábado anterior', fecha: turnoAnterior, ornDesde: 1, ornHasta: 15 },
+			{ id: 'CH-0018', label: 'Sábado más viejo (ejemplo)', fecha: turnoViejo, ornDesde: 1, ornHasta: 3 }
+		];
+
+		function buildMockOrders() {
+			var list = [];
+			var clientes = [
+				{ n: 'Mario López', tel: '11 7372-1945', wa: '5491173721945' },
+				{ n: 'Camila Ruiz', tel: '11 6234-5678', wa: '5491162345678' },
+				{ n: 'Lucas Pérez', tel: '11 5555-1234', wa: '5491155551234' },
+				{ n: 'Sofía Díaz', tel: '11 6012-8899', wa: '5491160128899' },
+				{ n: 'Tomás Acosta', tel: '11 4521-7788', wa: '5491145217788' }
+			];
+			var estados = ['entregada', 'entregada', 'entregada', 'aceptado', 'cancelada'];
+
+			TURNOS.forEach(function (turno) {
+				for (var seq = turno.ornDesde; seq <= turno.ornHasta; seq++) {
+					var c = clientes[(seq + turno.ornHasta) % clientes.length];
+					var orn = 'ORN-DEL-' + padOrn(seq, 4);
+					var hora = 20 + (seq % 3);
+					var min = (seq * 7) % 60;
+					var iso = turno.fecha;
+					var fechaCreado = iso + 'T' + pad(hora) + ':' + pad(min) + ':00-03:00';
+					var sub = 12000 + seq * 850;
+					var envio = 800;
+					var total = sub + envio;
+					var est = estados[seq % estados.length];
+					list.push({
+						id: turno.id + '|' + orn,
+						orn: orn,
+						turnoId: turno.id,
+						turnoFecha: turno.fecha,
+						fecha_creado: fechaCreado,
+						cliente: c.n,
+						telefono: c.tel,
+						wa: c.wa,
+						estado: est,
+						subtotal: sub,
+						envio: envio,
+						total: total,
+						items: [
+							{ nombre: 'Cheese Clásica Simple', qty: 1 + (seq % 2), precio: 8500 },
+							{ nombre: 'Crispy Vegan', qty: seq % 4, precio: 9200 }
+						].filter(function (it) { return it.qty > 0; })
+					});
+				}
+			});
+			return list;
+		}
+
+		function padOrn(n, w) {
+			var s = String(n);
+			while (s.length < w) s = '0' + s;
+			return s;
+		}
+
+		var ALL_ORDERS = buildMockOrders();
+		var selectedId = null;
+
+		function orderDayKey(o) {
+			return o.turnoFecha || (o.fecha_creado || '').slice(0, 10);
+		}
+
+		function matchSearch(o, q) {
+			if (!q) return true;
+			var ql = q.toLowerCase().trim();
+			var qDigits = digitsOnly(q);
+			if (o.orn.toLowerCase().indexOf(ql) !== -1) return true;
+			if (o.cliente.toLowerCase().indexOf(ql) !== -1) return true;
+			var telD = digitsOnly(o.telefono);
+			if (qDigits.length >= 3) {
+				if (telD.indexOf(qDigits) !== -1) return true;
+				if (qDigits.length >= 4 && telD.slice(-4) === qDigits.slice(-4)) return true;
+			}
+			if (ql.indexOf('del') !== -1 && o.orn.toLowerCase().indexOf(ql.replace(/\s/g, '')) !== -1) return true;
+			var num = qDigits.replace(/^0+/, '');
+			if (num && o.orn.indexOf(padOrn(parseInt(num, 10) || 0, 4)) !== -1) return true;
+			return false;
+		}
+
+		function renderComanda(o) {
+			if (!o) {
+				return '<div class="comanda-placeholder">Clic en una fila de la tabla.</div>';
+			}
+			var itemsHtml = '';
+			o.items.forEach(function (it) {
+				itemsHtml += '<div class="item">' + it.qty + ' x ' + it.nombre + '</div>';
+			});
+			return (
+				'<div class="comanda-preview">' +
+				'<div class="brand">BRAVA BURGERS</div>' +
+				'<div class="meta">' +
+				'Pedido: <strong>' + o.orn + '</strong><br>' +
+				fmtDisplay(o.turnoFecha) + '<br>' +
+				o.cliente + ' · Tel ' + o.telefono +
+				'</div>' +
+				'<div class="body">' +
+				itemsHtml +
+				'<div class="total">TOTAL ' + fmtMoney(o.total) + '</div>' +
+				'</div></div>'
+			);
+		}
+
+		function getFilters() {
+			return {
+				desde: document.getElementById('desde').value,
+				hasta: document.getElementById('hasta').value,
+				estado: document.getElementById('estado').value,
+				q: document.getElementById('q').value
+			};
+		}
+
+		function applyFilters() {
+			var f = getFilters();
+			var visible = 0;
+			var rows = document.querySelectorAll('#tbody tr');
+			rows.forEach(function (tr) {
+				var id = tr.getAttribute('data-id');
+				var o = ALL_ORDERS.find(function (x) { return x.id === id; });
+				if (!o) return;
+				var day = orderDayKey(o);
+				var ok = true;
+				if (f.desde && day < f.desde) ok = false;
+				if (f.hasta && day > f.hasta) ok = false;
+				if (f.estado && o.estado !== f.estado) ok = false;
+				if (!matchSearch(o, f.q)) ok = false;
+				tr.classList.toggle('row-hidden', !ok);
+				if (ok) visible++;
+			});
+			document.getElementById('count-visible').textContent = String(visible);
+			document.getElementById('count-total').textContent = String(ALL_ORDERS.length);
+			document.getElementById('empty-msg').classList.toggle('hidden', visible > 0);
+		}
+
+		function renderTable() {
+			var tbody = document.getElementById('tbody');
+			var html = '';
+			ALL_ORDERS.slice()
+				.sort(function (a, b) {
+					if (a.turnoFecha !== b.turnoFecha) return a.turnoFecha < b.turnoFecha ? 1 : -1;
+					return a.orn < b.orn ? 1 : -1;
+				})
+				.forEach(function (o) {
+					var badgeClass =
+						o.estado === 'entregada'
+							? 'badge-entregada'
+							: o.estado === 'cancelada'
+								? 'badge-cancelada'
+								: 'badge-aceptado';
+					html +=
+						'<tr data-id="' +
+						o.id +
+						'" class="' +
+						(selectedId === o.id ? 'row-active' : '') +
+						'">' +
+						'<td>' +
+						fmtDisplay(orderDayKey(o)) +
+						'</td>' +
+						'<td><strong>' +
+						o.orn +
+						'</strong></td>' +
+						'<td>' +
+						o.cliente +
+						'</td>' +
+						'<td><a class="tel-link" href="https://wa.me/' +
+						o.wa +
+						'" target="_blank" rel="noopener" onclick="event.stopPropagation()">' +
+						o.telefono +
+						'</a></td>' +
+						'<td>' +
+						fmtMoney(o.total) +
+						'</td>' +
+						'<td><span class="badge ' +
+						badgeClass +
+						'">' +
+						o.estado +
+						'</span></td>' +
+						'</tr>';
+				});
+			tbody.innerHTML = html;
+			tbody.querySelectorAll('tr').forEach(function (tr) {
+				tr.addEventListener('click', function () {
+					selectedId = tr.getAttribute('data-id');
+					var o = ALL_ORDERS.find(function (x) { return x.id === selectedId; });
+					document.getElementById('comanda-slot').innerHTML = renderComanda(o);
+					tbody.querySelectorAll('tr').forEach(function (r) {
+						r.classList.toggle('row-active', r.getAttribute('data-id') === selectedId);
+					});
+				});
+			});
+			applyFilters();
+		}
+
+		function setDefaultDates() {
+			document.getElementById('desde').value = '';
+			document.getElementById('hasta').value = '';
+		}
+
+		document.getElementById('btn-aplicar').onclick = applyFilters;
+		document.getElementById('btn-hoy').onclick = function () {
+			document.getElementById('desde').value = today;
+			document.getElementById('hasta').value = today;
+			applyFilters();
+		};
+		document.getElementById('btn-limpiar').onclick = function () {
+			document.getElementById('q').value = '';
+			applyFilters();
+		};
+		document.getElementById('q').addEventListener('input', function () {
+			applyFilters();
+		});
+		document.getElementById('desde').addEventListener('change', applyFilters);
+		document.getElementById('hasta').addEventListener('change', applyFilters);
+		document.getElementById('estado').addEventListener('change', applyFilters);
+
+		setDefaultDates();
+		renderTable();
+	})();
+	</script>
+</body>
+</html>

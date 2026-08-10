@@ -141,6 +141,8 @@ Proyecto **brava-burgers** → **Settings** → **Environment Variables**.
 
 **Cierre de caja:** ejecutá `cierres_caja_migration.sql` en Supabase si el cierre falla al guardar.
 
+**Historial de cierre operativo (reimpresión completa):** ejecutá una vez `supabase/BRAVA_SUPABASE_RUN_ONCE.sql` (incluye columna `snapshot_json`) o solo `cierres_caja_snapshot_migration.sql` si el resto ya está aplicado.
+
 ### Flujo delivery en el admin (pestañas)
 
 Orden operativo: **Pendientes → Aceptados → En preparación → En camino → Entregados** (más Cancelados / Rechazados).

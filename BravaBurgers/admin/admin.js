@@ -119,6 +119,19 @@
   var filterHasta = '';
   var lastPuedeOperarCaja = null;
   var pendingCierreSnapshot = null;
+  var cashArqueoMode = 'cierre';
+  var cashArqueoEsperadoEf = 0;
+  var cashArqueoEsperadoMp = 0;
+  var pendingAperturaArqueoDone = null;
+  var selectedHistorialCierreId = null;
+  var cierresHistorialList = [];
+  var cierresHistorialHasMore = false;
+  var cierresHistorialFetchInFlight = null;
+  var selectedProformaOrn = null;
+  var proformasList = [];
+  var proformasHasMore = false;
+  var proformasFetchInFlight = null;
+  var proformasSearchTimer = null;
 
 
 
@@ -459,6 +472,49 @@
       localStorage.removeItem(aperturaStorageKey());
     } catch (e) {}
     clearStockTurno();
+    clearArqueoAperturaTurno();
+  }
+
+  function arqueoAperturaStorageKey() {
+    return 'brava_caja_arqueo_apertura_' + (filterDesde || '') + '_' + (filterHasta || '');
+  }
+
+  function normalizeArqueoRecord(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    return {
+      efEsperado: Number(raw.efEsperado) || 0,
+      mpEsperado: Number(raw.mpEsperado) || 0,
+      efContado: Math.max(0, Math.round(Number(raw.efContado) || 0)),
+      mpContado: Math.max(0, Math.round(Number(raw.mpContado) || 0)),
+      efDiff: Number(raw.efDiff) || 0,
+      mpDiff: Number(raw.mpDiff) || 0,
+      notaEf: String(raw.notaEf || '').trim(),
+      notaMp: String(raw.notaMp || '').trim(),
+    };
+  }
+
+  function getArqueoAperturaTurno() {
+    try {
+      var raw = localStorage.getItem(arqueoAperturaStorageKey());
+      if (!raw) return null;
+      return normalizeArqueoRecord(JSON.parse(raw));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveArqueoAperturaTurno(arqueo) {
+    var n = normalizeArqueoRecord(arqueo);
+    if (!n) return;
+    try {
+      localStorage.setItem(arqueoAperturaStorageKey(), JSON.stringify(n));
+    } catch (e) {}
+  }
+
+  function clearArqueoAperturaTurno() {
+    try {
+      localStorage.removeItem(arqueoAperturaStorageKey());
+    } catch (e) {}
   }
 
   var pendingFinalizeAbrirCaja = null;
@@ -714,7 +770,11 @@
     if (modal) modal.classList.add('hidden');
     pendingFinalizeAbrirCaja = null;
     updateStockChrome();
-    if (done) done();
+    if (stockModalMode === 'apertura' && done) {
+      openAperturaArqueoModal(done);
+    } else if (done) {
+      done();
+    }
   }
 
   function adjustStockTurnoKey(key, delta) {
@@ -830,11 +890,16 @@
       ef: 0,
       mp: 0,
       ventas: 0,
+      ventasPedidos: 0,
+      efPedidos: 0,
+      mpPedidos: 0,
       cancel: 0,
       efIng: 0,
       mpIng: 0,
       iTotal: 0,
       gTotal: 0,
+      gEf: 0,
+      gMp: 0,
       resultado: 0,
       simples: 0,
       dobles: 0,
@@ -907,8 +972,14 @@
         cancel += total;
       }
     });
-    var ventas = ef + mp;
+    var ventasPedidos = ef + mp;
+    var efPedidos = ef;
+    var mpPedidos = mp;
+    var efNet = ef;
+    var mpNet = mp;
     var gTotal = 0;
+    var gEf = 0;
+    var gMp = 0;
     var efIng = 0;
     var mpIng = 0;
     var otroIng = 0;
@@ -918,26 +989,48 @@
       if (gt < desdeMs || gt > hastaMs) return;
       var m = Number(g.monto) || 0;
       var cob = String(g.cobrado_con || '').trim();
-      if (cob === 'efectivo') efIng += m;
-      else if (cob === 'transferencia') mpIng += m;
-      else otroIng += m;
+      if (cob === 'transferencia') {
+        mpNet += m;
+        mpIng += m;
+      } else {
+        efNet += m;
+        if (cob === 'efectivo') efIng += m;
+        else otroIng += m;
+      }
     });
     var iTotal = efIng + mpIng + otroIng;
     gastosCache.forEach(function (g) {
       if (!movimientoInFilterRange(g)) return;
       var gt = movimientoTimestampMs(g);
-      if (gt >= desdeMs && gt <= hastaMs) gTotal += Number(g.monto) || 0;
+      if (gt >= desdeMs && gt <= hastaMs) {
+        var m = Number(g.monto) || 0;
+        gTotal += m;
+        var pag = String(g.pagado_con || '').trim();
+        if (pag === 'transferencia') {
+          mpNet -= m;
+          gMp += m;
+        } else {
+          efNet -= m;
+          gEf += m;
+        }
+      }
     });
+    var ventas = efNet + mpNet;
     return {
-      ef: ef,
-      mp: mp,
+      ef: efNet,
+      mp: mpNet,
       ventas: ventas,
+      ventasPedidos: ventasPedidos,
+      efPedidos: efPedidos,
+      mpPedidos: mpPedidos,
       cancel: cancel,
       efIng: efIng,
       mpIng: mpIng,
       iTotal: iTotal,
       gTotal: gTotal,
-      resultado: ventas + iTotal - gTotal,
+      gEf: gEf,
+      gMp: gMp,
+      resultado: ventas,
       simples: simples,
       dobles: dobles,
       hambTotal: simples + dobles,
@@ -1152,6 +1245,51 @@
     hint.textContent = 'Sin apertura — contadores en 0. Abrí caja para empezar.';
   }
 
+  function updateTurnoToolbarUI() {
+    var badge = $('turno-toolbar-badge');
+    var btnAbrir = $('btn-turno-abrir');
+    var btnCerrar = $('btn-turno-cerrar');
+    var abierta = cierresReady && isCajaTurnoActivo();
+    if (badge) {
+      if (abierta) {
+        badge.textContent = 'Turno abierto';
+        badge.className = 'turno-badge turno-badge--open';
+      } else {
+        badge.textContent = 'Turno cerrado';
+        badge.className = 'turno-badge turno-badge--closed';
+      }
+    }
+    if (btnAbrir) btnAbrir.classList.toggle('hidden', abierta);
+    if (btnCerrar) btnCerrar.classList.toggle('hidden', !abierta);
+  }
+
+  function initDefaultAlertSound() {
+    soundOn = true;
+    try {
+      getAlertAudio().load();
+    } catch (e) {}
+    if (!window.__bravaSoundUnlock) {
+      window.__bravaSoundUnlock = true;
+      document.addEventListener(
+        'pointerdown',
+        function () {
+          if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+          var a = getAlertAudio();
+          if (a && a.paused) {
+            var p = a.play();
+            if (p && p.then) {
+              p.then(function () {
+                a.pause();
+                a.currentTime = 0;
+              }).catch(function () {});
+            }
+          }
+        },
+        { once: true, capture: true }
+      );
+    }
+  }
+
   function updateCierreStatusUI() {
     var cierre = cierresReady ? findCierreForCurrentPeriod() : null;
     var abierta = cierresReady && isCajaTurnoActivo();
@@ -1198,15 +1336,16 @@
   }
 
   function updateCajaUI() {
-    if (!$('caja-ef')) return;
+    if (!$('caja-ventas') && !$('caja-ef')) return;
     var st = computeCajaDisplayStats();
-    $('caja-ef').textContent = '$' + fmt(st.ef);
-    $('caja-mp').textContent = '$' + fmt(st.mp);
-    $('caja-ventas').textContent = '$' + fmt(st.ventas);
-    $('caja-cancel').textContent = '$' + fmt(st.cancel);
-    if ($('caja-ef-ing')) $('caja-ef-ing').textContent = '+$' + fmt(st.efIng || 0);
-    if ($('caja-mp-ing')) $('caja-mp-ing').textContent = '+$' + fmt(st.mpIng || 0);
-    if ($('caja-ing-total')) $('caja-ing-total').textContent = '+$' + fmt(st.iTotal || 0);
+    var efTxt = '$' + fmt(st.ef);
+    var mpTxt = '$' + fmt(st.mp);
+    if ($('caja-ef')) $('caja-ef').textContent = efTxt;
+    if ($('caja-mp')) $('caja-mp').textContent = mpTxt;
+    if ($('caja-ventas-ef')) $('caja-ventas-ef').textContent = efTxt;
+    if ($('caja-ventas-mp')) $('caja-ventas-mp').textContent = mpTxt;
+    if ($('caja-ventas')) $('caja-ventas').textContent = '$' + fmt(st.ventas);
+    if ($('caja-cancel')) $('caja-cancel').textContent = '$' + fmt(st.cancel);
     $('caja-gastos').textContent = '−$' + fmt(st.gTotal);
     $('caja-resultado').textContent = (st.resultado < 0 ? '−$' : '$') + fmt(Math.abs(st.resultado));
     var row = $('row-resultado');
@@ -1235,14 +1374,16 @@
       }
     }
     updateCierreStatusUI();
+    updateTurnoToolbarUI();
     updateMovimientosChrome();
     syncTurnoPedidosUi();
     updateStockChrome();
   }
 
-  function loadCierres(force) {
+  function loadCierres(force, limitOpt) {
     if (cierresFetchInFlight && !force) return cierresFetchInFlight;
-    cierresFetchInFlight = api({ action: 'listCierres', token: token, limit: 50 })
+    var lim = Math.min(Math.max(Number(limitOpt) || 50, 1), 100);
+    cierresFetchInFlight = api({ action: 'listCierres', token: token, limit: lim })
       .then(function (res) {
         if (res.data.ok) {
           cierresCache = res.data.cierres || [];
@@ -1317,6 +1458,20 @@
     return pagado;
   }
 
+  function movMedioAbbr(cobOrPagado) {
+    var v = String(cobOrPagado || '').trim();
+    if (v === 'transferencia') return 'MP';
+    if (v === 'efectivo') return 'EFT';
+    if (v === 'otro') return 'Otro';
+    return 'EFT';
+  }
+
+  function movConceptoConMedio(concepto, cobOrPagado) {
+    var abbr = movMedioAbbr(cobOrPagado);
+    var c = String(concepto || '').trim();
+    return c + (abbr ? ' (' + abbr + ')' : '');
+  }
+
   function ingresoCobroLabel(g) {
     var cob = (g && g.cobrado_con) || '';
     if (cob === 'efectivo') return 'Efectivo';
@@ -1348,22 +1503,20 @@
     return movimientosEnTurnoParaCierre().ingresos;
   }
 
-  function buildCierreConfirmMessage(st, periodoLbl) {
-    return (
+  function buildCierreConfirmMessage(st, periodoLbl, arqueo) {
+    var msg =
       'Turno: ' +
       periodoLbl +
       '\n\n' +
-      'Ventas del turno: $' +
+      'Ventas netas del turno: $' +
       fmt(st.ventas) +
       ' (EF $' +
       fmt(st.ef) +
       ' · MP $' +
       fmt(st.mp) +
       ')\n' +
-      'Ingresos extra: $' +
-      fmt(st.iTotal || 0) +
-      '\n' +
-      'Egresos: $' +
+      'Incluye pedidos entregados + ingresos − egresos por medio de pago.\n' +
+      'Egresos registrados: $' +
       fmt(st.gTotal) +
       '\n' +
       'Resultado: $' +
@@ -1377,8 +1530,304 @@
       '\n' +
       'Cantidad total: ' +
       Math.round(st.hambTotal) +
-      ' Hamburguesas'
-    );
+      ' Hamburguesas';
+    if (arqueo) {
+      msg +=
+        '\n\nControl de caja:\n' +
+        'EF contado $' +
+        fmt(arqueo.efContado) +
+        ' (' +
+        arqueoDiffMeta(arqueo.efDiff, 'cierre').text +
+        ')\n' +
+        'MP contado $' +
+        fmt(arqueo.mpContado) +
+        ' (' +
+        arqueoDiffMeta(arqueo.mpDiff, 'cierre').text +
+        ')';
+      if (arqueo.notaEf) msg += '\nObs EF: ' + arqueo.notaEf;
+      if (arqueo.notaMp) msg += '\nObs MP: ' + arqueo.notaMp;
+    }
+    return msg;
+  }
+
+  function arqueoMediosSinObservacion(arqueo) {
+    var missing = [];
+    if (!arqueo) return missing;
+    if (arqueo.efDiff !== 0 && !arqueo.notaEf) missing.push('efectivo');
+    if (arqueo.mpDiff !== 0 && !arqueo.notaMp) missing.push('Mercado Pago');
+    return missing;
+  }
+
+  function arqueoDiffMeta(diff, mode) {
+    var d = Number(diff) || 0;
+    if (mode === 'apertura') {
+      if (d === 0) return { text: 'Sin fondo', cls: 'arqueo-diff--ok', money: '$0' };
+      return { text: 'Fondo inicial', cls: 'arqueo-diff--ok', money: '$' + fmt(d) };
+    }
+    if (d === 0) return { text: 'Cuadrado', cls: 'arqueo-diff--ok', money: '$0' };
+    if (d > 0) return { text: 'Sobrante', cls: 'arqueo-diff--sobr', money: '$' + fmt(d) };
+    return { text: 'Faltante', cls: 'arqueo-diff--falt', money: '−$' + fmt(Math.abs(d)) };
+  }
+
+  function readArqueoContadoInput(id) {
+    var el = $(id);
+    if (!el) return 0;
+    var v = parseFloat(String(el.value).replace(',', '.'), 10);
+    return isNaN(v) || v < 0 ? 0 : Math.round(v);
+  }
+
+  function paintArqueoDiffCell(cellId, diff) {
+    var cell = $(cellId);
+    if (!cell) return;
+    var m = arqueoDiffMeta(diff, cashArqueoMode);
+    cell.textContent = m.text + ' · ' + m.money;
+    cell.className = 'arqueo-diff ' + m.cls;
+  }
+
+  function updateCashArqueoDiffUI() {
+    var efCont = readArqueoContadoInput('arqueo-ef-contado');
+    var mpCont = readArqueoContadoInput('arqueo-mp-contado');
+    paintArqueoDiffCell('arqueo-ef-diff', efCont - cashArqueoEsperadoEf);
+    paintArqueoDiffCell('arqueo-mp-diff', mpCont - cashArqueoEsperadoMp);
+  }
+
+  function setCashArqueoModalUi(mode) {
+    cashArqueoMode = mode === 'apertura' ? 'apertura' : 'cierre';
+    var isApertura = cashArqueoMode === 'apertura';
+    if ($('cierre-arqueo-title')) {
+      $('cierre-arqueo-title').textContent = isApertura ? 'Arqueo inicial de caja' : 'Control de caja';
+    }
+    if ($('cierre-arqueo-sub')) {
+      $('cierre-arqueo-sub').textContent = isApertura
+        ? 'Contá efectivo en caja y saldo MP al abrir. Las ventas del turno arrancan en $0.'
+        : 'Compará los totales del sistema con lo que contás antes de cerrar el turno.';
+    }
+    if ($('cierre-arqueo-ok')) {
+      $('cierre-arqueo-ok').textContent = isApertura ? 'Confirmar apertura' : 'Continuar al cierre';
+    }
+    var thDiff = document.querySelector('#cierre-arqueo-modal .arqueo-tbl thead th.col-diff');
+    if (thDiff) thDiff.textContent = isApertura ? 'Declarado' : 'Diferencia';
+  }
+
+  function fillCashArqueoForm(esperadoEf, esperadoMp, contadoEf, contadoMp) {
+    if ($('arqueo-ef-esperado')) $('arqueo-ef-esperado').textContent = '$' + fmt(esperadoEf);
+    if ($('arqueo-mp-esperado')) $('arqueo-mp-esperado').textContent = '$' + fmt(esperadoMp);
+    if ($('arqueo-ef-contado')) {
+      $('arqueo-ef-contado').value =
+        contadoEf === '' || contadoEf == null ? '' : String(Math.round(contadoEf));
+    }
+    if ($('arqueo-mp-contado')) {
+      $('arqueo-mp-contado').value =
+        contadoMp === '' || contadoMp == null ? '' : String(Math.round(contadoMp));
+    }
+    if ($('arqueo-nota-ef')) $('arqueo-nota-ef').value = '';
+    if ($('arqueo-nota-mp')) $('arqueo-nota-mp').value = '';
+    cashArqueoEsperadoEf = esperadoEf;
+    cashArqueoEsperadoMp = esperadoMp;
+    updateCashArqueoDiffUI();
+  }
+
+  function buildCierreArqueoObject() {
+    var efContado = readArqueoContadoInput('arqueo-ef-contado');
+    var mpContado = readArqueoContadoInput('arqueo-mp-contado');
+    var notaEf = ($('arqueo-nota-ef') && $('arqueo-nota-ef').value.trim()) || '';
+    var notaMp = ($('arqueo-nota-mp') && $('arqueo-nota-mp').value.trim()) || '';
+    var efEsp = cashArqueoEsperadoEf;
+    var mpEsp = cashArqueoEsperadoMp;
+    return {
+      efEsperado: efEsp,
+      mpEsperado: mpEsp,
+      efContado: efContado,
+      mpContado: mpContado,
+      efDiff: efContado - efEsp,
+      mpDiff: mpContado - mpEsp,
+      notaEf: notaEf,
+      notaMp: notaMp,
+    };
+  }
+
+  function arqueoFinalTicketCell(arqueo, medio) {
+    if (!arqueo) return '—';
+    var cont = medio === 'ef' ? arqueo.efContado : arqueo.mpContado;
+    var diff = medio === 'ef' ? arqueo.efDiff : arqueo.mpDiff;
+    var esp = medio === 'ef' ? arqueo.efEsperado : arqueo.mpEsperado;
+    var nota = medio === 'ef' ? arqueo.notaEf : arqueo.notaMp;
+    var r;
+    if (diff === 0) {
+      r = 'Cuadrado ($0 dif.)';
+    } else {
+      var m = arqueoDiffMeta(diff, 'cierre');
+      r = '$' + fmt(cont) + ' · ' + m.text + ' ' + m.money + ' (sis $' + fmt(esp) + ')';
+    }
+    if (nota) r += ' — ' + escapeHtml(nota);
+    return r;
+  }
+
+  function arqueoCompactNotasMedio(arqueo, medio, mode, prefix) {
+    var cont = medio === 'ef' ? arqueo.efContado : arqueo.mpContado;
+    var esp = medio === 'ef' ? arqueo.efEsperado : arqueo.mpEsperado;
+    var diff = medio === 'ef' ? arqueo.efDiff : arqueo.mpDiff;
+    var nota = medio === 'ef' ? arqueo.notaEf : arqueo.notaMp;
+    var tag = medio === 'ef' ? 'EF' : 'MP';
+    if (mode === 'apertura') {
+      var s = prefix + ' ' + tag + ' $' + fmt(cont);
+      if (nota) s += ' — ' + nota;
+      return s;
+    }
+    var m = arqueoDiffMeta(diff, 'cierre');
+    var s2 = prefix + ' ' + tag + ' $' + fmt(cont) + ' / sis $' + fmt(esp);
+    s2 += diff === 0 ? ' OK' : ' ' + m.text + ' ' + m.money;
+    if (nota) s2 += ' — ' + nota;
+    return s2;
+  }
+
+  function cierreFlujoCajaTicketHtml(snapshot, st) {
+    var ap = snapshot.aperturaArqueo;
+    var arq = snapshot.arqueo;
+    var gastosList = snapshot.gastos || [];
+    var ingresosList = snapshot.ingresos || [];
+    var html = '<div class="resumen-block"><h3>Flujo de caja</h3>';
+
+    html += '<p class="res-group-title">Entrada (inicial)</p>';
+    html += resumenTblRows([
+      {
+        l: 'Efectivo',
+        r: ap ? '$' + fmt(ap.efContado) : '< Sin saldo >',
+        c: ap ? '' : 'res-muted',
+      },
+      {
+        l: 'Mercado Pago',
+        r: ap ? '$' + fmt(ap.mpContado) : '< Sin saldo >',
+        c: ap ? '' : 'res-muted',
+      },
+    ]);
+
+    html += '<p class="res-group-title">Cobranzas del turno</p>';
+    var cobRows = [
+      { l: 'Ventas entregadas EF', r: '$' + fmt(st.efPedidos || 0) },
+      { l: 'Ventas entregadas MP', r: '$' + fmt(st.mpPedidos || 0) },
+    ];
+    ingresosList.forEach(function (g) {
+      cobRows.push({
+        l: '+ ' + escapeHtml(movConceptoConMedio(g.concepto, g.cobrado_con)),
+        r: '+$' + fmt(g.monto),
+      });
+    });
+    cobRows.push({
+      l: 'Total entradas',
+      r: '$' + fmt((st.ventasPedidos || 0) + (st.iTotal || 0)),
+      c: 'res-total',
+    });
+    html += resumenTblRows(cobRows);
+
+    html += '<p class="res-group-title">Egresos</p>';
+    var egRows = gastosList.map(function (g) {
+      return {
+        l: escapeHtml(g.concepto || 'Egreso') + ' (' + movMedioAbbr(g.pagado_con) + ')',
+        r: '−$' + fmt(g.monto),
+      };
+    });
+    if (!egRows.length) {
+      egRows.push({ l: 'Sin egresos', r: '—', c: 'res-muted' });
+    }
+    egRows.push({ l: 'Total egresos', r: '−$' + fmt(st.gTotal || 0), c: 'res-total' });
+    html += resumenTblRows(egRows);
+
+    html += '<p class="res-group-title">Saldo turno (sistema)</p>';
+    html += resumenTblRows([
+      { l: 'Efectivo', r: '$' + fmt(st.ef) },
+      { l: 'Mercado Pago', r: '$' + fmt(st.mp) },
+      { l: 'Total', r: '$' + fmt(st.ventas), c: 'res-total' },
+    ]);
+
+    html += '<p class="res-group-title">Final (arqueo al cerrar)</p>';
+    html += '<p class="res-sub">Diferencia contado vs sistema. Cuadrado = no falta ni sobra.</p>';
+    if (arq) {
+      html += resumenTblRows([
+        { l: 'Efectivo', r: arqueoFinalTicketCell(arq, 'ef') },
+        { l: 'Mercado Pago', r: arqueoFinalTicketCell(arq, 'mp') },
+      ]);
+    } else {
+      html += resumenTblRows([{ l: 'Sin arqueo', r: '—', c: 'res-muted' }]);
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  function buildCierreNotasFromArqueo(cierreArqueo, aperturaArqueo) {
+    var lines = [];
+    if (aperturaArqueo) {
+      lines.push(arqueoCompactNotasMedio(aperturaArqueo, 'ef', 'apertura', 'Abrir'));
+      lines.push(arqueoCompactNotasMedio(aperturaArqueo, 'mp', 'apertura', 'Abrir'));
+    }
+    if (cierreArqueo) {
+      lines.push(arqueoCompactNotasMedio(cierreArqueo, 'ef', 'cierre', 'Cerrar'));
+      lines.push(arqueoCompactNotasMedio(cierreArqueo, 'mp', 'cierre', 'Cerrar'));
+    }
+    return lines.join('\n');
+  }
+
+  function openAperturaArqueoModal(done) {
+    readDateFiltersFromUi();
+    pendingAperturaArqueoDone = typeof done === 'function' ? done : null;
+    setCashArqueoModalUi('apertura');
+    fillCashArqueoForm(0, 0, '', '');
+    var modal = $('cierre-arqueo-modal');
+    if (modal) modal.classList.remove('hidden');
+    if ($('arqueo-ef-contado')) $('arqueo-ef-contado').focus();
+  }
+
+  function openCierreArqueoModal() {
+    if (!pendingCierreSnapshot) return;
+    var st = pendingCierreSnapshot.st;
+    setCashArqueoModalUi('cierre');
+    fillCashArqueoForm(st.ef, st.mp, st.ef, st.mp);
+    var modal = $('cierre-arqueo-modal');
+    if (modal) modal.classList.remove('hidden');
+    if ($('arqueo-ef-contado')) $('arqueo-ef-contado').focus();
+  }
+
+  function closeCierreArqueoModal() {
+    var modal = $('cierre-arqueo-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function cancelCierreArqueoModal() {
+    closeCierreArqueoModal();
+    if (cashArqueoMode === 'apertura') {
+      pendingAperturaArqueoDone = null;
+    } else {
+      pendingCierreSnapshot = null;
+    }
+  }
+
+  function confirmCierreArqueoModal() {
+    var arqueo = buildCierreArqueoObject();
+    if (cashArqueoMode === 'apertura') {
+      saveArqueoAperturaTurno(arqueo);
+      closeCierreArqueoModal();
+      var done = pendingAperturaArqueoDone;
+      pendingAperturaArqueoDone = null;
+      if (done) done();
+      return;
+    }
+    if (!pendingCierreSnapshot) return;
+    var sinObs = arqueoMediosSinObservacion(arqueo);
+    if (sinObs.length) {
+      if (
+        !confirm(
+          'Hay diferencia en ' +
+            sinObs.join(' y ') +
+            ' sin observación. ¿Continuar igual?'
+        )
+      ) {
+        return;
+      }
+    }
+    pendingCierreSnapshot.arqueo = arqueo;
+    closeCierreArqueoModal();
+    openCierreConfirmModal();
   }
 
   function resumenTblRows(rows) {
@@ -1397,55 +1846,52 @@
     return html + '</tbody></table>';
   }
 
-  function cierreProductosGridHtml(productos) {
-    if (!productos.length) {
-      return '<p class="resumen-note">Sin hamburguesas en el turno.</p>';
+  function splitProductosSimplesDobles(productos) {
+    var simples = [];
+    var dobles = [];
+    (productos || []).forEach(function (x) {
+      if (!x || !(Number(x.qty) > 0)) return;
+      if (productoNombreEsDoble(x.nombre)) dobles.push(x);
+      else simples.push(x);
+    });
+    simples.sort(function (a, b) {
+      return String(a.nombre).localeCompare(String(b.nombre), 'es');
+    });
+    dobles.sort(function (a, b) {
+      return String(a.nombre).localeCompare(String(b.nombre), 'es');
+    });
+    return { simples: simples, dobles: dobles };
+  }
+
+  function cierreProductosTblRows(list) {
+    if (!list.length) {
+      return resumenTblRows([{ l: '—', r: '0', c: 'res-muted' }]);
     }
-    return (
-      '<div class="productos-grid">' +
-      productos
-        .map(function (x) {
-          return (
-            '<div class="producto-cell"><span class="n">' +
-            escapeHtml(x.nombre) +
-            '</span><span class="q">' +
-            x.qty +
-            '</span></div>'
-          );
-        })
-        .join('') +
-      '</div>'
+    return resumenTblRows(
+      list.map(function (x) {
+        return { l: escapeHtml(x.nombre) + ':', r: String(Math.round(x.qty)) };
+      })
     );
+  }
+
+  function cierreRegistroVentasHtml(productos, st) {
+    var split = splitProductosSimplesDobles(productos);
+    var html = '<p class="res-group-title">Simples:</p>';
+    html += cierreProductosTblRows(split.simples);
+    html += '<p class="res-group-title">Dobles:</p>';
+    html += cierreProductosTblRows(split.dobles);
+    html += resumenTblRows([
+      { l: 'Vendidas total', r: Math.round(st.hambTotal) + ' u.', c: 'res-total' },
+    ]);
+    return html;
   }
 
   function buildCierreResumenHtml(snapshot, cierreId, cierreWhenIso) {
     var st = snapshot.st;
-    var neg = st.resultado < 0;
     var cierreIso = cierreWhenIso || new Date().toISOString();
     var productos = (st.productosVentas || []).filter(function (x) {
       return x.qty > 0;
     });
-    var gastosList = snapshot.gastos || [];
-    var ingresosList = snapshot.ingresos || [];
-    var ingresosRows = [];
-    ingresosList.forEach(function (g) {
-      var cob = ingresoCobroLabel(g);
-      var lbl = escapeHtml(g.concepto || '') + (cob ? ' (' + escapeHtml(cob) + ')' : '');
-      ingresosRows.push({ l: lbl, r: '+$' + fmt(g.monto) });
-    });
-    if (!ingresosRows.length) {
-      ingresosRows.push({ l: 'Sin ingresos extra', r: '$0', c: 'res-muted' });
-    }
-    var gastosRows = [];
-    gastosList.forEach(function (g) {
-      var pag = gastoPagadoLabel(g);
-      var lbl = escapeHtml(g.concepto || '') + (pag ? ' (' + escapeHtml(pag) + ')' : '');
-      gastosRows.push({ l: lbl, r: '−$' + fmt(g.monto) });
-    });
-    if (!gastosRows.length) {
-      gastosRows.push({ l: 'Sin egresos', r: '$0', c: 'res-muted' });
-    }
-    var resultadoStr = (neg ? '−$' : '$') + fmt(Math.abs(st.resultado));
     return (
       '<div class="resumen-top">' +
       '<div class="brand">BRAVA BURGERS</div>' +
@@ -1458,48 +1904,430 @@
       ' · Cierre ' +
       escapeHtml(formatCierreMetaWhen(cierreIso)) +
       '</div></div>' +
-      '<div class="resumen-block"><h3>Ventas (entregados ✓)</h3>' +
-      resumenTblRows([
-        { l: 'Efectivo', r: '$' + fmt(st.ef) },
-        { l: 'Mercado Pago', r: '$' + fmt(st.mp) },
-        { l: 'Total ventas', r: '$' + fmt(st.ventas), c: 'res-total' },
-        { l: 'Cancelados (info)', r: '$' + fmt(st.cancel), c: 'res-muted' },
-      ]) +
+      cierreFlujoCajaTicketHtml(snapshot, st) +
+      '<div class="resumen-block"><h3>Registro de ventas</h3>' +
+      cierreRegistroVentasHtml(productos, st) +
       '</div>' +
-      '<div class="resumen-block"><h3>Ingresos extra</h3>' +
-      resumenTblRows(
-        ingresosRows.concat([
-          { l: 'Total ingresos', r: '+$' + fmt(st.iTotal || 0), c: 'res-total' },
-        ])
-      ) +
-      '</div>' +
-      '<div class="resumen-block"><h3>Egresos</h3>' +
-      resumenTblRows(
-        gastosRows.concat([{ l: 'Total egresos', r: '−$' + fmt(st.gTotal), c: 'res-total' }])
-      ) +
-      '</div>' +
-      '<div class="resumen-block"><h3>Resultado turno</h3>' +
-      resumenTblRows([{ l: 'Ventas + ingresos − egresos', r: resultadoStr, c: 'res-total res-result' }]) +
-      '</div>' +
-      '<div class="resumen-block"><h3>Hamburguesas ✓</h3>' +
-      cierreProductosGridHtml(productos) +
-      resumenTblRows([
-        {
-          l: 'Simples / Dobles',
-          r: Math.round(st.simples) + ' / ' + Math.round(st.dobles),
-        },
-        { l: 'Total', r: Math.round(st.hambTotal) + ' u.', c: 'res-total' },
-      ]) +
-      '</div>' +
-      '<div class="resumen-foot">Brava Burgers · Cierre de caja</div>'
+      '<div class="resumen-foot">Brava Burgers · Cierre operativo</div>'
     );
+  }
+
+  function cierreSnapshotForStorage(snapshot) {
+    if (!snapshot) return null;
+    return {
+      st: snapshot.st,
+      gastos: snapshot.gastos || [],
+      ingresos: snapshot.ingresos || [],
+      aperturaArqueo: snapshot.aperturaArqueo || null,
+      arqueo: snapshot.arqueo || null,
+      periodoLbl: snapshot.periodoLbl || '',
+      aperturaIso: snapshot.aperturaIso || null,
+    };
+  }
+
+  function parseCierreSnapshotJson(raw) {
+    if (raw == null || raw === '') return null;
+    try {
+      var o = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      if (!o || typeof o !== 'object' || !o.st) return null;
+      return o;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function cierrePeriodoLabelFromRecord(c) {
+    if (!c) return '—';
+    var d1 = c.periodo_desde ? c.periodo_desde.split('-').reverse().join('/') : '…';
+    var d2 = c.periodo_hasta ? c.periodo_hasta.split('-').reverse().join('/') : '…';
+    return d1 === d2 ? d1 : d1 + ' — ' + d2;
+  }
+
+  function cierreHistorialFechaIso(c) {
+    if (!c) return '';
+    if (c.cerrado_at && String(c.cerrado_at).length >= 10) return String(c.cerrado_at).slice(0, 10);
+    return c.periodo_hasta || c.periodo_desde || '';
+  }
+
+  function buildCierreOperativoLegacyHtml(c) {
+    var ingresos = Math.max(0, Number(c.ingresos) || 0);
+    var ventasPed = Math.max(0, (Number(c.ventas_total) || 0) - ingresos);
+    var st = {
+      ef: Number(c.efectivo) || 0,
+      mp: Number(c.mercado_pago) || 0,
+      ventas: Number(c.ventas_total) || 0,
+      ventasPedidos: ventasPed,
+      efPedidos: Number(c.efectivo) || 0,
+      mpPedidos: Number(c.mercado_pago) || 0,
+      gTotal: Number(c.gastos) || 0,
+      iTotal: ingresos,
+      resultado: Number(c.resultado) || 0,
+      simples: Number(c.hamb_simples) || 0,
+      dobles: Number(c.hamb_dobles) || 0,
+      hambTotal: Number(c.hamb_total) || 0,
+      productosVentas: [],
+    };
+    var snap = {
+      st: st,
+      gastos: [],
+      ingresos: [],
+      aperturaArqueo: null,
+      arqueo: null,
+      periodoLbl: cierrePeriodoLabelFromRecord(c),
+      aperturaIso: c.ventana_desde || null,
+    };
+    var html = buildCierreResumenHtml(snap, c.id, c.cerrado_at);
+    if (c.notas) {
+      html = html.replace(
+        '<div class="resumen-foot">',
+        '<div class="resumen-block"><h3>Notas</h3><p class="resumen-note" style="white-space:pre-wrap">' +
+          escapeHtml(String(c.notas)) +
+          '</p></div><div class="resumen-foot">'
+      );
+    }
+    return html;
+  }
+
+  function buildCierreOperativoHtmlFromRecord(c) {
+    if (!c) return '';
+    var snap = parseCierreSnapshotJson(c.snapshot_json);
+    if (snap) {
+      if (!snap.periodoLbl) snap.periodoLbl = cierrePeriodoLabelFromRecord(c);
+      if (!snap.aperturaIso && c.ventana_desde) snap.aperturaIso = c.ventana_desde;
+      return buildCierreResumenHtml(snap, c.id, c.cerrado_at);
+    }
+    return buildCierreOperativoLegacyHtml(c);
+  }
+
+  function matchCierreHistorialSearch(c, q) {
+    if (!q) return true;
+    var s = String(q).trim().toLowerCase();
+    if (!s) return true;
+    var hay = [
+      c.id,
+      c.periodo_desde,
+      c.periodo_hasta,
+      cierrePeriodoLabelFromRecord(c),
+      c.notas,
+      c.cerrado_at,
+    ]
+      .join(' ')
+      .toLowerCase();
+    return hay.indexOf(s) >= 0;
+  }
+
+  function findHistorialCierreById(id) {
+    if (!id) return null;
+    for (var i = 0; i < cierresHistorialList.length; i++) {
+      if (cierresHistorialList[i].id === id) return cierresHistorialList[i];
+    }
+    for (var j = 0; j < cierresCache.length; j++) {
+      if (cierresCache[j].id === id) return cierresCache[j];
+    }
+    return null;
+  }
+
+  function loadCierresHistorial(reset) {
+    if (cierresHistorialFetchInFlight && !reset) return cierresHistorialFetchInFlight;
+    var offset = reset ? 0 : cierresHistorialList.length;
+    if (reset) cierresHistorialList = [];
+    cierresHistorialFetchInFlight = api({
+      action: 'listCierres',
+      token: token,
+      limit: 80,
+      offset: offset,
+    })
+      .then(function (res) {
+        if (!res.data.ok) {
+          if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
+          return false;
+        }
+        var batch = res.data.cierres || [];
+        if (reset) cierresHistorialList = batch.slice();
+        else cierresHistorialList = cierresHistorialList.concat(batch);
+        cierresHistorialHasMore = !!res.data.hasMore;
+        if ($('cohist-load-more-wrap')) {
+          $('cohist-load-more-wrap').classList.toggle('hidden', !cierresHistorialHasMore);
+        }
+        renderCierreHistorialTable();
+        return true;
+      })
+      .finally(function () {
+        cierresHistorialFetchInFlight = null;
+      });
+    return cierresHistorialFetchInFlight;
+  }
+
+  function renderCierreHistorialPreview(c) {
+    var slot = $('cohist-preview');
+    var btnPrint = $('cohist-print');
+    if (!slot) return;
+    if (btnPrint) btnPrint.disabled = !c;
+    if (!c) {
+      slot.innerHTML = '<p class="caja-hint" style="margin:0;">Elegí un cierre operativo de la lista.</p>';
+      return;
+    }
+    slot.innerHTML =
+      '<div class="cierre-resumen-wrap"><div class="resumen resumen-ticket resumen-cierre">' +
+      buildCierreOperativoHtmlFromRecord(c) +
+      '</div></div>';
+  }
+
+  function renderCierreHistorialTable() {
+    var tbody = $('cohist-tbody');
+    if (!tbody) return;
+    var desde = ($('cohist-desde') && $('cohist-desde').value) || '';
+    var hasta = ($('cohist-hasta') && $('cohist-hasta').value) || '';
+    var q = ($('cohist-buscar') && $('cohist-buscar').value) || '';
+    var visible = 0;
+    var html = '';
+    cierresHistorialList.forEach(function (c) {
+      var dia = cierreHistorialFechaIso(c);
+      if (desde && dia && dia < desde) return;
+      if (hasta && dia && dia > hasta) return;
+      if (!matchCierreHistorialSearch(c, q)) return;
+      visible++;
+      html +=
+        '<tr data-id="' +
+        escapeHtml(c.id) +
+        '" class="' +
+        (selectedHistorialCierreId === c.id ? 'row-active' : '') +
+        '">' +
+        '<td>' +
+        escapeHtml(formatCierreMetaWhen(c.cerrado_at || c.periodo_hasta)) +
+        '</td><td><strong>' +
+        escapeHtml(c.id || '—') +
+        '</strong></td><td>' +
+        escapeHtml(cierrePeriodoLabelFromRecord(c)) +
+        '</td><td>' +
+        '$' +
+        fmt(c.ventas_total) +
+        '</td><td>$' +
+        fmt(c.efectivo) +
+        '</td><td>$' +
+        fmt(c.mercado_pago) +
+        '</td></tr>';
+    });
+    tbody.innerHTML = html;
+    if ($('cohist-count')) $('cohist-count').textContent = String(visible);
+    if ($('cohist-total')) {
+      $('cohist-total').textContent = String(cierresHistorialList.length) + (cierresHistorialHasMore ? '+' : '');
+    }
+    if ($('cohist-empty')) $('cohist-empty').classList.toggle('hidden', visible > 0);
+    tbody.querySelectorAll('tr').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        selectedHistorialCierreId = tr.getAttribute('data-id');
+        renderCierreHistorialPreview(findHistorialCierreById(selectedHistorialCierreId));
+        renderCierreHistorialTable();
+      });
+    });
+    if (selectedHistorialCierreId) {
+      var still = findHistorialCierreById(selectedHistorialCierreId);
+      if (!still) {
+        selectedHistorialCierreId = null;
+        renderCierreHistorialPreview(null);
+      }
+    }
+  }
+
+  function openCierreHistorialModal() {
+    selectedHistorialCierreId = null;
+    renderCierreHistorialPreview(null);
+    if ($('cohist-desde')) $('cohist-desde').value = '';
+    if ($('cohist-hasta')) $('cohist-hasta').value = '';
+    if ($('cohist-buscar')) $('cohist-buscar').value = '';
+    var modal = $('cierre-historial-modal');
+    if (modal) modal.classList.remove('hidden');
+    loadCierresHistorial(true);
+    if ($('cohist-buscar')) $('cohist-buscar').focus();
+  }
+
+  function closeCierreHistorialModal() {
+    var modal = $('cierre-historial-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function printCierreHistorialPreview() {
+    var c = findHistorialCierreById(selectedHistorialCierreId);
+    if (!c) return;
+    var wrap = $('cohist-preview');
+    if (!wrap) return;
+    var inner = wrap.querySelector('.resumen.resumen-cierre');
+    if (!inner) return;
+    printCierreResumenThermal(inner.outerHTML);
+  }
+
+    printCierreResumenThermal(inner.outerHTML);
+  }
+
+  function orderProformaFechaIso(o) {
+    if (!o || !o.fecha_creado) return '';
+    return String(o.fecha_creado).slice(0, 10);
+  }
+
+  function formatOrderProformaWhen(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso).slice(0, 10);
+    return d.toLocaleDateString('es-AR');
+  }
+
+  function findProformaOrder(orn) {
+    if (!orn) return null;
+    for (var i = 0; i < proformasList.length; i++) {
+      if (proformasList[i].orn === orn) return proformasList[i];
+    }
+    return findOrderByOrn(orn);
+  }
+
+  function renderProfComandaPreview(o) {
+    var slot = $('prof-comanda-slot');
+    var btnPrint = $('prof-print');
+    if (!slot) return;
+    if (btnPrint) btnPrint.disabled = !o;
+    if (!o) {
+      slot.innerHTML = '<p class="caja-hint" style="margin:0;">Elegí una fila.</p>';
+      return;
+    }
+    if (window.BravaComanda && window.BravaComanda.renderTicketHtml) {
+      slot.innerHTML =
+        '<div class="comanda-preview-wrap"><article class="ticket ticket-comanda">' +
+        window.BravaComanda.renderTicketHtml(o) +
+        '</article></div>';
+      return;
+    }
+    slot.innerHTML =
+      '<p class="caja-hint">' +
+      escapeHtml(o.orn || '') +
+      ' · ' +
+      escapeHtml(o.cliente || '') +
+      '</p>';
+  }
+
+  function renderProformasTable() {
+    var tbody = $('proformas-tbody');
+    if (!tbody) return;
+    var visible = proformasList.length;
+    var html = '';
+    proformasList.forEach(function (o) {
+      html +=
+        '<tr data-orn="' +
+        escapeHtml(o.orn) +
+        '" class="' +
+        (selectedProformaOrn === o.orn ? 'row-active' : '') +
+        '">' +
+        '<td>' +
+        escapeHtml(formatOrderProformaWhen(o.fecha_creado)) +
+        '</td><td>' +
+        escapeHtml(o.cliente || '—') +
+        '</td><td>' +
+        escapeHtml(o.telefono || '—') +
+        '</td><td>$' +
+        fmt(Number(o.total) || 0) +
+        '</td><td><strong>' +
+        escapeHtml(o.orn || '—') +
+        '</strong></td><td>' +
+        escapeHtml(normalizeEstado(o.estado)) +
+        '</td></tr>';
+    });
+    tbody.innerHTML = html;
+    if ($('prof-count')) $('prof-count').textContent = String(visible);
+    if ($('prof-total')) {
+      $('prof-total').textContent = String(proformasList.length) + (proformasHasMore ? '+' : '');
+    }
+    if ($('prof-empty')) $('prof-empty').classList.toggle('hidden', visible > 0);
+    tbody.querySelectorAll('tr').forEach(function (tr) {
+      tr.addEventListener('click', function () {
+        selectedProformaOrn = tr.getAttribute('data-orn');
+        renderProfComandaPreview(findProformaOrder(selectedProformaOrn));
+        renderProformasTable();
+      });
+    });
+    if (selectedProformaOrn && !findProformaOrder(selectedProformaOrn)) {
+      selectedProformaOrn = null;
+      renderProfComandaPreview(null);
+    }
+  }
+
+  function fetchProformas(reset) {
+    if (proformasFetchInFlight && !reset) return proformasFetchInFlight;
+    var offset = reset ? 0 : proformasList.length;
+    if (reset) proformasList = [];
+    var q = ($('prof-buscar') && $('prof-buscar').value) || '';
+    var desde = ($('prof-desde') && $('prof-desde').value) || '';
+    var hasta = ($('prof-hasta') && $('prof-hasta').value) || '';
+    proformasFetchInFlight = api({
+      action: 'searchOrders',
+      token: token,
+      q: q,
+      desde: desde,
+      hasta: hasta,
+      limit: 100,
+      offset: offset,
+    })
+      .then(function (res) {
+        if (!res.data.ok) {
+          if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();
+          return false;
+        }
+        var batch = res.data.orders || [];
+        if (reset) proformasList = batch.slice();
+        else proformasList = proformasList.concat(batch);
+        proformasHasMore = !!res.data.hasMore;
+        if ($('prof-load-more-wrap')) {
+          $('prof-load-more-wrap').classList.toggle('hidden', !proformasHasMore);
+        }
+        renderProformasTable();
+        return true;
+      })
+      .finally(function () {
+        proformasFetchInFlight = null;
+      });
+    return proformasFetchInFlight;
+  }
+
+  function scheduleProformasSearch() {
+    if (proformasSearchTimer) clearTimeout(proformasSearchTimer);
+    proformasSearchTimer = setTimeout(function () {
+      proformasSearchTimer = null;
+      selectedProformaOrn = null;
+      renderProfComandaPreview(null);
+      fetchProformas(true);
+    }, 350);
+  }
+
+  function openProformasModal() {
+    selectedProformaOrn = null;
+    renderProfComandaPreview(null);
+    if ($('prof-desde')) $('prof-desde').value = '';
+    if ($('prof-hasta')) $('prof-hasta').value = '';
+    if ($('prof-buscar')) $('prof-buscar').value = '';
+    var modal = $('proformas-modal');
+    if (modal) modal.classList.remove('hidden');
+    fetchProformas(true);
+    if ($('prof-buscar')) $('prof-buscar').focus();
+  }
+
+  function closeProformasModal() {
+    var modal = $('proformas-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function printProformaPreview() {
+    var o = findProformaOrder(selectedProformaOrn);
+    if (!o || !window.BravaComanda || !window.BravaComanda.printOrderTicket) return;
+    window.BravaComanda.printOrderTicket(o);
   }
 
   function openCierreConfirmModal() {
     var el = $('cierre-confirm-text');
     var modal = $('cierre-confirm-modal');
     if (!el || !modal || !pendingCierreSnapshot) return;
-    el.textContent = buildCierreConfirmMessage(pendingCierreSnapshot.st, pendingCierreSnapshot.periodoLbl);
+    el.textContent = buildCierreConfirmMessage(
+      pendingCierreSnapshot.st,
+      pendingCierreSnapshot.periodoLbl,
+      pendingCierreSnapshot.arqueo
+    );
     modal.classList.remove('hidden');
   }
 
@@ -1533,16 +2361,15 @@
       '.resumen-cierre .resumen-top .meta { font-size: 10px; margin-top: 4px; line-height: 1.4; color: #fff; opacity: 1; }' +
       '.resumen-cierre .resumen-block { padding: 6px 2mm; border-bottom: 1px solid #ddd; background: #fff; box-sizing: border-box; }' +
       '.resumen-cierre .resumen-block h3 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }' +
+      '.resumen-cierre .res-sub { margin: 0 0 6px; font-size: 9px; color: #666; line-height: 1.3; }' +
       '.resumen-cierre .resumen-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }' +
       '.resumen-cierre .res-l { width: 62%; text-align: left; vertical-align: top; padding: 2px 0; word-break: break-word; font-size: 11px; color: #000; }' +
       '.resumen-cierre .res-r { width: 38%; text-align: right; vertical-align: top; padding: 2px 0; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; color: #000; }' +
       '.resumen-cierre tr.res-total .res-l, .resumen-cierre tr.res-total .res-r { font-weight: 700; border-top: 1px dashed #000; padding-top: 5px; }' +
       '.resumen-cierre tr.res-muted .res-l, .resumen-cierre tr.res-muted .res-r { color: #777; font-size: 10px; }' +
       '.resumen-cierre tr.res-result .res-l, .resumen-cierre tr.res-result .res-r { font-weight: 700; font-size: 12px; color: #000; }' +
-      '.resumen-cierre .productos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 6px; margin: 4px 0 8px; font-size: 10px; width: 100%; }' +
-      '.resumen-cierre .producto-cell { display: flex; justify-content: space-between; gap: 4px; min-width: 0; }' +
-      '.resumen-cierre .producto-cell .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #000; }' +
-      '.resumen-cierre .producto-cell .q { font-weight: 700; flex-shrink: 0; color: #000; }' +
+      '.resumen-cierre .res-group-title { margin: 8px 0 3px; font-size: 10px; font-weight: 700; color: #000; }' +
+      '.resumen-cierre .res-group-title:first-of-type { margin-top: 2px; }' +
       '.resumen-cierre .resumen-foot { padding: 8px 2mm; font-size: 9px; color: #fff; background: #000; text-align: center; width: 100%; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
     );
   }
@@ -1632,6 +2459,8 @@
       hamb_simples: Math.round(st.simples),
       hamb_dobles: Math.round(st.dobles),
       hamb_total: Math.round(st.hambTotal),
+      notas: buildCierreNotasFromArqueo(snapshot.arqueo, snapshot.aperturaArqueo),
+      snapshot_json: JSON.stringify(cierreSnapshotForStorage(snapshot)),
     }).then(function (res) {
       if (btn) btn.disabled = false;
       if (res.data.ok && res.data.cierre) {
@@ -1639,6 +2468,7 @@
         setCajaMarcadaAbierta(false);
         clearApertura();
         cierresCache.unshift(c);
+        cierresHistorialList.unshift(c);
         updateCajaUI();
         renderMovimientosList();
         loadCierres(true);
@@ -1653,6 +2483,11 @@
           alert(
             'Cierre guardado.\n\nPara guardar ingresos en Supabase y usar + Ingreso, ejecutá una vez:\n' +
               'supabase/ingresos_migration.sql (SQL Editor).'
+          );
+        } else if (res.data.warning === 'snapshot_column_missing') {
+          alert(
+            'Cierre operativo guardado.\n\nPara reimprimir el detalle completo desde Historial, ejecutá una vez:\n' +
+              'supabase/BRAVA_SUPABASE_RUN_ONCE.sql o cierres_caja_snapshot_migration.sql (SQL Editor).'
           );
         }
       } else {
@@ -1694,8 +2529,9 @@
       aperturaIso: isNaN(apMs) ? null : new Date(apMs).toISOString(),
       gastos: gastosEnTurnoParaCierre(),
       ingresos: ingresosEnTurnoParaCierre(),
+      aperturaArqueo: getArqueoAperturaTurno(),
     };
-    openCierreConfirmModal();
+    openCierreArqueoModal();
   }
 
   function renderMovimientosList() {
@@ -1710,7 +2546,7 @@
         id: x.id,
         concepto: x.concepto,
         monto: x.monto,
-        sub: ingresoCobroLabel(x),
+        medio: x.cobrado_con,
         seq: movimientoTimestampMs(x),
       });
     });
@@ -1720,11 +2556,12 @@
         id: x.id,
         concepto: x.concepto,
         monto: x.monto,
-        sub: gastoPagadoLabel(x),
+        medio: x.pagado_con,
         seq: movimientoTimestampMs(x),
       });
     });
     items.sort(function (a, b) {
+      if (a.kind !== b.kind) return a.kind === 'ing' ? -1 : 1;
       return b.seq - a.seq;
     });
     if (!items.length) {
@@ -1753,10 +2590,8 @@
           '">' +
           tag +
           '</span><span class="concept-text">' +
-          escapeHtml(x.concepto || '') +
-          '</span><small>' +
-          escapeHtml(x.sub || '') +
-          '</small></div><div class="monto-row"><span class="monto ' +
+          escapeHtml(movConceptoConMedio(x.concepto, x.medio)) +
+          '</span></div><div class="monto-row"><span class="monto ' +
           mClass +
           '">' +
           sign +
@@ -1970,6 +2805,7 @@
     });
 
     ensureIngresosSchemaOnce();
+    initDefaultAlertSound();
 
   }
 
@@ -5238,41 +6074,8 @@
 
 
 
-  $('btn-sound').onclick = function () {
-
-    soundOn = true;
-
-    getAlertAudio().load();
-
-    playDing();
-
-    $('btn-sound').textContent = 'Sonido activado ✓';
-
-    var testBtn = $('btn-sound-test');
-
-    if (testBtn) testBtn.classList.remove('hidden');
-
-  };
-
-  if ($('btn-sound-test')) {
-
-    $('btn-sound-test').onclick = function () {
-
-      if (!soundOn) {
-
-        soundOn = true;
-
-        $('btn-sound').textContent = 'Sonido activado ✓';
-
-        $('btn-sound-test').classList.remove('hidden');
-
-      }
-
-      playDing();
-
-    };
-
-  }
+  if ($('btn-turno-abrir')) $('btn-turno-abrir').onclick = performAbrirCaja;
+  if ($('btn-turno-cerrar')) $('btn-turno-cerrar').onclick = performCierreCaja;
 
   if ($('comanda-close')) $('comanda-close').onclick = closeComandaModal;
 
@@ -5453,6 +6256,21 @@
 
   if ($('btn-cierre-caja')) $('btn-cierre-caja').onclick = performCierreCaja;
 
+  if ($('cierre-arqueo-cancel')) $('cierre-arqueo-cancel').onclick = cancelCierreArqueoModal;
+  if ($('cierre-arqueo-ok')) $('cierre-arqueo-ok').onclick = confirmCierreArqueoModal;
+  if ($('cierre-arqueo-modal')) {
+    $('cierre-arqueo-modal').addEventListener('click', function (e) {
+      if (e.target === $('cierre-arqueo-modal')) cancelCierreArqueoModal();
+    });
+  }
+  ['arqueo-ef-contado', 'arqueo-mp-contado'].forEach(function (id) {
+    var inp = $(id);
+    if (inp) {
+      inp.addEventListener('input', updateCashArqueoDiffUI);
+      inp.addEventListener('change', updateCashArqueoDiffUI);
+    }
+  });
+
   if ($('cierre-confirm-cancel')) {
     $('cierre-confirm-cancel').onclick = function () {
       pendingCierreSnapshot = null;
@@ -5462,6 +6280,54 @@
   if ($('cierre-confirm-ok')) $('cierre-confirm-ok').onclick = commitCierreCaja;
   if ($('cierre-resumen-close')) $('cierre-resumen-close').onclick = closeCierreResumenModal;
   if ($('cierre-resumen-print')) $('cierre-resumen-print').onclick = printCierreResumenCompleto;
+
+  if ($('btn-open-cierre-historial')) $('btn-open-cierre-historial').onclick = openCierreHistorialModal;
+  if ($('cohist-close')) $('cohist-close').onclick = closeCierreHistorialModal;
+  if ($('cohist-print')) $('cohist-print').onclick = printCierreHistorialPreview;
+  if ($('cohist-load-more')) $('cohist-load-more').onclick = function () { loadCierresHistorial(false); };
+  if ($('cohist-aplicar')) $('cohist-aplicar').onclick = function () { loadCierresHistorial(true); };
+  if ($('cohist-limpiar')) {
+    $('cohist-limpiar').onclick = function () {
+      if ($('cohist-buscar')) $('cohist-buscar').value = '';
+      if ($('cohist-desde')) $('cohist-desde').value = '';
+      if ($('cohist-hasta')) $('cohist-hasta').value = '';
+      selectedHistorialCierreId = null;
+      renderCierreHistorialPreview(null);
+      loadCierresHistorial(true);
+    };
+  }
+  if ($('cohist-buscar')) $('cohist-buscar').addEventListener('input', renderCierreHistorialTable);
+  if ($('cohist-desde')) $('cohist-desde').addEventListener('change', function () { loadCierresHistorial(true); });
+  if ($('cohist-hasta')) $('cohist-hasta').addEventListener('change', function () { loadCierresHistorial(true); });
+  if ($('cierre-historial-modal')) {
+    $('cierre-historial-modal').addEventListener('click', function (e) {
+      if (e.target === $('cierre-historial-modal')) closeCierreHistorialModal();
+    });
+  }
+
+  if ($('btn-open-proformas')) $('btn-open-proformas').onclick = openProformasModal;
+  if ($('prof-close')) $('prof-close').onclick = closeProformasModal;
+  if ($('prof-print')) $('prof-print').onclick = printProformaPreview;
+  if ($('prof-load-more')) $('prof-load-more').onclick = function () { fetchProformas(false); };
+  if ($('prof-aplicar')) $('prof-aplicar').onclick = function () { fetchProformas(true); };
+  if ($('prof-limpiar')) {
+    $('prof-limpiar').onclick = function () {
+      if ($('prof-buscar')) $('prof-buscar').value = '';
+      if ($('prof-desde')) $('prof-desde').value = '';
+      if ($('prof-hasta')) $('prof-hasta').value = '';
+      selectedProformaOrn = null;
+      renderProfComandaPreview(null);
+      fetchProformas(true);
+    };
+  }
+  if ($('prof-buscar')) $('prof-buscar').addEventListener('input', scheduleProformasSearch);
+  if ($('prof-desde')) $('prof-desde').addEventListener('change', function () { fetchProformas(true); });
+  if ($('prof-hasta')) $('prof-hasta').addEventListener('change', function () { fetchProformas(true); });
+  if ($('proformas-modal')) {
+    $('proformas-modal').addEventListener('click', function (e) {
+      if (e.target === $('proformas-modal')) closeProformasModal();
+    });
+  }
 
   if ($('btn-add-ingreso')) {
     $('btn-add-ingreso').onclick = function () {
@@ -5545,6 +6411,12 @@
     };
   }
 
+  if ($('ingreso-modal')) {
+    $('ingreso-modal').addEventListener('click', function (e) {
+      if (e.target === $('ingreso-modal')) $('ingreso-modal').classList.add('hidden');
+    });
+  }
+
   if ($('btn-add-gasto')) {
     $('btn-add-gasto').onclick = function () {
       if (!isCajaTurnoActivo()) {
@@ -5574,6 +6446,10 @@
       var pagadoCon = $('g-pagado').value;
       if (!concepto || !monto || monto <= 0) {
         alert('Completá concepto y monto.');
+        return;
+      }
+      if (pagadoCon !== 'efectivo' && pagadoCon !== 'transferencia') {
+        alert('Elegí si salió de Efectivo o Mercado Pago.');
         return;
       }
       var tempId = 'tmp-' + Date.now();
@@ -5619,6 +6495,12 @@
         }
       });
     };
+  }
+
+  if ($('gasto-modal')) {
+    $('gasto-modal').addEventListener('click', function (e) {
+      if (e.target === $('gasto-modal')) $('gasto-modal').classList.add('hidden');
+    });
   }
 
   document.addEventListener('visibilitychange', function () {

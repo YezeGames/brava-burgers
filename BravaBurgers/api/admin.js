@@ -3,6 +3,7 @@ const { isSupabaseConfigured, createAdminSupabaseSession } = require('../lib/sup
 const { checkAdminLogin, validateAdminToken } = require('../lib/adminAuth');
 const {
   listOrders,
+  searchOrders,
   updateOrder,
   listGastos,
   createGasto,
@@ -86,8 +87,18 @@ async function handleSupabaseAdmin(body) {
     return deleteIngreso(body.id);
   }
 
+  if (action === 'searchOrders') {
+    return searchOrders({
+      q: body.q,
+      desde: body.desde,
+      hasta: body.hasta,
+      limit: body.limit,
+      offset: body.offset,
+    });
+  }
+
   if (action === 'listCierres') {
-    return listCierres(body.limit);
+    return listCierres(body.limit, body.offset);
   }
 
   if (action === 'createCierre') {

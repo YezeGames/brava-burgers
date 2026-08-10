@@ -4,7 +4,7 @@
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<meta name="robots" content="noindex,nofollow">
-	<title>Brava — Admin</title>
+	<title>Demo — Panel admin + búsqueda comandas</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<script>
@@ -1138,127 +1138,6 @@
 			width: 100%; box-sizing: border-box; min-height: 52px; padding: 8px 10px;
 			border: 1px solid var(--border); border-radius: 6px; font-size: 0.85rem; resize: vertical;
 		}
-		.modal.modal-cierre-historial {
-			max-width: min(920px, 96vw);
-			width: 100%;
-			max-height: 92vh;
-			overflow: auto;
-		}
-		.cierre-historial-filters {
-			display: grid;
-			grid-template-columns: 1fr 140px 140px auto;
-			gap: 10px;
-			align-items: end;
-			margin-bottom: 12px;
-		}
-		@media (max-width: 720px) {
-			.cierre-historial-filters { grid-template-columns: 1fr 1fr; }
-			.cierre-historial-filters .cohist-search { grid-column: 1 / -1; }
-			.cierre-historial-filters .cohist-actions { grid-column: 1 / -1; }
-		}
-		.cierre-historial-filters label {
-			display: block;
-			font-size: 0.72rem;
-			color: var(--text-muted);
-			margin-bottom: 4px;
-		}
-		.cierre-historial-filters input {
-			width: 100%;
-			padding: 8px 10px;
-			border: 1px solid var(--border-input);
-			border-radius: 4px;
-			background: var(--input-bg);
-			color: var(--text);
-			box-sizing: border-box;
-		}
-		.cierre-historial-filters .cohist-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-		.cierre-historial-meta { font-size: 0.78rem; color: var(--text-subtle); margin: 0 0 10px; }
-		.cierre-historial-layout {
-			display: grid;
-			grid-template-columns: 1fr 280px;
-			gap: 14px;
-			align-items: start;
-		}
-		@media (max-width: 800px) {
-			.cierre-historial-layout { grid-template-columns: 1fr; }
-		}
-		#cohist-table tbody tr { cursor: pointer; }
-		#cohist-table tbody tr.row-active td { background: rgba(255, 107, 53, 0.12); }
-		.cierre-historial-preview h3 {
-			margin: 0 0 8px;
-			font-size: 0.8rem;
-			font-weight: 600;
-			color: var(--text-muted);
-			text-transform: uppercase;
-			letter-spacing: 0.04em;
-		}
-		.cierre-historial-preview .cierre-resumen-wrap {
-			margin: 0;
-			max-width: none;
-			width: 100%;
-			border-radius: 6px;
-		}
-		.modal.modal-proformas {
-			max-width: min(920px, 96vw);
-			width: 100%;
-			max-height: 92vh;
-			overflow: auto;
-		}
-		.proformas-filters {
-			display: grid;
-			grid-template-columns: 1fr 140px 140px auto;
-			gap: 10px;
-			align-items: end;
-			margin-bottom: 12px;
-		}
-		@media (max-width: 720px) {
-			.proformas-filters { grid-template-columns: 1fr 1fr; }
-			.proformas-filters .prof-search { grid-column: 1 / -1; }
-			.proformas-filters .prof-actions { grid-column: 1 / -1; }
-		}
-		.proformas-filters label {
-			display: block;
-			font-size: 0.72rem;
-			color: var(--text-muted);
-			margin-bottom: 4px;
-		}
-		.proformas-filters input {
-			width: 100%;
-			padding: 8px 10px;
-			border: 1px solid var(--border-input);
-			border-radius: 4px;
-			background: var(--input-bg);
-			color: var(--text);
-			box-sizing: border-box;
-		}
-		.proformas-filters .prof-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-		.proformas-meta { font-size: 0.78rem; color: var(--text-subtle); margin: 0 0 10px; }
-		.proformas-layout {
-			display: grid;
-			grid-template-columns: 1fr 280px;
-			gap: 14px;
-			align-items: start;
-		}
-		@media (max-width: 800px) {
-			.proformas-layout { grid-template-columns: 1fr; }
-		}
-		#proformas-table tbody tr { cursor: pointer; }
-		#proformas-table tbody tr.row-active td { background: rgba(255, 107, 53, 0.12); }
-		.proformas-comanda-panel h3 {
-			margin: 0 0 8px;
-			font-size: 0.8rem;
-			font-weight: 600;
-			color: var(--text-muted);
-			text-transform: uppercase;
-			letter-spacing: 0.04em;
-		}
-		.proformas-comanda-panel .comanda-preview-wrap {
-			margin: 0;
-			max-width: none;
-			width: 100%;
-			border-radius: 6px;
-		}
-		.historial-load-more { margin: 10px 0 0; text-align: center; }
 		.cierre-resumen-modal-box { max-width: 360px; }
 		.cierre-resumen-wrap {
 			width: 80mm;
@@ -1375,10 +1254,163 @@
 			background: #000;
 			text-align: center;
 		}
+		.demo-top-banner {
+			max-width: 1200px;
+			margin: 0 auto 12px;
+			padding: 10px 14px;
+			background: #1a1a1a;
+			color: #fff;
+			border-left: 4px solid var(--brava);
+			border-radius: 8px;
+			font-size: 0.8rem;
+			line-height: 1.45;
+		}
+		.demo-top-banner strong { color: var(--brava); }
+		.modal.modal-proformas {
+			max-width: min(920px, 96vw);
+			width: 100%;
+			max-height: 92vh;
+			overflow: auto;
+		}
+		.proformas-filters {
+			display: grid;
+			grid-template-columns: 1fr 140px 140px auto;
+			gap: 10px;
+			align-items: end;
+			margin-bottom: 12px;
+		}
+		@media (max-width: 720px) {
+			.proformas-filters { grid-template-columns: 1fr 1fr; }
+			.proformas-filters .prof-search { grid-column: 1 / -1; }
+			.proformas-filters .prof-actions { grid-column: 1 / -1; }
+		}
+		.proformas-filters label {
+			display: block;
+			font-size: 0.72rem;
+			color: var(--text-muted);
+			margin-bottom: 4px;
+		}
+		.proformas-filters input {
+			width: 100%;
+			padding: 8px 10px;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			background: var(--input-bg);
+			color: var(--text);
+			box-sizing: border-box;
+		}
+		.proformas-filters .prof-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+		.proformas-meta { font-size: 0.78rem; color: var(--text-subtle); margin: 0 0 10px; }
+		.proformas-layout {
+			display: grid;
+			grid-template-columns: 1fr 240px;
+			gap: 14px;
+			align-items: start;
+		}
+		@media (max-width: 800px) {
+			.proformas-layout { grid-template-columns: 1fr; }
+		}
+		#proformas-table tbody tr { cursor: pointer; }
+		#proformas-table tbody tr.row-active td { background: rgba(255, 107, 53, 0.12); }
+		.proformas-comanda-panel .comanda-preview-wrap {
+			margin: 0;
+			max-width: none;
+			width: 100%;
+			border-radius: 6px;
+		}
+		.proformas-comanda-panel h3 {
+			margin: 0 0 8px;
+			font-size: 0.8rem;
+			font-weight: 600;
+			color: var(--text-muted);
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+		}
+		.modal.modal-cierre-historial {
+			max-width: min(920px, 96vw);
+			width: 100%;
+			max-height: 92vh;
+			overflow: auto;
+		}
+		.cierre-historial-filters {
+			display: grid;
+			grid-template-columns: 1fr 140px 140px auto;
+			gap: 10px;
+			align-items: end;
+			margin-bottom: 12px;
+		}
+		@media (max-width: 720px) {
+			.cierre-historial-filters { grid-template-columns: 1fr 1fr; }
+			.cierre-historial-filters .cohist-search { grid-column: 1 / -1; }
+			.cierre-historial-filters .cohist-actions { grid-column: 1 / -1; }
+		}
+		.cierre-historial-filters label {
+			display: block;
+			font-size: 0.72rem;
+			color: var(--text-muted);
+			margin-bottom: 4px;
+		}
+		.cierre-historial-filters input {
+			width: 100%;
+			padding: 8px 10px;
+			border: 1px solid var(--border-input);
+			border-radius: 4px;
+			background: var(--input-bg);
+			color: var(--text);
+			box-sizing: border-box;
+		}
+		.cierre-historial-filters .cohist-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+		.cierre-historial-meta { font-size: 0.78rem; color: var(--text-subtle); margin: 0 0 10px; }
+		.cierre-historial-layout {
+			display: grid;
+			grid-template-columns: 1fr 280px;
+			gap: 14px;
+			align-items: start;
+		}
+		@media (max-width: 800px) {
+			.cierre-historial-layout { grid-template-columns: 1fr; }
+		}
+		#cohist-table tbody tr { cursor: pointer; }
+		#cohist-table tbody tr.row-active td { background: rgba(255, 107, 53, 0.12); }
+		.cierre-historial-preview h3 {
+			margin: 0 0 8px;
+			font-size: 0.8rem;
+			font-weight: 600;
+			color: var(--text-muted);
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+		}
+		.cierre-historial-preview .cierre-resumen-wrap {
+			margin: 0;
+			max-width: none;
+			width: 100%;
+			border-radius: 6px;
+		}
+		.modal.modal-caja-panel {
+			max-width: min(520px, 96vw);
+			width: 100%;
+			max-height: 92vh;
+			overflow: auto;
+		}
+		.sidebar-caja-teaser {
+			font-size: 0.82rem;
+			line-height: 1.45;
+			color: var(--text-muted);
+		}
+		.sidebar-caja-teaser .teaser-estado { font-size: 0.75rem; color: var(--caja-estado); margin: 0 0 8px; }
+		.sidebar-caja-teaser .teaser-split { margin: 0 0 10px; }
+		.sidebar-caja-teaser .teaser-split .caja-row {
+			margin: 4px 0;
+			font-size: 0.85rem;
+		}
+		.sidebar-caja-teaser .teaser-split .caja-row span:last-child { font-weight: 700; color: var(--text); }
 	</style>
 </head>
 <body>
-	<div id="login-view" class="login card">
+	<div class="demo-top-banner">
+		<strong>Demo layout</strong> — Órdenes limpias; Caja y Proformas en modales; <strong>Gestión de Dinero</strong> aparte para ingresos/egresos.
+	</div>
+	<div id="login-view" class="login card hidden">
 		<div class="view-toolbar">
 			<button type="button" class="btn-sm theme-toggle-btn" id="theme-toggle-login" aria-pressed="false" title="Modo noche / claro">
 				<i class="fas fa-moon" aria-hidden="true"></i> Noche
@@ -1392,7 +1424,7 @@
 		<p class="err" id="login-err" hidden></p>
 	</div>
 
-	<div id="app-view" class="hidden">
+	<div id="app-view">
 		<div class="layout">
 			<div class="card">
 				<h1>Órdenes
@@ -1405,9 +1437,9 @@
 				</h1>
 				<div class="sound-bar turno-toolbar">
 					<audio id="alert-sound-mp3" preload="auto" src="/admin/sounds/zumbido.mp3?v=1"></audio>
-					<span class="turno-badge turno-badge--closed" id="turno-toolbar-badge" role="status">Turno cerrado</span>
-					<button type="button" class="btn-turno btn-turno-abrir" id="btn-turno-abrir" title="Abrir turno (stock + caja en 0)" aria-label="Abrir turno">✓</button>
-					<button type="button" class="btn-turno btn-turno-cerrar hidden" id="btn-turno-cerrar" title="Cierre de caja del turno" aria-label="Cerrar turno">✕</button>
+					<span class="turno-badge turno-badge--open" id="turno-toolbar-badge" role="status">Turno abierto</span>
+					<button type="button" class="btn-turno btn-turno-abrir hidden" id="btn-turno-abrir" title="Abrir turno (stock + caja en 0)" aria-label="Abrir turno">✓</button>
+					<button type="button" class="btn-turno btn-turno-cerrar" id="btn-turno-cerrar" title="Cierre de caja del turno" aria-label="Cerrar turno">✕</button>
 					<span id="poll-status">Conectando…</span>
 				</div>
 				<div class="filters">
@@ -1449,82 +1481,45 @@
 				<p class="err" id="app-err" hidden></p>
 			</div>
 			<div class="sidebar">
-				<details class="sidebar-menu-fold" id="sidebar-fold-caja" open>
+				<details class="sidebar-menu-fold" id="sidebar-fold-caja">
 					<summary>Resumen Operativo</summary>
 					<div class="sidebar-menu-body">
-				<aside class="sidebar-block caja-box">
-					<h2>Resumen operativo</h2>
-					<p class="range-label" id="caja-range">—</p>
-					<div class="caja-row section">Ventas (entregados ✓)</div>
-					<div class="caja-row"><span>Efectivo</span><span id="caja-ventas-ef">$0</span></div>
-					<div class="caja-row"><span>Mercado Pago</span><span id="caja-ventas-mp">$0</span></div>
-					<div class="caja-row total-ventas"><span>Total ventas</span><span id="caja-ventas">$0</span></div>
-					<div class="caja-row section">Detalle ingresos y egresos</div>
-					<ul class="mov-list" id="mov-list"></ul>
-					<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
-					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-abrir-caja">Abrir caja</button>
-					<p class="caja-hint">Abrir = contadores en 0 · Cierre = guarda y vuelve a 0.</p>
-				</aside>
-				<aside class="sidebar-block ventas-box">
-					<div class="caja-row section">Salidas</div>
-					<div class="caja-row negative"><span>Egresos</span><span id="caja-gastos">−$0</span></div>
-					<h2>Registro de ventas</h2>
-					<div class="caja-row section">Hamburguesas (entregados ✓)</div>
-					<div class="caja-row"><span>Hamburguesas Simples</span><span id="ventas-hamb-simples">0</span></div>
-					<div class="caja-row"><span>Hamburguesas Dobles</span><span id="ventas-hamb-dobles">0</span></div>
-					<div class="caja-row total-ventas"><span>Vendidas total</span><span id="ventas-hamb-total">0</span></div>
-					<p class="caja-hint" id="ventas-turno-hint">Solo cuenta con caja abierta; al cerrar turno vuelve a 0.</p>
-					<div class="caja-row resultado pos" id="row-resultado"><span>Resultado</span><span id="caja-resultado">$0</span></div>
-					<p class="caja-hint">Ventas = pedidos entregados + ingresos − egresos (por Efectivo / Mercado Pago). Solo con caja abierta; al cerrar, todo en 0.</p>
-					<p class="range-label caja-estado" id="caja-estado">—</p>
-					<p class="range-label" id="caja-cierre-detalle" hidden></p>
-					<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja</button>
-				</aside>
-					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-cierre-historial">
-					<summary>Historial de cierre</summary>
-					<div class="sidebar-menu-body">
-				<aside class="sidebar-block">
-					<h2>Cierre operativo</h2>
-					<p class="caja-hint">Buscá cierres anteriores por fecha o ID y reimprimí el resumen del turno.</p>
-					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-cierre-historial">Buscar cierres…</button>
-				</aside>
-					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-proformas">
-					<summary>Proformas</summary>
-					<div class="sidebar-menu-body">
-				<aside class="sidebar-block">
-					<h2>Comandas guardadas</h2>
-					<p class="caja-hint">Buscá por teléfono, ORN o nombre en todo el histórico de pedidos.</p>
-					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-proformas">Buscar comandas…</button>
-				</aside>
+						<aside class="sidebar-block">
+							<h2>Resumen operativo</h2>
+							<div class="sidebar-caja-teaser">
+								<p class="teaser-estado" id="caja-sidebar-estado">—</p>
+								<div id="caja-sidebar-open-block">
+									<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:4px;" id="btn-open-caja-panel">Ver resumen completo…</button>
+								</div>
+								<p class="caja-hint hidden" id="caja-sidebar-closed-hint">Turno cerrado. Abrí caja para sumar ventas de este sábado.</p>
+								<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:8px;" id="btn-sidebar-abrir-caja">Abrir caja</button>
+							</div>
+						</aside>
 					</div>
 				</details>
 				<details class="sidebar-menu-fold" id="sidebar-fold-gestion-dinero">
 					<summary>Gestión de Dinero</summary>
 					<div class="sidebar-menu-body">
-				<aside class="sidebar-block movimientos-box">
-					<h2>Ingresos y egresos</h2>
-					<div class="mov-actions">
-						<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
-						<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
-					</div>
-					<p class="caja-hint mov-hint">Cargá movimientos acá. Totales y detalle del turno están en Resumen operativo.</p>
-				</aside>
+						<aside class="sidebar-block movimientos-box">
+							<h2>Ingresos y egresos</h2>
+							<div class="mov-actions">
+								<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
+								<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
+							</div>
+							<p class="caja-hint mov-hint">Cargá movimientos acá. Totales y detalle del turno están en Resumen operativo.</p>
+						</aside>
 					</div>
 				</details>
 				<details class="sidebar-menu-fold" id="sidebar-fold-saldos-usuario">
 					<summary>Saldos por usuario</summary>
 					<div class="sidebar-menu-body">
-				<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
-					<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
-					<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
-				</aside>
+						<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
+							<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
+							<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
+						</aside>
 					</div>
 				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-stock" open>
+				<details class="sidebar-menu-fold" id="sidebar-fold-stock">
 					<summary>Control stock</summary>
 					<div class="sidebar-menu-body sidebar-stock-panel">
 						<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
@@ -1603,6 +1598,26 @@
 								<button type="button" class="btn-sm" id="reparto-btn-copy" disabled>Copiar hoja</button>
 							</div>
 							<textarea class="reparto-hoja" id="reparto-hoja" readonly placeholder="Hoja para el repartidor…"></textarea>
+						</aside>
+					</div>
+				</details>
+				<details class="sidebar-menu-fold" id="sidebar-fold-cierre-historial">
+					<summary>Historial de cierre</summary>
+					<div class="sidebar-menu-body">
+						<aside class="sidebar-block">
+							<h2>Cierre operativo</h2>
+							<p class="caja-hint">Buscá cierres anteriores del demo y reimprimí el resumen del turno.</p>
+							<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-cierre-historial">Buscar cierres…</button>
+						</aside>
+					</div>
+				</details>
+				<details class="sidebar-menu-fold" id="sidebar-fold-proformas">
+					<summary>Proformas</summary>
+					<div class="sidebar-menu-body">
+						<aside class="sidebar-block">
+							<h2>Comandas guardadas</h2>
+							<p class="caja-hint">Buscá por teléfono, ORN o nombre en todo el histórico (desde el primer día de caja).</p>
+							<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-proformas">Buscar comandas…</button>
 						</aside>
 					</div>
 				</details>
@@ -1845,7 +1860,7 @@
 	<div class="modal-backdrop hidden" id="cierre-resumen-modal" role="dialog" aria-modal="true" aria-labelledby="cierre-resumen-title">
 		<div class="modal cierre-resumen-modal-box">
 			<h2 class="cierre-modal-chrome" id="cierre-resumen-title">Cierre operativo guardado</h2>
-			<p class="sub cierre-modal-chrome">Resumen del turno — podés reimprimir o verlo en Historial de cierre</p>
+			<p class="sub cierre-modal-chrome">Resumen del turno — DEMO · reimprimir o ver en Historial de cierre</p>
 			<div class="cierre-resumen-wrap">
 				<div class="resumen resumen-ticket resumen-cierre" id="cierre-resumen-content" aria-label="Resumen cierre de caja"></div>
 			</div>
@@ -1856,10 +1871,94 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="caja-panel-modal" role="dialog" aria-modal="true" aria-labelledby="caja-panel-title">
+		<div class="modal modal-caja-panel">
+			<h2 id="caja-panel-title">Resumen operativo del turno</h2>
+			<p class="sub">Ventas, ingresos, egresos y burgers del turno. Saldos por usuario: vista rápida de cobros.</p>
+			<aside class="sidebar-block caja-box" style="box-shadow:none;padding:0;margin:0;">
+				<p class="range-label" id="caja-range">—</p>
+				<div class="caja-row section">Ventas (entregados ✓)</div>
+				<div class="caja-row"><span>Efectivo</span><span id="caja-ventas-ef">$0</span></div>
+				<div class="caja-row"><span>Mercado Pago</span><span id="caja-ventas-mp">$0</span></div>
+				<div class="caja-row total-ventas"><span>Total ventas</span><span id="caja-ventas">$0</span></div>
+				<div class="caja-row section">Detalle ingresos y egresos</div>
+				<ul class="mov-list" id="mov-list"></ul>
+				<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
+				<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:10px;" id="btn-abrir-caja">Abrir caja</button>
+			</aside>
+			<aside class="sidebar-block ventas-box" style="box-shadow:none;padding:12px 0 0;margin:0;">
+				<div class="caja-row section">Salidas</div>
+				<div class="caja-row negative"><span>Egresos</span><span id="caja-gastos">−$0</span></div>
+				<h2>Registro de ventas</h2>
+				<div class="caja-row section">Hamburguesas (entregados ✓)</div>
+				<div class="caja-row"><span>Hamburguesas Simples</span><span id="ventas-hamb-simples">0</span></div>
+				<div class="caja-row"><span>Hamburguesas Dobles</span><span id="ventas-hamb-dobles">0</span></div>
+				<div class="caja-row total-ventas"><span>Vendidas total</span><span id="ventas-hamb-total">0</span></div>
+				<div class="caja-row resultado pos" id="row-resultado"><span>Resultado</span><span id="caja-resultado">$0</span></div>
+				<p class="caja-hint">Ventas = pedidos entregados + ingresos − egresos (por Efectivo / Mercado Pago).</p>
+				<p class="range-label caja-estado" id="caja-estado">—</p>
+				<p class="range-label" id="caja-cierre-detalle" hidden></p>
+				<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja</button>
+			</aside>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="caja-panel-close">Cerrar</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="cierre-historial-modal" role="dialog" aria-modal="true" aria-labelledby="cohist-title">
+		<div class="modal modal-cierre-historial">
+			<h2 id="cohist-title">Historial de cierre — Cierre operativo</h2>
+			<p class="sub">Cierres del demo (memoria). Elegí uno para ver el ticket y reimprimir.</p>
+			<div class="cierre-historial-filters">
+				<div class="cohist-search">
+					<label for="cohist-buscar">Buscar (ID, fechas, notas)</label>
+					<input type="search" id="cohist-buscar" placeholder="Ej. DEMO-2025" autocomplete="off">
+				</div>
+				<div>
+					<label for="cohist-desde">Desde</label>
+					<input type="date" id="cohist-desde">
+				</div>
+				<div>
+					<label for="cohist-hasta">Hasta</label>
+					<input type="date" id="cohist-hasta">
+				</div>
+				<div class="cohist-actions">
+					<button type="button" class="btn-sm btn-accent" id="cohist-aplicar">Aplicar</button>
+					<button type="button" class="btn-sm" id="cohist-limpiar">Limpiar</button>
+				</div>
+			</div>
+			<p class="cierre-historial-meta">Mostrando <strong id="cohist-count">0</strong> de <strong id="cohist-total">0</strong></p>
+			<div class="cierre-historial-layout">
+				<div style="overflow-x:auto;min-width:0;">
+					<table id="cohist-table">
+						<thead>
+							<tr>
+								<th>Cierre</th><th>ID</th><th>Turno</th><th>Ventas</th><th>Efectivo</th><th>MP</th>
+							</tr>
+						</thead>
+						<tbody id="cohist-tbody"></tbody>
+					</table>
+					<p class="orders-empty-msg hidden" id="cohist-empty">Sin resultados.</p>
+				</div>
+				<div class="cierre-historial-preview">
+					<h3>Vista cierre operativo</h3>
+					<div id="cohist-preview">
+						<p class="caja-hint" style="margin:0;">Elegí un cierre operativo de la lista.</p>
+					</div>
+				</div>
+			</div>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm btn-accent" id="cohist-print" disabled>Imprimir cierre</button>
+				<button type="button" class="btn-sm" id="cohist-close">Cerrar</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal-backdrop hidden" id="proformas-modal" role="dialog" aria-modal="true" aria-labelledby="proformas-title">
 		<div class="modal modal-proformas">
 			<h2 id="proformas-title">Proformas — buscar comanda</h2>
-			<p class="sub">Histórico completo en Supabase. El panel de órdenes sigue solo para el turno en curso.</p>
+			<p class="sub">Histórico completo. El panel de órdenes sigue solo para el turno en curso.</p>
 			<div class="proformas-filters">
 				<div class="prof-search">
 					<label for="prof-buscar">Buscar (tel, ORN, cliente)</label>
@@ -1890,9 +1989,6 @@
 						<tbody id="proformas-tbody"></tbody>
 					</table>
 					<p class="orders-empty-msg hidden" id="prof-empty">Sin resultados.</p>
-					<p class="historial-load-more hidden" id="prof-load-more-wrap">
-						<button type="button" class="btn-sm" id="prof-load-more">Cargar más comandas</button>
-					</p>
 				</div>
 				<div class="proformas-comanda-panel">
 					<h3>Vista comanda</h3>
@@ -1904,58 +2000,6 @@
 			<div class="modal-foot">
 				<button type="button" class="btn-sm btn-accent" id="prof-print" disabled>Imprimir comanda</button>
 				<button type="button" class="btn-sm" id="prof-close">Cerrar</button>
-			</div>
-		</div>
-	</div>
-
-	<div class="modal-backdrop hidden" id="cierre-historial-modal" role="dialog" aria-modal="true" aria-labelledby="cohist-title">
-		<div class="modal modal-cierre-historial">
-			<h2 id="cohist-title">Historial de cierre — Cierre operativo</h2>
-			<p class="sub">Cierres guardados en Supabase. Elegí uno para ver el ticket y reimprimir.</p>
-			<div class="cierre-historial-filters">
-				<div class="cohist-search">
-					<label for="cohist-buscar">Buscar (ID, fechas, notas)</label>
-					<input type="search" id="cohist-buscar" placeholder="Ej. CI-2025, 09/08, arqueo" autocomplete="off">
-				</div>
-				<div>
-					<label for="cohist-desde">Desde</label>
-					<input type="date" id="cohist-desde">
-				</div>
-				<div>
-					<label for="cohist-hasta">Hasta</label>
-					<input type="date" id="cohist-hasta">
-				</div>
-				<div class="cohist-actions">
-					<button type="button" class="btn-sm btn-accent" id="cohist-aplicar">Aplicar</button>
-					<button type="button" class="btn-sm" id="cohist-limpiar">Limpiar</button>
-				</div>
-			</div>
-			<p class="cierre-historial-meta">Mostrando <strong id="cohist-count">0</strong> de <strong id="cohist-total">0</strong></p>
-			<div class="cierre-historial-layout">
-				<div style="overflow-x:auto;min-width:0;">
-					<table id="cohist-table">
-						<thead>
-							<tr>
-								<th>Cierre</th><th>ID</th><th>Turno</th><th>Ventas</th><th>Efectivo</th><th>MP</th>
-							</tr>
-						</thead>
-						<tbody id="cohist-tbody"></tbody>
-					</table>
-					<p class="orders-empty-msg hidden" id="cohist-empty">Sin resultados.</p>
-					<p class="historial-load-more hidden" id="cohist-load-more-wrap">
-						<button type="button" class="btn-sm" id="cohist-load-more">Cargar más cierres</button>
-					</p>
-				</div>
-				<div class="cierre-historial-preview">
-					<h3>Vista cierre operativo</h3>
-					<div id="cohist-preview">
-						<p class="caja-hint" style="margin:0;">Elegí un cierre operativo de la lista.</p>
-					</div>
-				</div>
-			</div>
-			<div class="modal-foot">
-				<button type="button" class="btn-sm btn-accent" id="cohist-print" disabled>Imprimir cierre</button>
-				<button type="button" class="btn-sm" id="cohist-close">Cerrar</button>
 			</div>
 		</div>
 	</div>
@@ -1978,11 +2022,7 @@
 		</div>
 	</div>
 
-	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-	<script src="/admin/comanda.js?v=15"></script>
-	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=7"></script>
-	<script src="/admin/admin.js?v=92"></script>
+	<script src="admin/comanda.js?v=15"></script>
+	<script src="demo-admin-panel-busqueda.js?v=25"></script>
 </body>
 </html>

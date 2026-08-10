@@ -184,6 +184,70 @@ async function listOrders(maxRows) {
 
 
 
+async function searchOrders(opts) {
+
+  opts = opts || {};
+
+  const limit = Math.min(Math.max(Number(opts.limit) || 80, 1), 150);
+
+  const offset = Math.max(Number(opts.offset) || 0, 0);
+
+  const desde = String(opts.desde || '').trim();
+
+  const hasta = String(opts.hasta || '').trim();
+
+  const q = String(opts.q || '').trim();
+
+  let query = 'select=*&order=fecha_creado.desc';
+
+  if (desde) query += '&fecha_creado=gte.' + encodeURIComponent(desde + 'T00:00:00.000Z');
+
+  if (hasta) query += '&fecha_creado=lte.' + encodeURIComponent(hasta + 'T23:59:59.999Z');
+
+  if (q) {
+
+    const safe = q.replace(/[*%,()]/g, '').trim();
+
+    if (safe) {
+
+      const pat = '*' + safe + '*';
+
+      query +=
+
+        '&or=(orn.ilike.' +
+
+        encodeURIComponent(pat) +
+
+        ',cliente.ilike.' +
+
+        encodeURIComponent(pat) +
+
+        ',telefono.ilike.' +
+
+        encodeURIComponent(pat) +
+
+        ')';
+
+    }
+
+  }
+
+  query += '&limit=' + limit + '&offset=' + offset;
+
+  const r = await restSelect('orders', query);
+
+  if (!r.ok) return supabaseFail(r, r.error);
+
+  const rows = Array.isArray(r.data) ? r.data : [];
+
+  const orders = rows.map(rowToOrder).filter(Boolean);
+
+  return { ok: true, orders: orders, hasMore: rows.length >= limit };
+
+}
+
+
+
 async function updateOrder(body) {
 
   const orn = body.orn;
@@ -478,11 +542,13 @@ async function deleteIngreso(id) {
 
 
 
-async function listCierres(limit) {
+async function listCierres(limit, offset) {
 
-  const n = Math.min(Math.max(Number(limit) || 40, 1), 100);
+  const n = Math.min(Math.max(Number(limit) || 40, 1), 150);
 
-  const q = 'select=*&order=cerrado_at.desc&limit=' + n;
+  const off = Math.max(Number(offset) || 0, 0);
+
+  const q = 'select=*&order=cerrado_at.desc&limit=' + n + '&offset=' + off;
 
   const r = await restSelect('cierres_caja', q);
 
@@ -528,11 +594,13 @@ async function listCierres(limit) {
 
       ventana_hasta: c.ventana_hasta,
 
+      snapshot_json: c.snapshot_json != null ? c.snapshot_json : null,
+
     };
 
   });
 
-  return { ok: true, cierres };
+  return { ok: true, cierres: cierres, hasMore: cierres.length >= n };
 
 }
 
@@ -594,23 +662,42 @@ async function createCierre(body) {
 
   };
 
+  var snapRaw = body.snapshot_json;
+  if (snapRaw != null && snapRaw !== '') {
+    if (typeof snapRaw === 'string') {
+      try {
+        row.snapshot_json = JSON.parse(snapRaw);
+      } catch (e) {
+        row.snapshot_json = { raw: String(snapRaw).slice(0, 8000) };
+      }
+    } else if (typeof snapRaw === 'object') {
+      row.snapshot_json = snapRaw;
+    }
+  }
+
 
 
   const ins = await restInsert('cierres_caja', row);
 
   if (!ins.ok) {
-    const legacy = Object.assign({}, row);
-    delete legacy.ingresos;
-    let retry = await restInsert('cierres_caja', legacy);
+    var legacy = Object.assign({}, row);
+    delete legacy.snapshot_json;
+    var retry = await restInsert('cierres_caja', legacy);
+    if (!retry.ok) {
+      delete legacy.ingresos;
+      retry = await restInsert('cierres_caja', legacy);
+    }
     if (!retry.ok) {
       delete legacy.ventana_desde;
       delete legacy.ventana_hasta;
       retry = await restInsert('cierres_caja', legacy);
     }
     if (retry.ok) {
+      var warn = row.snapshot_json != null ? 'snapshot_column_missing' : 'ingresos_column_missing';
+      if (legacy.ingresos === undefined) warn = 'ingresos_column_missing';
       return {
         ok: true,
-        warning: 'ingresos_column_missing',
+        warning: warn,
         cierre: Object.assign(
           { id: idVal, cerrado_at: new Date().toISOString(), ingresos: Number(body.ingresos) || 0 },
           legacy
@@ -654,6 +741,8 @@ module.exports = {
   createOrderFromShop,
 
   listOrders,
+
+  searchOrders,
 
   updateOrder,
 
