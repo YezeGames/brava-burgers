@@ -433,10 +433,11 @@
 
 		if (p_variedad !== undefined && p_variedad !== null) {
 			producto.variedad = p_variedad;
-			if (_brava_pers_line) {
-				producto.precio = _brava_pers_line.precio;
-				producto.adicionales = _brava_pers_line.adicionales || 0;
-				if (_brava_pers_line.aclaraciones) producto.aclaraciones = _brava_pers_line.aclaraciones;
+			var persLine = _brava_pers_line;
+			if (persLine) {
+				producto.precio = persLine.precio;
+				producto.adicionales = persLine.adicionales || 0;
+				producto.aclaraciones = persLine.aclaraciones || '';
 				_brava_pers_line = null;
 			} else if (producto.variedades && producto.variedades.length) {
 				producto.variedades.forEach(function (v) {
@@ -448,15 +449,13 @@
 					}
 				});
 			}
-		}
 
-		if (!_brava_pers_line) {
-			if (p_variedad !== undefined && p_variedad !== null) {
+			// Solo reutilizar precio/step de una línea previa si NO viene de personalización nueva
+			if (!persLine) {
 				g_pedido.productos.forEach(function (item) {
 					if (item.id == producto.id && item.variedad == p_variedad) {
 						producto.precio = item.precio;
 						producto.adicionales = item.adicionales;
-						producto.aclaraciones = item.aclaraciones;
 						producto.step = item.step;
 						producto.minimo = item.minimo;
 					}
