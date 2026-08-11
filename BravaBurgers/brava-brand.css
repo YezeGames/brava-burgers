@@ -647,15 +647,14 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		/* Solo celu: como referencia — BRAVA derecha visible, izq. apenas asoma */
 		inset: auto;
 		top: 0;
 		left: 0;
 		right: 0;
 		height: 100vh;
 		height: 100dvh;
-		background-size: auto 100%;
-		background-position: center top;
+		background-size: auto 105%;
+		background-position: right top;
 	}
 }
 
