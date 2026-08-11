@@ -631,46 +631,34 @@ body.brava-shop-b.brava-has-bg-image {
 	background-image: none !important;
 }
 
-/* Fondo pegado al documento (scrollea con el contenido, sin efecto parallax) */
+/* Fondo mobile (pseudo-elemento) */
 body.brava-shop-b.brava-has-bg-image::before {
 	content: '';
-	position: absolute;
+	display: none;
+	position: fixed;
 	inset: 0;
 	z-index: -1;
 	background-color: #0a0a0a;
 	background-image: var(--brava-bg-mobile, none);
 	background-repeat: no-repeat;
 	background-size: cover;
-	background-position: center top;
+	background-position: center center;
 	pointer-events: none;
 }
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		width: 100%;
-		height: 100%;
-		height: 100dvh;
-		background-size: cover;
-		background-position: center center;
-		background-repeat: no-repeat;
+		display: block;
 	}
 }
 
 @media (min-width: 769px) {
-	body.brava-shop-b.brava-has-bg-image::before {
-		position: absolute;
-		inset: 0;
-		width: auto;
-		height: auto;
-		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
-		background-size: cover;
-		background-position: center center;
-		background-repeat: no-repeat;
+	body.brava-shop-b.brava-has-bg-image {
+		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none)) !important;
+		background-size: cover !important;
+		background-position: center center !important;
+		background-repeat: no-repeat !important;
+		background-attachment: fixed !important;
 	}
 }
 
