@@ -623,18 +623,21 @@ body.brava-shop-b {
 body.brava-shop-b.brava-has-bg-image {
 	background-color: #0a0a0a !important;
 	background-repeat: no-repeat !important;
-	/* Ancho completo de pantalla; altura proporcional (sin recortar) */
-	background-size: 100% auto !important;
+	/*
+	 * Ancho = pantalla hasta 1920px (tamaño del JPG).
+	 * Nunca upscale más allá del archivo → menos pixelado en desktop ancho.
+	 */
+	background-size: min(100vw, 1920px) auto !important;
 	background-position: center top !important;
-	background-attachment: fixed !important;
+	background-attachment: scroll !important;
 	image-rendering: auto;
 	-webkit-backface-visibility: hidden;
 	backface-visibility: hidden;
 }
 
-@media (max-width: 768px) {
+@media (min-width: 769px) {
 	body.brava-shop-b.brava-has-bg-image {
-		background-attachment: scroll !important;
+		background-attachment: fixed !important;
 	}
 }
 
