@@ -651,7 +651,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 		display: block;
 		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
 		background-size: 100% auto;
-		background-position: center center;
+		background-position: center 30%;
 		background-repeat: no-repeat;
 	}
 }
