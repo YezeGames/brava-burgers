@@ -832,7 +832,7 @@
 		el.textContent = css;
 
 		var bgDesktop = t.imagenFondoDesktop || t.imagenFondoPc || 'brava-fondo-tienda-desktop.jpg?v=8';
-		var bgMobile = t.imagenFondo || 'brava-fondo-tienda-mobile.jpg?v=3';
+		var bgMobile = t.imagenFondo || bgDesktop;
 		document.documentElement.style.setProperty('--brava-bg-mobile', "url('" + bgMobile + "')");
 		document.documentElement.style.setProperty('--brava-bg-desktop', "url('" + bgDesktop + "')");
 		document.body.classList.add('brava-has-bg-image');
