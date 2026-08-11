@@ -736,14 +736,13 @@
 		}
 		el.textContent = css;
 
-		const pattern =
-			"url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%231a1a1a%22 width=%22100%22 height=%22100%22/><circle cx=%2250%22 cy=%2250%22 r=%2230%22 fill=%22%23FF6B35%22 opacity=%220.05%22/></svg>')";
-		if (t.imagenFondo) {
-			document.body.style.backgroundImage = "url('" + t.imagenFondo + "')";
-		} else {
-			document.body.style.backgroundImage = pattern;
-		}
-		document.body.style.backgroundRepeat = 'repeat';
+		var bgImage = t.imagenFondo || 'brava-fondo-tienda.png';
+		document.body.style.backgroundImage = "url('" + bgImage + "')";
+		document.body.style.backgroundRepeat = 'no-repeat';
+		document.body.style.backgroundSize = 'cover';
+		document.body.style.backgroundPosition = 'center top';
+		document.body.style.backgroundAttachment = 'fixed';
+		document.body.classList.add('brava-has-bg-image');
 
 		const DEFAULT_LOGO_SVG =
 			"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E";

@@ -620,6 +620,20 @@ body.brava-shop-b {
 	padding-bottom: calc(96px + env(safe-area-inset-bottom));
 }
 
+body.brava-shop-b.brava-has-bg-image {
+	background-color: #0a0a0a !important;
+	background-repeat: no-repeat !important;
+	background-size: cover !important;
+	background-position: center top !important;
+	background-attachment: fixed !important;
+}
+
+@media (max-width: 768px) {
+	body.brava-shop-b.brava-has-bg-image {
+		background-attachment: scroll !important;
+	}
+}
+
 body.brava-shop-b .brava-shop-wrap {
 	max-width: 520px;
 	margin: 0 auto;
@@ -634,7 +648,7 @@ body.brava-shop-b .navbar {
 body.brava-shop-b .brava-hero {
 	position: relative;
 	z-index: 1;
-	background: var(--brava-bg);
+	background: rgba(10, 10, 10, 0.92);
 	border-bottom: 1px solid var(--brava-border);
 	text-align: center;
 	padding: 18px 16px 14px;
@@ -721,7 +735,7 @@ body.brava-shop-b #brava_cat_chips {
 	position: sticky;
 	top: 0;
 	z-index: 1020;
-	background: var(--brava-bg);
+	background: rgba(10, 10, 10, 0.92);
 	border-bottom: 1px solid var(--brava-border);
 	padding: 0;
 }
@@ -808,6 +822,7 @@ body.brava-shop-b .brava-product-row {
 	margin-bottom: 10px;
 	border-radius: 16px;
 	overflow: hidden;
+	background-color: rgba(42, 42, 42, 0.94);
 }
 
 body.brava-shop-b .brava-row-head {
