@@ -312,7 +312,25 @@
 			if (mostrar) $('#producto_' + producto.id).show();
 			else $('#producto_' + producto.id).hide();
 		});
+		if (g_viendo_buscador) {
+			$('.brava-sub-block').each(function () {
+				var $block = $(this);
+				var visible = $block.find('.producto:visible').length > 0;
+				this.open = visible;
+				$block.toggle(visible || v_palabra === '');
+			});
+		}
 	};
+
+	function resetSubcategoryAccordion() {
+		$('.brava-cat-panel').each(function () {
+			$(this)
+				.find('.brava-sub-block')
+				.each(function (idx) {
+					this.open = idx === 0;
+				});
+		});
+	}
 
 	window.mostrar_buscador = function () {
 		if (g_viendo_resumen) mostrar_resumen_pedido();
@@ -332,6 +350,7 @@
 			$('.producto').show();
 			$('.helper_buscador').hide();
 			bravaSelectCatalogCat('1');
+			resetSubcategoryAccordion();
 			$(window).scrollTop(0);
 			g_viendo_buscador = false;
 		}
@@ -1095,7 +1114,16 @@
 				var showSubTitle = productos_por_cat[categoria].order.length > 1 || subcategoria !== 'General';
 				if (showSubTitle) {
 					html +=
-						'<h3 class="brava-sub-title">' + escapeHtml(subcategoria.toUpperCase()) + '</h3>';
+						'<details class="brava-sub-block"' +
+						(sub_index === 1 ? ' open' : '') +
+						' data-subcategoria="' +
+						sub_index +
+						'">';
+					html +=
+						'<summary class="brava-sub-title">' +
+						escapeHtml(subcategoria.toUpperCase()) +
+						'</summary>';
+					html += '<div class="brava-sub-panel">';
 				}
 
 				subs.forEach(function (producto) {
@@ -1139,6 +1167,9 @@
 						'\');">Agregar otra opción</button></div>';
 					html += '</div></div>';
 				});
+				if (showSubTitle) {
+					html += '</div></details>';
+				}
 				sub_index++;
 			});
 
