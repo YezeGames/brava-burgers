@@ -642,16 +642,16 @@ body.brava-shop-b.brava-has-bg-image::before {
 	background-image: var(--brava-bg-mobile, var(--brava-bg-desktop, none));
 	background-repeat: no-repeat;
 	background-size: 100% auto;
-	background-position: center center;
+	background-position: center top;
 	pointer-events: none;
 }
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
 		display: block;
-		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
-		background-size: cover;
-		background-position: center 30%;
+		background-image: var(--brava-bg-mobile, var(--brava-bg-desktop, none));
+		background-size: 100% auto;
+		background-position: center top;
 		background-repeat: no-repeat;
 	}
 }
