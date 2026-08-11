@@ -736,10 +736,9 @@
 		}
 		el.textContent = css;
 
-		var bgImage = t.imagenFondo || 'brava-fondo-tienda.png';
+		var bgImage = t.imagenFondo || 'brava-fondo-tienda.jpg';
 		document.body.style.backgroundImage = "url('" + bgImage + "')";
 		document.body.style.backgroundRepeat = 'no-repeat';
-		document.body.style.backgroundSize = 'cover';
 		document.body.style.backgroundPosition = 'center top';
 		document.body.style.backgroundAttachment = 'fixed';
 		document.body.classList.add('brava-has-bg-image');

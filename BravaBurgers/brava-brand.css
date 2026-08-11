@@ -623,9 +623,13 @@ body.brava-shop-b {
 body.brava-shop-b.brava-has-bg-image {
 	background-color: #0a0a0a !important;
 	background-repeat: no-repeat !important;
-	background-size: cover !important;
+	/* Ancho real de la imagen (1080px): evita upscale que pixela en retina */
+	background-size: min(100vw, 1080px) auto !important;
 	background-position: center top !important;
 	background-attachment: fixed !important;
+	image-rendering: auto;
+	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
 }
 
 @media (max-width: 768px) {
