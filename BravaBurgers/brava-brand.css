@@ -647,24 +647,31 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		inset: auto;
+		/* Celu: centrado como referencia — BRAVA a ambos lados, sin duplicar */
+		position: absolute;
 		top: 0;
 		left: 0;
 		right: 0;
+		bottom: auto;
+		width: 100%;
 		height: 100vh;
 		height: 100dvh;
-		background-size: auto 128%;
-		background-position: 72% top;
+		background-size: cover;
+		background-position: center top;
+		background-repeat: no-repeat;
 	}
 }
 
 @media (min-width: 769px) {
 	body.brava-shop-b.brava-has-bg-image::before {
+		position: absolute;
 		inset: 0;
+		width: auto;
 		height: auto;
 		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
 		background-size: cover;
 		background-position: center center;
+		background-repeat: no-repeat;
 	}
 }
 
