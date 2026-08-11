@@ -623,8 +623,8 @@ body.brava-shop-b {
 body.brava-shop-b.brava-has-bg-image {
 	background-color: #0a0a0a !important;
 	background-repeat: no-repeat !important;
-	/* Ancho real de la imagen (1080px): evita upscale que pixela en retina */
-	background-size: min(100vw, 1080px) auto !important;
+	/* Ancho completo de pantalla; altura proporcional (sin recortar) */
+	background-size: 100% auto !important;
 	background-position: center top !important;
 	background-attachment: fixed !important;
 	image-rendering: auto;
