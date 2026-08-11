@@ -635,8 +635,11 @@ body.brava-shop-b.brava-has-bg-image {
 @media (min-width: 769px) {
 	body.brava-shop-b.brava-has-bg-image {
 		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none)) !important;
-		/* PC: llena todo el monitor (sin bandas negras a los lados) */
-		background-size: cover !important;
+		/*
+		 * PC: ancho real de pantalla, sin cover (cover = recorte/zoom).
+		 * Hasta 3840px del JPG; monitores más chicos achican → nítido.
+		 */
+		background-size: min(100vw, 3840px) auto !important;
 		background-position: center top !important;
 		background-attachment: fixed !important;
 	}
