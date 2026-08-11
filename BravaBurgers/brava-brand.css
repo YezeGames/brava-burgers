@@ -647,17 +647,16 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		/* Celu: centrado como referencia — BRAVA a ambos lados, sin duplicar */
-		position: absolute;
+		position: fixed;
 		top: 0;
 		left: 0;
 		right: 0;
-		bottom: auto;
+		bottom: 0;
 		width: 100%;
-		height: 100vh;
+		height: 100%;
 		height: 100dvh;
 		background-size: cover;
-		background-position: center top;
+		background-position: center center;
 		background-repeat: no-repeat;
 	}
 }
