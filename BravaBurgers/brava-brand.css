@@ -634,13 +634,12 @@ body.brava-shop-b.brava-has-bg-image {
 
 @media (min-width: 769px) {
 	body.brava-shop-b.brava-has-bg-image {
+		background-color: #000000 !important;
 		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none)) !important;
-		/*
-		 * PC: mostrar la imagen entera sin agrandar (contain).
-		 * El PNG del usuario es ~574px; ampliarlo = zoom/pixelado falso.
-		 */
-		background-size: contain !important;
-		background-position: center center !important;
+		/* Imagen solo en la columna del menú; laterales negro puro */
+		background-size: min(520px, 100vw) auto !important;
+		background-position: center top !important;
+		background-repeat: no-repeat !important;
 		background-attachment: scroll !important;
 	}
 }
