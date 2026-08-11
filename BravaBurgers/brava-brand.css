@@ -641,14 +641,16 @@ body.brava-shop-b.brava-has-bg-image::before {
 	background-color: #0a0a0a;
 	background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
 	background-repeat: no-repeat;
-	background-size: cover;
-	background-position: center center;
+	background-size: 100% auto;
+	background-position: center top;
 	pointer-events: none;
 }
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
 		display: block;
+		background-size: 100% auto;
+		background-position: center top;
 	}
 }
 
