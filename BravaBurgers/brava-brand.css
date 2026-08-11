@@ -647,7 +647,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		/* Solo celu: alto de pantalla + pan horizontal (una BRAVA visible) */
+		/* Solo celu: como referencia — BRAVA derecha visible, izq. apenas asoma */
 		inset: auto;
 		top: 0;
 		left: 0;
@@ -655,7 +655,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 		height: 100vh;
 		height: 100dvh;
 		background-size: auto 100%;
-		background-position: 93% top;
+		background-position: center top;
 	}
 }
 
