@@ -647,15 +647,15 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		/* Solo celu: alto de pantalla (evita BRAVA duplicado al scrollear) */
+		/* Solo celu: alto de pantalla + pan horizontal (una BRAVA visible) */
 		inset: auto;
 		top: 0;
 		left: 0;
 		right: 0;
 		height: 100vh;
 		height: 100dvh;
-		background-size: cover;
-		background-position: 78% top;
+		background-size: auto 100%;
+		background-position: 93% top;
 	}
 }
 
