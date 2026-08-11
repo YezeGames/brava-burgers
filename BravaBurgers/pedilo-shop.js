@@ -511,6 +511,34 @@
 		calcular_total();
 	};
 
+	/** Suma 1 unidad a la línea exacta (mismo extra y aclaraciones), p. ej. desde el stepper. */
+	window.brava_inc_linea_pedido = function (p_id, p_variedad, p_aclaraciones) {
+		var found = null;
+		g_pedido.productos.forEach(function (item) {
+			if (item.id != p_id) return;
+			if (p_variedad !== undefined && p_variedad !== null) {
+				if (item.variedad != p_variedad) return;
+				if ((item.aclaraciones || '') != (p_aclaraciones || '')) return;
+			}
+			found = item;
+		});
+		if (!found) {
+			agregar_al_pedido(p_id, p_variedad);
+			return;
+		}
+		found.cantidad = parseFloat(found.cantidad) + parseFloat(found.step || 1);
+		calcular_total();
+	};
+
+	function bravaStepOnclick(fnName, producto) {
+		var args = [String(producto.id)];
+		if (producto.variedad != null && producto.variedad !== '') {
+			args.push(String(producto.variedad));
+			args.push(String(producto.aclaraciones || ''));
+		}
+		return fnName + '(' + args.map(function (a) { return JSON.stringify(a); }).join(', ') + ')';
+	}
+
 	window.quitar_del_pedido = function (p_id, p_variedad, p_aclaraciones) {
 		g_pedido.productos = g_pedido.productos.filter(function (producto) {
 			if (p_variedad === undefined) {
@@ -592,32 +620,19 @@
 		var html_por_producto = {};
 
 		function bravaStepperHtml(producto) {
-			var aclEsc = escapeAttr(producto.aclaraciones || '');
-			var minusOn =
-				"restar_una_unidad_del_pedido(\"" +
-				producto.id +
-				'"' +
-				(producto.variedad
-					? ', "' + escapeAttr(producto.variedad) + '", "' + aclEsc + '"'
-					: '') +
-				')';
-			var plusOn =
-				'agregar_al_pedido("' +
-				producto.id +
-				'"' +
-				(producto.variedad ? ', "' + escapeAttr(producto.variedad) + '"' : '') +
-				')';
+			var minusCall = bravaStepOnclick('restar_una_unidad_del_pedido', producto);
+			var plusCall = bravaStepOnclick('brava_inc_linea_pedido', producto);
 			return (
 				"<div class='brava-stepper'>" +
-				"<button type='button' onclick=\"" +
-				minusOn +
-				'">-</button>' +
+				"<button type='button' onclick='" +
+				minusCall +
+				"'>-</button>" +
 				"<span class='n'>" +
 				producto.cantidad +
 				'</span>' +
-				"<button type='button' onclick=\"" +
-				plusOn +
-				'">+</button>' +
+				"<button type='button' onclick='" +
+				plusCall +
+				"'>+</button>" +
 				'</div>'
 			);
 		}
@@ -630,11 +645,15 @@
 				parseFloat(producto.precio) * parseFloat(producto.cantidad) +
 				parseFloat(producto.adicionales || 0) * parseFloat(producto.cantidad);
 			var variedad_mostrar = producto.variedad ? ' ' + producto.variedad : '';
+			var acl_mostrar = producto.aclaraciones
+				? ' · ' + escapeHtml(producto.aclaraciones)
+				: '';
 			var v_html_texto =
 				"<span class='brava-expand-label'>" +
 				producto.cantidad +
 				'×' +
 				escapeHtml(variedad_mostrar) +
+				acl_mostrar +
 				' · $' +
 				formatear_moneda(precioLinea) +
 				'</span>';
