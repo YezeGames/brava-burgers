@@ -626,24 +626,29 @@ body.brava-shop-b {
 
 body.brava-shop-b.brava-has-bg-image {
 	background-color: #0a0a0a !important;
-	background-image: var(--brava-bg-mobile, none) !important;
-	background-repeat: no-repeat !important;
-	background-size: 100% auto !important;
-	background-position: center top !important;
-	background-attachment: scroll !important;
-	image-rendering: auto;
+	background-image: none !important;
+}
+
+/* Fondo fijo (evita corte al scrollear en celular; iOS no respeta bien fixed en body) */
+body.brava-shop-b.brava-has-bg-image::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: -1;
+	background-color: #0a0a0a;
+	background-image: var(--brava-bg-mobile, none);
+	background-repeat: no-repeat;
+	background-size: cover;
+	background-position: center 42%;
+	pointer-events: none;
 	-webkit-backface-visibility: hidden;
 	backface-visibility: hidden;
 }
 
 @media (min-width: 769px) {
-	body.brava-shop-b.brava-has-bg-image {
-		background-color: #0a0a0a !important;
-		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none)) !important;
-		background-size: cover !important;
-		background-position: center center !important;
-		background-repeat: no-repeat !important;
-		background-attachment: fixed !important;
+	body.brava-shop-b.brava-has-bg-image::before {
+		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
+		background-position: center center;
 	}
 }
 
