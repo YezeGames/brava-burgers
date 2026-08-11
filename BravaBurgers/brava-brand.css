@@ -647,8 +647,8 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		/* En celu, corrige un poco a la izquierda para que se vea el grafiti BRAVA */
-		background-position: 58% top;
+		/* Celu: corrige a la izquierda para ver una sola vez el grafiti BRAVA */
+		background-position: 72% top;
 	}
 }
 
