@@ -736,11 +736,10 @@
 		}
 		el.textContent = css;
 
-		var bgImage = t.imagenFondo || 'brava-fondo-tienda.jpg';
-		document.body.style.backgroundImage = "url('" + bgImage + "')";
-		document.body.style.backgroundRepeat = 'no-repeat';
-		document.body.style.backgroundPosition = 'center top';
-		document.body.style.backgroundAttachment = 'fixed';
+		var bgMobile = t.imagenFondo || 'brava-fondo-tienda.jpg';
+		var bgDesktop = t.imagenFondoDesktop || t.imagenFondoPc || 'brava-fondo-tienda-desktop.jpg';
+		document.documentElement.style.setProperty('--brava-bg-mobile', "url('" + bgMobile + "')");
+		document.documentElement.style.setProperty('--brava-bg-desktop', "url('" + bgDesktop + "')");
 		document.body.classList.add('brava-has-bg-image');
 
 		const DEFAULT_LOGO_SVG =
