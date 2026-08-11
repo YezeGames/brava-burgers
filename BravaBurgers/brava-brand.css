@@ -623,11 +623,8 @@ body.brava-shop-b {
 body.brava-shop-b.brava-has-bg-image {
 	background-color: #0a0a0a !important;
 	background-repeat: no-repeat !important;
-	/*
-	 * Ancho = pantalla hasta 1920px (tamaño del JPG).
-	 * Nunca upscale más allá del archivo → menos pixelado en desktop ancho.
-	 */
-	background-size: min(100vw, 1920px) auto !important;
+	/* Celular: ancho completo (como ahora, se ve bien) */
+	background-size: 100% auto !important;
 	background-position: center top !important;
 	background-attachment: scroll !important;
 	image-rendering: auto;
@@ -637,6 +634,8 @@ body.brava-shop-b.brava-has-bg-image {
 
 @media (min-width: 769px) {
 	body.brava-shop-b.brava-has-bg-image {
+		/* PC: mismo ancho que el menú, centrado — sin estirar a todo el monitor */
+		background-size: 520px auto !important;
 		background-attachment: fixed !important;
 	}
 }
