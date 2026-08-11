@@ -653,8 +653,8 @@ body.brava-shop-b.brava-has-bg-image::before {
 		right: 0;
 		height: 100vh;
 		height: 100dvh;
-		background-size: auto 105%;
-		background-position: right top;
+		background-size: auto 128%;
+		background-position: 72% top;
 	}
 }
 
