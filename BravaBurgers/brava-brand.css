@@ -636,12 +636,12 @@ body.brava-shop-b.brava-has-bg-image {
 	body.brava-shop-b.brava-has-bg-image {
 		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none)) !important;
 		/*
-		 * PC: ancho real de pantalla, sin cover (cover = recorte/zoom).
-		 * Hasta 3840px del JPG; monitores más chicos achican → nítido.
+		 * PC: mostrar la imagen entera sin agrandar (contain).
+		 * El PNG del usuario es ~574px; ampliarlo = zoom/pixelado falso.
 		 */
-		background-size: min(100vw, 3840px) auto !important;
-		background-position: center top !important;
-		background-attachment: fixed !important;
+		background-size: contain !important;
+		background-position: center center !important;
+		background-attachment: scroll !important;
 	}
 }
 
