@@ -975,6 +975,11 @@ body.brava-shop-b .brava-btn-add:hover {
 
 body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover {
 	background: linear-gradient(90deg, rgba(255, 107, 53, 0.14), rgba(42, 42, 42, 0.94)) !important;
+	color: var(--brava-text) !important;
+}
+
+body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover .brava-row-title {
+	color: var(--brava-text) !important;
 }
 
 body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover .brava-row-price,
