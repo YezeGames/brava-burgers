@@ -647,14 +647,24 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		/* Celu: corrige a la izquierda para ver una sola vez el grafiti BRAVA */
-		background-position: 72% top;
+		/* Solo celu: alto de pantalla (evita BRAVA duplicado al scrollear) */
+		inset: auto;
+		top: 0;
+		left: 0;
+		right: 0;
+		height: 100vh;
+		height: 100dvh;
+		background-size: cover;
+		background-position: 78% top;
 	}
 }
 
 @media (min-width: 769px) {
 	body.brava-shop-b.brava-has-bg-image::before {
+		inset: 0;
+		height: auto;
 		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
+		background-size: cover;
 		background-position: center center;
 	}
 }
