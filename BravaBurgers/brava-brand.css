@@ -711,8 +711,14 @@ body.brava-shop-b .brava-hero-title font {
 	color: var(--brava-accent) !important;
 }
 
-body.brava-shop-b .brava-hero-sub {
+body.brava-shop-b .brava-hero-tagline {
 	margin: 8px 0 0;
+	font-size: 0.82rem;
+	color: var(--brava-text);
+}
+
+body.brava-shop-b .brava-hero-sub {
+	margin: 4px 0 0;
 	font-size: 0.8rem;
 	color: var(--brava-muted);
 }
@@ -1111,26 +1117,23 @@ body.brava-shop-b .brava-hero-footer {
 	padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
 }
 
-body.brava-shop-b .brava-hero-footer-logo {
-	width: 56px;
-	height: 56px;
-	margin-bottom: 8px;
-	pointer-events: none;
-}
-
 body.brava-shop-b .brava-hero-footer-inner {
 	max-width: 520px;
 	margin: 0 auto;
 }
 
 body.brava-shop-b .brava-hero-footer-title {
-	margin: 0 0 10px;
+	margin: 0 0 18px;
 	font-family: 'Bebas Neue', 'Montserrat', sans-serif;
 	font-size: 1.75rem;
 	font-weight: 400;
 	letter-spacing: 0.06em;
 	line-height: 1;
 	color: var(--brava-accent) !important;
+}
+
+body.brava-shop-b #footer_pedilo_contenido {
+	margin-top: 2px;
 }
 
 body.brava-shop-b .brava-hero-footer-line {

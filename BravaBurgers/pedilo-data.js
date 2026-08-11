@@ -170,7 +170,6 @@
 		const wa = normalizarTelefono(telefono) || '5491173721945';
 		return (
 			'<div class="brava-footer-pedilo">' +
-			'<p class="brava-hero-footer-line">🍔 Hamburguesas de verdad</p>' +
 			'<p class="brava-hero-footer-line">' +
 			'<a class="brava-hero-footer-link" href="https://www.instagram.com/bravaburgers.ok/" target="_blank" rel="noopener">' +
 			'<i class="fab fa-instagram" aria-hidden="true"></i> @bravaburgers.ok</a></p>' +
@@ -225,6 +224,25 @@
 		return /^(abierto|horario|delivery de|nuestros horarios)/i.test(plain);
 	}
 
+	function isTaglineFooterLine(line) {
+		var plain = stripHtmlTags(line).replace(/^🍔\s*/, '').trim();
+		return /^hamburguesas de verdad$/i.test(plain) || /^🍔/.test(String(line).trim());
+	}
+
+	function extractBravaHeroTagline(cfg) {
+		var raw = configGet(cfg || {}, 'Pie de página') || configGet(cfg || {}, 'Pie de pagina') || '';
+		if (!raw) return '🍔 Hamburguesas de verdad';
+		var h = String(raw).replace(/<BR>/gi, '<br>');
+		var parts = h.split(/<br\s*\/?>/i);
+		for (var i = 0; i < parts.length; i++) {
+			var line = stripHtmlTags(parts[i]);
+			if (/hamburguesas de verdad/i.test(line)) {
+				return line.indexOf('🍔') >= 0 ? line : '🍔 ' + line;
+			}
+		}
+		return '🍔 Hamburguesas de verdad';
+	}
+
 	function stripHtmlTags(html) {
 		return String(html || '')
 			.replace(/<[^>]+>/g, ' ')
@@ -248,7 +266,7 @@
 			})
 			.filter(Boolean)
 			.filter(function (line) {
-				return !isHorarioFooterLine(line);
+				return !isHorarioFooterLine(line) && !isTaglineFooterLine(line);
 			});
 		if (!parts.length) {
 			return buildDefaultBravaPieHtml(telefono);
@@ -833,22 +851,11 @@
 			.attr('src', logoSrc)
 			.show();
 
-		var $footerLogo = $('#brava_footer_logo');
-		if ($footerLogo.length) {
-			$footerLogo
-				.off('error.bravaLogo')
-				.on('error.bravaLogo', function () {
-					$(this).attr('src', DEFAULT_LOGO_SVG);
-				})
-				.attr('referrerpolicy', 'no-referrer')
-				.attr('src', logoSrc)
-				.show();
-		}
-
 		if (t.titulo) {
 			$('#link_titulo').html(t.titulo.indexOf('<') >= 0 ? t.titulo : '<font color=#FF6B35>' + t.titulo + '</font>');
 			$('#brava_footer_titulo').text(stripHtmlTags(t.titulo) || 'BRAVA BURGERS');
 		}
+		$('#brava_hero_tagline').text(extractBravaHeroTagline(global.g_config || {}));
 		$('#brava_hero_sub').text(buildBravaHeroSubText(global.g_config || {}));
 		$('#footer_pedilo_contenido').html(
 			resolveBravaPieHtml(global.g_config || {}, global.g_telefono) ||
