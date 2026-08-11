@@ -278,6 +278,7 @@
 			$('body').addClass('brava-viendo-resumen');
 			$('.producto').hide();
 			$('.helper_resumen').show();
+			$('.brava-sub-block').prop('open', true);
 			g_pedido.productos.forEach(function (producto) {
 				$('#producto_' + producto.id).show();
 			});
@@ -323,13 +324,7 @@
 	};
 
 	function resetSubcategoryAccordion() {
-		$('.brava-cat-panel').each(function () {
-			$(this)
-				.find('.brava-sub-block')
-				.each(function (idx) {
-					this.open = idx === 0;
-				});
-		});
+		$('.brava-sub-block').prop('open', false);
 	}
 
 	window.mostrar_buscador = function () {
@@ -1114,9 +1109,7 @@
 				var showSubTitle = productos_por_cat[categoria].order.length > 1 || subcategoria !== 'General';
 				if (showSubTitle) {
 					html +=
-						'<details class="brava-sub-block"' +
-						(sub_index === 1 ? ' open' : '') +
-						' data-subcategoria="' +
+						'<details class="brava-sub-block" data-subcategoria="' +
 						sub_index +
 						'">';
 					html +=

@@ -813,8 +813,23 @@ body.brava-shop-b.brava-catalog-search .brava-cat-panel {
 }
 
 body.brava-shop-b.brava-viendo-resumen #brava_cat_chips,
-body.brava-shop-b.brava-viendo-resumen .brava-cat-panel {
+body.brava-shop-b.brava-viendo-resumen .brava-section-title,
+body.brava-shop-b.brava-viendo-resumen .brava-sub-block > summary {
 	display: none !important;
+}
+
+body.brava-shop-b.brava-viendo-resumen .brava-cat-panel {
+	display: block !important;
+}
+
+body.brava-shop-b.brava-viendo-resumen .brava-sub-block {
+	border: 0;
+	background: transparent;
+	margin: 0;
+}
+
+body.brava-shop-b.brava-viendo-resumen .brava-menu-list {
+	padding-top: 0;
 }
 
 body.brava-shop-b.brava-catalog-search #brava_cat_chips {
@@ -955,6 +970,31 @@ body.brava-shop-b .brava-btn-add {
 
 body.brava-shop-b .brava-btn-add:hover {
 	background: var(--brava-accent);
+	color: #111;
+}
+
+body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover {
+	background: linear-gradient(90deg, rgba(255, 107, 53, 0.14), rgba(42, 42, 42, 0.94)) !important;
+}
+
+body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover .brava-row-price,
+body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover .precio-box {
+	color: var(--brava-accent) !important;
+}
+
+body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover small {
+	color: var(--brava-muted) !important;
+}
+
+body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover .brava-btn-add {
+	border-color: var(--brava-accent);
+	background: rgba(10, 10, 10, 0.35);
+	color: var(--brava-accent);
+}
+
+body.brava-shop-b.tienehover .producto_fila.brava-product-row:hover .brava-btn-add:hover {
+	background: var(--brava-accent);
+	border-color: var(--brava-accent);
 	color: #111;
 }
 
