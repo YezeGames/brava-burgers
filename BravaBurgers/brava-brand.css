@@ -639,7 +639,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 	inset: 0;
 	z-index: -1;
 	background-color: #0a0a0a;
-	background-image: var(--brava-bg-mobile, none);
+	background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none));
 	background-repeat: no-repeat;
 	background-size: cover;
 	background-position: center center;
