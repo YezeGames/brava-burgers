@@ -168,24 +168,53 @@
 
 	function buildDefaultBravaPieHtml(telefono) {
 		const wa = normalizarTelefono(telefono) || '5491173721945';
-		const accent = '#FF6B35';
 		return (
-			'<span class="brava-footer-pedilo" style="color:' +
-			accent +
-			'; font-weight: bold;">' +
-			'<br>BRAVA BURGERS<BR><br>' +
-			'🍔 Hamburguesas de verdad<br>' +
-			'⏰ Abierto Sábados 20:00 a 23:00<br>' +
-			'<span class="fab fa-instagram">&nbsp;</span>' +
-			'<a href="https://www.instagram.com/bravaburgers.ok/" target="_blank" rel="noopener" style="color:' +
-			accent +
-			'">@bravaburgers.ok</a><br>' +
-			'<br><a href="https://wa.me/' +
+			'<div class="brava-footer-pedilo">' +
+			'<p class="brava-hero-footer-line">🍔 Hamburguesas de verdad</p>' +
+			'<p class="brava-hero-footer-line brava-hero-footer-muted">⏰ Abierto Sábados 20:00 a 23:00</p>' +
+			'<p class="brava-hero-footer-line">' +
+			'<a class="brava-hero-footer-link" href="https://www.instagram.com/bravaburgers.ok/" target="_blank" rel="noopener">' +
+			'<i class="fab fa-instagram" aria-hidden="true"></i> @bravaburgers.ok</a></p>' +
+			'<p class="brava-hero-footer-line">' +
+			'<a class="brava-hero-footer-link" href="https://wa.me/' +
 			wa +
-			'" target="_blank" rel="noopener" style="color:' +
-			accent +
-			'">Escribinos por WhatsApp</a></span>'
+			'" target="_blank" rel="noopener">Escribinos por WhatsApp</a></p>' +
+			'</div>'
 		);
+	}
+
+	function stripHtmlTags(html) {
+		return String(html || '')
+			.replace(/<[^>]+>/g, ' ')
+			.replace(/\s+/g, ' ')
+			.trim();
+	}
+
+	function legacyPieToHeroLines(html, telefono) {
+		let h = String(html || '')
+			.replace(/<BR>/gi, '<br>')
+			.replace(/<\/?span[^>]*>/gi, '')
+			.replace(/\sstyle="[^"]*"/gi, '')
+			.replace(/<br>\s*BRAVA BURGERS\s*<br>/gi, '<br>')
+			.replace(/BRAVA BURGERS\s*<br>/gi, '')
+			.replace(/^BRAVA BURGERS\s*/i, '')
+			.trim();
+		const parts = h
+			.split(/<br\s*\/?>/i)
+			.map(function (line) {
+				return line.replace(/^\s+|\s+$/g, '');
+			})
+			.filter(Boolean);
+		if (!parts.length) {
+			return buildDefaultBravaPieHtml(telefono);
+		}
+		const lines = parts.map(function (line) {
+			const isMuted = /⏰|horario|abierto|delivery de/i.test(line) && line.indexOf('<a') === -1;
+			const cls = 'brava-hero-footer-line' + (isMuted ? ' brava-hero-footer-muted' : '');
+			line = line.replace(/<a(\s|>)/gi, '<a class="brava-hero-footer-link"$1');
+			return '<p class="' + cls + '">' + line + '</p>';
+		});
+		return '<div class="brava-footer-pedilo">' + lines.join('') + '</div>';
 	}
 
 	function normalizePieHtml(html, telefono) {
@@ -196,7 +225,10 @@
 		if (!/BRAVA BURGERS|bravaburgers\.ok|brava-footer-pie|brava-footer-pedilo/i.test(h)) {
 			return buildDefaultBravaPieHtml(telefono);
 		}
-		return h;
+		if (/brava-hero-footer-line|brava-footer-pedilo/i.test(h)) {
+			return h;
+		}
+		return legacyPieToHeroLines(h, telefono);
 	}
 
 	function resolveBravaPieHtml(cfg, telefono) {
@@ -756,8 +788,21 @@
 			.attr('src', logoSrc)
 			.show();
 
+		var $footerLogo = $('#brava_footer_logo');
+		if ($footerLogo.length) {
+			$footerLogo
+				.off('error.bravaLogo')
+				.on('error.bravaLogo', function () {
+					$(this).attr('src', DEFAULT_LOGO_SVG);
+				})
+				.attr('referrerpolicy', 'no-referrer')
+				.attr('src', logoSrc)
+				.show();
+		}
+
 		if (t.titulo) {
 			$('#link_titulo').html(t.titulo.indexOf('<') >= 0 ? t.titulo : '<font color=#FF6B35>' + t.titulo + '</font>');
+			$('#brava_footer_titulo').text(stripHtmlTags(t.titulo) || 'BRAVA BURGERS');
 		}
 		$('#footer_pedilo_contenido').html(
 			resolveBravaPieHtml(global.g_config || {}, global.g_telefono) ||
