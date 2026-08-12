@@ -631,28 +631,23 @@ body.brava-shop-b.brava-has-bg-image {
 	background-image: none !important;
 }
 
-/* Fondo mobile (pseudo-elemento) */
-body.brava-shop-b.brava-has-bg-image::before {
-	content: '';
-	display: none;
-	position: fixed;
-	inset: 0;
-	z-index: -1;
+html:has(body.brava-shop-b.brava-has-bg-image) {
 	background-color: #0a0a0a;
-	background-image: var(--brava-bg-mobile, var(--brava-bg-desktop, none));
-	background-repeat: no-repeat;
-	background-size: 100% auto;
-	background-position: center top;
-	pointer-events: none;
+}
+
+/* Fondo mobile: en el body (scroll) para cubrir todo el documento */
+body.brava-shop-b.brava-has-bg-image::before {
+	content: none;
+	display: none;
 }
 
 @media (max-width: 768px) {
-	body.brava-shop-b.brava-has-bg-image::before {
-		display: block;
-		background-image: var(--brava-bg-mobile, var(--brava-bg-desktop, none));
-		background-size: 100% auto;
-		background-position: center top;
-		background-repeat: no-repeat;
+	body.brava-shop-b.brava-has-bg-image {
+		background-image: var(--brava-bg-mobile, var(--brava-bg-desktop, none)) !important;
+		background-repeat: no-repeat !important;
+		background-size: 100% auto !important;
+		background-position: center top !important;
+		background-attachment: scroll !important;
 	}
 }
 
