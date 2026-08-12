@@ -3,6 +3,12 @@
  * Desktop: brava-brand.css @media (min-width: 769px)
  */
 @media (max-width: 768px) {
+	html,
+	body.brava-shop-b {
+		overflow-x: hidden;
+		max-width: 100%;
+	}
+
 	body.brava-shop-b {
 		font-family: 'DM Sans', 'Open Sans', sans-serif;
 		-webkit-tap-highlight-color: transparent;
@@ -15,6 +21,33 @@
 		background: rgba(26, 26, 26, 0.94);
 		backdrop-filter: blur(10px);
 		border-bottom: 3px solid var(--brava-accent);
+		max-width: 100%;
+		overflow: hidden;
+	}
+
+	body.brava-shop-b > .container.brava-shop-wrap {
+		max-width: 100%;
+		width: 100%;
+		overflow-x: hidden;
+	}
+
+	body.brava-shop-b #productos.row {
+		margin-left: 0;
+		margin-right: 0;
+		max-width: 100%;
+	}
+
+	body.brava-shop-b .brava-menu-zone.col-12 {
+		padding-left: 0;
+		padding-right: 0;
+		max-width: 100%;
+	}
+
+	body.brava-shop-b #brava_cat_chips.col-12 {
+		padding-left: 0;
+		padding-right: 0;
+		max-width: 100%;
+		overflow: hidden;
 	}
 
 	body.brava-shop-b .brava-hero {
@@ -28,11 +61,13 @@
 
 	body.brava-shop-b .brava-hero-inner {
 		display: grid;
-		grid-template-columns: 44px 1fr auto;
+		grid-template-columns: 44px minmax(0, 1fr) auto;
 		grid-template-rows: auto auto auto;
 		align-items: center;
 		gap: 2px 10px;
 		text-align: left;
+		min-width: 0;
+		max-width: 100%;
 	}
 
 	body.brava-shop-b .brava-hero-logo {
@@ -53,6 +88,7 @@
 		margin: 0;
 		line-height: 1;
 		text-align: left;
+		min-width: 0;
 	}
 
 	body.brava-shop-b .brava-hero-tagline {
@@ -115,6 +151,28 @@
 
 	body.brava-shop-b .brava-cat-chips {
 		padding: 10px 14px 6px;
+		max-width: 100%;
+	}
+
+	body.brava-shop-b .brava-row-item.col-12,
+	body.brava-shop-b .brava-menu-list .producto {
+		padding-left: 0;
+		padding-right: 0;
+		max-width: 100%;
+	}
+
+	body.brava-shop-b .brava-row-head {
+		min-width: 0;
+	}
+
+	body.brava-shop-b .brava-row-copy {
+		min-width: 0;
+	}
+
+	body.brava-shop-b #footer_enviar.brava-send-bar,
+	body.brava-shop-b .brava-hero-footer {
+		max-width: 100%;
+		box-sizing: border-box;
 	}
 
 	body.brava-shop-b #catalogo_dinamico {
