@@ -635,7 +635,7 @@ html:has(body.brava-shop-b.brava-has-bg-image) {
 	background-color: #0a0a0a;
 }
 
-/* Mobile: fondo 720x1600 tal cual, ancho de pagina, sin zoom ni offset */
+/* Mobile: PNG nativo, ancho de pagina proporcional, sin reescalar archivo */
 body.brava-shop-b.brava-has-bg-image::before {
 	content: none;
 	display: none;
