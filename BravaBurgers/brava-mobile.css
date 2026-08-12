@@ -67,9 +67,15 @@
 		grid-column: 1 / -1;
 		grid-row: 3;
 		justify-content: flex-start;
+		align-items: center;
 		margin: 6px 0 4px;
 		padding: 0 2px;
 		font-size: 0.78rem;
+		gap: 6px;
+	}
+
+	body.brava-shop-b .brava-hero-status-dot {
+		transform: translateY(1px);
 	}
 
 	body.brava-shop-b .brava-hero-actions {

@@ -882,20 +882,27 @@ body.brava-shop-b .brava-hero-tagline {
 body.brava-shop-b .brava-hero-sub {
 	margin: 6px 0 0;
 	font-size: 0.82rem;
-	display: flex;
+	display: inline-flex;
 	flex-direction: row;
 	align-items: center;
 	justify-content: center;
-	gap: 8px;
+	gap: 7px;
 	line-height: 1;
 	text-align: center;
 }
 
 body.brava-shop-b .brava-hero-status-dot {
-	width: 9px;
-	height: 9px;
+	width: 8px;
+	height: 8px;
 	border-radius: 50%;
 	flex-shrink: 0;
+	display: block;
+	transform: translateY(0.5px);
+}
+
+body.brava-shop-b .brava-hero-status-label {
+	line-height: 1;
+	display: block;
 }
 
 body.brava-shop-b .brava-hero-sub.is-open .brava-hero-status-dot {
