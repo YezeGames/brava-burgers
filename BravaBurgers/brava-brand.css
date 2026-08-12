@@ -635,7 +635,7 @@ html:has(body.brava-shop-b.brava-has-bg-image) {
 	background-color: #0a0a0a;
 }
 
-/* Fondo mobile: en el body (scroll) para cubrir todo el documento */
+/* Mobile: banner del usuario detrás del menú + textura que sigue al scroll */
 body.brava-shop-b.brava-has-bg-image::before {
 	content: none;
 	display: none;
@@ -643,11 +643,31 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image {
-		background-image: var(--brava-bg-mobile, var(--brava-bg-desktop, none)) !important;
-		background-repeat: no-repeat !important;
-		background-size: 100% auto !important;
-		background-position: center top !important;
-		background-attachment: scroll !important;
+		--brava-mobile-bg-y: 278px;
+		--brava-mobile-banner-ratio: 0.6074; /* 656 / 1080 */
+	}
+
+	body.brava-shop-b.brava-has-bg-image::before {
+		content: '';
+		display: block;
+		position: absolute;
+		z-index: -1;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		background-color: #0a0a0a;
+		background-image: var(--brava-bg-mobile, none), var(--brava-bg-mobile-fill, none);
+		background-repeat: no-repeat, repeat-y;
+		background-size: 100% auto, 100% auto;
+		background-position:
+			center var(--brava-mobile-bg-y),
+			center calc(var(--brava-mobile-bg-y) + (100vw * var(--brava-mobile-banner-ratio)));
+		pointer-events: none;
+	}
+
+	body.brava-shop-b.brava-has-bg-image {
+		background-image: none !important;
 	}
 }
 
