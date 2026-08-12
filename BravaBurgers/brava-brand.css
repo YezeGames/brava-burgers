@@ -756,23 +756,27 @@ body.brava-shop-b.brava-has-bg-image::before {
 	body.brava-shop-b .brava-menu-zone {
 		position: relative;
 		overflow: hidden;
-		contain: paint;
 		flex: 1 1 auto;
 		display: flex;
 		flex-direction: column;
 		min-height: 0;
+		width: 100vw;
+		max-width: 100vw;
+		margin-left: calc(50% - 50vw);
+		margin-right: calc(50% - 50vw);
 	}
 
 	body.brava-shop-b #catalogo_dinamico {
 		flex: 0 0 auto;
+		width: 100%;
+		max-width: 520px;
+		margin-left: auto;
+		margin-right: auto;
 	}
 
 	body.brava-shop-b .brava-menu-bg-clip {
 		position: absolute;
-		top: 0;
-		bottom: 0;
-		left: calc(50% - 50vw);
-		width: 100vw;
+		inset: 0;
 		overflow: hidden;
 		z-index: 0;
 		pointer-events: none;

@@ -839,9 +839,7 @@
 		}
 		if (!nw || !nh) return;
 
-		var bgW = isMobile
-			? zone.clientWidth || document.documentElement.clientWidth
-			: window.innerWidth || document.documentElement.clientWidth;
+		var bgW = zone.clientWidth || document.documentElement.clientWidth;
 		var graffitiStart = (bgW * nh / nw) * graffitiStartRatio;
 		var zoneH = zone.offsetHeight;
 		var neededH = graffitiStart + zoneH;
