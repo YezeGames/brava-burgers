@@ -808,7 +808,7 @@
 		document.title = global.g_tema.titulo.replace(/<[^>]+>/g, '');
 	}
 
-	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=18';
+	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=19';
 	var BRAVA_MOBILE_BG_NATIVE_W = 587;
 	var BRAVA_MOBILE_BG_NATIVE_H = 1024;
 	/* En el PNG, % desde arriba donde empieza el graffiti del menu */
@@ -822,16 +822,37 @@
 		var nw = img.naturalWidth || BRAVA_MOBILE_BG_NATIVE_W;
 		var nh = img.naturalHeight || BRAVA_MOBILE_BG_NATIVE_H;
 		if (!nw || !nh) return;
-		var vw = document.documentElement.clientWidth;
+		var vw = zone.clientWidth || document.documentElement.clientWidth;
 		var displayH = vw * nh / nw;
 		var graffitiStart = displayH * BRAVA_MOBILE_BG_GRAFFITI_START;
+		var zoneH = zone.offsetHeight;
+		var neededH = Math.max(displayH, graffitiStart + zoneH);
 
 		document.documentElement.style.setProperty('--brava-mobile-bg-offset', graffitiStart + 'px');
+		document.documentElement.style.setProperty('--brava-mobile-bg-height', neededH + 'px');
 
 		img.style.width = '100%';
-		img.style.height = '';
-		img.style.objectFit = '';
-		img.style.objectPosition = '';
+		img.style.height = neededH + 'px';
+		if (neededH > displayH + 1) {
+			img.style.objectFit = 'fill';
+			img.style.objectPosition = 'top center';
+		} else {
+			img.style.objectFit = '';
+			img.style.objectPosition = '';
+		}
+	}
+
+	var bravaMobileBgResizeObs = null;
+
+	function watchMobileBgZone() {
+		if (!window.matchMedia('(max-width:768px)').matches) return;
+		var zone = document.getElementById('brava_menu_zone');
+		if (!zone || typeof ResizeObserver === 'undefined') return;
+		if (bravaMobileBgResizeObs) bravaMobileBgResizeObs.disconnect();
+		bravaMobileBgResizeObs = new ResizeObserver(function () {
+			syncMobileBgOffset();
+		});
+		bravaMobileBgResizeObs.observe(zone);
 	}
 
 	function injectMobileBgImg() {
@@ -862,8 +883,12 @@
 			}
 		}
 		mobileBgImg.src = BRAVA_MOBILE_BG;
-		mobileBgImg.onload = syncMobileBgOffset;
+		mobileBgImg.onload = function () {
+			syncMobileBgOffset();
+			watchMobileBgZone();
+		};
 		syncMobileBgOffset();
+		watchMobileBgZone();
 	}
 
 	function injectThemeCss() {

@@ -656,6 +656,7 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 
 	body.brava-shop-b .brava-menu-zone {
 		position: relative;
+		overflow: hidden;
 	}
 
 	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
@@ -665,7 +666,7 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		top: calc(-1 * var(--brava-mobile-bg-offset, 0px));
 		left: 0;
 		width: 100%;
-		height: auto;
+		height: var(--brava-mobile-bg-height, auto);
 		max-width: none;
 		pointer-events: none;
 	}
