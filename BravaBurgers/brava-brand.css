@@ -701,13 +701,12 @@ body.brava-shop-b.brava-has-bg-image::before {
 		display: block;
 		position: absolute;
 		z-index: 0;
-		top: 0;
+		top: calc(-1 * var(--brava-menu-bg-offset, 0px));
 		left: 0;
 		width: 100%;
 		height: var(--brava-menu-bg-height, auto);
 		max-width: none;
 		pointer-events: none;
-		clip-path: inset(var(--brava-menu-bg-offset, 0px) 0 0 0);
 	}
 
 	body.brava-shop-b.brava-has-bg-image .brava-desktop-bg-img {
@@ -937,9 +936,20 @@ body.brava-shop-b #brava_cat_chips {
 	position: sticky;
 	top: 0;
 	z-index: 1020;
-	background: rgba(10, 10, 10, 0.92);
+	background: rgba(10, 10, 10, 0.55);
 	border-bottom: 1px solid var(--brava-border);
 	padding: 0;
+}
+
+@media (min-width: 769px) {
+	body.brava-shop-b #brava_cat_chips {
+		background: transparent;
+		border-bottom: 0;
+		max-width: 520px;
+		margin-left: auto;
+		margin-right: auto;
+		width: 100%;
+	}
 }
 
 body.brava-shop-b .brava-cat-chips {
