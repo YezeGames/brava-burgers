@@ -786,13 +786,13 @@ body.brava-shop-b.brava-has-bg-image::before {
 		display: block;
 		position: absolute;
 		z-index: 0;
-		top: 0;
-		left: 0;
+		inset: 0;
 		width: 100%;
-		height: var(--brava-menu-bg-height, auto);
+		height: 100%;
 		max-width: none;
 		pointer-events: none;
-		clip-path: inset(var(--brava-menu-bg-offset, 0px) 0 0 0);
+		object-fit: cover;
+		object-position: center bottom;
 	}
 
 	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
