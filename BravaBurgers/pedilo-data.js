@@ -832,10 +832,23 @@
 		el.textContent = css;
 
 		var bgDesktop = t.imagenFondoDesktop || t.imagenFondoPc || 'brava-fondo-tienda-desktop.png?v=10';
-		var bgMobile = t.imagenFondo || 'brava-fondo-tienda-mobile.png?v=12';
+		// Mobile: siempre PNG local (Sheet "Imagen de fondo" tenia URL vieja)
+		var bgMobile = 'brava-fondo-tienda-mobile.png?v=13';
 		document.documentElement.style.setProperty('--brava-bg-mobile', "url('" + bgMobile + "')");
 		document.documentElement.style.setProperty('--brava-bg-desktop', "url('" + bgDesktop + "')");
 		document.body.classList.add('brava-has-bg-image');
+
+		var mobileBgImg = document.getElementById('brava_mobile_bg');
+		if (!mobileBgImg) {
+			mobileBgImg = document.createElement('img');
+			mobileBgImg.id = 'brava_mobile_bg';
+			mobileBgImg.className = 'brava-mobile-bg-img';
+			mobileBgImg.alt = '';
+			mobileBgImg.setAttribute('aria-hidden', 'true');
+			mobileBgImg.setAttribute('decoding', 'async');
+			document.body.insertBefore(mobileBgImg, document.body.firstChild);
+		}
+		mobileBgImg.src = bgMobile;
 
 		const DEFAULT_LOGO_SVG =
 			"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E";

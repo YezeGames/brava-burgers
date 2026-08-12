@@ -635,27 +635,31 @@ html:has(body.brava-shop-b.brava-has-bg-image) {
 	background-color: #0a0a0a;
 }
 
-/* Mobile: PNG nativo, ancho de pagina proporcional, sin reescalar archivo */
+/* Mobile: PNG local con <img> ancho 100%, sin CSS background raro */
 body.brava-shop-b.brava-has-bg-image::before {
 	content: none;
 	display: none;
 }
 
+body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
+	display: none;
+}
+
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image::before {
-		content: '';
+		display: none !important;
+		content: none !important;
+	}
+
+	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		display: block;
 		position: absolute;
 		z-index: -1;
-		left: 0;
-		right: 0;
 		top: 0;
-		bottom: 0;
-		background-color: #0a0a0a;
-		background-image: var(--brava-bg-mobile, none);
-		background-repeat: no-repeat;
-		background-size: 100% auto;
-		background-position: top center;
+		left: 0;
+		width: 100%;
+		height: auto;
+		max-width: none;
 		pointer-events: none;
 	}
 
