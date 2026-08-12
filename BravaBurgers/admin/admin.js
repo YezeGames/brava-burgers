@@ -812,25 +812,216 @@
 
   var hambMenuMeta = null;
   var hambMenuMetaLoading = null;
+  var ventasCatalog = null;
+
+  function normalizeVentasKey(s) {
+    return String(s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim();
+  }
+
+  function ventasTipoFromRow(categoria, subcategoria, nombre) {
+    var cat = (categoria || '').toLowerCase();
+    var sub = (subcategoria || '').toLowerCase();
+    var nom = (nombre || '').toLowerCase();
+    if (cat.indexOf('hamburg') >= 0) return 'hamburguesa';
+    if (sub === 'simples' || sub === 'dobles' || sub === 'triples') return 'hamburguesa';
+    if (nom.indexOf('burger') >= 0 || nom.indexOf('hamburg') >= 0) return 'hamburguesa';
+    if (/\bcheese\s*burger\b/.test(nom)) return 'hamburguesa';
+    if (/bebida/i.test(cat) || /bebida/i.test(sub)) return 'bebida';
+    if (/acompa|entrada/i.test(cat) || /acompa|entrada/i.test(sub)) return 'acompanamiento';
+    var blob = cat + ' ' + sub;
+    if (/bebida|gaseosa|agua|cerveza|vino|refresco|botella/.test(blob)) return 'bebida';
+    if (/acompa|entrada|papas|guarnici|nugget|postre|side/.test(blob)) return 'acompanamiento';
+    if (cat || sub || nom) return 'acompanamiento';
+    return null;
+  }
+
+  function ventasExtraRowNombre(row) {
+    var nombre = String(row.nombre || row.Nombre || row.extra || row.Extra || row.titulo || row.Titulo || '').trim();
+    if (!nombre) return '';
+    var oculto = String(row.ocultar || row.Ocultar || '').toLowerCase();
+    if (oculto === 'si' || oculto === 'sí') return '';
+    return nombre;
+  }
+
+  function buildVentasCatalogFromSheets(productoRows, extraRows) {
+    var catalog = { bebidas: [], acompanamientos: [], extras: [], productoTipo: {} };
+    (productoRows || []).forEach(function (row) {
+      var nombre = String(row.nombre || row.Nombre || '').trim();
+      if (!nombre) return;
+      var oculto = String(row.ocultar || row.Ocultar || '').toLowerCase();
+      if (oculto === 'si' || oculto === 'sí') return;
+      var cat = String(row.categoria || row.Categoria || '').trim();
+      var sub = String(row.subcategoria || row.Subcategoria || '').trim();
+      var tipo = ventasTipoFromRow(cat, sub, nombre);
+      if (!tipo || tipo === 'hamburguesa') {
+        catalog.productoTipo[nombre.toLowerCase()] = 'hamburguesa';
+        return;
+      }
+      catalog.productoTipo[nombre.toLowerCase()] = tipo;
+      if (tipo === 'bebida') catalog.bebidas.push({ nombre: nombre });
+      else if (tipo === 'acompanamiento') catalog.acompanamientos.push({ nombre: nombre });
+    });
+    (extraRows || []).forEach(function (row) {
+      var nombre = ventasExtraRowNombre(row);
+      if (!nombre) return;
+      catalog.extras.push({ nombre: nombre });
+    });
+    function sortNombre(a, b) {
+      return a.nombre.localeCompare(b.nombre, 'es');
+    }
+    catalog.bebidas.sort(sortNombre);
+    catalog.acompanamientos.sort(sortNombre);
+    catalog.extras.sort(sortNombre);
+    return catalog;
+  }
+
+  function ventasTipoForItem(it) {
+    var r = resolveItemMeta(it);
+    var key = r.nombre.toLowerCase();
+    if (ventasCatalog && ventasCatalog.productoTipo[key]) {
+      var t = ventasCatalog.productoTipo[key];
+      if (t !== 'hamburguesa') return t;
+    }
+    if (isHamburguesaItem(it)) return 'hamburguesa';
+    return ventasTipoFromRow(r.categoria, r.subcategoria, r.nombre);
+  }
+
+  function matchVentasExtraName(part) {
+    var np = normalizeVentasKey(part);
+    if (!np || /^sin\s*extra/.test(np)) return '';
+    var list = (ventasCatalog && ventasCatalog.extras) || [];
+    for (var i = 0; i < list.length; i++) {
+      if (normalizeVentasKey(list[i].nombre) === np) return list[i].nombre;
+    }
+    for (var j = 0; j < list.length; j++) {
+      var ek = normalizeVentasKey(list[j].nombre);
+      if (np.indexOf(ek) >= 0 || ek.indexOf(np) >= 0) return list[j].nombre;
+    }
+    return String(part || '').trim();
+  }
+
+  function createEmptyVentasQtyMaps() {
+    var maps = { bebidas: {}, acompanamientos: {}, extras: {} };
+    if (!ventasCatalog) return maps;
+    ventasCatalog.bebidas.forEach(function (x) {
+      maps.bebidas[x.nombre] = 0;
+    });
+    ventasCatalog.acompanamientos.forEach(function (x) {
+      maps.acompanamientos[x.nombre] = 0;
+    });
+    ventasCatalog.extras.forEach(function (x) {
+      maps.extras[x.nombre] = 0;
+    });
+    return maps;
+  }
+
+  function ventasQtyMapToList(map, catalogList) {
+    var out = [];
+    var seen = {};
+    (catalogList || []).forEach(function (x) {
+      out.push({ nombre: x.nombre, qty: Number(map[x.nombre]) || 0 });
+      seen[x.nombre] = true;
+    });
+    Object.keys(map || {}).forEach(function (nombre) {
+      if (seen[nombre]) return;
+      var qty = Number(map[nombre]) || 0;
+      if (qty > 0) out.push({ nombre: nombre, qty: qty });
+    });
+    out.sort(function (a, b) {
+      return a.nombre.localeCompare(b.nombre, 'es');
+    });
+    return out;
+  }
+
+  function ventasQtyMapsToLists(maps) {
+    maps = maps || { bebidas: {}, acompanamientos: {}, extras: {} };
+    return {
+      bebidasVentas: ventasQtyMapToList(maps.bebidas, ventasCatalog && ventasCatalog.bebidas),
+      acompanamientosVentas: ventasQtyMapToList(
+        maps.acompanamientos,
+        ventasCatalog && ventasCatalog.acompanamientos
+      ),
+      extrasVentas: ventasQtyMapToList(maps.extras, ventasCatalog && ventasCatalog.extras),
+    };
+  }
+
+  function accumulateVentasItem(it, acc) {
+    var q = editItemQty(it);
+    var r = resolveItemMeta(it);
+    if (isHamburguesaItem(it)) {
+      if (hamburguesaEsDoble(it)) acc.dobles += q;
+      else acc.simples += q;
+      var nombre = (r.nombre || 'Ítem').trim();
+      acc.porProducto[nombre] = (acc.porProducto[nombre] || 0) + q;
+      parseExtrasFromVariedad(r.variedad).forEach(function (part) {
+        var extraName = matchVentasExtraName(part);
+        if (!extraName) return;
+        acc.extras[extraName] = (acc.extras[extraName] || 0) + q;
+      });
+      return;
+    }
+    var tipo = ventasTipoForItem(it);
+    if (tipo === 'bebida') {
+      acc.bebidas[r.nombre] = (acc.bebidas[r.nombre] || 0) + q;
+    } else if (tipo === 'acompanamiento') {
+      acc.acompanamientos[r.nombre] = (acc.acompanamientos[r.nombre] || 0) + q;
+    }
+  }
+
+  function renderVentasSidebarList(elId, list) {
+    var el = $(elId);
+    if (!el) return;
+    var rows = list || [];
+    if (!rows.length) {
+      el.innerHTML = '<div class="caja-row ventas-cat-empty"><span>—</span><span>0</span></div>';
+      return;
+    }
+    el.innerHTML = rows
+      .map(function (x) {
+        return (
+          '<div class="caja-row"><span>' +
+          escapeHtml(x.nombre) +
+          '</span><span>' +
+          Math.round(x.qty || 0) +
+          '</span></div>'
+        );
+      })
+      .join('');
+  }
 
   function loadHambMenuMeta() {
-    if (hambMenuMeta) return Promise.resolve(hambMenuMeta);
+    if (hambMenuMeta && ventasCatalog) return Promise.resolve(hambMenuMeta);
     if (hambMenuMetaLoading) return hambMenuMetaLoading;
     if (typeof Papa === 'undefined') {
       hambMenuMeta = {};
+      ventasCatalog = buildVentasCatalogFromSheets([], []);
       return Promise.resolve(hambMenuMeta);
     }
-    var url =
+    var base =
       'https://docs.google.com/spreadsheets/d/' +
       EDIT_MENU_SHEET_ID +
-      '/gviz/tq?tqx=out:csv&sheet=' +
-      encodeURIComponent('productos');
-    hambMenuMetaLoading = fetch(url)
-      .then(function (r) {
+      '/gviz/tq?tqx=out:csv&sheet=';
+    hambMenuMetaLoading = Promise.all([
+      fetch(base + encodeURIComponent('productos')).then(function (r) {
         return r.text();
-      })
-      .then(function (csv) {
-        var parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
+      }),
+      fetch(base + encodeURIComponent('extras'))
+        .then(function (r) {
+          return r.text();
+        })
+        .catch(function () {
+          return '';
+        }),
+    ])
+      .then(function (parts) {
+        var parsed = Papa.parse(parts[0], { header: true, skipEmptyLines: true });
+        var extraParsed = parts[1]
+          ? Papa.parse(parts[1], { header: true, skipEmptyLines: true })
+          : { data: [] };
         var map = {};
         (parsed.data || []).forEach(function (row) {
           var nombre = String(row.nombre || row.Nombre || '').trim();
@@ -843,10 +1034,12 @@
           };
         });
         hambMenuMeta = map;
+        ventasCatalog = buildVentasCatalogFromSheets(parsed.data || [], extraParsed.data || []);
         return map;
       })
       .catch(function () {
         hambMenuMeta = {};
+        ventasCatalog = buildVentasCatalogFromSheets([], []);
         return hambMenuMeta;
       })
       .finally(function () {
@@ -904,6 +1097,7 @@
   }
 
   function emptyCajaStats() {
+    var ventasListas = ventasQtyMapsToLists(createEmptyVentasQtyMaps());
     return {
       ef: 0,
       mp: 0,
@@ -923,6 +1117,9 @@
       dobles: 0,
       hambTotal: 0,
       productosVentas: [],
+      bebidasVentas: ventasListas.bebidasVentas,
+      acompanamientosVentas: ventasListas.acompanamientosVentas,
+      extrasVentas: ventasListas.extrasVentas,
     };
   }
 
@@ -961,9 +1158,15 @@
     var ef = 0;
     var mp = 0;
     var cancel = 0;
-    var simples = 0;
-    var dobles = 0;
-    var porProducto = {};
+    var vqty = createEmptyVentasQtyMaps();
+    var acc = {
+      simples: 0,
+      dobles: 0,
+      porProducto: {},
+      bebidas: vqty.bebidas,
+      acompanamientos: vqty.acompanamientos,
+      extras: vqty.extras,
+    };
     allOrdersCache.forEach(function (o) {
       var e = normalizeEstado(o.estado);
       var total = Number(o.total) || 0;
@@ -974,13 +1177,7 @@
         if (pagoEsEfectivo(o.pago)) ef += total;
         else mp += total;
         parseOrderItems(o).forEach(function (it) {
-          if (!isHamburguesaItem(it)) return;
-          var q = editItemQty(it);
-          if (hamburguesaEsDoble(it)) dobles += q;
-          else simples += q;
-          var r = resolveItemMeta(it);
-          var nombre = (r.nombre || it.nombre || it.name || 'Ítem').trim();
-          porProducto[nombre] = (porProducto[nombre] || 0) + q;
+          accumulateVentasItem(it, acc);
         });
       } else if (e === 'cancelada') {
         if (!inDateRange(orderDateIso(o))) return;
@@ -1034,6 +1231,11 @@
       }
     });
     var ventas = efNet + mpNet;
+    var ventasListas = ventasQtyMapsToLists({
+      bebidas: acc.bebidas,
+      acompanamientos: acc.acompanamientos,
+      extras: acc.extras,
+    });
     return {
       ef: efNet,
       mp: mpNet,
@@ -1049,10 +1251,13 @@
       gEf: gEf,
       gMp: gMp,
       resultado: ventas,
-      simples: simples,
-      dobles: dobles,
-      hambTotal: simples + dobles,
-      productosVentas: buildProductosVentasList(porProducto),
+      simples: acc.simples,
+      dobles: acc.dobles,
+      hambTotal: acc.simples + acc.dobles,
+      productosVentas: buildProductosVentasList(acc.porProducto),
+      bebidasVentas: ventasListas.bebidasVentas,
+      acompanamientosVentas: ventasListas.acompanamientosVentas,
+      extrasVentas: ventasListas.extrasVentas,
     };
   }
 
@@ -1370,6 +1575,9 @@
     if ($('ventas-hamb-simples')) $('ventas-hamb-simples').textContent = String(Math.round(st.simples));
     if ($('ventas-hamb-dobles')) $('ventas-hamb-dobles').textContent = String(Math.round(st.dobles));
     if ($('ventas-hamb-total')) $('ventas-hamb-total').textContent = String(Math.round(st.hambTotal));
+    renderVentasSidebarList('ventas-acomp-list', st.acompanamientosVentas);
+    renderVentasSidebarList('ventas-extras-list', st.extrasVentas);
+    renderVentasSidebarList('ventas-bebidas-list', st.bebidasVentas);
     updateVentasRegistroChrome();
     if ($('caja-range')) {
       var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
@@ -1888,6 +2096,18 @@
     );
   }
 
+  function cierreCatalogoVentasTblRows(list) {
+    var rows = list || [];
+    if (!rows.length) {
+      return resumenTblRows([{ l: '—', r: '0', c: 'res-muted' }]);
+    }
+    return resumenTblRows(
+      rows.map(function (x) {
+        return { l: escapeHtml(x.nombre) + ':', r: String(Math.round(x.qty || 0)) };
+      })
+    );
+  }
+
   function cierreRegistroVentasHtml(productos, st) {
     var split = splitProductosSimplesDobles(productos);
     var html = '<p class="res-group-title">Simples:</p>';
@@ -1897,6 +2117,12 @@
     html += resumenTblRows([
       { l: 'Vendidas total', r: Math.round(st.hambTotal) + ' u.', c: 'res-total' },
     ]);
+    html += '<p class="res-group-title">Acompañamientos:</p>';
+    html += cierreCatalogoVentasTblRows(st.acompanamientosVentas);
+    html += '<p class="res-group-title">Extras:</p>';
+    html += cierreCatalogoVentasTblRows(st.extrasVentas);
+    html += '<p class="res-group-title">Bebidas:</p>';
+    html += cierreCatalogoVentasTblRows(st.bebidasVentas);
     return html;
   }
 
@@ -1980,6 +2206,9 @@
       dobles: Number(c.hamb_dobles) || 0,
       hambTotal: Number(c.hamb_total) || 0,
       productosVentas: [],
+      bebidasVentas: [],
+      acompanamientosVentas: [],
+      extrasVentas: [],
     };
     var snap = {
       st: st,
