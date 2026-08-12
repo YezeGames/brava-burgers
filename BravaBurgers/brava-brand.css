@@ -640,7 +640,9 @@ body.brava-shop-b.brava-has-bg-image::before {
 	display: none;
 }
 
-body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
+	body.brava-shop-b.brava-has-bg-image .brava-menu-bg-img,
+	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img,
+	body.brava-shop-b.brava-has-bg-image .brava-desktop-bg-img {
 	display: none;
 }
 
@@ -690,15 +692,19 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		display: block;
 		position: absolute;
 		z-index: 0;
-		top: calc(-1 * var(--brava-mobile-bg-offset, 0px));
+		top: calc(-1 * var(--brava-menu-bg-offset, 0px));
 		left: 0;
 		width: 100%;
-		height: var(--brava-mobile-bg-height, auto);
+		height: var(--brava-menu-bg-height, auto);
 		max-width: none;
 		pointer-events: none;
 	}
 
-	body.brava-shop-b .brava-menu-zone > :not(.brava-mobile-bg-img) {
+	body.brava-shop-b.brava-has-bg-image .brava-desktop-bg-img {
+		display: none;
+	}
+
+	body.brava-shop-b .brava-menu-zone > :not(.brava-menu-bg-img) {
 		position: relative;
 		z-index: 1;
 	}
@@ -710,27 +716,63 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 
 @media (min-width: 769px) {
 	body.brava-shop-b.brava-has-bg-image {
-		background-color: transparent !important;
+		background-color: #0a0a0a !important;
 	}
 
 	body.brava-shop-b.brava-has-bg-image::before {
-		content: '';
+		display: none !important;
+		content: none !important;
+	}
+
+	body.brava-shop-b > .container.brava-shop-wrap {
+		padding-bottom: 0;
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	body.brava-shop-b.brava-cart-open > .container.brava-shop-wrap {
+		padding-bottom: calc(96px + env(safe-area-inset-bottom));
+	}
+
+	body.brava-shop-b #productos.row {
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	body.brava-shop-b .brava-menu-zone {
+		position: relative;
+		overflow: hidden;
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	body.brava-shop-b #catalogo_dinamico {
+		flex: 0 0 auto;
+	}
+
+	body.brava-shop-b.brava-has-bg-image .brava-desktop-bg-img {
 		display: block;
 		position: absolute;
 		z-index: 0;
+		top: calc(-1 * var(--brava-menu-bg-offset, 0px));
 		left: 0;
-		right: 0;
-		top: 0;
-		bottom: 0;
-		background-color: #0a0a0a;
-		background-image: var(--brava-bg-desktop, none);
-		background-repeat: no-repeat;
-		background-size: 100% auto;
-		background-position: top center;
+		width: 100%;
+		height: var(--brava-menu-bg-height, auto);
+		max-width: none;
 		pointer-events: none;
 	}
 
-	body.brava-shop-b.brava-has-bg-image > :not(.brava-mobile-bg-img) {
+	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
+		display: none;
+	}
+
+	body.brava-shop-b .brava-menu-zone > :not(.brava-menu-bg-img) {
 		position: relative;
 		z-index: 1;
 	}
@@ -751,7 +793,7 @@ body.brava-shop-b > .container.brava-shop-wrap {
 
 @media (min-width: 769px) {
 	body.brava-shop-b > .container.brava-shop-wrap {
-		padding-bottom: calc(96px + env(safe-area-inset-bottom));
+		padding-bottom: 0;
 	}
 }
 

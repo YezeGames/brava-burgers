@@ -355,6 +355,11 @@
 			g_viendo_buscador = false;
 		}
 		window.g_viendo_buscador = g_viendo_buscador;
+		if (window.PediloData && PediloData.syncMenuBgOffset) {
+			requestAnimationFrame(function () {
+				PediloData.syncMenuBgOffset();
+			});
+		}
 	};
 
 	window.copiar_busqueda = function () {

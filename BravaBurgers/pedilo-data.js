@@ -811,23 +811,41 @@
 	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=19';
 	var BRAVA_MOBILE_BG_NATIVE_W = 587;
 	var BRAVA_MOBILE_BG_NATIVE_H = 1024;
-	/* En el PNG, % desde arriba donde empieza el graffiti del menu */
 	var BRAVA_MOBILE_BG_GRAFFITI_START = 0.185;
+	var BRAVA_DESKTOP_BG = 'brava-fondo-tienda-desktop.png?v=11';
+	var BRAVA_DESKTOP_BG_NATIVE_W = 1024;
+	var BRAVA_DESKTOP_BG_NATIVE_H = 622;
+	var BRAVA_DESKTOP_BG_GRAFFITI_START = 0.18;
 
-	function syncMobileBgOffset() {
-		if (!window.matchMedia('(max-width:768px)').matches) return;
-		var img = document.getElementById('brava_mobile_bg');
+	function syncMenuBgOffset() {
+		if (!document.body || !document.body.classList.contains('brava-has-bg-image')) return;
 		var zone = document.getElementById('brava_menu_zone');
-		if (!img || !zone) return;
-		var nw = img.naturalWidth || BRAVA_MOBILE_BG_NATIVE_W;
-		var nh = img.naturalHeight || BRAVA_MOBILE_BG_NATIVE_H;
+		if (!zone) return;
+		var isMobile = window.matchMedia('(max-width:768px)').matches;
+		var img = document.getElementById(isMobile ? 'brava_mobile_bg' : 'brava_desktop_bg');
+		if (!img) return;
+
+		var nw;
+		var nh;
+		var graffitiStartRatio;
+		if (isMobile) {
+			nw = img.naturalWidth || BRAVA_MOBILE_BG_NATIVE_W;
+			nh = img.naturalHeight || BRAVA_MOBILE_BG_NATIVE_H;
+			graffitiStartRatio = BRAVA_MOBILE_BG_GRAFFITI_START;
+		} else {
+			nw = img.naturalWidth || BRAVA_DESKTOP_BG_NATIVE_W;
+			nh = img.naturalHeight || BRAVA_DESKTOP_BG_NATIVE_H;
+			graffitiStartRatio = BRAVA_DESKTOP_BG_GRAFFITI_START;
+		}
 		if (!nw || !nh) return;
+
 		var vw = zone.clientWidth || document.documentElement.clientWidth;
-		var displayH = vw * nh / nw;
-		var graffitiStart = displayH * BRAVA_MOBILE_BG_GRAFFITI_START;
+		var graffitiStart = (vw * nh / nw) * graffitiStartRatio;
 		var zoneH = zone.offsetHeight;
 		var neededH = graffitiStart + zoneH;
 
+		document.documentElement.style.setProperty('--brava-menu-bg-offset', graffitiStart + 'px');
+		document.documentElement.style.setProperty('--brava-menu-bg-height', neededH + 'px');
 		document.documentElement.style.setProperty('--brava-mobile-bg-offset', graffitiStart + 'px');
 		document.documentElement.style.setProperty('--brava-mobile-bg-height', neededH + 'px');
 
@@ -837,17 +855,41 @@
 		img.style.objectPosition = 'top center';
 	}
 
-	var bravaMobileBgResizeObs = null;
+	function syncMobileBgOffset() {
+		syncMenuBgOffset();
+	}
 
-	function watchMobileBgZone() {
-		if (!window.matchMedia('(max-width:768px)').matches) return;
+	var bravaMenuBgResizeObs = null;
+
+	function watchMenuBgZone() {
 		var zone = document.getElementById('brava_menu_zone');
 		if (!zone || typeof ResizeObserver === 'undefined') return;
-		if (bravaMobileBgResizeObs) bravaMobileBgResizeObs.disconnect();
-		bravaMobileBgResizeObs = new ResizeObserver(function () {
-			syncMobileBgOffset();
+		if (bravaMenuBgResizeObs) bravaMenuBgResizeObs.disconnect();
+		bravaMenuBgResizeObs = new ResizeObserver(function () {
+			syncMenuBgOffset();
 		});
-		bravaMobileBgResizeObs.observe(zone);
+		bravaMenuBgResizeObs.observe(zone);
+	}
+
+	function ensureMenuBgImg(id, className, src, zone, beforeNode) {
+		var el = document.getElementById(id);
+		if (!el) {
+			el = document.createElement('img');
+			el.id = id;
+			el.className = className;
+			el.alt = '';
+			el.setAttribute('aria-hidden', 'true');
+			el.setAttribute('decoding', 'async');
+			zone.insertBefore(el, beforeNode || zone.firstChild);
+		} else if (el.parentElement !== zone) {
+			zone.insertBefore(el, beforeNode || zone.firstChild);
+		}
+		el.src = src;
+		el.onload = function () {
+			syncMenuBgOffset();
+			watchMenuBgZone();
+		};
+		return el;
 	}
 
 	function injectMobileBgImg() {
@@ -855,35 +897,24 @@
 		document.body.classList.add('brava-has-bg-image');
 		var zone = document.getElementById('brava_menu_zone');
 		if (!zone) return;
-		var mobileBgImg = document.getElementById('brava_mobile_bg');
-		if (!mobileBgImg) {
-			mobileBgImg = document.createElement('img');
-			mobileBgImg.id = 'brava_mobile_bg';
-			mobileBgImg.className = 'brava-mobile-bg-img';
-			mobileBgImg.alt = '';
-			mobileBgImg.setAttribute('aria-hidden', 'true');
-			mobileBgImg.setAttribute('decoding', 'async');
-			var catalog = document.getElementById('catalogo_dinamico');
-			if (catalog) {
-				zone.insertBefore(mobileBgImg, catalog);
-			} else {
-				zone.insertBefore(mobileBgImg, zone.firstChild);
-			}
-		} else if (mobileBgImg.parentElement !== zone) {
-			var cat = document.getElementById('catalogo_dinamico');
-			if (cat) {
-				zone.insertBefore(mobileBgImg, cat);
-			} else {
-				zone.insertBefore(mobileBgImg, zone.firstChild);
-			}
-		}
-		mobileBgImg.src = BRAVA_MOBILE_BG;
-		mobileBgImg.onload = function () {
-			syncMobileBgOffset();
-			watchMobileBgZone();
-		};
-		syncMobileBgOffset();
-		watchMobileBgZone();
+		var catalog = document.getElementById('catalogo_dinamico');
+		var beforeNode = catalog || zone.firstChild;
+		ensureMenuBgImg(
+			'brava_mobile_bg',
+			'brava-menu-bg-img brava-mobile-bg-img',
+			BRAVA_MOBILE_BG,
+			zone,
+			beforeNode
+		);
+		ensureMenuBgImg(
+			'brava_desktop_bg',
+			'brava-menu-bg-img brava-desktop-bg-img',
+			BRAVA_DESKTOP_BG,
+			zone,
+			beforeNode
+		);
+		syncMenuBgOffset();
+		watchMenuBgZone();
 	}
 
 	function injectThemeCss() {
@@ -904,7 +935,7 @@
 			'!important;color:' +
 			text +
 			'!important;}' +
-			'body.brava-shop-b.brava-has-bg-image{background-color:transparent!important;}';
+			'body.brava-shop-b.brava-has-bg-image{background-color:#0a0a0a!important;}';
 
 		let el = document.getElementById('pedilo-theme');
 		if (!el) {
@@ -918,7 +949,7 @@
 		document.documentElement.style.setProperty('--brava-bg-mobile', "url('" + BRAVA_MOBILE_BG + "')");
 		document.documentElement.style.setProperty('--brava-bg-desktop', "url('" + bgDesktop + "')");
 		injectMobileBgImg();
-		syncMobileBgOffset();
+		syncMenuBgOffset();
 
 		const DEFAULT_LOGO_SVG =
 			"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E";
@@ -1007,6 +1038,7 @@
 		applyConfigToGlobals: applyConfigToGlobals,
 		injectThemeCss: injectThemeCss,
 		injectMobileBgImg: injectMobileBgImg,
+		syncMenuBgOffset: syncMenuBgOffset,
 		syncMobileBgOffset: syncMobileBgOffset,
 	};
 
@@ -1019,6 +1051,6 @@
 		} else {
 			bootMobileBg();
 		}
-		window.addEventListener('resize', syncMobileBgOffset);
+		window.addEventListener('resize', syncMenuBgOffset);
 	}
 })(typeof window !== 'undefined' ? window : globalThis);
