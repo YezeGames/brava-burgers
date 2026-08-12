@@ -701,12 +701,13 @@ body.brava-shop-b.brava-has-bg-image::before {
 		display: block;
 		position: absolute;
 		z-index: 0;
-		top: calc(-1 * var(--brava-menu-bg-offset, 0px));
+		top: 0;
 		left: 0;
 		width: 100%;
 		height: var(--brava-menu-bg-height, auto);
 		max-width: none;
 		pointer-events: none;
+		clip-path: inset(var(--brava-menu-bg-offset, 0px) 0 0 0);
 	}
 
 	body.brava-shop-b.brava-has-bg-image .brava-desktop-bg-img {
@@ -778,12 +779,13 @@ body.brava-shop-b.brava-has-bg-image::before {
 		display: block;
 		position: absolute;
 		z-index: 0;
-		top: calc(-1 * var(--brava-menu-bg-offset, 0px));
+		top: 0;
 		left: 0;
 		width: 100%;
 		height: var(--brava-menu-bg-height, auto);
 		max-width: none;
 		pointer-events: none;
+		clip-path: inset(var(--brava-menu-bg-offset, 0px) 0 0 0);
 	}
 
 	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
