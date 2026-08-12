@@ -624,7 +624,7 @@
     return { panes: panes, medallones: medallones, queso: queso };
   }
 
-  function deductStockForDeliveredOrder(o) {
+  function deductStockForPreparationOrder(o) {
     if (!isCajaTurnoActivo()) return;
     var st = getStockTurno();
     if (!st) return;
@@ -4447,8 +4447,8 @@
 
         if (est === 'rechazado' && !allOrdersCache[i].rechazado_at) allOrdersCache[i].rechazado_at = now;
 
-        if (est === 'entregada' && prevEst !== 'entregada') {
-          deductStockForDeliveredOrder(allOrdersCache[i]);
+        if (est === 'en_preparacion' && prevEst !== 'en_preparacion') {
+          deductStockForPreparationOrder(allOrdersCache[i]);
         }
 
         break;
