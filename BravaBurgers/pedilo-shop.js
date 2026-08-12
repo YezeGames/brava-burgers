@@ -248,6 +248,11 @@
 		$('.brava-cat-chip[data-cat="' + c + '"]').addClass('is-on');
 		$('.brava-cat-panel').removeClass('is-on');
 		$('.brava-cat-panel[data-cat="' + c + '"]').addClass('is-on');
+		if (window.PediloData && PediloData.syncMobileBgOffset) {
+			requestAnimationFrame(function () {
+				PediloData.syncMobileBgOffset();
+			});
+		}
 	};
 
 	window.ver_todas_las_categorias = function () {
@@ -739,7 +744,9 @@
 			$('#footer_enviar').slideUp();
 			$('.helper_footer_padding').hide();
 			$('.helper_changuito').hide();
+			document.body.classList.remove('brava-cart-open');
 		} else {
+			document.body.classList.add('brava-cart-open');
 			$('#boton_enviar').html(
 				"<i class='fab fa-whatsapp'></i> <b>Enviar pedido por WhatsApp - $" +
 					formatear_moneda(total + pedido_extras) +

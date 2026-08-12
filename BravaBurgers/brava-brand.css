@@ -654,9 +654,18 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		content: none !important;
 	}
 
+	body.brava-shop-b > .container.brava-shop-wrap {
+		padding-bottom: 0;
+	}
+
+	body.brava-shop-b.brava-cart-open > .container.brava-shop-wrap {
+		padding-bottom: calc(96px + env(safe-area-inset-bottom));
+	}
+
 	body.brava-shop-b .brava-menu-zone {
 		position: relative;
 		overflow: hidden;
+		padding-bottom: 12px;
 	}
 
 	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
