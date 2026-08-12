@@ -729,7 +729,12 @@ body.brava-shop-b > .container.brava-shop-wrap {
 	margin: 0 auto;
 	padding-left: 0;
 	padding-right: 0;
-	padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 769px) {
+	body.brava-shop-b > .container.brava-shop-wrap {
+		padding-bottom: calc(96px + env(safe-area-inset-bottom));
+	}
 }
 
 body.brava-shop-b .brava-shop-wrap {
