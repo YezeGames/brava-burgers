@@ -665,12 +665,25 @@ body.brava-shop-b.brava-has-bg-image::before {
 }
 
 @media (min-width: 769px) {
+	body.brava-shop-b.brava-has-bg-image::before {
+		content: '';
+		display: block;
+		position: absolute;
+		z-index: -1;
+		left: 0;
+		right: 0;
+		top: 0;
+		bottom: 0;
+		background-color: #0a0a0a;
+		background-image: var(--brava-bg-desktop, none);
+		background-repeat: no-repeat;
+		background-size: 100% auto;
+		background-position: top center;
+		pointer-events: none;
+	}
+
 	body.brava-shop-b.brava-has-bg-image {
-		background-image: var(--brava-bg-desktop, var(--brava-bg-mobile, none)) !important;
-		background-size: cover !important;
-		background-position: center center !important;
-		background-repeat: no-repeat !important;
-		background-attachment: fixed !important;
+		background-image: none !important;
 	}
 }
 
