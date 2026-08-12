@@ -254,16 +254,94 @@
 		return parts.join(' · ');
 	}
 
-	function buildBravaHeroSubText(cfg) {
-		var now = argentinaNowParts();
-		var day = now.day;
-		var ranges = formatHorarioRanges(getHorarioRaw(cfg, day));
-		if (ranges) return 'Abierto ' + BRAVA_DIAS_NOMBRE[day] + ' ' + ranges;
-		for (var i = 1; i <= 7; i++) {
-			var nextDay = (day + i) % 7;
-			var nextRanges = formatHorarioRanges(getHorarioRaw(cfg, nextDay));
-			if (nextRanges) return 'Cerrado hoy · ' + BRAVA_DIAS_NOMBRE[nextDay] + ' ' + nextRanges;
+	function parseHorarioToIntervals(raw) {
+		if (!raw || !String(raw).trim()) return [];
+		var s = String(raw)
+			.replace(/ - /g, '-')
+			.replace(/,/g, ' ')
+			.replace(/ Y /gi, ' ');
+		return s
+			.split(/\s+/)
+			.filter(Boolean)
+			.map(function (intervalo) {
+				var partes = intervalo.split('-');
+				if (partes.length !== 2) return null;
+				var desde = partes[0].split(':');
+				var hasta = partes[1].split(':');
+				return {
+					from: parseInt(desde[0], 10) * 60 + (parseInt(desde[1], 10) || 0),
+					to: parseInt(hasta[0], 10) * 60 + (parseInt(hasta[1], 10) || 0),
+				};
+			})
+			.filter(Boolean);
+	}
+
+	function isOpenAtMinutes(raw, minutes) {
+		var intervals = parseHorarioToIntervals(raw);
+		for (var i = 0; i < intervals.length; i++) {
+			if (minutes >= intervals[i].from && minutes <= intervals[i].to) return true;
 		}
+		return false;
+	}
+
+	function scheduleLabelForDay(cfg, day) {
+		var ranges = formatHorarioRanges(getHorarioRaw(cfg, day));
+		if (!ranges) return '';
+		return BRAVA_DIAS_NOMBRE[day] + ' ' + ranges;
+	}
+
+	function findNextOpenLabel(cfg, now) {
+		var rawToday = getHorarioRaw(cfg, now.day);
+		var intervalsToday = parseHorarioToIntervals(rawToday);
+		for (var j = 0; j < intervalsToday.length; j++) {
+			if (now.minutes < intervalsToday[j].from) {
+				return scheduleLabelForDay(cfg, now.day);
+			}
+		}
+		for (var i = 1; i <= 7; i++) {
+			var d = (now.day + i) % 7;
+			if (getHorarioRaw(cfg, d)) return scheduleLabelForDay(cfg, d);
+		}
+		return '';
+	}
+
+	function buildBravaHeroSubState(cfg) {
+		var now = argentinaNowParts();
+		var rawToday = getHorarioRaw(cfg, now.day);
+		if (rawToday && isOpenAtMinutes(rawToday, now.minutes)) {
+			var ranges = formatHorarioRanges(rawToday);
+			return {
+				open: true,
+				schedule: 'Abierto ' + BRAVA_DIAS_NOMBRE[now.day] + ' ' + ranges,
+			};
+		}
+		return {
+			open: false,
+			nextSchedule: findNextOpenLabel(cfg, now),
+		};
+	}
+
+	function renderBravaHeroSub(cfg) {
+		var $el = typeof jQuery !== 'undefined' ? jQuery('#brava_hero_sub') : null;
+		if (!$el || !$el.length) return;
+		var state = buildBravaHeroSubState(cfg || {});
+		$el.removeClass('is-open is-closed').empty();
+		if (state.open) {
+			$el.addClass('is-open').append(
+				jQuery('<span class="brava-hero-sub-schedule"></span>').text(state.schedule)
+			);
+			return;
+		}
+		$el.addClass('is-closed').append(jQuery('<span class="brava-hero-sub-closed"></span>').text('Cerrado hoy'));
+		if (state.nextSchedule) {
+			$el.append(jQuery('<span class="brava-hero-sub-next"></span>').text(state.nextSchedule));
+		}
+	}
+
+	function buildBravaHeroSubText(cfg) {
+		var state = buildBravaHeroSubState(cfg);
+		if (state.open) return state.schedule;
+		if (state.nextSchedule) return 'Cerrado hoy\n' + state.nextSchedule;
 		return 'Cerrado hoy';
 	}
 
@@ -1042,7 +1120,7 @@
 			$('#brava_footer_titulo').text(stripHtmlTags(t.titulo) || 'BRAVA BURGERS');
 		}
 		$('#brava_hero_tagline').text(extractBravaHeroTagline(global.g_config || {}));
-		$('#brava_hero_sub').text(buildBravaHeroSubText(global.g_config || {}));
+		renderBravaHeroSub(global.g_config || {});
 		$('#brava_footer_contenido').html(
 			resolveBravaPieHtml(global.g_config || {}, global.g_telefono) ||
 				buildDefaultBravaPieHtml(global.g_telefono)
@@ -1116,8 +1194,12 @@
 		getHorarioRaw: getHorarioRaw,
 		formatHorarioRanges: formatHorarioRanges,
 		buildHorarioResumenSemanal: buildHorarioResumenSemanal,
+		buildBravaHeroSubState: buildBravaHeroSubState,
 		buildBravaHeroSubText: buildBravaHeroSubText,
+		renderBravaHeroSub: renderBravaHeroSub,
 		buildMensajeCerradoPopup: buildMensajeCerradoPopup,
+		isOpenAtMinutes: isOpenAtMinutes,
+		parseHorarioToIntervals: parseHorarioToIntervals,
 	};
 
 	if (typeof document !== 'undefined') {

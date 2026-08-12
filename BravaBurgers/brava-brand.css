@@ -883,6 +883,24 @@ body.brava-shop-b .brava-hero-sub {
 	margin: 4px 0 0;
 	font-size: 0.8rem;
 	color: var(--brava-muted);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 3px;
+	line-height: 1.35;
+	text-align: center;
+}
+
+body.brava-shop-b .brava-hero-sub-closed {
+	display: block;
+	color: var(--brava-muted);
+}
+
+body.brava-shop-b .brava-hero-sub-next,
+body.brava-shop-b .brava-hero-sub-schedule {
+	display: block;
+	color: var(--brava-text);
+	font-weight: 500;
 }
 
 body.brava-shop-b #boton_buscador,
