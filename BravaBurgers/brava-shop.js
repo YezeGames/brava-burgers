@@ -340,6 +340,7 @@
 
 		var producto = dame_producto(p_id);
 		if (!producto) return false;
+		if (producto.se_puede_pedir === false) return false;
 
 		if (producto.personalizable && p_variedad === undefined) {
 			abrir_personalizacion_pedido(p_id);
@@ -959,6 +960,21 @@
 			return;
 		}
 
+		function bravaThumbHtml(producto) {
+			var img = String(producto.imagen || '').trim();
+			if (img) {
+				return (
+					'<div class="brava-thumb" style="background-image:url(\'' +
+					escapeAttr(img).replace(/'/g, '%27') +
+					'\')" aria-hidden="true"></div>'
+				);
+			}
+			return (
+				'<div class="brava-thumb brava-thumb--empty" aria-hidden="true">' +
+				'<i class="fas fa-burger"></i></div>'
+			);
+		}
+
 		var productos_por_cat = {};
 		var cat_order = [];
 		g_productos.forEach(function (p) {
@@ -1026,17 +1042,25 @@
 
 				subs.forEach(function (producto) {
 					var precioLabel = 'Desde $' + formatear_moneda(producto.precio);
+					var agotado = producto.se_puede_pedir === false;
 					html +=
-						'<div class="col-12 producto brava-row-item" data-categoria="' +
+						'<div class="col-12 producto brava-row-item' +
+						(agotado ? ' brava-row-item--agotado' : '') +
+						'" data-categoria="' +
 						cat_index +
 						'" data-subcategoria="' +
 						sub_index +
 						'" id="producto_' +
 						producto.id +
 						'">';
-					html += '<div class="producto_fila brava-product-row" id="fila_' + producto.id + '">';
+					html +=
+						'<div class="producto_fila brava-product-row' +
+						(agotado ? ' brava-product-agotado' : '') +
+						'" id="fila_' +
+						producto.id +
+						'">';
 					html += '<div class="brava-row-head">';
-					html += '<div class="brava-thumb" aria-hidden="true"></div>';
+					html += bravaThumbHtml(producto);
 					html += '<div class="brava-row-copy">';
 					html +=
 						'<span class="brava-row-title" id="producto_titulo_' +
@@ -1047,13 +1071,20 @@
 					if (producto.descripcion) {
 						html += '<small>' + escapeHtml(producto.descripcion) + '</small>';
 					}
+					if (agotado) {
+						html += '<span class="brava-tag-agotado">Agotado</span>';
+					}
 					html +=
 						'<div class="precio-box brava-row-price">' + precioLabel + '</div>';
 					html += '</div>';
-					html +=
-						'<button type="button" class="brava-btn-add product-add-icon" style="display:none;" onclick="agregar_al_pedido(\'' +
-						producto.id +
-						'\');" aria-label="Agregar">+</button>';
+					if (!agotado) {
+						html +=
+							'<button type="button" class="brava-btn-add product-add-icon" style="display:none;" onclick="agregar_al_pedido(\'' +
+							producto.id +
+							'\');" aria-label="Agregar">+</button>';
+					} else {
+						html += '<span class="brava-btn-agotado" aria-hidden="true">—</span>';
+					}
 					html += '</div>';
 					html +=
 						'<div class="producto_cantidades brava-row-expand" id="cantidades_' +

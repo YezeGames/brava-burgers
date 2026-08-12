@@ -625,6 +625,40 @@
 		return String(base);
 	}
 
+	function rowMarcaAgotado(row) {
+		var flag = col(row, ['agotado', 'Agotado', 'sin stock', 'Sin stock', 'stock agotado']);
+		var s = String(flag || '')
+			.trim()
+			.toLowerCase();
+		if (s === 'si' || s === 'sí' || s === '1' || s === 'agotado' || s === 'sin stock') return true;
+		var stockRaw = col(row, ['stock', 'Stock', 'cantidad', 'Cantidad']);
+		if (stockRaw !== '' && stockRaw != null) {
+			var n = parseFloat(String(stockRaw).replace(',', '.'));
+			if (!isNaN(n) && n <= 0) return true;
+		}
+		return false;
+	}
+
+	function applyAgotadosFromConfig(products, cfg) {
+		if (!products || !products.length) return;
+		var raw =
+			configGet(cfg || {}, 'Productos agotados') ||
+			configGet(cfg || {}, 'Agotados') ||
+			configGet(cfg || {}, 'Menu agotados') ||
+			'';
+		if (!String(raw).trim()) return;
+		var set = {};
+		String(raw)
+			.split(/[,;\n|]/)
+			.forEach(function (part) {
+				var n = part.trim().toLowerCase();
+				if (n) set[n] = true;
+			});
+		products.forEach(function (p) {
+			if (set[String(p.nombre || '').trim().toLowerCase()]) p.se_puede_pedir = false;
+		});
+	}
+
 	function buildProductsFromSheetRows(rows) {
 		const groups = new Map();
 		const order = [];
@@ -645,7 +679,8 @@
 					descripcion: (row.descripcion || '').trim(),
 					categoria: (row.categoria || '').trim(),
 					subcategoria: (row.subcategoria || '').trim(),
-					imagen: (row.imagen || '').trim(),
+					imagen: (row.imagen || row.Imagen || '').trim(),
+					agotado: false,
 					variedades: [],
 					extrasGrupo: '',
 					quitarGrupo: '',
@@ -654,6 +689,9 @@
 			}
 
 			const g = groups.get(key);
+			const imgRow = (row.imagen || row.Imagen || '').trim();
+			if (imgRow && !g.imagen) g.imagen = imgRow;
+			if (rowMarcaAgotado(row)) g.agotado = true;
 			const extrasGrupo = col(row, ['grupo extras', 'grupo_extras', 'extras_grupo', 'grupo extra']);
 			const quitarGrupo = col(row, ['quitar', 'grupo_quitar', 'grupo quitar', 'ingredientes_grupo']);
 			const ingredientesLista = col(row, [
@@ -725,7 +763,7 @@
 				precio_mostrar: String(minPrecio),
 				precio_base: String(minPrecio),
 				tiene_precios_diferentes: personalizable ? true : tienePreciosDiferentes,
-				se_puede_pedir: true,
+				se_puede_pedir: !g.agotado,
 				minimo: 1,
 				maximo: 999999,
 				step: 1,
@@ -1188,6 +1226,7 @@
 		}
 		inferLegacyPersonalizacion(global.g_productos);
 		applyIngredientesPorProducto(global.g_productos);
+		applyAgotadosFromConfig(global.g_productos, global.g_config || {});
 		global.g_ultima_sync_sheets = Date.now();
 
 		return true;

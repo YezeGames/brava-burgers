@@ -1153,8 +1153,50 @@ body.brava-shop-b .brava-thumb {
 	width: 56px;
 	height: 56px;
 	border-radius: 12px;
-	background: #222 center/cover;
+	background: #222 center/cover no-repeat;
 	border: 1px solid var(--brava-border);
+	flex-shrink: 0;
+}
+
+body.brava-shop-b .brava-thumb--empty {
+	display: grid;
+	place-items: center;
+	color: var(--brava-muted);
+	font-size: 1.1rem;
+	background: #222;
+}
+
+body.brava-shop-b .brava-tag-agotado {
+	display: inline-block;
+	margin-top: 4px;
+	padding: 2px 7px;
+	border-radius: 6px;
+	font-size: 0.62rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	background: rgba(229, 57, 53, 0.18);
+	color: #ffb4a8;
+}
+
+body.brava-shop-b .brava-product-row.brava-product-agotado {
+	opacity: 0.62;
+}
+
+body.brava-shop-b .brava-product-row.brava-product-agotado .brava-row-price {
+	color: var(--brava-muted) !important;
+}
+
+body.brava-shop-b .brava-btn-agotado {
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	border: 2px dashed var(--brava-border);
+	color: var(--brava-muted);
+	font-size: 1rem;
+	line-height: 40px;
+	text-align: center;
+	flex-shrink: 0;
 }
 
 body.brava-shop-b .brava-row-title {
