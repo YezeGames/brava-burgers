@@ -349,21 +349,17 @@
 		var $el = typeof jQuery !== 'undefined' ? jQuery('#brava_hero_sub') : null;
 		if (!$el || !$el.length) return;
 		var state = buildBravaHeroSubState(cfg || {});
+		var open = !!state.open;
 		$el.removeClass('is-open is-closed').empty();
-		if (state.open) {
-			$el.addClass('is-open').append(
-				jQuery('<span class="brava-hero-sub-schedule"></span>').text(state.schedule)
-			);
-			return;
-		}
-		$el.addClass('is-closed').append(jQuery('<span class="brava-hero-sub-closed"></span>').text('Cerrado hoy'));
+		$el.addClass(open ? 'is-open' : 'is-closed');
+		$el.attr('role', 'status');
+		$el.append(jQuery('<span class="brava-hero-status-dot" aria-hidden="true"></span>'));
+		$el.append(jQuery('<span class="brava-hero-status-label"></span>').text(open ? 'Abierto' : 'Cerrado hoy'));
 	}
 
 	function buildBravaHeroSubText(cfg) {
 		var state = buildBravaHeroSubState(cfg);
-		if (state.open) return state.schedule;
-		if (state.nextSchedule) return 'Cerrado hoy\n' + state.nextSchedule;
-		return 'Cerrado hoy';
+		return state.open ? 'Abierto' : 'Cerrado hoy';
 	}
 
 	function buildMensajeCerradoPopup(cfg) {
