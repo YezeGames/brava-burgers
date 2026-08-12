@@ -424,6 +424,46 @@ stateDiagram-v2
 
 
 
+### WhatsApp Business API + inbox admin (decisión ago 2026 — **próximo, en unos días**)
+
+
+
+**Objetivo:** inbox real en `/admin` (basado en `demo-admin-whatsapp-inbox.html`) conectado a **Meta Cloud API**, sin perder el celu.
+
+
+
+**Contexto acordado:**
+
+- Número Brava ya está en **WhatsApp Business App** (no WhatsApp personal) → candidato ideal para **Coexistencia** (App + API mismo número, Argentina soportada).
+
+- Mensajes enviados **desde el celu (Business App)** → **$0** de API (como hoy).
+
+- Mensajes desde el **panel/API** → gratis dentro de ventana 24 h; plantillas fuera de 24 h ~USD 0,026 (utilidad) / ~USD 0,062 (marketing).
+
+- **Estados, grupos, llamadas** siguen solo en el celu; el panel = chats **1 a 1** con clientes.
+
+- **No** incluir tel/PEND-DEL extra en WA del cliente (ya llega al admin). Batch WA enriquecido → futuro.
+
+- Costo Meta estimado uso normal Brava: **USD 0–5/mes**. Cloud API directo = sin fee de plataforma.
+
+
+
+**Implementación prevista (v1):**
+
+1. Meta Business verificado + onboarding **Coexistence** (Embedded Signup, app ≥ 2.24.17).
+
+2. Webhook Vercel (`/api/whatsapp`) + tablas mensajes en Supabase.
+
+3. Inbox en admin: lista chats, hilo, link a pedido ORN/turno.
+
+4. Plantillas opcionales (“en camino”) — fase 2 si hace falta.
+
+
+
+**Referencia demo:** `demo-admin-whatsapp-inbox.html` (raíz workspace local).
+
+
+
 ---
 
 

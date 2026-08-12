@@ -1,4 +1,4 @@
-/* Tema visual Brava Burgers (original) — prioridad sobre estilos Pedilo genéricos */
+/* Tema visual Brava Burgers — tienda y modales */
 :root {
 	--brava-bg: #1a1a1a;
 	--brava-card: #2a2a2a;
@@ -100,9 +100,9 @@ body.tienehover .producto_fila:hover small {
 	padding-bottom: 16px;
 }
 
-#footer_pedilo_contenido,
-#footer_pedilo_contenido .brava-footer-pie,
-#footer_pedilo_contenido .brava-footer-pedilo {
+#brava_footer_contenido,
+#brava_footer_contenido .brava-footer-pie,
+#brava_footer_contenido .brava-footer-content {
 	color: var(--brava-accent) !important;
 	font-weight: 700;
 	font-size: 15px;
@@ -110,12 +110,12 @@ body.tienehover .producto_fila:hover small {
 	text-align: center;
 }
 
-#footer_pedilo_contenido a {
+#brava_footer_contenido a {
 	color: var(--brava-accent) !important;
 	text-decoration: none;
 }
 
-#footer_pedilo_contenido a:hover {
+#brava_footer_contenido a:hover {
 	text-decoration: underline;
 }
 
@@ -167,7 +167,7 @@ body.tienehover .producto_fila:hover small {
 	max-width: 100%;
 }
 
-/* Igual que pedilo.shop/brburgers: caja ~350px, padding 44px, campos ~262px */
+/* Checkout modal: caja ~350px, padding 44px, campos ~262px */
 #preguntas_pedido.fancybox-content,
 #pregunta_variedades.fancybox-content,
 .fancybox-container.brava-fancybox-modal #preguntas_pedido.fancybox-content,
@@ -1310,7 +1310,7 @@ body.brava-shop-b .brava-hero-footer-title {
 	color: var(--brava-accent) !important;
 }
 
-body.brava-shop-b #footer_pedilo_contenido {
+body.brava-shop-b #brava_footer_contenido {
 	margin-top: 2px;
 }
 
@@ -1336,8 +1336,8 @@ body.brava-shop-b .brava-hero-footer-link:hover {
 	text-decoration: underline;
 }
 
-body.brava-shop-b #footer_pedilo_contenido,
-body.brava-shop-b #footer_pedilo_contenido .brava-footer-pedilo {
+body.brava-shop-b #brava_footer_contenido,
+body.brava-shop-b #brava_footer_contenido .brava-footer-content {
 	color: inherit !important;
 	font-weight: 400;
 	font-size: inherit;
@@ -1345,17 +1345,17 @@ body.brava-shop-b #footer_pedilo_contenido .brava-footer-pedilo {
 	text-align: center;
 }
 
-body.brava-shop-b #footer_pedilo_contenido a {
+body.brava-shop-b #brava_footer_contenido a {
 	color: var(--brava-accent) !important;
 	font-weight: 600;
 	text-decoration: none;
 }
 
-body.brava-shop-b #footer_pedilo_contenido a:hover {
+body.brava-shop-b #brava_footer_contenido a:hover {
 	text-decoration: underline;
 }
 
-body.brava-shop-b #footer_pedilo_contenido br {
+body.brava-shop-b #brava_footer_contenido br {
 	display: block;
 	content: '';
 	margin-bottom: 6px;

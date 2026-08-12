@@ -30,7 +30,7 @@ Las variables de entorno no causan este error.
 
 Si usás **Upload**, el zip debe incluir **en la raíz** (no adentro de otra carpeta):
 
-- `index.html`, `pedilo-*.js`, `brava-brand.css`
+- `index.html`, `brava-*.js`, `brava-brand.css`
 - `vercel.json`, `package.json`
 - **`api/`** (`pedido.js`, `admin.js`)
 - **`lib/`** (`gasFetch.js`)

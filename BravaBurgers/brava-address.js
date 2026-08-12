@@ -1,5 +1,5 @@
 /**
- * Autocompletado de dirección (Mapbox vía /api/address-suggest) para checkout Pedilo.
+ * Autocompletado de dirección (Mapbox vía /api/address-suggest) para checkout tienda.
  */
 (function () {
   'use strict';

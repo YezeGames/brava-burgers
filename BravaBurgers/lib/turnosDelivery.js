@@ -1,6 +1,9 @@
 const { restSelect } = require('./supabaseServer');
 
-const SHEET_ID = process.env.PEDILO_SHEET_ID || '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
+const SHEET_ID =
+	process.env.BRAVA_SHEET_ID ||
+	process.env.PEDILO_SHEET_ID ||
+	'1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 const TZ = 'America/Argentina/Buenos_Aires';
 
 const DEFAULT_SLOTS = [

@@ -1,10 +1,9 @@
 /**
- * UI y flujo de pedido compatible con Pedilo / BR Burgers.
+ * UI y flujo de pedido — tienda Brava Burgers.
  */
 (function () {
 	var g_pedido = { productos: [] };
 	var g_viendo_resumen = false;
-	var g_viendo_buscador = false;
 	var variedades_seleccionadas = [];
 	var suma_de_adicionales = 0;
 	var no_calcular = false;
@@ -12,7 +11,6 @@
 
 	window.g_pedido = g_pedido;
 	window.g_viendo_resumen = false;
-	window.g_viendo_buscador = false;
 	window.g_zonas_envios = window.g_zonas_envios || [];
 	window.g_stock = window.g_stock || {};
 	window.g_pedido_zona_envio_ignorar_monto = window.g_pedido_zona_envio_ignorar_monto ?? -1;
@@ -33,8 +31,8 @@
 		return escapeHtml(s).replace(/'/g, '&#39;');
 	}
 
-	/** Mismo tamaño que pedilo.shop/brburgers (~350px, padding 44px). Fancybox pisa width por JS. */
-	function bravaModalPediloOpts(src) {
+	/** Modal checkout (~350px, padding 44px). Fancybox pisa width por JS. */
+	function bravaModalCheckoutOpts(src) {
 		return {
 			src: src,
 			type: 'inline',
@@ -68,13 +66,6 @@
 			.replace(/í/g, 'i')
 			.replace(/ó/g, 'o')
 			.replace(/ú/g, 'u');
-	};
-
-	window.openNav = function () {
-		document.getElementById('mySidenav').style.width = '250px';
-	};
-	window.closeNav = function () {
-		document.getElementById('mySidenav').style.width = '0';
 	};
 
 	window.dame_producto = function (p_id) {
@@ -169,7 +160,7 @@
 			});
 
 		actualizarTotalPersonalizacion();
-		$.fancybox.open(bravaModalPediloOpts('#pregunta_personalizacion'));
+		$.fancybox.open(bravaModalCheckoutOpts('#pregunta_personalizacion'));
 	};
 
 	window.confirmar_personalizacion_pedido = function () {
@@ -218,39 +209,15 @@
 		agregar_al_pedido(_brava_pers_prod_id, variedad);
 	};
 
-	function poblar_sidenav() {
-		var html = '';
-		var cats = [];
-		g_productos.forEach(function (p) {
-			if (p.categoria && cats.indexOf(p.categoria) === -1) cats.push(p.categoria);
-		});
-		cats.forEach(function (cat, i) {
-			html +=
-				'<a class="sidenav-item" href="javascript:void(0)" onclick="closeNav();scrollToCategoria(' +
-				(i + 1) +
-				')">' +
-				escapeHtml(cat) +
-				'</a>';
-		});
-		$('#sidenav_categorias').html(html);
-	}
-
-	window.scrollToCategoria = function (n) {
-		abrir_categoria(String(n));
-		closeNav();
-		var el = document.getElementById('categoria_' + n);
-		if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-	};
-
 	window.bravaSelectCatalogCat = function (catIndex) {
 		var c = String(catIndex);
 		$('.brava-cat-chip').removeClass('is-on');
 		$('.brava-cat-chip[data-cat="' + c + '"]').addClass('is-on');
 		$('.brava-cat-panel').removeClass('is-on');
 		$('.brava-cat-panel[data-cat="' + c + '"]').addClass('is-on');
-		if (window.PediloData && PediloData.syncMobileBgOffset) {
+		if (window.BravaCatalog && BravaCatalog.syncMobileBgOffset) {
 			requestAnimationFrame(function () {
-				PediloData.syncMobileBgOffset();
+				BravaCatalog.syncMobileBgOffset();
 			});
 		}
 	};
@@ -271,12 +238,7 @@
 		bravaSelectCatalogCat('1');
 	}
 
-	window.cerrar_categoria = function () {};
-
-	window.mostrar_subcategoria = function () {};
-
 	window.mostrar_resumen_pedido = function () {
-		if (g_viendo_buscador) mostrar_buscador();
 		ver_todas_las_categorias();
 		if (!g_viendo_resumen) {
 			$('.producto_imagen').hide();
@@ -304,71 +266,6 @@
 			g_viendo_resumen = false;
 		}
 		window.g_viendo_resumen = g_viendo_resumen;
-	};
-
-	window.buscar = function () {
-		var v_palabra = $('#input_buscador').val().toLowerCase();
-		v_palabra = quitar_acentos(v_palabra);
-		g_productos.forEach(function (producto) {
-			var mostrar = false;
-			if (quitar_acentos(producto.nombre.toLowerCase()).indexOf(v_palabra) >= 0) mostrar = true;
-			if (quitar_acentos((producto.descripcion || '').toLowerCase()).indexOf(v_palabra) >= 0)
-				mostrar = true;
-			if (v_palabra === '') mostrar = false;
-			if (mostrar) $('#producto_' + producto.id).show();
-			else $('#producto_' + producto.id).hide();
-		});
-		if (g_viendo_buscador) {
-			$('.brava-sub-block').each(function () {
-				var $block = $(this);
-				var visible = $block.find('.producto:visible').length > 0;
-				this.open = visible;
-				$block.toggle(visible || v_palabra === '');
-			});
-		}
-	};
-
-	function resetSubcategoryAccordion() {
-		$('.brava-sub-block').prop('open', false);
-	}
-
-	window.mostrar_buscador = function () {
-		if (g_viendo_resumen) mostrar_resumen_pedido();
-		ver_todas_las_categorias();
-		if (!g_viendo_buscador) {
-			$('.producto_imagen').hide();
-			$('body').addClass('brava-catalog-search');
-			$('.producto').hide();
-			$('.helper_buscador').show();
-			$(window).scrollTop(0);
-			$('#input_buscador').focus().select();
-			buscar();
-			g_viendo_buscador = true;
-		} else {
-			$('.producto_imagen').show();
-			$('body').removeClass('brava-catalog-search');
-			$('.producto').show();
-			$('.helper_buscador').hide();
-			bravaSelectCatalogCat('1');
-			resetSubcategoryAccordion();
-			$(window).scrollTop(0);
-			g_viendo_buscador = false;
-		}
-		window.g_viendo_buscador = g_viendo_buscador;
-		if (window.PediloData && PediloData.syncMenuBgOffset) {
-			requestAnimationFrame(function () {
-				PediloData.syncMenuBgOffset();
-			});
-		}
-	};
-
-	window.copiar_busqueda = function () {
-		var mibusqueda = $('#input_buscador').val();
-		var url =
-			window.location.href.split('?')[0].split('#')[0] + '?q=' + encodeURIComponent(mibusqueda);
-		if (navigator.clipboard) {
-			navigator.clipboard.writeText(url);
-		}
 	};
 
 	window.dame_html_variantes = function (variedades_array, p_id, variante_nro, moneda_signo) {
@@ -451,7 +348,7 @@
 			$('#pregunta_variedades_opciones').html(
 				dame_html_variantes(producto.variedades, p_id, 0, g_moneda_signo)
 			);
-			$.fancybox.open(bravaModalPediloOpts('#pregunta_variedades'));
+			$.fancybox.open(bravaModalCheckoutOpts('#pregunta_variedades'));
 			return;
 		}
 
@@ -474,7 +371,6 @@
 				});
 			}
 
-			// Solo reutilizar precio/step de una línea previa si NO viene de personalización nueva
 			if (!persLine) {
 				g_pedido.productos.forEach(function (item) {
 					if (item.id == producto.id && item.variedad == p_variedad) {
@@ -534,7 +430,6 @@
 		calcular_total();
 	};
 
-	/** Suma 1 unidad a la línea exacta (mismo extra y aclaraciones), p. ej. desde el stepper. */
 	window.brava_inc_linea_pedido = function (p_id, p_variedad, p_aclaraciones) {
 		var found = null;
 		g_pedido.productos.forEach(function (item) {
@@ -574,10 +469,6 @@
 			);
 		});
 		calcular_total();
-	};
-
-	window.cambiar_cantidad_producto = function (btn, p_id, p_variedad) {
-		restar_una_unidad_del_pedido(p_id, p_variedad);
 	};
 
 	function whatsappBoldLabel(raw) {
@@ -780,7 +671,7 @@
 			return;
 		}
 		pre_abrir_preguntas();
-		var opts = bravaModalPediloOpts('#preguntas_pedido');
+		var opts = bravaModalCheckoutOpts('#preguntas_pedido');
 		var baseAfterShow = opts.afterShow;
 		opts.afterShow = function (instance, current) {
 			if (baseAfterShow) baseAfterShow(instance, current);
@@ -802,7 +693,6 @@
 			.trim();
 	}
 
-	/** Devuelve el nombre de zona (Sheet) que mejor coincide con la localidad. */
 	window.bravaMatchZonaNombre = function (localidad) {
 		var loc = normalizeLocalidadText(localidad);
 		if (!loc || !g_zonas_envios.length) return '';
@@ -852,7 +742,6 @@
 		return 0;
 	}
 
-	/** Selecciona «Lo enviamos a» según localidad y recalcula envío. */
 	window.bravaSyncZonaEnvioFromLocalidad = function (localidad) {
 		var nombre = window.bravaMatchZonaNombre(localidad);
 		if (!nombre) return false;
@@ -891,12 +780,7 @@
 		}
 	};
 
-	function syncAclaracionesFromInputs() {
-		/* Aclaraciones solo en el modal de personalización (ya van en el ítem del pedido). */
-	}
-
 	function buildBravaOrderPayload() {
-		syncAclaracionesFromInputs();
 		calcular_total();
 		var items = g_pedido.productos.map(function (p) {
 			return {
@@ -978,7 +862,6 @@
 			navigator.sendBeacon('/api/pedido', blob);
 		}
 
-		// WhatsApp ~450 ms si el servidor ya confirmó; si falló, no abrir WA
 		var WA_ORN_ESPERA_MS = 450;
 		var tLimite = setTimeout(function () {
 			if (serverFailed || !serverAck) return;
@@ -1183,11 +1066,10 @@
 		});
 
 		$('#catalogo_dinamico').html(html);
-		poblar_sidenav();
 		colapsar_catalogo_inicial();
-		if (window.PediloData && PediloData.syncMobileBgOffset) {
+		if (window.BravaCatalog && BravaCatalog.syncMobileBgOffset) {
 			requestAnimationFrame(function () {
-				PediloData.syncMobileBgOffset();
+				BravaCatalog.syncMobileBgOffset();
 			});
 		}
 	};
@@ -1237,7 +1119,7 @@
 
 	window.refrescar_desde_sheets = async function (silent) {
 		try {
-			await PediloData.cargar_datos_desde_sheets();
+			await BravaCatalog.cargar_datos_desde_sheets();
 			aplicarPreguntasCheckout();
 			syncTurnosDeliveryBodyClass();
 			if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
@@ -1266,20 +1148,19 @@
 				g_pedido = { productos: [] };
 			}
 		}
-		// Horario: no bloquear la vista del menú al entrar; sí al enviar pedido
 		controlar_horario(false);
 	};
 
 	$(document).ready(function () {
-		if (typeof PediloData === 'undefined') {
-			console.error('Falta pedilo-data.js');
+		if (typeof BravaCatalog === 'undefined') {
+			console.error('Falta brava-catalog.js');
 			return;
 		}
 		inicializar_tienda();
 		$(document).on('toggle', '.brava-sub-block', function () {
-			if (window.PediloData && PediloData.syncMobileBgOffset) {
+			if (window.BravaCatalog && BravaCatalog.syncMobileBgOffset) {
 				requestAnimationFrame(function () {
-					PediloData.syncMobileBgOffset();
+					BravaCatalog.syncMobileBgOffset();
 				});
 			}
 		});

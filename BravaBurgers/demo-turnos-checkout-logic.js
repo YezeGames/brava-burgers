@@ -1,6 +1,6 @@
 /**
  * Demo: turnos + cupos en checkout (#pregunta_6_respuesta).
- * En producción: mover a pedilo-shop.js como refreshTurnosCheckout() tras abrir modal y cada ~60s.
+ * En producción: brava-turnos.js (bravaRefreshTurnosCheckout) tras abrir modal y cada ~60s.
  */
 (function () {
 	'use strict';

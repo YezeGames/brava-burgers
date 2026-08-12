@@ -29,9 +29,9 @@ El agente **puede y debe** usar estas plataformas para terminar tareas (no queda
 
 ## Google Sheet (menú / catálogo)
 
-- Sheet operativo **BRAVA-BURGERS-Pedilo**: ID `1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0`.
+- Sheet operativo **BRAVA-BURGERS**: ID `1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0`.
 - Documentación: `sheets/OPERACIONES.md`, `sheets/IMPORTAR_EN_GOOGLE_SHEETS.md`, Apps Script en `apps-script/`.
-- Personalización tienda: columnas como `Ingredientes`, `Grupo extras`, `Quitar` en pestaña productos; código en `pedilo-data.js` / `pedilo-shop.js`.
+- Personalización tienda: columnas como `Ingredientes`, `Grupo extras`, `Quitar` en pestaña productos; código en `brava-catalog.js` / `brava-shop.js`.
 
 ## Checklist al cerrar una feature
 

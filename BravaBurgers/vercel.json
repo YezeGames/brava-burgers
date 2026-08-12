@@ -23,6 +23,46 @@
 
       "permanent": false
 
+    },
+
+    {
+
+      "source": "/pedilo-data.js",
+
+      "destination": "/brava-catalog.js",
+
+      "permanent": true
+
+    },
+
+    {
+
+      "source": "/pedilo-shop.js",
+
+      "destination": "/brava-shop.js",
+
+      "permanent": true
+
+    },
+
+    {
+
+      "source": "/pedilo-turnos.js",
+
+      "destination": "/brava-turnos.js",
+
+      "permanent": true
+
+    },
+
+    {
+
+      "source": "/pedilo-address.js",
+
+      "destination": "/brava-address.js",
+
+      "permanent": true
+
     }
 
   ],
@@ -43,7 +83,7 @@
 
     {
 
-      "source": "/(index.html|pedilo-data.js|pedilo-shop.js|pedilo-turnos.js|brava-brand.css)",
+      "source": "/(index.html|brava-catalog.js|brava-shop.js|brava-turnos.js|brava-address.js|brava-brand.css)",
 
       "headers": [
 
@@ -80,5 +120,3 @@
   ]
 
 }
-
-
