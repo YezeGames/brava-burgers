@@ -912,14 +912,18 @@
 	window.controlar_horario = function (mostrarPopup) {
 		if (mostrarPopup === undefined) mostrarPopup = true;
 		if (!g_control_horario) return true;
-		var horario_string = (g_horarios_por_dia || {})[new Date().getDay()] || '';
+		var now =
+			window.BravaCatalog && BravaCatalog.argentinaNowParts
+				? BravaCatalog.argentinaNowParts()
+				: { day: new Date().getDay(), minutes: new Date().getHours() * 60 + new Date().getMinutes() };
+		var horario_string = (g_horarios_por_dia || {})[now.day] || '';
 		if (!horario_string.trim()) {
 			mostrarPopupCerrado();
 			return false;
 		}
 		horario_string = horario_string.replace(/ - /g, '-').replace(/,/g, ' ').replace(/ Y /gi, ' ');
 		var intervalos = horario_string.split(/\s+/).filter(Boolean);
-		var minutos_ahora = new Date().getHours() * 60 + new Date().getMinutes();
+		var minutos_ahora = now.minutes;
 		var abierto = false;
 		intervalos.forEach(function (intervalo) {
 			var partes = intervalo.split('-');
@@ -938,7 +942,10 @@
 	};
 
 	function mostrarPopupCerrado() {
-		var msg = g_mensaje_cerrado || 'Estamos cerrados.';
+		var msg =
+			window.BravaCatalog && BravaCatalog.buildMensajeCerradoPopup
+				? BravaCatalog.buildMensajeCerradoPopup(global.g_config || {})
+				: g_mensaje_cerrado || 'Estamos cerrados.';
 		$('#popup_control_horario_contenido').html(msg.replace(/<BR>/gi, '<br>'));
 		$.fancybox.open({ src: '#popup_control_horario' });
 	}
