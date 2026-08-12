@@ -656,15 +656,34 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 
 	body.brava-shop-b > .container.brava-shop-wrap {
 		padding-bottom: 0;
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
 	}
 
 	body.brava-shop-b.brava-cart-open > .container.brava-shop-wrap {
 		padding-bottom: calc(96px + env(safe-area-inset-bottom));
 	}
 
+	body.brava-shop-b #productos.row {
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
 	body.brava-shop-b .brava-menu-zone {
 		position: relative;
 		overflow: hidden;
+		flex: 1 1 auto;
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	body.brava-shop-b #catalogo_dinamico {
+		flex: 0 0 auto;
 	}
 
 	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
