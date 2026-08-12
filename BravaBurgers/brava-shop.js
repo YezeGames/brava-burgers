@@ -236,6 +236,9 @@
 
 	function colapsar_catalogo_inicial() {
 		bravaSelectCatalogCat('1');
+		if (window.matchMedia && window.matchMedia('(max-width: 768px)').matches) {
+			$('.brava-cat-panel.is-on .brava-sub-block').first().prop('open', true);
+		}
 	}
 
 	window.mostrar_resumen_pedido = function () {
