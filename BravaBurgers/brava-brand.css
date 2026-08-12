@@ -1319,7 +1319,7 @@ body.brava-shop-b .brava-hero-footer-inner {
 }
 
 body.brava-shop-b .brava-hero-footer-title {
-	margin: 0 0 18px;
+	margin: 0;
 	font-family: 'Bebas Neue', 'Montserrat', sans-serif;
 	font-size: 1.75rem;
 	font-weight: 400;
@@ -1328,8 +1328,20 @@ body.brava-shop-b .brava-hero-footer-title {
 	color: var(--brava-accent) !important;
 }
 
+body.brava-shop-b .brava-footer-horario {
+	margin: 1.15em 0 1.35em;
+	font-size: 0.82rem;
+	font-weight: 500;
+	line-height: 1.45;
+	color: var(--brava-text);
+}
+
+body.brava-shop-b .brava-footer-horario.hidden {
+	display: none;
+}
+
 body.brava-shop-b #brava_footer_contenido {
-	margin-top: 2px;
+	margin-top: 0;
 }
 
 body.brava-shop-b .brava-hero-footer-line {

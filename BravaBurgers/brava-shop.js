@@ -1156,10 +1156,10 @@
 			}
 		}
 		controlar_horario(false);
-		if (window.BravaCatalog && BravaCatalog.renderBravaHeroSub) {
+		if (window.BravaCatalog && BravaCatalog.renderBravaScheduleUI) {
 			if (window._bravaHeroSubTimer) clearInterval(window._bravaHeroSubTimer);
 			window._bravaHeroSubTimer = setInterval(function () {
-				BravaCatalog.renderBravaHeroSub(window.g_config || {});
+				BravaCatalog.renderBravaScheduleUI(window.g_config || {});
 			}, 60000);
 		}
 	};

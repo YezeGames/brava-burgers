@@ -321,6 +321,30 @@
 		};
 	}
 
+	function getFooterHorarioText(cfg) {
+		var state = buildBravaHeroSubState(cfg || {});
+		if (state.open) {
+			return scheduleLabelForDay(cfg, argentinaNowParts().day);
+		}
+		return state.nextSchedule || '';
+	}
+
+	function renderBravaFooterHorario(cfg) {
+		var $el = typeof jQuery !== 'undefined' ? jQuery('#brava_footer_horario') : null;
+		if (!$el || !$el.length) return;
+		var text = getFooterHorarioText(cfg);
+		if (!text) {
+			$el.addClass('hidden').empty();
+			return;
+		}
+		$el.removeClass('hidden').text(text);
+	}
+
+	function renderBravaScheduleUI(cfg) {
+		renderBravaHeroSub(cfg);
+		renderBravaFooterHorario(cfg);
+	}
+
 	function renderBravaHeroSub(cfg) {
 		var $el = typeof jQuery !== 'undefined' ? jQuery('#brava_hero_sub') : null;
 		if (!$el || !$el.length) return;
@@ -333,9 +357,6 @@
 			return;
 		}
 		$el.addClass('is-closed').append(jQuery('<span class="brava-hero-sub-closed"></span>').text('Cerrado hoy'));
-		if (state.nextSchedule) {
-			$el.append(jQuery('<span class="brava-hero-sub-next"></span>').text(state.nextSchedule));
-		}
 	}
 
 	function buildBravaHeroSubText(cfg) {
@@ -1120,7 +1141,7 @@
 			$('#brava_footer_titulo').text(stripHtmlTags(t.titulo) || 'BRAVA BURGERS');
 		}
 		$('#brava_hero_tagline').text(extractBravaHeroTagline(global.g_config || {}));
-		renderBravaHeroSub(global.g_config || {});
+		renderBravaScheduleUI(global.g_config || {});
 		$('#brava_footer_contenido').html(
 			resolveBravaPieHtml(global.g_config || {}, global.g_telefono) ||
 				buildDefaultBravaPieHtml(global.g_telefono)
@@ -1196,6 +1217,8 @@
 		buildHorarioResumenSemanal: buildHorarioResumenSemanal,
 		buildBravaHeroSubState: buildBravaHeroSubState,
 		buildBravaHeroSubText: buildBravaHeroSubText,
+		renderBravaScheduleUI: renderBravaScheduleUI,
+		renderBravaFooterHorario: renderBravaFooterHorario,
 		renderBravaHeroSub: renderBravaHeroSub,
 		buildMensajeCerradoPopup: buildMensajeCerradoPopup,
 		isOpenAtMinutes: isOpenAtMinutes,
