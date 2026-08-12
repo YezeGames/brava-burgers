@@ -29,6 +29,7 @@
 			if (name) return name;
 			const prev = index > 0 ? String(fields[index - 1] || '').trim().toLowerCase() : '';
 			if (prev === 'ingredientes') return 'Agotado';
+			if (prev === 'grupo') return 'Ocultar';
 			return 'col_' + (index + 1);
 		});
 		return result.data.map(function (row) {
