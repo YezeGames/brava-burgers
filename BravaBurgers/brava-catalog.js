@@ -667,6 +667,7 @@
 					imagen: (row.imagen || row.Imagen || '').trim(),
 					agotado: false,
 					variedades: [],
+					precioSimple: 0,
 					extrasGrupo: '',
 					quitarGrupo: '',
 					ingredientesSacar: [],
@@ -693,7 +694,16 @@
 			if (String(row.personalizable || '').toLowerCase().trim() === 'si') {
 				if (!g.extrasGrupo) g.extrasGrupo = 'default';
 			}
-			const varNombre = (row.variedades || row.variedad || 'Sin Extra').trim() || 'Sin Extra';
+			const varRaw = (row.variedades || row.variedad || '').trim();
+			let varNombre = varRaw;
+			if (!varNombre && (extrasGrupo || g.extrasGrupo || quitarGrupo || g.quitarGrupo)) {
+				varNombre = 'Sin Extra';
+			}
+			if (!varNombre) {
+				if (!g.precioSimple) g.precioSimple = precio;
+				else g.precioSimple = Math.min(g.precioSimple, precio);
+				return;
+			}
 			const exists = g.variedades.some(function (v) {
 				return v.nombre === varNombre && v.precio === String(precio);
 			});
@@ -715,22 +725,11 @@
 
 		return order.map(function (key, idx) {
 			const g = groups.get(key);
-			if (g.variedades.length === 0) {
-				const p = limpiarPrecio(0);
-				g.variedades.push({
-					nombre: 'Sin Extra',
-					precio: '0',
-					precio_mostrar: '0',
-					minimo: 1,
-					maximo: 999999,
-					step: 1,
-					variedadestilo: 'NORMAL',
-					variedadtotal: 1,
-				});
-			}
-			const prices = g.variedades.map(function (v) {
-				return limpiarPrecio(v.precio);
-			});
+			const prices = g.variedades.length
+				? g.variedades.map(function (v) {
+						return limpiarPrecio(v.precio);
+					})
+				: [g.precioSimple || 0];
 			const minPrecio = Math.min.apply(null, prices);
 			const tienePreciosDiferentes = new Set(prices).size > 1;
 			const ingredientesSacar = g.ingredientesSacar || [];

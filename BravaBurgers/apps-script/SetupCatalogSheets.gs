@@ -37,6 +37,35 @@ function setupExtrasSheet_(ss) {
     ['ext_bacon', 'Extra bacon', 1500, 'simple,doble'],
   ]);
   sh.setFrozenRows(1);
+  ensureOcultarColumnInExtras_(sh);
+}
+
+/** Agrega columna Ocultar en pestaña extras (si falta). si = no ofrecer ese extra. */
+function setupColumnaOcultarEnExtras() {
+  var ss = SpreadsheetApp.openById(SETUP_CATALOG_SHEET_ID);
+  var sh = ss.getSheetByName('extras');
+  if (!sh) throw new Error('No hay pestaña extras');
+  ensureOcultarColumnInExtras_(sh);
+  try {
+    SpreadsheetApp.getUi().alert(
+      'Columna Ocultar en extras.\n' +
+        'Marcá si en el extra que no podés ofrecer (ej. Extra bacon sin panceta).'
+    );
+  } catch (e) {
+    Logger.log('Columna Ocultar extras OK (sin UI): ' + e);
+  }
+}
+
+function ensureOcultarColumnInExtras_(sh) {
+  if (!sh || sh.getLastColumn() < 1) return;
+  var headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  var lower = headers.map(function (h) {
+    return String(h || '')
+      .toLowerCase()
+      .trim();
+  });
+  if (lower.indexOf('ocultar') !== -1) return;
+  sh.getRange(1, sh.getLastColumn() + 1).setValue('Ocultar');
 }
 
 function setupIngredientesSheet_(ss) {

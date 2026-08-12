@@ -348,6 +348,10 @@
 		}
 
 		if (producto.variedades && producto.variedades.length > 0 && p_variedad === undefined) {
+			if (producto.variedades.length === 1 && isSinExtraVariedad(producto.variedades[0].nombre)) {
+				agregar_al_pedido(p_id, producto.variedades[0].nombre);
+				return;
+			}
 			$('#pregunta_variedades_titulo').html('Elija una opción');
 			$('#pregunta_variedades_opciones').html(
 				dame_html_variantes(producto.variedades, p_id, 0, g_moneda_signo)

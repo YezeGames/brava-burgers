@@ -67,3 +67,20 @@ No es por ingrediente suelto: agotás el **producto entero**, igual que ocultar 
 4. Autorizá si Google lo pide. Deberías ver **Agotado** justo después de **Ingredientes**.
 
 Plantilla CSV con el orden de columnas: `sheets/brava-productos-personalizacion.csv`.
+
+---
+
+## Ocultar un **extra** (pestaña `extras`)
+
+Si no tenés panceta, podés ocultar **Extra bacon** para que no aparezca en el modal de personalización:
+
+| Columna | Valor | Efecto |
+|---------|-------|--------|
+| **Ocultar** | `si` | Ese extra no se ofrece en la tienda |
+| (vacío) | — | Se ofrece normal |
+
+Pestaña **extras**, columnas: `id`, `Nombre`, `Precio`, `Grupo`, **Ocultar**.
+
+Ejemplo: fila `ext_bacon` → `si` en **Ocultar**.
+
+Para crear la columna: Apps Script → **`setupColumnaOcultarEnExtras`** (en `SetupCatalogSheets.gs`).
