@@ -833,11 +833,9 @@
 			nh = img.naturalHeight || BRAVA_MOBILE_BG_NATIVE_H;
 			graffitiStartRatio = BRAVA_MOBILE_BG_GRAFFITI_START;
 		} else {
-			img.style.width = '100%';
-			img.style.height = '100%';
-			img.style.objectFit = 'cover';
-			img.style.objectPosition = 'center bottom';
-			return;
+			nw = img.naturalWidth || BRAVA_DESKTOP_BG_NATIVE_W;
+			nh = img.naturalHeight || BRAVA_DESKTOP_BG_NATIVE_H;
+			graffitiStartRatio = BRAVA_DESKTOP_BG_GRAFFITI_START;
 		}
 		if (!nw || !nh) return;
 		var bgW = zone.clientWidth || document.documentElement.clientWidth;
