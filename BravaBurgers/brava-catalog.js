@@ -630,33 +630,7 @@
 		var s = String(flag || '')
 			.trim()
 			.toLowerCase();
-		if (s === 'si' || s === 'sí' || s === '1' || s === 'agotado' || s === 'sin stock') return true;
-		var stockRaw = col(row, ['stock', 'Stock', 'cantidad', 'Cantidad']);
-		if (stockRaw !== '' && stockRaw != null) {
-			var n = parseFloat(String(stockRaw).replace(',', '.'));
-			if (!isNaN(n) && n <= 0) return true;
-		}
-		return false;
-	}
-
-	function applyAgotadosFromConfig(products, cfg) {
-		if (!products || !products.length) return;
-		var raw =
-			configGet(cfg || {}, 'Productos agotados') ||
-			configGet(cfg || {}, 'Agotados') ||
-			configGet(cfg || {}, 'Menu agotados') ||
-			'';
-		if (!String(raw).trim()) return;
-		var set = {};
-		String(raw)
-			.split(/[,;\n|]/)
-			.forEach(function (part) {
-				var n = part.trim().toLowerCase();
-				if (n) set[n] = true;
-			});
-		products.forEach(function (p) {
-			if (set[String(p.nombre || '').trim().toLowerCase()]) p.se_puede_pedir = false;
-		});
+		return s === 'si' || s === 'sí' || s === '1' || s === 'agotado' || s === 'sin stock';
 	}
 
 	function buildProductsFromSheetRows(rows) {
@@ -1226,7 +1200,6 @@
 		}
 		inferLegacyPersonalizacion(global.g_productos);
 		applyIngredientesPorProducto(global.g_productos);
-		applyAgotadosFromConfig(global.g_productos, global.g_config || {});
 		global.g_ultima_sync_sheets = Date.now();
 
 		return true;
