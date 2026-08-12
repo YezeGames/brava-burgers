@@ -2665,6 +2665,13 @@
     return d.innerHTML;
   }
 
+  function escapeAttr(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;');
+  }
+
   function movimientoInFilterRange(g) {
     var iso = String(g.fecha || '').slice(0, 10);
     if (!iso) return true;
@@ -3374,12 +3381,59 @@
 
   function ordersTableColspan(panelEstado) {
 
-    if (panelEstado === 'en_preparacion') return 9;
+    if (panelEstado === 'en_preparacion') return 10;
 
-    if (waNotifyTabEnabled(panelEstado)) return 9;
+    if (waNotifyTabEnabled(panelEstado)) return 10;
 
-    return 8;
+    return 9;
 
+  }
+
+  function formatOrderTurnoShort(turno) {
+    var s = String(turno || '').trim();
+    if (!s) return '—';
+    var m = s.match(/turno\s*(\d+)/i);
+    if (m) return 'T' + m[1];
+    m = s.match(/noche\s*(\d+)/i);
+    if (m) return 'T' + m[1];
+    return '—';
+  }
+
+  function formatOrderTurnCell(o) {
+    var t = formatOrderTurnoShort(o.turno);
+    if (t === '—') return '<span class="orders-turno-muted">—</span>';
+    return '<span class="orders-turno-badge">' + escapeHtml(t) + '</span>';
+  }
+
+  function formatOrderItemsTooltip(o) {
+    var items = parseOrderItems(o);
+    if (!items.length) return '';
+    return items
+      .map(function (it) {
+        var qty = editItemQty(it);
+        var name = String(it.nombre || it.name || 'Ítem').trim();
+        var parts = [];
+        if (it.variedad) parts.push(String(it.variedad).trim());
+        if (it.acl) parts.push(String(it.acl).trim());
+        var extra = parts.length ? ' (' + parts.join(' · ') + ')' : '';
+        return qty + '× ' + name + extra;
+      })
+      .join('\n');
+  }
+
+  function formatOrderClientCell(o, panelEstado) {
+    var tip = formatOrderItemsTooltip(o);
+    var tipAttr = tip ? ' title="' + escapeAttr(tip) + '"' : '';
+    var html =
+      '<span class="orders-client-name"' +
+      tipAttr +
+      '>' +
+      escapeHtml(o.cliente || '') +
+      '</span>';
+    if (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn)) {
+      html += ' <span class="badge-nuevo">Nuevo</span>';
+    }
+    return html;
   }
 
   function updateOrdersTableHead(panelEstado) {
@@ -3388,7 +3442,7 @@
 
     if (!row) return;
 
-    var cols = ['Fecha', 'Cliente', 'Teléfono', 'Dirección', 'Pago', 'Total', 'ORN', 'Acciones'];
+    var cols = ['Fecha', 'Turno', 'Cliente', 'Teléfono', 'Dirección', 'Pago', 'Total', 'ORN', 'Acciones'];
 
     var prefix = '';
 
@@ -3649,13 +3703,11 @@
 
         '</td><td>' +
 
-        (o.cliente || '') +
+        formatOrderTurnCell(o) +
 
-        (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn)
+        '</td><td>' +
 
-          ? ' <span class="badge-nuevo">Nuevo</span>'
-
-          : '') +
+        formatOrderClientCell(o, panelEstado) +
 
         '</td><td>' +
 
