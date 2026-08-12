@@ -871,7 +871,7 @@
 		bravaMenuBgResizeObs.observe(zone);
 	}
 
-	function ensureMenuBgImg(id, className, src, zone, beforeNode) {
+	function ensureMenuBgImg(id, className, src, clip, beforeNode) {
 		var el = document.getElementById(id);
 		if (!el) {
 			el = document.createElement('img');
@@ -880,9 +880,9 @@
 			el.alt = '';
 			el.setAttribute('aria-hidden', 'true');
 			el.setAttribute('decoding', 'async');
-			zone.insertBefore(el, beforeNode || zone.firstChild);
-		} else if (el.parentElement !== zone) {
-			zone.insertBefore(el, beforeNode || zone.firstChild);
+			clip.appendChild(el);
+		} else if (el.parentElement !== clip) {
+			clip.appendChild(el);
 		}
 		el.src = src;
 		el.onload = function () {
@@ -899,18 +899,27 @@
 		if (!zone) return;
 		var catalog = document.getElementById('catalogo_dinamico');
 		var beforeNode = catalog || zone.firstChild;
+		var clip = document.getElementById('brava_menu_bg_clip');
+		if (!clip) {
+			clip = document.createElement('div');
+			clip.id = 'brava_menu_bg_clip';
+			clip.className = 'brava-menu-bg-clip';
+			zone.insertBefore(clip, beforeNode);
+		} else if (clip.parentElement !== zone) {
+			zone.insertBefore(clip, beforeNode);
+		}
 		ensureMenuBgImg(
 			'brava_mobile_bg',
 			'brava-menu-bg-img brava-mobile-bg-img',
 			BRAVA_MOBILE_BG,
-			zone,
+			clip,
 			beforeNode
 		);
 		ensureMenuBgImg(
 			'brava_desktop_bg',
 			'brava-menu-bg-img brava-desktop-bg-img',
 			BRAVA_DESKTOP_BG,
-			zone,
+			clip,
 			beforeNode
 		);
 		syncMenuBgOffset();

@@ -678,6 +678,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 	body.brava-shop-b .brava-menu-zone {
 		position: relative;
 		overflow: hidden;
+		contain: paint;
 		flex: 1 1 auto;
 		display: flex;
 		flex-direction: column;
@@ -688,7 +689,15 @@ body.brava-shop-b.brava-has-bg-image::before {
 		flex: 0 0 auto;
 	}
 
-	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
+	body.brava-shop-b .brava-menu-bg-clip {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		z-index: 0;
+		pointer-events: none;
+	}
+
+	body.brava-shop-b.brava-has-bg-image .brava-menu-bg-clip .brava-mobile-bg-img {
 		display: block;
 		position: absolute;
 		z-index: 0;
@@ -704,7 +713,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 		display: none;
 	}
 
-	body.brava-shop-b .brava-menu-zone > :not(.brava-menu-bg-img) {
+	body.brava-shop-b .brava-menu-zone > :not(.brava-menu-bg-clip) {
 		position: relative;
 		z-index: 1;
 	}
@@ -746,6 +755,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 	body.brava-shop-b .brava-menu-zone {
 		position: relative;
 		overflow: hidden;
+		contain: paint;
 		flex: 1 1 auto;
 		display: flex;
 		flex-direction: column;
@@ -756,7 +766,15 @@ body.brava-shop-b.brava-has-bg-image::before {
 		flex: 0 0 auto;
 	}
 
-	body.brava-shop-b.brava-has-bg-image .brava-desktop-bg-img {
+	body.brava-shop-b .brava-menu-bg-clip {
+		position: absolute;
+		inset: 0;
+		overflow: hidden;
+		z-index: 0;
+		pointer-events: none;
+	}
+
+	body.brava-shop-b.brava-has-bg-image .brava-menu-bg-clip .brava-desktop-bg-img {
 		display: block;
 		position: absolute;
 		z-index: 0;
@@ -772,7 +790,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 		display: none;
 	}
 
-	body.brava-shop-b .brava-menu-zone > :not(.brava-menu-bg-img) {
+	body.brava-shop-b .brava-menu-zone > :not(.brava-menu-bg-clip) {
 		position: relative;
 		z-index: 1;
 	}
