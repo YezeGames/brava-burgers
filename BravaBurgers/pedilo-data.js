@@ -808,23 +808,40 @@
 		document.title = global.g_tema.titulo.replace(/<[^>]+>/g, '');
 	}
 
-	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=15';
+	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=16';
 	var BRAVA_MOBILE_BG_NATIVE_W = 587;
 	var BRAVA_MOBILE_BG_NATIVE_H = 1024;
-	/* Banda superior del PNG (graffiti) que no va en el hero — calza con mockup Untitled-1 */
-	var BRAVA_MOBILE_BG_TOP_SKIP = 0.2;
+	/* En el PNG, % desde arriba donde empieza el graffiti del menu */
+	var BRAVA_MOBILE_BG_GRAFFITI_START = 0.19;
 
 	function syncMobileBgOffset() {
 		if (!window.matchMedia('(max-width:768px)').matches) return;
 		var img = document.getElementById('brava_mobile_bg');
-		if (!img) return;
+		var hero = document.getElementById('mainNav');
+		var chips = document.getElementById('brava_cat_chips');
+		if (!img || !hero) return;
 		var nw = img.naturalWidth || BRAVA_MOBILE_BG_NATIVE_W;
 		var nh = img.naturalHeight || BRAVA_MOBILE_BG_NATIVE_H;
 		if (!nw || !nh) return;
 		var vw = document.documentElement.clientWidth;
 		var displayH = vw * nh / nw;
-		var offset = displayH * BRAVA_MOBILE_BG_TOP_SKIP;
-		document.documentElement.style.setProperty('--brava-mobile-bg-offset', offset + 'px');
+		var menuStart = hero.offsetHeight + (chips ? chips.offsetHeight : 0);
+		var graffitiStart = displayH * BRAVA_MOBILE_BG_GRAFFITI_START;
+		var top = Math.max(0, menuStart - graffitiStart);
+		var neededH = Math.max(displayH, document.body.scrollHeight - top);
+
+		document.documentElement.style.setProperty('--brava-mobile-bg-top', top + 'px');
+
+		img.style.width = '100%';
+		if (neededH > displayH + 1) {
+			img.style.height = neededH + 'px';
+			img.style.objectFit = 'cover';
+			img.style.objectPosition = 'top center';
+		} else {
+			img.style.height = '';
+			img.style.objectFit = '';
+			img.style.objectPosition = '';
+		}
 	}
 
 	function injectMobileBgImg() {

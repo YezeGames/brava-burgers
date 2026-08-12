@@ -1173,6 +1173,11 @@
 		$('#catalogo_dinamico').html(html);
 		poblar_sidenav();
 		colapsar_catalogo_inicial();
+		if (window.PediloData && PediloData.syncMobileBgOffset) {
+			requestAnimationFrame(function () {
+				PediloData.syncMobileBgOffset();
+			});
+		}
 	};
 
 	function aplicarPreguntasCheckout() {
@@ -1260,6 +1265,13 @@
 			return;
 		}
 		inicializar_tienda();
+		$(document).on('toggle', '.brava-sub-block', function () {
+			if (window.PediloData && PediloData.syncMobileBgOffset) {
+				requestAnimationFrame(function () {
+					PediloData.syncMobileBgOffset();
+				});
+			}
+		});
 	});
 
 	function hasTouch() {
