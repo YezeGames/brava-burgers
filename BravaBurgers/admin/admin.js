@@ -1903,75 +1903,144 @@
     return s2;
   }
 
-  function cierreFlujoCajaTicketHtml(snapshot, st) {
+  function cierreMovSeccionHtml(label, rows) {
+    return (
+      '<div class="cierre-seccion">' +
+      '<p class="cierre-seccion-label">' +
+      label +
+      '</p>' +
+      resumenTblRows(rows) +
+      '</div>'
+    );
+  }
+
+  function cierreArqueoContadoRow(tag, contado, esperado) {
+    var diff = Math.round(Number(contado) || 0) - Math.round(Number(esperado) || 0);
+    var r = '$' + fmt(contado);
+    if (diff === 0) r += ' · 0 ✓';
+    else if (diff > 0) r += ' · Sobra $' + fmt(diff);
+    else r += ' · Falta −$' + fmt(Math.abs(diff));
+    return { l: 'Contado ' + tag, r: r, c: diff === 0 ? 'res-ok' : 'res-falt' };
+  }
+
+  function cierreIngresoEsMp(g) {
+    return String(g.cobrado_con || '').trim() === 'transferencia';
+  }
+
+  function cierreFlujoCajaTicketHtml(snapshot, st, cierreWhenIso) {
     var ap = snapshot.aperturaArqueo;
     var arq = snapshot.arqueo;
     var gastosList = snapshot.gastos || [];
     var ingresosList = snapshot.ingresos || [];
+    var cierreWhen = formatCierreMetaWhen(cierreWhenIso || new Date().toISOString());
+    var aperturaWhen = snapshot.aperturaIso
+      ? formatCierreMetaWhen(snapshot.aperturaIso)
+      : '—';
     var html = '<div class="resumen-block"><h3>Flujo de caja</h3>';
 
-    html += '<p class="res-group-title">Entrada (inicial)</p>';
+    html += resumenTblRows([
+      { l: 'Fecha · hora cierre', r: escapeHtml(cierreWhen) },
+      { l: 'Apertura turno', r: escapeHtml(aperturaWhen), c: 'res-muted' },
+    ]);
+    html += '<hr class="cierre-rule">';
+    html += '<p class="cierre-seccion-label">Apertura del turno</p>';
     html += resumenTblRows([
       {
-        l: 'Efectivo',
+        l: 'Inicio arqueo EF',
         r: ap ? '$' + fmt(ap.efContado) : '< Sin saldo >',
         c: ap ? '' : 'res-muted',
       },
       {
-        l: 'Mercado Pago',
+        l: 'Inicio arqueo MP',
         r: ap ? '$' + fmt(ap.mpContado) : '< Sin saldo >',
         c: ap ? '' : 'res-muted',
       },
+      {
+        l: 'Total en caja (EF)',
+        r: ap ? '$' + fmt(ap.efContado) : '—',
+        c: 'res-grand',
+      },
     ]);
 
-    html += '<p class="res-group-title">Cobranzas del turno</p>';
-    var cobRows = [
-      { l: 'Ventas entregadas EF', r: '$' + fmt(st.efPedidos || 0) },
-      { l: 'Ventas entregadas MP', r: '$' + fmt(st.mpPedidos || 0) },
-    ];
-    ingresosList.forEach(function (g) {
-      cobRows.push({
-        l: '+ ' + escapeHtml(movConceptoConMedio(g.concepto, g.cobrado_con)),
+    html += '<hr class="cierre-rule cierre-rule--dashed">';
+    var efIngresos = ingresosList.filter(function (g) {
+      return !cierreIngresoEsMp(g);
+    });
+    var mpIngresos = ingresosList.filter(function (g) {
+      return cierreIngresoEsMp(g);
+    });
+    var efPedidos = Number(st.efPedidos) || 0;
+    var mpPedidos = Number(st.mpPedidos) || 0;
+    var totalEfMov =
+      efPedidos +
+      efIngresos.reduce(function (a, g) {
+        return a + (Number(g.monto) || 0);
+      }, 0);
+    var totalMpMov =
+      mpPedidos +
+      mpIngresos.reduce(function (a, g) {
+        return a + (Number(g.monto) || 0);
+      }, 0);
+
+    var efRows = [{ l: '· Ventas entregadas EF', r: '$' + fmt(efPedidos), c: 'res-sub' }];
+    efIngresos.forEach(function (g) {
+      efRows.push({
+        l: '· + ' + escapeHtml(movConceptoConMedio(g.concepto, g.cobrado_con)),
         r: '+$' + fmt(g.monto),
+        c: 'res-sub',
       });
     });
-    cobRows.push({
-      l: 'Total entradas',
-      r: '$' + fmt((st.ventasPedidos || 0) + (st.iTotal || 0)),
-      c: 'res-total',
-    });
-    html += resumenTblRows(cobRows);
+    efRows.push({ l: 'Total EF', r: '$' + fmt(totalEfMov), c: 'res-grand' });
 
-    html += '<p class="res-group-title">Egresos</p>';
+    var mpRows = [{ l: '· Ventas entregadas MP', r: '$' + fmt(mpPedidos), c: 'res-sub' }];
+    mpIngresos.forEach(function (g) {
+      mpRows.push({
+        l: '· + ' + escapeHtml(movConceptoConMedio(g.concepto, g.cobrado_con)),
+        r: '+$' + fmt(g.monto),
+        c: 'res-sub',
+      });
+    });
+    mpRows.push({ l: 'Total MP', r: '$' + fmt(totalMpMov), c: 'res-grand' });
+
     var egRows = gastosList.map(function (g) {
       return {
-        l: escapeHtml(g.concepto || 'Egreso') + ' (' + movMedioAbbr(g.pagado_con) + ')',
+        l: '· ' + escapeHtml(g.concepto || 'Egreso'),
         r: '−$' + fmt(g.monto),
+        c: 'res-sub',
       };
     });
     if (!egRows.length) {
-      egRows.push({ l: 'Sin egresos', r: '—', c: 'res-muted' });
+      egRows.push({ l: '· Sin egresos', r: '—', c: 'res-muted' });
     }
-    egRows.push({ l: 'Total egresos', r: '−$' + fmt(st.gTotal || 0), c: 'res-total' });
-    html += resumenTblRows(egRows);
+    egRows.push({ l: 'Egresos totales', r: '−$' + fmt(st.gTotal || 0), c: 'res-grand' });
 
-    html += '<p class="res-group-title">Saldo turno (sistema)</p>';
-    html += resumenTblRows([
-      { l: 'Efectivo', r: '$' + fmt(st.ef) },
-      { l: 'Mercado Pago', r: '$' + fmt(st.mp) },
-      { l: 'Total', r: '$' + fmt(st.ventas), c: 'res-total' },
-    ]);
+    html += cierreMovSeccionHtml('Cobranzas · Efectivo', efRows);
+    html += cierreMovSeccionHtml('Cobranzas · Mercado Pago', mpRows);
+    html += cierreMovSeccionHtml('Egresos del turno', egRows);
 
-    html += '<p class="res-group-title">Final (arqueo al cerrar)</p>';
-    html += '<p class="res-sub">Diferencia contado vs sistema. Cuadrado = no falta ni sobra.</p>';
+    html += '<hr class="cierre-rule">';
+    html += '<p class="cierre-seccion-label">Cierre en caja</p>';
+    var cierreRows = [{ l: 'TOTAL EF caja', r: '$' + fmt(st.ef), c: 'res-grand' }];
     if (arq) {
-      html += resumenTblRows([
-        { l: 'Efectivo', r: arqueoFinalTicketCell(arq, 'ef') },
-        { l: 'Mercado Pago', r: arqueoFinalTicketCell(arq, 'mp') },
-      ]);
+      cierreRows.push(cierreArqueoContadoRow('EF', arq.efContado, st.ef));
     } else {
-      html += resumenTblRows([{ l: 'Sin arqueo', r: '—', c: 'res-muted' }]);
+      cierreRows.push({ l: 'Contado EF', r: 'Sin arqueo', c: 'res-muted' });
     }
+    cierreRows.push({ l: 'TOTAL MP caja', r: '$' + fmt(st.mp), c: 'res-grand' });
+    if (arq) {
+      cierreRows.push(cierreArqueoContadoRow('MP', arq.mpContado, st.mp));
+    } else {
+      cierreRows.push({ l: 'Contado MP', r: 'Sin arqueo', c: 'res-muted' });
+    }
+    html += resumenTblRows(cierreRows);
+
+    html += '<div class="cierre-seccion">';
+    html += '<p class="cierre-seccion-label">Saldo del turno</p>';
+    html += resumenTblRows([
+      { l: 'SALDO FINAL', r: '$' + fmt(st.ventas), c: 'res-grand' },
+      { l: 'Resultado (ventas − egresos)', r: '$' + fmt(st.resultado), c: 'res-total' },
+    ]);
+    html += '</div>';
 
     html += '</div>';
     return html;
@@ -2144,7 +2213,7 @@
       ' · Cierre ' +
       escapeHtml(formatCierreMetaWhen(cierreIso)) +
       '</div></div>' +
-      cierreFlujoCajaTicketHtml(snapshot, st) +
+      cierreFlujoCajaTicketHtml(snapshot, st, cierreIso) +
       '<div class="resumen-block"><h3>Registro de ventas</h3>' +
       cierreRegistroVentasHtml(productos, st) +
       '</div>' +
@@ -2593,24 +2662,31 @@
 
   function getCierreThermalPrintCss() {
     return (
-      '@page { margin: 0; }' +
-      'html, body { margin: 0; padding: 0; width: 100%; max-width: 100%; height: auto; min-height: 0; overflow: visible; box-sizing: border-box; background: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
+      '@page { size: 80mm auto; margin: 0; }' +
+      'html, body { margin: 0; padding: 0; width: 100%; max-width: 100%; height: auto; min-height: 0; overflow: visible; box-sizing: border-box; background: #fff; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
       '.resumen.resumen-cierre { width: 100%; max-width: none; margin: 0; padding: 0; box-sizing: border-box; border: none; border-radius: 0; background: #fff; color: #000; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 12px; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
       '.resumen-cierre .resumen-top { background: #000; color: #fff; padding: 8px 2mm; text-align: center; width: 100%; box-sizing: border-box; }' +
       '.resumen-cierre .resumen-top .brand { font-size: 13px; font-weight: 800; letter-spacing: 0.04em; color: #fff; }' +
-      '.resumen-cierre .resumen-top .meta { font-size: 10px; margin-top: 4px; line-height: 1.4; color: #fff; opacity: 1; }' +
-      '.resumen-cierre .resumen-block { padding: 6px 2mm; border-bottom: 1px solid #ddd; background: #fff; box-sizing: border-box; }' +
-      '.resumen-cierre .resumen-block h3 { margin: 0 0 6px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }' +
-      '.resumen-cierre .res-sub { margin: 0 0 6px; font-size: 9px; color: #666; line-height: 1.3; }' +
+      '.resumen-cierre .resumen-top .meta { font-size: 11px; margin-top: 4px; line-height: 1.4; color: #fff; opacity: 1; }' +
+      '.resumen-cierre .resumen-block { padding: 8px 2mm; border-bottom: 1px solid #ddd; background: #fff; box-sizing: border-box; }' +
+      '.resumen-cierre .resumen-block h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #444; }' +
+      '.resumen-cierre .cierre-rule { border: 0; border-top: 1px solid #000; margin: 8px 0; }' +
+      '.resumen-cierre .cierre-rule--dashed { border-top-style: dashed; border-color: #666; }' +
+      '.resumen-cierre .cierre-seccion { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #888; }' +
+      '.resumen-cierre .cierre-seccion:first-child { margin-top: 0; padding-top: 0; border-top: 0; }' +
+      '.resumen-cierre .cierre-seccion-label { margin: 0 0 5px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: #000; }' +
       '.resumen-cierre .resumen-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; }' +
-      '.resumen-cierre .res-l { width: 62%; text-align: left; vertical-align: top; padding: 2px 0; word-break: break-word; font-size: 11px; color: #000; }' +
-      '.resumen-cierre .res-r { width: 38%; text-align: right; vertical-align: top; padding: 2px 0; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 11px; color: #000; }' +
-      '.resumen-cierre tr.res-total .res-l, .resumen-cierre tr.res-total .res-r { font-weight: 700; border-top: 1px dashed #000; padding-top: 5px; }' +
-      '.resumen-cierre tr.res-muted .res-l, .resumen-cierre tr.res-muted .res-r { color: #777; font-size: 10px; }' +
+      '.resumen-cierre .res-l { width: 58%; text-align: left; vertical-align: top; padding: 2px 0; word-break: break-word; font-size: 12px; color: #000; }' +
+      '.resumen-cierre .res-r { width: 42%; text-align: right; vertical-align: top; padding: 2px 0; white-space: nowrap; font-variant-numeric: tabular-nums; font-size: 12px; color: #000; }' +
+      '.resumen-cierre tr.res-sub .res-l, .resumen-cierre tr.res-sub .res-r { font-size: 11px; color: #444; padding-left: 8px; }' +
+      '.resumen-cierre tr.res-total .res-l, .resumen-cierre tr.res-total .res-r { font-weight: 700; font-size: 12px; border-top: 1px dashed #000; padding-top: 5px; }' +
+      '.resumen-cierre tr.res-muted .res-l, .resumen-cierre tr.res-muted .res-r { color: #777; font-size: 11px; }' +
+      '.resumen-cierre tr.res-grand .res-l, .resumen-cierre tr.res-grand .res-r { font-weight: 800; font-size: 13px; padding-top: 4px; }' +
+      '.resumen-cierre tr.res-ok .res-r, .resumen-cierre tr.res-falt .res-r { font-weight: 700; }' +
       '.resumen-cierre tr.res-result .res-l, .resumen-cierre tr.res-result .res-r { font-weight: 700; font-size: 12px; color: #000; }' +
-      '.resumen-cierre .res-group-title { margin: 8px 0 3px; font-size: 10px; font-weight: 700; color: #000; }' +
+      '.resumen-cierre .res-group-title { margin: 8px 0 3px; font-size: 11px; font-weight: 700; color: #000; }' +
       '.resumen-cierre .res-group-title:first-of-type { margin-top: 2px; }' +
-      '.resumen-cierre .resumen-foot { padding: 8px 2mm; font-size: 9px; color: #fff; background: #000; text-align: center; width: 100%; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
+      '.resumen-cierre .resumen-foot { padding: 8px 2mm; font-size: 11px; color: #fff; background: #000; text-align: center; width: 100%; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }'
     );
   }
 

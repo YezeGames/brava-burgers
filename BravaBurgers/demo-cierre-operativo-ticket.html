@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Demo — ticket cierre operativo (layout + tipografía)</title>
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			padding: 20px 16px 48px;
+			font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+			background: #ececec;
+			color: #222;
+		}
+		.page { max-width: 920px; margin: 0 auto; }
+		.banner {
+			background: #111;
+			color: #fff;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 14px;
+			margin-bottom: 18px;
+			line-height: 1.45;
+		}
+		.banner strong { color: #ff6b35; }
+		h1 { margin: 0 0 8px; font-size: 1.35rem; }
+		.lead { margin: 0 0 16px; color: #555; font-size: 0.92rem; line-height: 1.45; }
+		.toolbar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin-bottom: 18px;
+		}
+		.btn {
+			padding: 9px 14px;
+			border-radius: 6px;
+			border: 1px solid #ccc;
+			background: #fff;
+			font-weight: 600;
+			cursor: pointer;
+			font-size: 0.88rem;
+		}
+		.btn-accent { background: #ff6b35; border-color: #ff6b35; color: #fff; }
+		.print-hint {
+			margin: 0 0 16px;
+			padding: 10px 12px;
+			background: #fff8e6;
+			border: 1px solid #f0d78c;
+			border-radius: 8px;
+			font-size: 0.84rem;
+			line-height: 1.45;
+			color: #5c4a12;
+		}
+		.layout {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 320px;
+			gap: 20px;
+			align-items: start;
+		}
+		@media (max-width: 820px) {
+			.layout { grid-template-columns: 1fr; }
+		}
+		.preview-shell {
+			background: #fff;
+			border-radius: 10px;
+			padding: 16px;
+			box-shadow: 0 2px 10px rgba(0,0,0,.08);
+		}
+		.preview-shell h2 {
+			margin: 0 0 12px;
+			font-size: 0.95rem;
+			color: #666;
+			font-weight: 600;
+		}
+		.ticket-wrap {
+			background: #f7f7f7;
+			padding: 12px;
+			border-radius: 8px;
+			overflow-x: auto;
+		}
+		.notes {
+			background: #fff;
+			border-radius: 10px;
+			padding: 14px 16px;
+			box-shadow: 0 2px 10px rgba(0,0,0,.08);
+			font-size: 0.84rem;
+			line-height: 1.45;
+			color: #444;
+		}
+		.notes h3 { margin: 0 0 8px; font-size: 0.9rem; }
+		.notes ul { margin: 0; padding-left: 18px; }
+		.notes li { margin: 6px 0; }
+
+		/* ── Ticket térmico 80 mm: tipografía FIJA en px (no rem, no shrink) ── */
+		.resumen.resumen-cierre {
+			width: 80mm;
+			max-width: 80mm;
+			margin: 0 auto;
+			padding: 0;
+			background: #fff;
+			color: #000;
+			font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+			font-size: 12px;
+			line-height: 1.35;
+			-webkit-text-size-adjust: 100%;
+			text-size-adjust: 100%;
+		}
+		.resumen-cierre .resumen-top {
+			background: #000;
+			color: #fff;
+			padding: 8px 2mm;
+			text-align: center;
+		}
+		.resumen-cierre .resumen-top .brand {
+			font-size: 13px;
+			font-weight: 800;
+			letter-spacing: 0.04em;
+		}
+		.resumen-cierre .resumen-top .meta {
+			font-size: 11px;
+			margin-top: 4px;
+			line-height: 1.4;
+		}
+		.resumen-cierre .resumen-block {
+			padding: 8px 2mm;
+			border-bottom: 1px solid #ddd;
+		}
+		.resumen-cierre .resumen-block h3 {
+			margin: 0 0 6px;
+			font-size: 11px;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: #444;
+		}
+		.resumen-cierre .cierre-rule {
+			border: 0;
+			border-top: 1px solid #000;
+			margin: 8px 0;
+		}
+		.resumen-cierre .cierre-rule--dashed {
+			border-top-style: dashed;
+			border-color: #666;
+		}
+		.resumen-cierre .cierre-seccion {
+			margin-top: 10px;
+			padding-top: 8px;
+			border-top: 1px dashed #888;
+		}
+		.resumen-cierre .cierre-seccion:first-child {
+			margin-top: 0;
+			padding-top: 0;
+			border-top: 0;
+		}
+		.resumen-cierre .cierre-seccion-label {
+			margin: 0 0 5px;
+			font-size: 10px;
+			font-weight: 800;
+			text-transform: uppercase;
+			letter-spacing: 0.07em;
+			color: #000;
+		}
+		.resumen-cierre tr.res-sep td {
+			padding: 0;
+			height: 6px;
+			line-height: 0;
+			font-size: 0;
+		}
+		.resumen-cierre .resumen-tbl {
+			width: 100%;
+			border-collapse: collapse;
+			table-layout: fixed;
+		}
+		.resumen-cierre .res-l {
+			width: 58%;
+			text-align: left;
+			vertical-align: top;
+			padding: 2px 0;
+			word-break: break-word;
+			font-size: 12px;
+		}
+		.resumen-cierre .res-r {
+			width: 42%;
+			text-align: right;
+			vertical-align: top;
+			padding: 2px 0;
+			white-space: nowrap;
+			font-variant-numeric: tabular-nums;
+			font-size: 12px;
+		}
+		.resumen-cierre tr.res-sub .res-l,
+		.resumen-cierre tr.res-sub .res-r {
+			font-size: 11px;
+			color: #444;
+			padding-left: 8px;
+		}
+		.resumen-cierre tr.res-muted .res-l,
+		.resumen-cierre tr.res-muted .res-r { color: #777; font-size: 11px; }
+		.resumen-cierre tr.res-total .res-l,
+		.resumen-cierre tr.res-total .res-r {
+			font-weight: 700;
+			font-size: 12px;
+			border-top: 1px dashed #000;
+			padding-top: 5px;
+		}
+		.resumen-cierre tr.res-grand .res-l,
+		.resumen-cierre tr.res-grand .res-r {
+			font-weight: 800;
+			font-size: 13px;
+			padding-top: 4px;
+		}
+		.resumen-cierre tr.res-ok .res-r { font-weight: 700; }
+		.resumen-cierre tr.res-falt .res-r { font-weight: 700; color: #000; }
+		.resumen-cierre .res-group-title {
+			margin: 8px 0 3px;
+			font-size: 11px;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.03em;
+		}
+		.resumen-cierre .res-group-title:first-of-type { margin-top: 2px; }
+		.resumen-cierre .resumen-foot {
+			padding: 8px 2mm;
+			font-size: 11px;
+			color: #fff;
+			background: #000;
+			text-align: center;
+		}
+
+		@media print {
+			body { background: #fff; padding: 0; margin: 0; }
+			.no-print { display: none !important; }
+			.page { max-width: none; margin: 0; padding: 0; }
+			.layout { display: block; }
+			.preview-shell {
+				padding: 0;
+				background: #fff;
+				box-shadow: none;
+				border-radius: 0;
+			}
+			.ticket-wrap {
+				padding: 0;
+				background: #fff;
+				border-radius: 0;
+			}
+			@page { size: 80mm auto; margin: 0; }
+			.resumen.resumen-cierre {
+				width: 80mm;
+				max-width: 80mm;
+				font-size: 12px !important;
+			}
+			.resumen-cierre .res-l,
+			.resumen-cierre .res-r,
+			.resumen-cierre .res-group-title,
+			.resumen-cierre .cierre-seccion-label,
+			.resumen-cierre .resumen-top .meta {
+				font-size: 12px !important;
+			}
+			.resumen-cierre tr.res-sub .res-l,
+			.resumen-cierre tr.res-sub .res-r { font-size: 11px !important; }
+			.resumen-cierre tr.res-grand .res-l,
+			.resumen-cierre tr.res-grand .res-r { font-size: 13px !important; }
+			.resumen-cierre .resumen-top {
+				background: #000 !important;
+				color: #fff !important;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
+			.resumen-cierre .resumen-foot {
+				background: #000 !important;
+				color: #fff !important;
+				-webkit-print-color-adjust: exact;
+				print-color-adjust: exact;
+			}
+		}
+	</style>
+</head>
+<body>
+	<div class="page">
+		<div class="banner no-print">
+			<strong>Demo layout cierre operativo</strong> — tipografía fija 12px (no se achica si el ticket es largo).
+			Flujo de caja reordenado según tu boceto. <strong>Registro de ventas intacto</strong> (misma info que hoy).
+		</div>
+		<h1 class="no-print">Ticket cierre operativo — propuesta</h1>
+		<p class="lead no-print">
+			Referencia del papel: apertura arriba → totales EF/MP y egresos → total en caja → arqueo (0 ✓ o falta) → saldo final.
+			Después sigue el bloque de productos vendidos sin cambios.
+		</p>
+		<p class="print-hint no-print">
+			<strong>Impresión:</strong> usá <strong>Imprimir ticket 80 mm</strong> (igual que el admin en producción).
+			En el diálogo elegí la térmica y desactivá <em>Ajustar a página</em> / <em>Scale</em> si la letra sale chica.
+		</p>
+		<div class="toolbar no-print">
+			<button type="button" class="btn btn-accent" id="btn-print">Imprimir ticket 80 mm</button>
+			<button type="button" class="btn" id="btn-print-browser">Imprimir vista navegador</button>
+			<button type="button" class="btn" id="btn-largo">Alternar ticket largo</button>
+		</div>
+		<div class="layout">
+			<div class="preview-shell">
+				<h2 class="no-print">Vista previa (80 mm)</h2>
+				<div class="ticket-wrap" id="ticket-wrap"></div>
+			</div>
+			<div class="notes no-print">
+				<h3>Qué cambia vs hoy</h3>
+				<ul>
+					<li><strong>Tipografía:</strong> todo en px (12px base). Nada en rem. Impresión con <code>@page size: 80mm auto</code> para que crezca en alto y no escale chico.</li>
+					<li><strong>Flujo de caja:</strong> bloques separados con líneas, como el boceto. <strong>TOTAL EF/MP caja</strong> = lo que calcula el sistema; <strong>Contado</strong> = lo que contaste vs ese mismo número (0 ✓ o falta).</li>
+					<li><strong>Detalle conservado:</strong> ingresos y egresos línea a línea quedan como sub-filas; no se saca info.</li>
+					<li><strong>Registro de ventas:</strong> simples, dobles, acompañamientos, extras y bebidas — igual que producción.</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+
+	<script>
+	(function () {
+		function fmt(n) {
+			return Math.round(Number(n) || 0).toLocaleString('es-AR');
+		}
+		function esc(s) {
+			return String(s || '')
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+		}
+		function tblRows(rows) {
+			var html = '<table class="resumen-tbl" role="presentation"><tbody>';
+			for (var i = 0; i < rows.length; i++) {
+				var r = rows[i];
+				html += '<tr class="' + (r.c || '') + '"><td class="res-l">' + r.l + '</td><td class="res-r">' + r.r + '</td></tr>';
+			}
+			return html + '</tbody></table>';
+		}
+		function diffLine(diff) {
+			if (diff === 0) return { l: 'Diferencia', r: '0 ✓', c: 'res-ok' };
+			if (diff > 0) return { l: 'Diferencia', r: 'Sobra $' + fmt(diff), c: 'res-falt' };
+			return { l: 'Diferencia', r: 'Falta −$' + fmt(Math.abs(diff)), c: 'res-falt' };
+		}
+
+		var ticketLargo = false;
+
+		var snapshot = {
+			cierreId: 'CIERRE-0042',
+			periodoLbl: '12/08/2026',
+			aperturaWhen: '12/08/2026 18:30',
+			cierreWhen: '13/08/2026 00:15',
+			aperturaArqueo: { efContado: 1000, mpContado: 0 },
+			arqueo: { efContado: 2500, mpContado: 2800, efEsperado: 2500, mpEsperado: 2800, efDiff: 0, mpDiff: 0 },
+			gastos: [
+				{ concepto: 'Pan — mayorista', monto: 300, pagado_con: 'efectivo' },
+				{ concepto: 'Delivery gasolina', monto: 200, pagado_con: 'transferencia' }
+			],
+			ingresos: [{ concepto: 'Propina repartidor', monto: 200, cobrado_con: 'efectivo' }],
+			st: {
+				efPedidos: 1800,
+				mpPedidos: 3000,
+				iTotal: 200,
+				ventasPedidos: 5000,
+				gTotal: 500,
+				ef: 2500,
+				mp: 2800,
+				ventas: 5300,
+				resultado: 4800,
+				simples: 12,
+				dobles: 8,
+				hambTotal: 20,
+				productosVentas: [
+					{ nombre: 'Clásica', qty: 5 },
+					{ nombre: 'Doble Brava', qty: 4 },
+					{ nombre: 'Simple Queso', qty: 7 },
+					{ nombre: 'Triple Bacon', qty: 4 }
+				],
+				acompanamientosVentas: [
+					{ nombre: 'Papas fritas', qty: 9 },
+					{ nombre: 'Nuggets x6', qty: 3 },
+					{ nombre: 'Aros de cebolla', qty: 0 }
+				],
+				extrasVentas: [
+					{ nombre: 'Bacon', qty: 6 },
+					{ nombre: 'Cheddar', qty: 4 },
+					{ nombre: 'Pepinillos', qty: 0 }
+				],
+				bebidasVentas: [
+					{ nombre: 'Coca Cola', qty: 5 },
+					{ nombre: 'Coca Cola Zero', qty: 2 },
+					{ nombre: 'Sprite', qty: 1 }
+				]
+			}
+		};
+
+		function extraBebidasLargas() {
+			var out = snapshot.st.bebidasVentas.slice();
+			var nombres = [
+				'Agua sin gas', 'Agua con gas', 'Fanta', 'Schweppes', 'Speed', 'Monster',
+				'Cerveza IPA', 'Cerveza rubia', 'Jugo naranja', 'Limonada'
+			];
+			for (var i = 0; i < nombres.length; i++) {
+				out.push({ nombre: nombres[i], qty: (i % 3) + 1 });
+			}
+			return out;
+		}
+
+		function splitSimplesDobles(list) {
+			var simples = [];
+			var dobles = [];
+			(list || []).forEach(function (x) {
+				if (!x || !(x.qty > 0)) return;
+				if (/doble|triple/i.test(x.nombre)) dobles.push(x);
+				else simples.push(x);
+			});
+			return { simples: simples, dobles: dobles };
+		}
+
+		function productosRows(list) {
+			if (!list.length) return tblRows([{ l: '—', r: '0', c: 'res-muted' }]);
+			return tblRows(list.map(function (x) {
+				return { l: esc(x.nombre) + ':', r: String(Math.round(x.qty)) };
+			}));
+		}
+
+		function registroVentasHtml(st) {
+			var split = splitSimplesDobles(st.productosVentas);
+			var bebidas = ticketLargo ? extraBebidasLargas() : st.bebidasVentas;
+			var html = '<p class="res-group-title">Simples:</p>';
+			html += productosRows(split.simples);
+			html += '<p class="res-group-title">Dobles:</p>';
+			html += productosRows(split.dobles);
+			html += tblRows([{ l: 'Vendidas total', r: Math.round(st.hambTotal) + ' u.', c: 'res-total' }]);
+			html += '<p class="res-group-title">Acompañamientos:</p>';
+			html += productosRows(st.acompanamientosVentas);
+			html += '<p class="res-group-title">Extras:</p>';
+			html += productosRows(st.extrasVentas);
+			html += '<p class="res-group-title">Bebidas:</p>';
+			html += productosRows(bebidas);
+			return html;
+		}
+
+		function arqueoContadoRow(tag, contado, esperado) {
+			var diff = Math.round(Number(contado) || 0) - Math.round(Number(esperado) || 0);
+			var r = '$' + fmt(contado);
+			if (diff === 0) r += ' · 0 ✓';
+			else if (diff > 0) r += ' · Sobra $' + fmt(diff);
+			else r += ' · Falta −$' + fmt(Math.abs(diff));
+			return { l: 'Contado ' + tag, r: r, c: diff === 0 ? 'res-ok' : 'res-falt' };
+		}
+
+		function flujoCajaHtml(snap) {
+			var ap = snap.aperturaArqueo;
+			var arq = snap.arqueo;
+			var st = snap.st;
+			var gastos = snap.gastos || [];
+			var ingresos = snap.ingresos || [];
+			var html = '<div class="resumen-block"><h3>Flujo de caja</h3>';
+
+			/* ── Bloque 1: apertura (como boceto) ── */
+			html += tblRows([
+				{ l: 'Fecha · hora cierre', r: esc(snap.cierreWhen) },
+				{ l: 'Apertura turno', r: esc(snap.aperturaWhen), c: 'res-muted' }
+			]);
+			html += '<hr class="cierre-rule">';
+			html += '<p class="cierre-seccion-label">Apertura del turno</p>';
+			html += tblRows([
+				{
+					l: 'Inicio arqueo EF',
+					r: ap ? '$' + fmt(ap.efContado) : '< Sin saldo >',
+					c: ap ? '' : 'res-muted'
+				},
+				{
+					l: 'Inicio arqueo MP',
+					r: ap ? '$' + fmt(ap.mpContado) : '< Sin saldo >',
+					c: ap ? '' : 'res-muted'
+				},
+				{ l: 'Total en caja (EF)', r: ap ? '$' + fmt(ap.efContado) : '—', c: 'res-grand' }
+			]);
+
+			/* ── Bloque 2: movimientos del turno (detalle arriba, total abajo) ── */
+			html += '<hr class="cierre-rule cierre-rule--dashed">';
+			var efIngresos = ingresos.filter(function (g) {
+				return String(g.cobrado_con || '') !== 'transferencia';
+			});
+			var mpIngresos = ingresos.filter(function (g) {
+				return String(g.cobrado_con || '') === 'transferencia';
+			});
+			var totalEfMov =
+				st.efPedidos + efIngresos.reduce(function (a, g) { return a + g.monto; }, 0);
+			var totalMpMov =
+				st.mpPedidos + mpIngresos.reduce(function (a, g) { return a + g.monto; }, 0);
+
+			function movSeccion(label, rows) {
+				return (
+					'<div class="cierre-seccion">' +
+					'<p class="cierre-seccion-label">' +
+					label +
+					'</p>' +
+					tblRows(rows) +
+					'</div>'
+				);
+			}
+
+			var efRows = [{ l: '· Ventas entregadas EF', r: '$' + fmt(st.efPedidos), c: 'res-sub' }];
+			efIngresos.forEach(function (g) {
+				efRows.push({ l: '· + ' + esc(g.concepto), r: '+$' + fmt(g.monto), c: 'res-sub' });
+			});
+			efRows.push({ l: 'Total EF', r: '$' + fmt(totalEfMov), c: 'res-grand' });
+
+			var mpRows = [{ l: '· Ventas entregadas MP', r: '$' + fmt(st.mpPedidos), c: 'res-sub' }];
+			mpIngresos.forEach(function (g) {
+				mpRows.push({ l: '· + ' + esc(g.concepto), r: '+$' + fmt(g.monto), c: 'res-sub' });
+			});
+			mpRows.push({ l: 'Total MP', r: '$' + fmt(totalMpMov), c: 'res-grand' });
+
+			var egRows = gastos.map(function (g) {
+				return { l: '· ' + esc(g.concepto), r: '−$' + fmt(g.monto), c: 'res-sub' };
+			});
+			if (!egRows.length) {
+				egRows.push({ l: '· Sin egresos', r: '—', c: 'res-muted' });
+			}
+			egRows.push({ l: 'Egresos totales', r: '−$' + fmt(st.gTotal), c: 'res-grand' });
+
+			html += movSeccion('Cobranzas · Efectivo', efRows);
+			html += movSeccion('Cobranzas · Mercado Pago', mpRows);
+			html += movSeccion('Egresos del turno', egRows);
+
+			/* ── Bloque 3: cierre en caja (sistema + contado) ── */
+			html += '<hr class="cierre-rule">';
+			html += '<p class="cierre-seccion-label">Cierre en caja</p>';
+			var cierreRows = [
+				{ l: 'TOTAL EF caja', r: '$' + fmt(st.ef), c: 'res-grand' }
+			];
+			if (arq) {
+				cierreRows.push(arqueoContadoRow('EF', arq.efContado, st.ef));
+			} else {
+				cierreRows.push({ l: 'Contado EF', r: 'Sin arqueo', c: 'res-muted' });
+			}
+			cierreRows.push({ l: 'TOTAL MP caja', r: '$' + fmt(st.mp), c: 'res-grand' });
+			if (arq) {
+				cierreRows.push(arqueoContadoRow('MP', arq.mpContado, st.mp));
+			} else {
+				cierreRows.push({ l: 'Contado MP', r: 'Sin arqueo', c: 'res-muted' });
+			}
+			html += tblRows(cierreRows);
+
+			/* ── Bloque 4: saldo final ── */
+			html += '<div class="cierre-seccion">';
+			html += '<p class="cierre-seccion-label">Saldo del turno</p>';
+			html += tblRows([
+				{ l: 'SALDO FINAL', r: '$' + fmt(st.ventas), c: 'res-grand' },
+				{ l: 'Resultado (ventas − egresos)', r: '$' + fmt(st.resultado), c: 'res-total' }
+			]);
+			html += '</div>';
+
+			html += '</div>';
+			return html;
+		}
+
+		function buildTicket() {
+			var snap = snapshot;
+			return (
+				'<div class="resumen resumen-cierre">' +
+				'<div class="resumen-top">' +
+				'<div class="brand">BRAVA BURGERS</div>' +
+				'<div class="meta">' + esc(snap.cierreId) + ' · ' + esc(snap.periodoLbl) + '<br>Cierre operativo</div>' +
+				'</div>' +
+				flujoCajaHtml(snap) +
+				'<div class="resumen-block"><h3>Registro de ventas</h3>' +
+				registroVentasHtml(snap.st) +
+				'</div>' +
+				'<div class="resumen-foot">Brava Burgers · Cierre operativo</div>' +
+				'</div>'
+			);
+		}
+
+		function getThermalPrintCss() {
+			var styles = document.querySelector('style');
+			return styles ? styles.textContent : '';
+		}
+
+		function printTicketThermal() {
+			var ticket = document.querySelector('#ticket-wrap .resumen-cierre');
+			if (!ticket) return;
+			var iframe = document.createElement('iframe');
+			iframe.setAttribute('title', 'Impresión cierre operativo demo');
+			iframe.setAttribute('aria-hidden', 'true');
+			iframe.style.cssText =
+				'position:fixed;width:0;height:0;border:0;margin:0;padding:0;left:0;top:0;opacity:0;pointer-events:none';
+			document.body.appendChild(iframe);
+			var win = iframe.contentWindow;
+			var doc = iframe.contentDocument || (win && win.document);
+			if (!doc || !win) {
+				if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+				return;
+			}
+			doc.open();
+			doc.write(
+				'<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Cierre operativo</title><style>' +
+					getThermalPrintCss() +
+					'html,body{margin:0;padding:0;background:#fff;}' +
+					'</style></head><body>' +
+					ticket.outerHTML +
+					'</body></html>'
+			);
+			doc.close();
+			var cleanup = function () {
+				if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+			};
+			win.onafterprint = function () {
+				cleanup();
+				win.onafterprint = null;
+			};
+			setTimeout(function () {
+				try {
+					win.focus();
+					win.print();
+				} catch (e) {
+					cleanup();
+				}
+			}, 250);
+		}
+
+		function render() {
+			document.getElementById('ticket-wrap').innerHTML = buildTicket();
+		}
+
+		document.getElementById('btn-print').addEventListener('click', printTicketThermal);
+		document.getElementById('btn-print-browser').addEventListener('click', function () {
+			window.print();
+		});
+		document.getElementById('btn-largo').addEventListener('click', function () {
+			ticketLargo = !ticketLargo;
+			this.textContent = ticketLargo ? 'Ticket normal' : 'Alternar ticket largo';
+			render();
+		});
+
+		render();
+	})();
+	</script>
+</body>
+</html>
