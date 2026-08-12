@@ -826,20 +826,15 @@
 		var displayH = vw * nh / nw;
 		var graffitiStart = displayH * BRAVA_MOBILE_BG_GRAFFITI_START;
 		var zoneH = zone.offsetHeight;
-		var neededH = Math.max(displayH, graffitiStart + zoneH);
+		var neededH = graffitiStart + zoneH;
 
 		document.documentElement.style.setProperty('--brava-mobile-bg-offset', graffitiStart + 'px');
 		document.documentElement.style.setProperty('--brava-mobile-bg-height', neededH + 'px');
 
 		img.style.width = '100%';
 		img.style.height = neededH + 'px';
-		if (neededH > displayH + 1) {
-			img.style.objectFit = 'fill';
-			img.style.objectPosition = 'top center';
-		} else {
-			img.style.objectFit = '';
-			img.style.objectPosition = '';
-		}
+		img.style.objectFit = 'fill';
+		img.style.objectPosition = 'top center';
 	}
 
 	var bravaMobileBgResizeObs = null;
