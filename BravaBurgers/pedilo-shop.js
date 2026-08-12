@@ -1253,7 +1253,6 @@
 	window.inicializar_tienda = async function () {
 		await refrescar_desde_sheets(true);
 
-		$('#boton_buscador,#mobile-nav-toggle').show();
 		if (g_telefono) $('.product-add-icon,.brava-btn-add').show();
 
 		var storageKey = g_pedido_storage_key || 'pedido-bravaburgers';

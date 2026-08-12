@@ -839,8 +839,10 @@
 		}
 		if (!nw || !nh) return;
 
-		var vw = zone.clientWidth || document.documentElement.clientWidth;
-		var graffitiStart = (vw * nh / nw) * graffitiStartRatio;
+		var bgW = isMobile
+			? zone.clientWidth || document.documentElement.clientWidth
+			: window.innerWidth || document.documentElement.clientWidth;
+		var graffitiStart = (bgW * nh / nw) * graffitiStartRatio;
 		var zoneH = zone.offsetHeight;
 		var neededH = graffitiStart + zoneH;
 
@@ -869,6 +871,12 @@
 			syncMenuBgOffset();
 		});
 		bravaMenuBgResizeObs.observe(zone);
+		if (!global._bravaMenuBgWinResize) {
+			global._bravaMenuBgWinResize = true;
+			window.addEventListener('resize', function () {
+				requestAnimationFrame(syncMenuBgOffset);
+			});
+		}
 	}
 
 	function ensureMenuBgImg(id, className, src, clip, beforeNode) {

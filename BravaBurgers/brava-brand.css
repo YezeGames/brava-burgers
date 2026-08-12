@@ -769,7 +769,10 @@ body.brava-shop-b.brava-has-bg-image::before {
 
 	body.brava-shop-b .brava-menu-bg-clip {
 		position: absolute;
-		inset: 0;
+		top: 0;
+		bottom: 0;
+		left: calc(50% - 50vw);
+		width: 100vw;
 		overflow: hidden;
 		z-index: 0;
 		pointer-events: none;
@@ -876,6 +879,11 @@ body.brava-shop-b .brava-hero-sub {
 	margin: 4px 0 0;
 	font-size: 0.8rem;
 	color: var(--brava-muted);
+}
+
+body.brava-shop-b #boton_buscador,
+body.brava-shop-b #mobile-nav-toggle {
+	display: none !important;
 }
 
 body.brava-shop-b .brava-hero-actions {
