@@ -635,17 +635,13 @@ html:has(body.brava-shop-b.brava-has-bg-image) {
 	background-color: #0a0a0a;
 }
 
-/* Mobile: imagen vertical tal cual, ancho completo, cubre todo el scroll */
+/* Mobile: fondo 720x1600 tal cual, ancho de pagina, sin zoom ni offset */
 body.brava-shop-b.brava-has-bg-image::before {
 	content: none;
 	display: none;
 }
 
 @media (max-width: 768px) {
-	body.brava-shop-b.brava-has-bg-image {
-		--brava-mobile-bg-native-w: 836;
-	}
-
 	body.brava-shop-b.brava-has-bg-image::before {
 		content: '';
 		display: block;
@@ -658,9 +654,8 @@ body.brava-shop-b.brava-has-bg-image::before {
 		background-color: #0a0a0a;
 		background-image: var(--brava-bg-mobile, none);
 		background-repeat: no-repeat;
-		/* Sin zoom: ancho nativo 836px como la exportaste; solo achica en pantallas mas chicas */
-		background-size: min(100vw, calc(var(--brava-mobile-bg-native-w) * 1px)) auto;
-		background-position: center top;
+		background-size: 100% auto;
+		background-position: top center;
 		pointer-events: none;
 	}
 
