@@ -4,6 +4,7 @@
  *
  * Crea pestañas extras + ingredientes y columnas en productos (sin borrar datos).
  * Columna Ingredientes = lista por hamburguesa ("Cebolla, Cheddar") — prioridad sobre pestaña ingredientes.
+ * Columna Agotado (al lado de Ingredientes) = si → producto visible pero sin stock en la tienda.
  */
 var SETUP_CATALOG_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 
@@ -16,7 +17,8 @@ function setupExtrasEIngredientesEnCatalogo() {
   fillProductosIngredientesEnSheet_(ss);
   try {
     SpreadsheetApp.getUi().alert(
-      'Listo: extras, ingredientes y vínculos en productos (filas Sin Extra).\n' +
+      'Listo: extras, ingredientes, Agotado y vínculos en productos (filas Sin Extra).\n' +
+        'Agotado: poné si en una fila del producto para marcar sin stock (vacío = vendible).\n' +
         'Publicá el menú desde Pedilo si hace falta.'
     );
   } catch (e) {
@@ -85,6 +87,44 @@ function setupProductosColumnas_(ss) {
   });
   if (lower.indexOf('ingredientes') === -1) {
     sh.getRange(1, sh.getLastColumn() + 1).setValue('Ingredientes');
+  }
+  ensureAgotadoColumnAfterIngredientes_(sh);
+}
+
+/** Solo agrega la columna Agotado (junto a Ingredientes) sin tocar extras ni recetas. */
+function setupColumnaAgotadoEnProductos() {
+  var ss = SpreadsheetApp.openById(SETUP_CATALOG_SHEET_ID);
+  var sh = ss.getSheetByName('productos');
+  if (!sh) throw new Error('No hay pestaña productos');
+  ensureAgotadoColumnAfterIngredientes_(sh);
+  try {
+    SpreadsheetApp.getUi().alert(
+      'Columna Agotado lista (al lado de Ingredientes).\n' +
+        'Marcá si en el producto que no podés vender. Vacío = normal.\n' +
+        'Ocultar = si sigue sacando el producto del menú por completo.'
+    );
+  } catch (e) {
+    Logger.log('Columna Agotado OK (sin UI): ' + e);
+  }
+}
+
+/** Inserta encabezado Agotado inmediatamente después de Ingredientes si falta. */
+function ensureAgotadoColumnAfterIngredientes_(sh) {
+  var lastCol = sh.getLastColumn();
+  if (lastCol < 1) return;
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+  var lower = headers.map(function (h) {
+    return String(h || '')
+      .toLowerCase()
+      .trim();
+  });
+  if (lower.indexOf('agotado') !== -1) return;
+  var ingIdx = lower.indexOf('ingredientes');
+  if (ingIdx >= 0) {
+    sh.insertColumnAfter(ingIdx + 1);
+    sh.getRange(1, ingIdx + 2).setValue('Agotado');
+  } else {
+    sh.getRange(1, sh.getLastColumn() + 1).setValue('Agotado');
   }
 }
 

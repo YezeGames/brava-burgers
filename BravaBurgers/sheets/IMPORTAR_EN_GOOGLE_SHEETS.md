@@ -42,3 +42,28 @@ Se vuelve a crear **`BRAVA-BURGERS-Pedilo.xlsx`**.
 ## Alternativa: pegar CSV a mano
 
 Ver pasos en la sección anterior del repo; los CSV siguen siendo válidos pestaña por pestaña.
+
+---
+
+## Columna **Agotado** (sin stock visible)
+
+En la pestaña **productos**, al lado de **Ingredientes**:
+
+| Columna | Valor | Efecto en la tienda |
+|---------|-------|---------------------|
+| **Ocultar** | `si` | No aparece en el menú |
+| **Agotado** | `si` | Aparece con badge **Agotado**, no se puede sumar al pedido |
+| (vacío) | — | Se vende normal |
+
+**Uso operativo:** si te quedás sin panceta y **La Cuarta** lleva panceta, poné `si` en **Agotado** en **una fila** de ese producto (ej. la fila `Sin Extra`). No hace falta marcar todas las variantes.
+
+No es por ingrediente suelto: agotás el **producto entero**, igual que ocultar pero el cliente lo sigue viendo.
+
+### Crear la columna en tu Sheet
+
+1. Abrí el [Sheet de menú](https://docs.google.com/spreadsheets/d/1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0/edit).
+2. **Extensiones → Apps Script** → pegá `apps-script/SetupCatalogSheets.gs` (o actualizá el que ya tenés).
+3. Ejecutá **`setupColumnaAgotadoEnProductos`** (solo la columna) o **`setupExtrasEIngredientesEnCatalogo`** (setup completo).
+4. Autorizá si Google lo pide. Deberías ver **Agotado** justo después de **Ingredientes**.
+
+Plantilla CSV con el orden de columnas: `sheets/brava-productos-personalizacion.csv`.

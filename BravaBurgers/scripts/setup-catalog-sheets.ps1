@@ -19,8 +19,9 @@ Write-Host "4. Nombrar: SetupCatalogSheets -> Pegar (Ctrl+V) -> Guardar"
 Write-Host "5. Elegir funcion: setupExtrasEIngredientesEnCatalogo -> Ejecutar"
 Write-Host "6. Autorizar permisos la primera vez"
 Write-Host ""
-Write-Host "Crea pestañas: extras, ingredientes + columnas Grupo extras / Quitar / Ingredientes en productos"
+Write-Host "Crea pestañas: extras, ingredientes + columnas Grupo extras / Quitar / Ingredientes / Agotado en productos"
 Write-Host "Ingredientes (en productos): por burger, separados con coma — ej. Cebolla, Cheddar, Lechuga"
+Write-Host "Agotado (en productos): si = visible pero sin stock; vacio = vendible (distinto de Ocultar)"
 Write-Host ""
 
 Start-Process $sheetUrl

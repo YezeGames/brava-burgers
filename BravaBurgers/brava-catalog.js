@@ -23,11 +23,20 @@
 			skipEmptyLines: true,
 			dynamicTyping: false,
 		});
+		const fields = (result.meta && result.meta.fields) || [];
+		const normalizedFields = fields.map(function (field, index) {
+			const name = String(field || '').trim();
+			if (name) return name;
+			const prev = index > 0 ? String(fields[index - 1] || '').trim().toLowerCase() : '';
+			if (prev === 'ingredientes') return 'Agotado';
+			return 'col_' + (index + 1);
+		});
 		return result.data.map(function (row) {
 			const newRow = {};
-			for (const key in row) {
-				newRow[key.toLowerCase().trim()] = row[key];
-			}
+			fields.forEach(function (field, index) {
+				const key = normalizedFields[index].toLowerCase().trim();
+				newRow[key] = row[field];
+			});
 			return newRow;
 		});
 	}
@@ -56,6 +65,12 @@
 	}
 
 	function isOcultar(val) {
+		if (val === undefined || val === null || val === '') return false;
+		const s = String(val).toLowerCase().trim();
+		return s === 'si' || s === 'sí';
+	}
+
+	function isAgotado(val) {
 		if (val === undefined || val === null || val === '') return false;
 		const s = String(val).toLowerCase().trim();
 		return s === 'si' || s === 'sí';
@@ -626,11 +641,7 @@
 	}
 
 	function rowMarcaAgotado(row) {
-		var flag = col(row, ['agotado', 'Agotado', 'sin stock', 'Sin stock', 'stock agotado']);
-		var s = String(flag || '')
-			.trim()
-			.toLowerCase();
-		return s === 'si' || s === 'sí' || s === '1' || s === 'agotado' || s === 'sin stock';
+		return isAgotado(col(row, ['Agotado', 'agotado']));
 	}
 
 	function buildProductsFromSheetRows(rows) {
