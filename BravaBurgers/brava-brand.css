@@ -646,7 +646,7 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 
 @media (max-width: 768px) {
 	body.brava-shop-b.brava-has-bg-image {
-		background-color: transparent !important;
+		background-color: #0a0a0a !important;
 	}
 
 	body.brava-shop-b.brava-has-bg-image::before {
@@ -654,11 +654,15 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		content: none !important;
 	}
 
+	body.brava-shop-b .brava-menu-zone {
+		position: relative;
+	}
+
 	body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		display: block;
 		position: absolute;
 		z-index: 0;
-		top: var(--brava-mobile-bg-top, 0px);
+		top: calc(-1 * var(--brava-mobile-bg-offset, 0px));
 		left: 0;
 		width: 100%;
 		height: auto;
@@ -666,7 +670,7 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		pointer-events: none;
 	}
 
-	body.brava-shop-b.brava-has-bg-image > :not(.brava-mobile-bg-img) {
+	body.brava-shop-b .brava-menu-zone > :not(.brava-mobile-bg-img) {
 		position: relative;
 		z-index: 1;
 	}
@@ -922,12 +926,12 @@ body.brava-shop-b .brava-sub-block {
 	margin: 0 0 10px;
 	border: 1px solid var(--brava-border);
 	border-radius: 14px;
-	background: rgba(20, 20, 20, 0.72);
+	background: rgba(20, 20, 20, 0.48);
 	overflow: hidden;
 }
 
 body.brava-shop-b .brava-sub-block[open] {
-	background: rgba(26, 26, 26, 0.82);
+	background: rgba(26, 26, 26, 0.58);
 }
 
 body.brava-shop-b .brava-sub-block > summary.brava-sub-title {

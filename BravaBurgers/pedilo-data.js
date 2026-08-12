@@ -808,45 +808,37 @@
 		document.title = global.g_tema.titulo.replace(/<[^>]+>/g, '');
 	}
 
-	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=16';
+	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=18';
 	var BRAVA_MOBILE_BG_NATIVE_W = 587;
 	var BRAVA_MOBILE_BG_NATIVE_H = 1024;
 	/* En el PNG, % desde arriba donde empieza el graffiti del menu */
-	var BRAVA_MOBILE_BG_GRAFFITI_START = 0.19;
+	var BRAVA_MOBILE_BG_GRAFFITI_START = 0.185;
 
 	function syncMobileBgOffset() {
 		if (!window.matchMedia('(max-width:768px)').matches) return;
 		var img = document.getElementById('brava_mobile_bg');
-		var hero = document.getElementById('mainNav');
-		var chips = document.getElementById('brava_cat_chips');
-		if (!img || !hero) return;
+		var zone = document.getElementById('brava_menu_zone');
+		if (!img || !zone) return;
 		var nw = img.naturalWidth || BRAVA_MOBILE_BG_NATIVE_W;
 		var nh = img.naturalHeight || BRAVA_MOBILE_BG_NATIVE_H;
 		if (!nw || !nh) return;
 		var vw = document.documentElement.clientWidth;
 		var displayH = vw * nh / nw;
-		var menuStart = hero.offsetHeight + (chips ? chips.offsetHeight : 0);
 		var graffitiStart = displayH * BRAVA_MOBILE_BG_GRAFFITI_START;
-		var top = Math.max(0, menuStart - graffitiStart);
-		var neededH = Math.max(displayH, document.body.scrollHeight - top);
 
-		document.documentElement.style.setProperty('--brava-mobile-bg-top', top + 'px');
+		document.documentElement.style.setProperty('--brava-mobile-bg-offset', graffitiStart + 'px');
 
 		img.style.width = '100%';
-		if (neededH > displayH + 1) {
-			img.style.height = neededH + 'px';
-			img.style.objectFit = 'cover';
-			img.style.objectPosition = 'top center';
-		} else {
-			img.style.height = '';
-			img.style.objectFit = '';
-			img.style.objectPosition = '';
-		}
+		img.style.height = '';
+		img.style.objectFit = '';
+		img.style.objectPosition = '';
 	}
 
 	function injectMobileBgImg() {
 		if (!document.body || !document.body.classList.contains('brava-shop-b')) return;
 		document.body.classList.add('brava-has-bg-image');
+		var zone = document.getElementById('brava_menu_zone');
+		if (!zone) return;
 		var mobileBgImg = document.getElementById('brava_mobile_bg');
 		if (!mobileBgImg) {
 			mobileBgImg = document.createElement('img');
@@ -855,7 +847,19 @@
 			mobileBgImg.alt = '';
 			mobileBgImg.setAttribute('aria-hidden', 'true');
 			mobileBgImg.setAttribute('decoding', 'async');
-			document.body.insertBefore(mobileBgImg, document.body.firstChild);
+			var catalog = document.getElementById('catalogo_dinamico');
+			if (catalog) {
+				zone.insertBefore(mobileBgImg, catalog);
+			} else {
+				zone.insertBefore(mobileBgImg, zone.firstChild);
+			}
+		} else if (mobileBgImg.parentElement !== zone) {
+			var cat = document.getElementById('catalogo_dinamico');
+			if (cat) {
+				zone.insertBefore(mobileBgImg, cat);
+			} else {
+				zone.insertBefore(mobileBgImg, zone.firstChild);
+			}
 		}
 		mobileBgImg.src = BRAVA_MOBILE_BG;
 		mobileBgImg.onload = syncMobileBgOffset;
