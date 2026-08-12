@@ -808,7 +808,24 @@
 		document.title = global.g_tema.titulo.replace(/<[^>]+>/g, '');
 	}
 
-	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=14';
+	var BRAVA_MOBILE_BG = 'brava-fondo-tienda-mobile.png?v=15';
+	var BRAVA_MOBILE_BG_NATIVE_W = 587;
+	var BRAVA_MOBILE_BG_NATIVE_H = 1024;
+	/* Banda superior del PNG (graffiti) que no va en el hero — calza con mockup Untitled-1 */
+	var BRAVA_MOBILE_BG_TOP_SKIP = 0.2;
+
+	function syncMobileBgOffset() {
+		if (!window.matchMedia('(max-width:768px)').matches) return;
+		var img = document.getElementById('brava_mobile_bg');
+		if (!img) return;
+		var nw = img.naturalWidth || BRAVA_MOBILE_BG_NATIVE_W;
+		var nh = img.naturalHeight || BRAVA_MOBILE_BG_NATIVE_H;
+		if (!nw || !nh) return;
+		var vw = document.documentElement.clientWidth;
+		var displayH = vw * nh / nw;
+		var offset = displayH * BRAVA_MOBILE_BG_TOP_SKIP;
+		document.documentElement.style.setProperty('--brava-mobile-bg-offset', offset + 'px');
+	}
 
 	function injectMobileBgImg() {
 		if (!document.body || !document.body.classList.contains('brava-shop-b')) return;
@@ -824,6 +841,8 @@
 			document.body.insertBefore(mobileBgImg, document.body.firstChild);
 		}
 		mobileBgImg.src = BRAVA_MOBILE_BG;
+		mobileBgImg.onload = syncMobileBgOffset;
+		syncMobileBgOffset();
 	}
 
 	function injectThemeCss() {
@@ -858,6 +877,7 @@
 		document.documentElement.style.setProperty('--brava-bg-mobile', "url('" + BRAVA_MOBILE_BG + "')");
 		document.documentElement.style.setProperty('--brava-bg-desktop', "url('" + bgDesktop + "')");
 		injectMobileBgImg();
+		syncMobileBgOffset();
 
 		const DEFAULT_LOGO_SVG =
 			"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Ccircle cx='100' cy='100' r='95' fill='%231a1a1a' stroke='%23FF6B35' stroke-width='4'/%3E%3Ctext x='100' y='120' font-size='40' font-weight='bold' text-anchor='middle' fill='%23FF6B35' font-family='Arial'%3EBRAVA%3C/text%3E%3C/svg%3E";
@@ -946,6 +966,7 @@
 		applyConfigToGlobals: applyConfigToGlobals,
 		injectThemeCss: injectThemeCss,
 		injectMobileBgImg: injectMobileBgImg,
+		syncMobileBgOffset: syncMobileBgOffset,
 	};
 
 	if (typeof document !== 'undefined') {
@@ -957,5 +978,6 @@
 		} else {
 			bootMobileBg();
 		}
+		window.addEventListener('resize', syncMobileBgOffset);
 	}
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -658,7 +658,7 @@ body.brava-shop-b.brava-has-bg-image .brava-mobile-bg-img {
 		display: block;
 		position: absolute;
 		z-index: 0;
-		top: 0;
+		top: calc(-1 * var(--brava-mobile-bg-offset, 0px));
 		left: 0;
 		width: 100%;
 		height: auto;
