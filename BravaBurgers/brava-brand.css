@@ -654,8 +654,7 @@ body.brava-shop-b.brava-has-bg-image::before {
 		background-color: #0a0a0a;
 		background-image: var(--brava-bg-mobile, none);
 		background-repeat: no-repeat;
-		/* Rellena todo el scroll sin repetir: estira la imagen al alto del documento */
-		background-size: 100% 100%;
+		background-size: 100% auto;
 		background-position: top center;
 		pointer-events: none;
 	}
