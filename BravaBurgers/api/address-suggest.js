@@ -130,7 +130,13 @@ function mergeSuggestions(batches, locHint) {
   batches.forEach(function (list) {
     list.forEach(function (s) {
       if (s.lng == null || s.lat == null) return;
-      var zona = findDeliveryZoneName(s.lng, s.lat);
+      var zona = null;
+      try {
+        zona = findDeliveryZoneName(s.lng, s.lat);
+      } catch (eZone) {
+        zona = null;
+      }
+      if (!zona) zona = zonaFromLocalidad(s.localidad);
       if (!zona) return;
       s.zona = zona;
       const key =
@@ -153,6 +159,20 @@ function normalizeLocText(s) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
+}
+
+/** Si Mapbox no cae exacto en el polígono, inferir zona por texto de localidad */
+function zonaFromLocalidad(localidad) {
+  var loc = normalizeLocText(localidad);
+  if (!loc) return null;
+  if (/olivos/.test(loc)) return 'Olivos';
+  if (/la lucila/.test(loc)) return 'La Lucila';
+  if (/martinez/.test(loc)) return 'Martinez';
+  if (/acasusso/.test(loc)) return 'Acasusso';
+  if (/munro/.test(loc)) return 'Munro';
+  if (/carapachay/.test(loc)) return 'Carapachay';
+  if (/villa adelina/.test(loc)) return 'Villa Adelina';
+  return null;
 }
 
 function zonaMatchesHint(zona, locHint) {

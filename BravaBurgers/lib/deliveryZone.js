@@ -9,6 +9,16 @@ const GEOJSON_PATH = path.join(__dirname, '..', 'data', 'zonas-entrega.geojson')
 
 let cachedZones = null;
 
+function stripBom(text) {
+  if (text && text.charCodeAt(0) === 0xfeff) return text.slice(1);
+  return text;
+}
+
+function readGeoJsonFile() {
+  var raw = stripBom(fs.readFileSync(GEOJSON_PATH, 'utf8'));
+  return JSON.parse(raw);
+}
+
 function pointInRing(lng, lat, ring) {
   if (lng == null || lat == null || !ring || !ring.length) return false;
   var inside = false;
@@ -35,8 +45,7 @@ function ringArea(ring) {
 
 function loadDeliveryZones() {
   if (cachedZones) return cachedZones;
-  var raw = fs.readFileSync(GEOJSON_PATH, 'utf8');
-  var geo = JSON.parse(raw);
+  var geo = readGeoJsonFile();
   if (!geo.features || !geo.features.length) {
     throw new Error('invalid_zones_geojson');
   }
@@ -74,8 +83,7 @@ function pointInDeliveryZone(lng, lat) {
 }
 
 function getDeliveryZoneMeta() {
-  var raw = fs.readFileSync(GEOJSON_PATH, 'utf8');
-  return JSON.parse(raw);
+  return readGeoJsonFile();
 }
 
 /** Bounding box de las 7 zonas — para Mapbox bbox */
