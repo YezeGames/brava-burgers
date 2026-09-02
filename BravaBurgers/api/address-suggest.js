@@ -5,7 +5,7 @@ const {
   getDeliveryProximityString,
 } = require('../lib/deliveryZone');
 
-/** Localidades de las 7 zonas My Maps (hint Mapbox + scoring) */
+/** Localidades de las 7 zonas My Maps (hint + scoring) */
 const ZONA_LOCALIDADES = [
   'Olivos',
   'La Lucila',
@@ -17,6 +17,9 @@ const ZONA_LOCALIDADES = [
   'Villa Adelina',
 ];
 
+const GOOGLE_LOCATION_BIAS = '-34.513,-58.489';
+const GOOGLE_RADIUS_M = 22000;
+
 module.exports = async function handler(req, res) {
   cors(res);
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -24,9 +27,10 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const token = (process.env.MAPBOX_ACCESS_TOKEN || process.env.MAPBOX_TOKEN || '').trim();
-  if (!token) {
-    return res.status(503).json({ ok: false, error: 'mapbox_not_configured' });
+  const googleKey = (process.env.GOOGLE_MAPS_API_KEY || '').trim();
+  const mapboxToken = (process.env.MAPBOX_ACCESS_TOKEN || process.env.MAPBOX_TOKEN || '').trim();
+  if (!googleKey && !mapboxToken) {
+    return res.status(503).json({ ok: false, error: 'geocoder_not_configured' });
   }
 
   let q = String(req.query.q || '')
@@ -36,14 +40,14 @@ module.exports = async function handler(req, res) {
     .trim()
     .slice(0, 60);
   if (q.length < 2) {
-    return res.status(200).json({ ok: true, suggestions: [] });
+    return res.status(200).json({ ok: true, suggestions: [], outside_zone: false });
   }
 
   q = normalizeQuery(q);
-  const queries = expandQueries(q, locHint);
+  const hasNumber = /\d/.test(q);
 
-  let bbox;
   let proximity;
+  let bbox;
   try {
     bbox = getDeliveryBboxString();
     proximity = getDeliveryProximityString();
@@ -53,21 +57,40 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const batches = await Promise.all(
-      queries.map(function (queryText) {
-        return fetchMapbox(queryText, token, bbox, proximity);
-      })
-    );
-    var mapboxCount = 0;
-    batches.forEach(function (list) {
-      mapboxCount += list.length;
-    });
-    const merged = mergeSuggestions(batches, locHint);
-    const outsideZone = mapboxCount > 0 && merged.length === 0;
+    var rawCount = 0;
+    var merged = [];
+    var provider = 'mapbox';
+
+    if (googleKey) {
+      provider = 'google';
+      var googlePack = await suggestGoogle(q, locHint, googleKey);
+      rawCount = googlePack.rawCount;
+      merged = googlePack.suggestions;
+    } else {
+      const queries = expandQueries(q, locHint);
+      const batches = await Promise.all(
+        queries.map(function (queryText) {
+          return fetchMapbox(queryText, mapboxToken, bbox, proximity);
+        })
+      );
+      batches.forEach(function (list) {
+        rawCount += list.length;
+      });
+      merged = mergeSuggestions(batches, locHint);
+    }
+
+    var outsideZone = false;
+    if (merged.length === 0 && hasNumber) {
+      outsideZone = await detectOutsideZone(q, googleKey, mapboxToken, proximity);
+    } else if (rawCount > 0 && merged.length === 0) {
+      outsideZone = true;
+    }
+
     return res.status(200).json({
       ok: true,
       suggestions: merged.slice(0, 8),
       outside_zone: outsideZone,
+      provider: provider,
     });
   } catch (e) {
     return res.status(502).json({ ok: false, error: 'geocode_network', detail: String(e.message || e) });
@@ -112,16 +135,175 @@ function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function fetchMapbox(q, token, bbox, proximity) {
+async function suggestGoogle(q, locHint, key) {
+  const queries = expandQueries(q, locHint).slice(0, 2);
+  const seenPlace = Object.create(null);
+  const parsed = [];
+
+  var autocompleteCount = 0;
+
+  for (let i = 0; i < queries.length; i++) {
+    const preds = await fetchGoogleAutocomplete(queries[i], key);
+    autocompleteCount += preds.length;
+    const slice = preds.slice(0, 5);
+    const details = await Promise.all(
+      slice.map(function (p) {
+        return fetchGooglePlaceDetails(p.place_id, key).then(function (d) {
+          return parseGoogleDetails(d, p.description);
+        });
+      })
+    );
+    details.forEach(function (s) {
+      if (!s || s.lng == null || s.lat == null) return;
+      const pk = String(s.lng) + ',' + String(s.lat) + '|' + normalizeAddrKey(s.direccion);
+      if (seenPlace[pk]) return;
+      seenPlace[pk] = true;
+      parsed.push(s);
+    });
+  }
+
+  return {
+    rawCount: autocompleteCount,
+    suggestions: mergeSuggestions([parsed], locHint),
+  };
+}
+
+async function detectOutsideZone(q, googleKey, mapboxToken, proximity) {
+  if (googleKey) {
+    const preds = await fetchGoogleAutocomplete(q, googleKey);
+    if (preds.length > 0) {
+      const details = await fetchGooglePlaceDetails(preds[0].place_id, googleKey);
+      const point = parseGoogleDetails(details, preds[0].description);
+      if (point && point.lng != null && point.lat != null) {
+        return !findDeliveryZoneName(point.lng, point.lat);
+      }
+    }
+    const geo = await geocodeGoogle(q + ', Buenos Aires, Argentina', googleKey);
+    if (geo) return !findDeliveryZoneName(geo.lng, geo.lat);
+    return false;
+  }
+
+  if (mapboxToken) {
+    const list = await fetchMapbox(q, mapboxToken, null, proximity);
+    if (!list.length) return false;
+    const first = list[0];
+    if (first.lng == null || first.lat == null) return false;
+    return !findDeliveryZoneName(first.lng, first.lat);
+  }
+
+  return false;
+}
+
+function fetchGoogleAutocomplete(input, key) {
   const url =
+    'https://maps.googleapis.com/maps/api/place/autocomplete/json?' +
+    'input=' +
+    encodeURIComponent(input) +
+    '&types=address' +
+    '&components=country:ar' +
+    '&language=es' +
+    '&location=' +
+    encodeURIComponent(GOOGLE_LOCATION_BIAS) +
+    '&radius=' +
+    String(GOOGLE_RADIUS_M) +
+    '&key=' +
+    encodeURIComponent(key);
+
+  return fetch(url).then(function (r) {
+    return r.json().then(function (data) {
+      if (data.status && data.status !== 'OK' && data.status !== 'ZERO_RESULTS') {
+        throw new Error(data.error_message || data.status);
+      }
+      return data.predictions || [];
+    });
+  });
+}
+
+function fetchGooglePlaceDetails(placeId, key) {
+  const url =
+    'https://maps.googleapis.com/maps/api/place/details/json?' +
+    'place_id=' +
+    encodeURIComponent(placeId) +
+    '&fields=geometry,address_components,formatted_address,name' +
+    '&language=es' +
+    '&key=' +
+    encodeURIComponent(key);
+
+  return fetch(url).then(function (r) {
+    return r.json().then(function (data) {
+      if (data.status && data.status !== 'OK') {
+        throw new Error(data.error_message || data.status);
+      }
+      return data;
+    });
+  });
+}
+
+function geocodeGoogle(address, key) {
+  const url =
+    'https://maps.googleapis.com/maps/api/geocode/json?' +
+    'address=' +
+    encodeURIComponent(address) +
+    '&components=country:AR' +
+    '&language=es' +
+    '&key=' +
+    encodeURIComponent(key);
+
+  return fetch(url).then(function (r) {
+    return r.json().then(function (data) {
+      if (!data.results || !data.results.length) return null;
+      const loc = data.results[0].geometry && data.results[0].geometry.location;
+      if (!loc) return null;
+      return { lng: loc.lng, lat: loc.lat };
+    });
+  });
+}
+
+function parseGoogleDetails(data, description) {
+  const r = data && data.result;
+  if (!r || !r.geometry || !r.geometry.location) return null;
+
+  const loc = r.geometry.location;
+  const comps = r.address_components || [];
+  let route = '';
+  let number = '';
+  let locality = '';
+
+  comps.forEach(function (c) {
+    const types = c.types || [];
+    if (types.indexOf('route') >= 0) route = c.long_name;
+    if (types.indexOf('street_number') >= 0) number = c.long_name;
+    if (!locality && (types.indexOf('locality') >= 0 || types.indexOf('sublocality') >= 0)) {
+      locality = c.long_name;
+    }
+  });
+
+  let street = '';
+  if (route && number) street = route + ' ' + number;
+  else if (route) street = route;
+  else if (r.name) street = r.name;
+  else street = String(description || '').split(',')[0].trim();
+
+  return {
+    label: description || street,
+    direccion: street,
+    localidad: locality,
+    lng: loc.lng,
+    lat: loc.lat,
+    relevance: 1,
+    accuracy: 'rooftop',
+  };
+}
+
+function fetchMapbox(q, token, bbox, proximity) {
+  let url =
     'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
     encodeURIComponent(q) +
     '.json?country=ar&proximity=' +
     proximity +
-    '&bbox=' +
-    bbox +
     '&types=address&limit=8&language=es&autocomplete=true&access_token=' +
     encodeURIComponent(token);
+  if (bbox) url += '&bbox=' + bbox;
 
   return fetch(url).then(function (r) {
     return r.json().then(function (data) {
@@ -183,7 +365,6 @@ function suggestionRank(s) {
   return rank;
 }
 
-/** Misma calle+altura: Mapbox extrapola alturas; preferir mejor precision y barrio coherente. */
 function normalizeAddrKey(direccion) {
   return normalizeLocText(String(direccion || '').replace(/\s+/g, ' ').trim());
 }

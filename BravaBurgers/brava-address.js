@@ -321,7 +321,18 @@
     var zonaSel = document.getElementById('pregunta_10_respuesta');
     if (zonaSel) zonaSel.addEventListener('change', scheduleFetch);
     inp.addEventListener('blur', function () {
-      setTimeout(hideList, 180);
+      setTimeout(function () {
+        hideList();
+        if (pickedFromList) return;
+        var q = inp.value.trim();
+        if (
+          q.length >= MIN_CHARS &&
+          queryHasStreetNumber(q) &&
+          typeof window.bravaValidateAddressQuery === 'function'
+        ) {
+          window.bravaValidateAddressQuery(q);
+        }
+      }, 200);
     });
     inp.addEventListener('keydown', function (e) {
       if (!lastSuggestions.length) return;

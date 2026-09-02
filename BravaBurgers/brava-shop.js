@@ -825,8 +825,7 @@
 		bravaZoneDeliveryOk = false;
 		bravaSetZoneBanner(
 			'is-pending',
-			text ||
-				'Elegí una dirección de la lista. Entregamos en: ' + BRAVA_ZONA_COBERTURA + '.'
+			text || 'Validamos la zona cuando elijas tu dirección de la lista.'
 		);
 		bravaSetCheckoutSubmitEnabled(false);
 	}
@@ -919,9 +918,25 @@
 			bravaApplyZoneNoSuggest();
 			return;
 		}
-		bravaApplyZonePending(
-			'No encontramos esa calle. Probá con calle y altura. Entregamos en: ' + BRAVA_ZONA_COBERTURA + '.'
-		);
+		bravaApplyZonePending('No encontramos esa calle. Probá con calle y altura.');
+	};
+
+	window.bravaValidateAddressQuery = function (q) {
+		if (!bravaZoneDeliveryRequired()) return;
+		q = String(q || '').trim();
+		if (q.length < 2 || !/\d/.test(q)) return;
+		fetch('/api/address-suggest?q=' + encodeURIComponent(q))
+			.then(function (r) {
+				return r.json();
+			})
+			.then(function (data) {
+				if (!data || !data.ok) return;
+				if (data.suggestions && data.suggestions.length) return;
+				if (data.outside_zone && typeof window.bravaOnAddressNoResults === 'function') {
+					window.bravaOnAddressNoResults({ outside_zone: true, query: q });
+				}
+			})
+			.catch(function () {});
 	};
 
 	window.bravaZoneDeliveryRequired = bravaZoneDeliveryRequired;

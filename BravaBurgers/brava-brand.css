@@ -167,15 +167,15 @@ body.tienehover .producto_fila:hover small {
 	max-width: 100%;
 }
 
-/* Checkout modal: caja ~350px, padding 44px, campos ~262px */
+/* Checkout modal */
 #preguntas_pedido.fancybox-content,
 #pregunta_variedades.fancybox-content,
 .fancybox-container.brava-fancybox-modal #preguntas_pedido.fancybox-content,
 .fancybox-container.brava-fancybox-modal #pregunta_variedades.fancybox-content {
-	width: 350px !important;
+	width: 380px !important;
 	max-width: calc(100vw - 24px) !important;
 	min-width: 0 !important;
-	padding: 44px !important;
+	padding: 36px 32px !important;
 	box-sizing: border-box !important;
 	overflow-x: hidden !important;
 	overflow-y: auto !important;
@@ -185,7 +185,7 @@ body.tienehover .producto_fila:hover small {
 .brava-checkout-inner,
 .brava-variedades-inner {
 	width: 100%;
-	max-width: 262px;
+	max-width: none;
 	margin: 0 auto;
 	box-sizing: border-box;
 }
@@ -242,13 +242,16 @@ body.tienehover .producto_fila:hover small {
 
 .brava-checkout-section {
 	border: 0;
-	margin: 0 0 14px;
-	padding: 0;
+	margin: 0 0 16px;
+	padding: 0 0 14px;
 	min-width: 0;
+	border-bottom: 1px solid rgba(255, 107, 53, 0.22);
 }
 
 .brava-checkout-section:last-of-type {
-	margin-bottom: 8px;
+	margin-bottom: 10px;
+	padding-bottom: 0;
+	border-bottom: 0;
 }
 
 .brava-checkout-section-title {
@@ -256,29 +259,17 @@ body.tienehover .producto_fila:hover small {
 	width: 100%;
 	font-size: 11px;
 	font-weight: 700;
-	letter-spacing: 0.06em;
+	letter-spacing: 0.08em;
 	text-transform: uppercase;
 	color: var(--brava-accent, #ff6b35);
-	margin: 0 0 8px;
+	margin: 0 0 10px;
 	padding: 0;
 	border: 0;
 	line-height: 1.2;
 }
 
-.brava-checkout-row {
-	display: flex;
-	gap: 8px;
-	align-items: flex-start;
-}
-
-.brava-checkout-row-2 .brava-field {
-	flex: 1 1 0;
-	min-width: 0;
-	margin-bottom: 0;
-}
-
 .brava-field-piso {
-	margin-top: 8px !important;
+	margin-top: 10px !important;
 	margin-bottom: 0 !important;
 }
 
@@ -418,14 +409,14 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 }
 
 .zone-banner {
-	margin: 0 0 8px;
-	padding: 10px 12px;
+	margin: 0 0 10px;
+	padding: 9px 11px;
 	border-radius: 8px;
-	font-size: 0.88rem;
+	font-size: 0.82rem;
 	font-weight: 600;
-	line-height: 1.4;
-	display: none;
+	line-height: 1.35;
 }
+
 .zone-banner.is-inside {
 	display: block;
 	background: rgba(46, 125, 50, 0.2);

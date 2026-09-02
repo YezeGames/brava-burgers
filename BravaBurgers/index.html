@@ -33,7 +33,7 @@
 		var g_telefono = '';
 	</script>
 	<script src="brava-catalog.js?v=12"></script>
-	<link href="brava-brand.css?v=92" rel="stylesheet">
+	<link href="brava-brand.css?v=93" rel="stylesheet">
 	<link href="brava-mobile.css?v=4" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		#preguntas_pedido.fancybox-content,
@@ -137,10 +137,8 @@
 		<form class="brava-checkout-body" onsubmit="finalizar_pedido(); return false;">
 			<fieldset class="brava-checkout-section">
 				<legend class="brava-checkout-section-title">Tus datos</legend>
-				<div class="brava-checkout-row brava-checkout-row-2">
-					<p class="brava-field"><label id="pregunta_1_label">Nombre*</label><input type="text" id="pregunta_1_respuesta" class="form-control brava-input" placeholder="Tu nombre" required></p>
-					<p class="brava-field"><label for="brava_telefono">Teléfono*</label><input type="tel" id="brava_telefono" class="form-control brava-input" placeholder="11 7372-1945" required inputmode="tel"></p>
-				</div>
+				<p class="brava-field"><label id="pregunta_1_label">Nombre*</label><input type="text" id="pregunta_1_respuesta" class="form-control brava-input" placeholder="Tu nombre" required></p>
+				<p class="brava-field"><label for="brava_telefono">Teléfono (WhatsApp)*</label><input type="tel" id="brava_telefono" class="form-control brava-input" placeholder="Ej: 11 7372-1945" required inputmode="tel"></p>
 			</fieldset>
 
 			<fieldset class="brava-checkout-section">
@@ -151,10 +149,10 @@
 						<input type="text" id="pregunta_2_respuesta" class="form-control brava-input" placeholder="Ej: Maipú 120" required autocomplete="off" aria-autocomplete="list" aria-controls="brava-addr-suggest" aria-expanded="false">
 						<ul id="brava-addr-suggest" class="brava-addr-suggest hidden" role="listbox" aria-label="Sugerencias de dirección"></ul>
 					</div>
-					<span class="brava-field-hint">Elegí tu dirección de la lista.</span>
+					<span class="brava-field-hint">Elegí tu dirección de la lista para confirmar el envío.</span>
 				</p>
 				<div id="zone-banner" class="zone-banner is-pending" role="status" aria-live="polite">
-					Elegí una dirección de la lista. Entregamos en: Olivos, La Lucila, Martínez, Acasusso, Munro, Carapachay y Villa Adelina.
+					Validamos la zona cuando elijas tu dirección de la lista.
 				</div>
 				<p class="brava-field brava-field-piso">
 					<label id="pregunta_4_label">Piso/Dpto</label>
@@ -164,10 +162,8 @@
 
 			<fieldset class="brava-checkout-section">
 				<legend class="brava-checkout-section-title">Pago y horario</legend>
-				<div class="brava-checkout-row brava-checkout-row-2">
-					<p class="brava-field"><label id="pregunta_5_label">Forma de pago*</label><select id="pregunta_5_respuesta" class="form-control brava-input" required></select></p>
-					<p class="brava-field brava-field-turno"><label id="pregunta_6_label">Turno*</label><select id="pregunta_6_respuesta" class="form-control brava-input" required></select><div id="brava-turno-cupo-notice" class="brava-turno-cupo-notice hidden" role="status" aria-live="polite"></div></p>
-				</div>
+				<p class="brava-field"><label id="pregunta_5_label">Forma de pago*</label><select id="pregunta_5_respuesta" class="form-control brava-input" required></select></p>
+				<p class="brava-field brava-field-turno"><label id="pregunta_6_label">Turno*</label><select id="pregunta_6_respuesta" class="form-control brava-input" required></select><div id="brava-turno-cupo-notice" class="brava-turno-cupo-notice hidden" role="status" aria-live="polite"></div></p>
 			</fieldset>
 
 			<input type="hidden" id="pregunta_3_respuesta" value="">
@@ -235,7 +231,7 @@
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="brava-turnos.js?v=1"></script>
 	<script src="brava-delivery-zone-client.js?v=2"></script>
-	<script src="brava-shop.js?v=11"></script>
-	<script src="brava-address.js?v=6"></script>
+	<script src="brava-shop.js?v=12"></script>
+	<script src="brava-address.js?v=7"></script>
 </body>
 </html>
