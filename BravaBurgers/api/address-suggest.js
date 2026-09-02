@@ -75,10 +75,9 @@ module.exports = async function handler(req, res) {
       var classified = googlePack.classified;
     } else {
       const queries = expandQueries(q, locHint);
-      const mapboxTypes = hasNumber ? 'address' : 'address,street';
       const batches = await Promise.all(
         queries.map(function (queryText) {
-          return fetchMapbox(queryText, mapboxToken, bbox, proximity, mapboxTypes);
+          return fetchMapbox(queryText, mapboxToken, bbox, proximity, 'address');
         })
       );
       classified = classifySuggestions(batches, q, locHint);
@@ -165,21 +164,16 @@ function expandStreetAliases(q) {
   var t = tokens[0];
   var withNum = num ? t + ' ' + num : t;
 
-  if (!/\bavenida\b/i.test(q)) {
-    out.push(num ? 'avenida ' + withNum : 'avenida ' + t);
-  }
-
   if (t === 'alberdi') {
     out.push(num ? 'juan bautista alberdi ' + num : 'juan bautista alberdi');
-  }
-  if (t === 'maipu') {
+  } else if (t === 'maipu') {
     out.push(num ? 'avenida maipu ' + num : 'avenida maipu');
-  }
-  if (t === 'libertador') {
+  } else if (t === 'libertador') {
     out.push(num ? 'avenida del libertador ' + num : 'avenida del libertador');
-  }
-  if (t === 'mitre') {
+  } else if (t === 'mitre') {
     out.push(num ? 'avenida bartolome mitre ' + num : 'avenida bartolome mitre');
+  } else if (num && !/\bavenida\b/i.test(q)) {
+    out.push('avenida ' + withNum);
   }
 
   return out;
@@ -410,6 +404,12 @@ function classifySuggestions(batches, q, locHint) {
 
       s.zona = zona;
       s.pick_ready = qNum ? hasVerifiedNumber(s, q) : false;
+      if (!qNum) {
+        var streetOnly = String(s.direccion || '')
+          .replace(/\s+\d+.*$/, '')
+          .trim();
+        if (streetOnly) s.direccion = streetOnly;
+      }
       withZonaLabel(s, !qNum);
       const key =
         String(s.lng) + ',' + String(s.lat) + '|' + String(s.direccion || '').toLowerCase();
