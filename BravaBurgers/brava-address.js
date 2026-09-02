@@ -58,7 +58,7 @@
   function cachePayload(key) {
     var hit = queryCache[key];
     if (!hit) return null;
-    if (Array.isArray(hit)) return { suggestions: hit, outside_zone: false };
+    if (Array.isArray(hit)) return { suggestions: hit, outside_zone: false, street_no_number: false };
     return hit;
   }
 
@@ -69,12 +69,12 @@
   function presentSuggestions(payload, forKey) {
     if (forKey && forKey !== currentQueryKey()) return;
     var items = payload.suggestions || [];
-    var meta = { outside_zone: !!payload.outside_zone };
+    var meta = { outside_zone: !!payload.outside_zone, street_no_number: !!payload.street_no_number };
     var inp = inputEl();
     var q = inp ? inp.value.trim() : '';
     if (!items.length && typeof window.bravaOnAddressNoResults === 'function') {
       try {
-        window.bravaOnAddressNoResults({ outside_zone: meta.outside_zone, query: q });
+        window.bravaOnAddressNoResults({ outside_zone: meta.outside_zone, street_no_number: meta.street_no_number, query: q });
       } catch (eNoRes) {}
     }
     showList(items, meta, q);
@@ -147,6 +147,8 @@
     li.setAttribute('aria-disabled', 'true');
     if (!queryHasStreetNumber(queryText)) {
       li.textContent = 'Seguí escribiendo calle y altura';
+    } else if (meta.street_no_number) {
+      li.textContent = 'Calle en nuestra zona, pero no confirmamos esa altura';
     } else if (meta.outside_zone) {
       li.textContent = 'No llegamos ahí — fuera de nuestra zona de entrega';
     } else {
@@ -247,12 +249,14 @@
         cacheSet(key, {
           suggestions: data.suggestions,
           outside_zone: !!data.outside_zone,
+          street_no_number: !!data.street_no_number,
         });
         if (currentQueryKey() !== key) return;
         presentSuggestions(
           {
             suggestions: data.suggestions,
             outside_zone: !!data.outside_zone,
+            street_no_number: !!data.street_no_number,
           },
           key
         );

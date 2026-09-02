@@ -58,7 +58,7 @@ module.exports = async function handler(req, res) {
 
   try {
     var merged = [];
-    var classified = { streetMatchCount: 0, outsideZoneMatchCount: 0, suggestions: [] };
+    var classified = { streetMatchCount: 0, outsideZoneMatchCount: 0, streetInZoneNoNumber: 0, suggestions: [] };
     var provider = 'mapbox';
 
     if (googleKey) {
@@ -78,9 +78,12 @@ module.exports = async function handler(req, res) {
     }
 
     var outsideZone = false;
+    var streetNoNumber = false;
     if (merged.length === 0 && hasNumber) {
       if (classified.outsideZoneMatchCount > 0) {
         outsideZone = true;
+      } else if (classified.streetInZoneNoNumber > 0) {
+        streetNoNumber = true;
       } else if (!googleKey && mapboxToken) {
         var wideList = await fetchMapbox(q, mapboxToken, null, proximity);
         var wideClass = classifySuggestions([wideList], q, locHint);
@@ -99,6 +102,7 @@ module.exports = async function handler(req, res) {
       ok: true,
       suggestions: merged.slice(0, 8),
       outside_zone: outsideZone,
+      street_no_number: streetNoNumber,
       provider: provider,
     });
   } catch (e) {
@@ -329,6 +333,8 @@ function classifySuggestions(batches, q, locHint) {
   const inZone = [];
   var streetMatchCount = 0;
   var outsideZoneMatchCount = 0;
+  var streetInZoneNoNumber = 0;
+  var qNum = queryNumber(q);
 
   batches.forEach(function (list) {
     list.forEach(function (s) {
@@ -349,9 +355,13 @@ function classifySuggestions(batches, q, locHint) {
         return;
       }
 
+      if (qNum && !hasVerifiedNumber(s, q)) {
+        streetInZoneNoNumber++;
+        return;
+      }
+
       s.zona = zona;
       withZonaLabel(s);
-      applyQueryNumber(s, q);
       const key =
         String(s.lng) + ',' + String(s.lat) + '|' + String(s.direccion || '').toLowerCase();
       if (seen[key]) return;
@@ -368,6 +378,7 @@ function classifySuggestions(batches, q, locHint) {
     suggestions: dedupeSameAddress(inZone),
     streetMatchCount: streetMatchCount,
     outsideZoneMatchCount: outsideZoneMatchCount,
+    streetInZoneNoNumber: streetInZoneNoNumber,
   };
 }
 
@@ -400,15 +411,20 @@ function queryNumber(q) {
   return m ? m[0] : '';
 }
 
-/** Si Mapbox devuelve solo la calle, agregar la altura que escribió el cliente. */
-function applyQueryNumber(s, q) {
-  var num = queryNumber(q);
-  if (!num) return s;
-  var dir = String(s.direccion || '').trim();
-  if (/\d/.test(dir)) return s;
-  s.direccion = (dir + ' ' + num).trim();
-  s.label = s.zona ? s.direccion + ' · ' + s.zona : s.direccion;
-  return s;
+/** Solo alturas que Mapbox devolvió explícitamente (no inventar numeración). */
+function hasVerifiedNumber(s, q) {
+  var queryNum = queryNumber(q);
+  if (!queryNum) return true;
+
+  var mapboxNum = String(s.mapbox_number || '').trim();
+  if (mapboxNum) return mapboxNum === queryNum;
+
+  var accuracy = normalizeLocText(s.accuracy);
+  if (accuracy === 'street' || accuracy === 'approximate') return false;
+
+  var dirMatch = String(s.direccion || '').match(/\d+/);
+  if (!dirMatch) return false;
+  return dirMatch[0] === queryNum;
 }
 
 function streetTokensFromQuery(q) {
@@ -546,7 +562,8 @@ function scoreSuggestion(s, locHint) {
 
 function parseFeature(f) {
   var street = String(f.text || '').trim();
-  if (f.address) street = (street + ' ' + f.address).trim();
+  var mapboxNum = f.address ? String(f.address).trim() : '';
+  if (mapboxNum) street = (street + ' ' + mapboxNum).trim();
   var locality = localityFromFeature(f);
   var label = formatLabel(street, locality, f.place_name);
   return {
@@ -554,6 +571,7 @@ function parseFeature(f) {
     direccion: street || String(f.place_name || '').split(',')[0].trim(),
     localidad: locality,
     place_name: String(f.place_name || ''),
+    mapbox_number: mapboxNum,
     lng: f.center && f.center[0],
     lat: f.center && f.center[1],
     relevance: typeof f.relevance === 'number' ? f.relevance : 0,

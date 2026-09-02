@@ -911,12 +911,28 @@
 		bravaValidateZoneFromCoords(lng, lat, (s && (s.label || s.direccion)) || '');
 	};
 
+	function bravaApplyZoneNoNumber() {
+		bravaZoneDeliveryOk = false;
+		$('#pregunta_10_respuesta').val('');
+		$('#pregunta_3_respuesta').val('');
+		calcular_total();
+		bravaSetZoneBanner(
+			'is-outside',
+			'⚠ Encontramos la calle en nuestra zona, pero no confirmamos esa altura. Probá otra numeración o escribinos por WhatsApp.'
+		);
+		bravaSetCheckoutSubmitEnabled(false);
+	}
+
 	window.bravaOnAddressNoResults = function (opts) {
 		if (!bravaZoneDeliveryRequired()) return;
 		opts = opts || {};
 		var q = String(opts.query || '').trim();
 		if (!/\d/.test(q)) {
 			bravaApplyZonePending('Escribí calle y altura, y elegí de la lista.');
+			return;
+		}
+		if (opts.street_no_number) {
+			bravaApplyZoneNoNumber();
 			return;
 		}
 		if (opts.outside_zone) {
@@ -937,9 +953,12 @@
 			.then(function (data) {
 				if (!data || !data.ok) return;
 				if (data.suggestions && data.suggestions.length) return;
-				if (data.outside_zone && typeof window.bravaOnAddressNoResults === 'function') {
-					window.bravaOnAddressNoResults({ outside_zone: true, query: q });
-				}
+				if (typeof window.bravaOnAddressNoResults !== 'function') return;
+				window.bravaOnAddressNoResults({
+					outside_zone: !!data.outside_zone,
+					street_no_number: !!data.street_no_number,
+					query: q,
+				});
 			})
 			.catch(function () {});
 	};
