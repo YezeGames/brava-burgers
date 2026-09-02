@@ -75,9 +75,10 @@ module.exports = async function handler(req, res) {
       var classified = googlePack.classified;
     } else {
       const queries = expandQueries(q, locHint);
+      const mapboxTypes = hasNumber ? 'address' : 'address,street';
       const batches = await Promise.all(
         queries.map(function (queryText) {
-          return fetchMapbox(queryText, mapboxToken, bbox, proximity);
+          return fetchMapbox(queryText, mapboxToken, bbox, proximity, mapboxTypes);
         })
       );
       classified = classifySuggestions(batches, q, locHint);
@@ -92,8 +93,13 @@ module.exports = async function handler(req, res) {
       } else if (classified.streetInZoneNoNumber > 0) {
         streetNoNumber = true;
       } else if (!googleKey && mapboxToken) {
-        var wideList = await fetchMapbox(q, mapboxToken, null, proximity);
-        var wideClass = classifySuggestions([wideList], q, locHint);
+        var wideQueries = expandQueries(q, locHint);
+        var wideBatches = await Promise.all(
+          wideQueries.map(function (queryText) {
+            return fetchMapbox(queryText, mapboxToken, null, proximity, 'address');
+          })
+        );
+        var wideClass = classifySuggestions(wideBatches, q, locHint);
         if (wideClass.suggestions.length) {
           merged = wideClass.suggestions;
           classified = wideClass;
@@ -144,7 +150,39 @@ function expandQueries(q, locHint) {
     }
   }
 
-  return out.slice(0, 4);
+  expandStreetAliases(q).forEach(push);
+
+  return out.slice(0, 6);
+}
+
+/** maipu 1234 → avenida maipu 1234; alberdi → juan bautista alberdi */
+function expandStreetAliases(q) {
+  var out = [];
+  var num = queryNumber(q);
+  var tokens = streetTokensFromQuery(q);
+  if (tokens.length !== 1) return out;
+
+  var t = tokens[0];
+  var withNum = num ? t + ' ' + num : t;
+
+  if (!/\bavenida\b/i.test(q)) {
+    out.push(num ? 'avenida ' + withNum : 'avenida ' + t);
+  }
+
+  if (t === 'alberdi') {
+    out.push(num ? 'juan bautista alberdi ' + num : 'juan bautista alberdi');
+  }
+  if (t === 'maipu') {
+    out.push(num ? 'avenida maipu ' + num : 'avenida maipu');
+  }
+  if (t === 'libertador') {
+    out.push(num ? 'avenida del libertador ' + num : 'avenida del libertador');
+  }
+  if (t === 'mitre') {
+    out.push(num ? 'avenida bartolome mitre ' + num : 'avenida bartolome mitre');
+  }
+
+  return out;
 }
 
 function withLocHint(q, locHint) {
@@ -315,13 +353,16 @@ function parseGoogleDetails(data, description) {
   };
 }
 
-function fetchMapbox(q, token, bbox, proximity) {
+function fetchMapbox(q, token, bbox, proximity, types) {
+  types = types || 'address';
   let url =
     'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
     encodeURIComponent(q) +
     '.json?country=ar&proximity=' +
     proximity +
-    '&types=address&limit=10&language=es&autocomplete=true&access_token=' +
+    '&types=' +
+    encodeURIComponent(types) +
+    '&limit=10&language=es&autocomplete=true&access_token=' +
     encodeURIComponent(token);
   if (bbox) url += '&bbox=' + bbox;
 
@@ -368,7 +409,8 @@ function classifySuggestions(batches, q, locHint) {
       }
 
       s.zona = zona;
-      withZonaLabel(s);
+      s.pick_ready = qNum ? hasVerifiedNumber(s, q) : false;
+      withZonaLabel(s, !qNum);
       const key =
         String(s.lng) + ',' + String(s.lat) + '|' + String(s.direccion || '').toLowerCase();
       if (seen[key]) return;
@@ -586,10 +628,12 @@ function parseFeature(f) {
   };
 }
 
-function withZonaLabel(s) {
+function withZonaLabel(s, browsingStreet) {
   if (!s) return s;
   var street = s.direccion || '';
-  if (s.zona) s.label = street + ' · ' + s.zona;
+  if (s.zona) {
+    s.label = street + ' · ' + s.zona;
+  }
   return s;
 }
 

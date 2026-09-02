@@ -892,6 +892,12 @@
 			});
 	}
 
+	window.bravaOnStreetBrowsePick = function () {
+		if (!bravaZoneDeliveryRequired()) return;
+		bravaHideZoneBanner();
+		bravaSetCheckoutSubmitEnabled(false);
+	};
+
 	window.bravaOnAddressPicked = function (s) {
 		if (!bravaZoneDeliveryRequired()) return;
 		var inp = document.getElementById('pregunta_2_respuesta');

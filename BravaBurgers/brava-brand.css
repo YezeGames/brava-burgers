@@ -356,6 +356,15 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	position: relative;
 }
 
+.brava-field-address .brava-input::placeholder {
+	transition: opacity 0.15s ease;
+}
+
+.brava-field-address .brava-input:focus::placeholder,
+.brava-field-address .brava-input:not(:placeholder-shown)::placeholder {
+	opacity: 0.35;
+}
+
 .brava-addr-suggest {
 	position: absolute;
 	left: 0;
@@ -365,7 +374,7 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	margin: 2px 0 0;
 	padding: 0;
 	list-style: none;
-	max-height: 220px;
+	max-height: 160px;
 	overflow-y: auto;
 	background: var(--brava-card, #1a1a1a);
 	border: 1px solid var(--brava-accent, #ff6b35);
@@ -378,12 +387,15 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 }
 
 .brava-addr-suggest li {
-	padding: 10px 12px;
-	font-size: 13px;
-	line-height: 1.35;
+	padding: 8px 10px;
+	font-size: 12px;
+	line-height: 1.3;
 	color: var(--brava-text, #eee);
 	cursor: pointer;
 	border-bottom: 1px solid #333;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 
 .brava-addr-suggest li:last-child {

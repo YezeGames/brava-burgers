@@ -4,8 +4,8 @@
 (function () {
   'use strict';
 
-  var DEBOUNCE_MS = 140;
-  var MIN_CHARS = 2;
+  var DEBOUNCE_MS = 90;
+  var MIN_CHARS = 3;
   var debounceTimer = null;
   var activeIndex = -1;
   var lastSuggestions = [];
@@ -146,7 +146,7 @@
     li.className = 'brava-addr-empty';
     li.setAttribute('aria-disabled', 'true');
     if (!queryHasStreetNumber(queryText)) {
-      li.textContent = 'Seguí escribiendo calle y altura';
+      li.textContent = 'No encontramos esa calle en nuestra zona';
     } else if (meta.street_no_number) {
       li.textContent = 'Calle en nuestra zona, pero no confirmamos esa altura';
     } else if (meta.outside_zone) {
@@ -174,6 +174,28 @@
     if (!s) return;
     var inp = inputEl();
     var loc = localityEl();
+    if (s.pick_ready === false) {
+      if (inp) {
+        inp.value = s.direccion || '';
+        delete inp.dataset.lat;
+        delete inp.dataset.lng;
+        inp.classList.remove('brava-addr-picked');
+      }
+      pickedFromList = false;
+      hideList();
+      if (typeof window.bravaOnStreetBrowsePick === 'function') {
+        try {
+          window.bravaOnStreetBrowsePick(s);
+        } catch (eBrowse) {}
+      }
+      if (inp) {
+        inp.focus();
+        var v = inp.value;
+        inp.value = '';
+        inp.value = v + ' ';
+      }
+      return;
+    }
     if (inp) {
       inp.value = s.direccion || '';
       if (s.lat != null) inp.dataset.lat = String(s.lat);
