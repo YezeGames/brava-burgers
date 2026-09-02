@@ -58,8 +58,17 @@ module.exports = async function handler(req, res) {
         return fetchMapbox(queryText, token, bbox, proximity);
       })
     );
+    var mapboxCount = 0;
+    batches.forEach(function (list) {
+      mapboxCount += list.length;
+    });
     const merged = mergeSuggestions(batches, locHint);
-    return res.status(200).json({ ok: true, suggestions: merged.slice(0, 8) });
+    const outsideZone = mapboxCount > 0 && merged.length === 0;
+    return res.status(200).json({
+      ok: true,
+      suggestions: merged.slice(0, 8),
+      outside_zone: outsideZone,
+    });
   } catch (e) {
     return res.status(502).json({ ok: false, error: 'geocode_network', detail: String(e.message || e) });
   }
@@ -137,6 +146,7 @@ function mergeSuggestions(batches, locHint) {
         zona = null;
       }
       if (!zona) return;
+      if (s.localidad && !localidadMatchesZona(s.localidad, zona)) return;
       s.zona = zona;
       withZonaLabel(s);
       const key =
@@ -153,7 +163,27 @@ function mergeSuggestions(batches, locHint) {
   return dedupeSameAddress(all);
 }
 
-/** Misma calle+altura en dos barrios: Mapbox extrapola mal; quedarse con el punto más al sur. */
+function localidadMatchesZona(localidad, zona) {
+  return zonaMatchesHint(zona, localidad);
+}
+
+function accuracyRank(s) {
+  var a = normalizeLocText(s.accuracy);
+  if (a === 'rooftop' || a === 'parcel' || a === 'point') return 4;
+  if (a === 'street' || a === 'address') return 3;
+  if (a === 'approximate') return 2;
+  if (a === 'interpolated') return 1;
+  return 2;
+}
+
+function suggestionRank(s) {
+  var rank = accuracyRank(s) * 100;
+  if (s.localidad && s.zona && localidadMatchesZona(s.localidad, s.zona)) rank += 20;
+  rank += Math.round((s.relevance || 0) * 10);
+  return rank;
+}
+
+/** Misma calle+altura: Mapbox extrapola alturas; preferir mejor precision y barrio coherente. */
 function normalizeAddrKey(direccion) {
   return normalizeLocText(String(direccion || '').replace(/\s+/g, ' ').trim());
 }
@@ -168,11 +198,13 @@ function dedupeSameAddress(suggestions) {
       byKey[key] = s;
       return;
     }
-    if (s.lat < prev.lat) {
+    var rankS = suggestionRank(s);
+    var rankP = suggestionRank(prev);
+    if (rankS > rankP) {
       byKey[key] = s;
       return;
     }
-    if (s.lat === prev.lat && (s.relevance || 0) > (prev.relevance || 0)) {
+    if (rankS === rankP && s.lat < prev.lat) {
       byKey[key] = s;
     }
   });
@@ -233,6 +265,7 @@ function parseFeature(f) {
     lng: f.center && f.center[0],
     lat: f.center && f.center[1],
     relevance: typeof f.relevance === 'number' ? f.relevance : 0,
+    accuracy: (f.properties && f.properties.accuracy) || '',
   };
 }
 

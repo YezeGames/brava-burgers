@@ -735,8 +735,10 @@
 		return m[mapaNombre] || mapaNombre || '';
 	};
 
-	var bravaZoneDeliveryOk = false;
-	var bravaZoneAddrBound = false;
+  var bravaZoneDeliveryOk = false;
+  var bravaZoneAddrBound = false;
+  var BRAVA_ZONA_COBERTURA =
+    'Olivos, La Lucila, Martínez, Acasusso, Munro, Carapachay y Villa Adelina';
 
 	function bravaZoneDeliveryRequired() {
 		return g_zonas_envios.length > 0;
@@ -793,20 +795,40 @@
 		bravaZoneDeliveryOk = false;
 		$('#pregunta_10_respuesta').val('');
 		calcular_total();
-		bravaSetZoneBanner('is-outside', '✗ Fuera de zona de entrega. Por ahora no llegamos a esta dirección.');
+		bravaSetZoneBanner(
+			'is-outside',
+			'✗ Fuera de zona de entrega. Por ahora no llegamos a esta dirección.'
+		);
+		bravaSetCheckoutSubmitEnabled(false);
+	}
+
+	function bravaApplyZoneNoSuggest() {
+		bravaZoneDeliveryOk = false;
+		$('#pregunta_10_respuesta').val('');
+		calcular_total();
+		bravaSetZoneBanner(
+			'is-outside',
+			'✗ No encontramos esa dirección en nuestra zona. Entregamos en: ' +
+				BRAVA_ZONA_COBERTURA +
+				'. Si tu calle no aparece, probablemente estemos fuera de cobertura — escribinos por WhatsApp.'
+		);
 		bravaSetCheckoutSubmitEnabled(false);
 	}
 
 	function bravaApplyZonePending(text) {
 		bravaZoneDeliveryOk = false;
-		bravaSetZoneBanner('is-pending', text || 'Elegí una dirección de la lista para validar la zona de entrega.');
+		bravaSetZoneBanner(
+			'is-pending',
+			text ||
+				'Elegí una dirección de la lista. Entregamos en: ' + BRAVA_ZONA_COBERTURA + '.'
+		);
 		bravaSetCheckoutSubmitEnabled(false);
 	}
 
 	window.bravaResetZoneDelivery = function () {
 		bravaZoneDeliveryOk = !bravaZoneDeliveryRequired();
 		if (bravaZoneDeliveryRequired()) {
-			bravaApplyZonePending('Elegí una dirección de la lista para validar la zona de entrega.');
+			bravaApplyZonePending();
 		} else {
 			var el = document.getElementById('zone-banner');
 			if (el) {
@@ -877,6 +899,18 @@
 			}
 		}
 		bravaValidateZoneFromCoords(lng, lat, (s && (s.label || s.direccion)) || '');
+	};
+
+	window.bravaOnAddressNoResults = function (opts) {
+		if (!bravaZoneDeliveryRequired()) return;
+		opts = opts || {};
+		if (opts.outside_zone) {
+			bravaApplyZoneNoSuggest();
+			return;
+		}
+		bravaApplyZonePending(
+			'No encontramos esa calle. Probá con calle y altura. Entregamos en: ' + BRAVA_ZONA_COBERTURA + '.'
+		);
 	};
 
 	window.bravaZoneDeliveryRequired = bravaZoneDeliveryRequired;

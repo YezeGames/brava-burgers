@@ -36,10 +36,28 @@
     return q.toLowerCase();
   }
 
-  function cacheSet(key, items) {
-    queryCache[key] = items;
+  function cacheSet(key, payload) {
+    queryCache[key] = payload;
     var keys = Object.keys(queryCache);
     if (keys.length > CACHE_MAX) delete queryCache[keys[0]];
+  }
+
+  function cachePayload(key) {
+    var hit = queryCache[key];
+    if (!hit) return null;
+    if (Array.isArray(hit)) return { suggestions: hit, outside_zone: false };
+    return hit;
+  }
+
+  function presentSuggestions(payload) {
+    var items = payload.suggestions || [];
+    var meta = { outside_zone: !!payload.outside_zone };
+    if (!items.length && typeof window.bravaOnAddressNoResults === 'function') {
+      try {
+        window.bravaOnAddressNoResults(meta);
+      } catch (eNoRes) {}
+    }
+    showList(items, meta);
   }
 
   function hideList() {
@@ -68,14 +86,15 @@
     inp.setAttribute('aria-expanded', 'true');
   }
 
-  function showList(items) {
+  function showList(items, meta) {
     var ul = listEl();
     var inp = inputEl();
     if (!ul || !inp) return;
+    meta = meta || {};
     lastSuggestions = items;
     ul.innerHTML = '';
     if (!items.length) {
-      hideList();
+      showEmptyList(meta);
       return;
     }
     items.forEach(function (s, i) {
@@ -90,6 +109,26 @@
       });
       ul.appendChild(li);
     });
+    ul.classList.remove('hidden');
+    inp.setAttribute('aria-expanded', 'true');
+  }
+
+  function showEmptyList(meta) {
+    var ul = listEl();
+    var inp = inputEl();
+    if (!ul || !inp) return;
+    meta = meta || {};
+    lastSuggestions = [];
+    ul.innerHTML = '';
+    var li = document.createElement('li');
+    li.className = 'brava-addr-empty';
+    li.setAttribute('aria-disabled', 'true');
+    if (meta.outside_zone) {
+      li.textContent = 'No llegamos a esta dirección — fuera de nuestra zona';
+    } else {
+      li.textContent = 'Sin resultados — probá con calle y altura';
+    }
+    ul.appendChild(li);
     ul.classList.remove('hidden');
     inp.setAttribute('aria-expanded', 'true');
   }
@@ -150,8 +189,9 @@
   function fetchSuggestions(q) {
     var hint = locHintFromForm();
     var key = cacheKey(q + '|' + hint);
-    if (queryCache[key]) {
-      showList(queryCache[key]);
+    var cached = cachePayload(key);
+    if (cached) {
+      presentSuggestions(cached);
       return;
     }
 
@@ -179,10 +219,16 @@
           hideList();
           return;
         }
-        cacheSet(key, data.suggestions);
+        cacheSet(key, {
+          suggestions: data.suggestions,
+          outside_zone: !!data.outside_zone,
+        });
         var inp = inputEl();
         if (inp && cacheKey(inp.value.trim() + '|' + hint) !== key) return;
-        showList(data.suggestions);
+        presentSuggestions({
+          suggestions: data.suggestions,
+          outside_zone: !!data.outside_zone,
+        });
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
@@ -208,9 +254,9 @@
       return;
     }
     var hint = locHintFromForm();
-    var cached = queryCache[cacheKey(q + '|' + hint)];
+    var cached = cachePayload(cacheKey(q + '|' + hint));
     if (cached) {
-      showList(cached);
+      presentSuggestions(cached);
     }
     debounceTimer = setTimeout(function () {
       fetchSuggestions(q);

@@ -346,6 +346,17 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	background: transparent;
 }
 
+.brava-addr-suggest li.brava-addr-empty {
+	cursor: default;
+	color: #e8a090;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.brava-addr-suggest li.brava-addr-empty:hover {
+	background: transparent;
+}
+
 .zone-banner {
 	margin: 0 0 12px;
 	padding: 12px 14px;
