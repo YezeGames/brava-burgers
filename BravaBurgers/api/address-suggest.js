@@ -136,9 +136,9 @@ function mergeSuggestions(batches, locHint) {
       } catch (eZone) {
         zona = null;
       }
-      if (!zona) zona = zonaFromLocalidad(s.localidad);
       if (!zona) return;
       s.zona = zona;
+      withZonaLabel(s);
       const key =
         String(s.lng) + ',' + String(s.lat) + '|' + String(s.direccion || '').toLowerCase();
       if (seen[key]) return;
@@ -150,7 +150,35 @@ function mergeSuggestions(batches, locHint) {
   all.sort(function (a, b) {
     return scoreSuggestion(b, locHint) - scoreSuggestion(a, locHint);
   });
-  return all;
+  return dedupeSameAddress(all);
+}
+
+/** Misma calle+altura en dos barrios: Mapbox extrapola mal; quedarse con el punto más al sur. */
+function normalizeAddrKey(direccion) {
+  return normalizeLocText(String(direccion || '').replace(/\s+/g, ' ').trim());
+}
+
+function dedupeSameAddress(suggestions) {
+  var byKey = Object.create(null);
+  suggestions.forEach(function (s) {
+    var key = normalizeAddrKey(s.direccion);
+    if (!key) return;
+    var prev = byKey[key];
+    if (!prev) {
+      byKey[key] = s;
+      return;
+    }
+    if (s.lat < prev.lat) {
+      byKey[key] = s;
+      return;
+    }
+    if (s.lat === prev.lat && (s.relevance || 0) > (prev.relevance || 0)) {
+      byKey[key] = s;
+    }
+  });
+  return Object.keys(byKey).map(function (k) {
+    return byKey[k];
+  });
 }
 
 function normalizeLocText(s) {
@@ -159,20 +187,6 @@ function normalizeLocText(s) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .trim();
-}
-
-/** Si Mapbox no cae exacto en el polígono, inferir zona por texto de localidad */
-function zonaFromLocalidad(localidad) {
-  var loc = normalizeLocText(localidad);
-  if (!loc) return null;
-  if (/olivos/.test(loc)) return 'Olivos';
-  if (/la lucila/.test(loc)) return 'La Lucila';
-  if (/martinez/.test(loc)) return 'Martinez';
-  if (/acasusso/.test(loc)) return 'Acasusso';
-  if (/munro/.test(loc)) return 'Munro';
-  if (/carapachay/.test(loc)) return 'Carapachay';
-  if (/villa adelina/.test(loc)) return 'Villa Adelina';
-  return null;
 }
 
 function zonaMatchesHint(zona, locHint) {
@@ -218,7 +232,15 @@ function parseFeature(f) {
     localidad: locality,
     lng: f.center && f.center[0],
     lat: f.center && f.center[1],
+    relevance: typeof f.relevance === 'number' ? f.relevance : 0,
   };
+}
+
+function withZonaLabel(s) {
+  if (!s) return s;
+  var street = s.direccion || '';
+  if (s.zona) s.label = street + ' · ' + s.zona;
+  return s;
 }
 
 function localityFromFeature(f) {
