@@ -109,6 +109,8 @@ module.exports = async function handler(req, res) {
 function normalizeQuery(q) {
   return q
     .replace(/\sirigoyen\b/gi, ' yrigoyen')
+    .replace(/\bav\.?\s+/gi, 'avenida ')
+    .replace(/\bpje\.?\s+/gi, 'pasaje ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -308,7 +310,7 @@ function fetchMapbox(q, token, bbox, proximity) {
     encodeURIComponent(q) +
     '.json?country=ar&proximity=' +
     proximity +
-    '&types=address&limit=8&language=es&autocomplete=true&access_token=' +
+    '&types=address&limit=10&language=es&autocomplete=true&access_token=' +
     encodeURIComponent(token);
   if (bbox) url += '&bbox=' + bbox;
 
@@ -347,13 +349,9 @@ function classifySuggestions(batches, q, locHint) {
         return;
       }
 
-      if (s.localidad && !localidadMatchesZona(s.localidad, zona)) {
-        outsideZoneMatchCount++;
-        return;
-      }
-
       s.zona = zona;
       withZonaLabel(s);
+      applyQueryNumber(s, q);
       const key =
         String(s.lng) + ',' + String(s.lat) + '|' + String(s.direccion || '').toLowerCase();
       if (seen[key]) return;
@@ -390,7 +388,28 @@ var STREET_QUERY_STOP = {
   dr: 1,
   gral: 1,
   general: 1,
+  pte: 1,
+  presidente: 1,
+  san: 1,
+  santa: 1,
+  del: 1,
 };
+
+function queryNumber(q) {
+  var m = String(q || '').match(/\d+/);
+  return m ? m[0] : '';
+}
+
+/** Si Mapbox devuelve solo la calle, agregar la altura que escribió el cliente. */
+function applyQueryNumber(s, q) {
+  var num = queryNumber(q);
+  if (!num) return s;
+  var dir = String(s.direccion || '').trim();
+  if (/\d/.test(dir)) return s;
+  s.direccion = (dir + ' ' + num).trim();
+  s.label = s.zona ? s.direccion + ' · ' + s.zona : s.direccion;
+  return s;
+}
 
 function streetTokensFromQuery(q) {
   return normalizeLocText(q)
@@ -401,25 +420,35 @@ function streetTokensFromQuery(q) {
     });
 }
 
-/** La sugerencia debe coincidir con la calle escrita (evita yerbal → Alberdi). */
+/** Coincidencia por nombre principal de calle (evita yerbal → Alberdi). */
 function streetMatchesQuery(s, q) {
   var tokens = streetTokensFromQuery(q);
   if (!tokens.length) return true;
 
   var hay = normalizeLocText(
-    String(s.direccion || '') + ' ' + String(s.label || '') + ' ' + String(s.localidad || '')
+    String(s.direccion || '') +
+      ' ' +
+      String(s.label || '') +
+      ' ' +
+      String(s.localidad || '') +
+      ' ' +
+      String(s.place_name || '')
   );
 
-  if (tokens.length === 1) {
-    return hay.indexOf(tokens[0]) !== -1;
-  }
+  var primary = tokens.slice().sort(function (a, b) {
+    return b.length - a.length;
+  })[0];
 
-  var matched = tokens.filter(function (t) {
-    return hay.indexOf(t) !== -1;
+  if (!primary || hay.indexOf(primary) === -1) return false;
+  if (tokens.length === 1) return true;
+
+  if (primary.length >= 6) return true;
+
+  var others = 0;
+  tokens.forEach(function (t) {
+    if (t !== primary && hay.indexOf(t) !== -1) others++;
   });
-
-  if (tokens.length === 2) return matched.length === 2;
-  return matched.length >= Math.max(2, Math.ceil(tokens.length * 0.6));
+  return others > 0;
 }
 
 function mergeSuggestions(batches, locHint) {
@@ -524,6 +553,7 @@ function parseFeature(f) {
     label: label,
     direccion: street || String(f.place_name || '').split(',')[0].trim(),
     localidad: locality,
+    place_name: String(f.place_name || ''),
     lng: f.center && f.center[0],
     lat: f.center && f.center[1],
     relevance: typeof f.relevance === 'number' ? f.relevance : 0,
