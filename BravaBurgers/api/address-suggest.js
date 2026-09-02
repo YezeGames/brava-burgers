@@ -5,6 +5,13 @@ const {
   getDeliveryProximityString,
 } = require('../lib/deliveryZone');
 
+/**
+ * Autocompletado de dirección — reglas:
+ * - Polígonos My Maps: solo definen ZONA de entrega (¿llegamos?) y costo (Sheet).
+ * - Mapbox: fuente de verdad para CALLE + ALTURA (f.address). No inventar numeración.
+ * - Sugerencia válida = Mapbox confirmó la altura + punto dentro de un polígono.
+ */
+
 /** Localidades de las 7 zonas My Maps (hint + scoring) */
 const ZONA_LOCALIDADES = [
   'Olivos',

@@ -34,10 +34,21 @@ Título del mapa: **Brava Burgers** — *Zona de Cobertura - BRAVA BURGERS*.
 
 Cuando el cliente carga/selecciona su dirección en el checkout:
 
-1. Obtener **lat/lng** (Mapbox en `/api/address-suggest`).
-2. Comparar el punto contra los **7 polígonos** del mapa.
-3. **Dentro de alguno** → detectar barrio, pre-seleccionar zona/costo del Sheet.
-4. **Fuera de los 7** → bloquear pedido (*«Por ahora no llegamos a esa dirección»*).
+1. Obtener **calle y altura** desde **Mapbox** (solo sugerencias con numeración verificada en `f.address`).
+2. Obtener **lat/lng** de esa sugerencia (mismo origen Mapbox).
+3. Comparar el punto contra los **7 polígonos** del mapa → **zona** y costo del Sheet.
+4. **Dentro del polígono + altura confirmada por Mapbox** → permitir pedido.
+5. **Calle en zona pero altura no confirmada** → avisar (*no confirmamos esa numeración*).
+6. **Fuera de los 7 polígonos** → bloquear pedido.
+
+### División de responsabilidades
+
+| Fuente | Qué define |
+|--------|------------|
+| **Polígonos My Maps** | ¿Entregamos acá? → barrio/zona + costo envío |
+| **Mapbox** | ¿Existe calle + altura? → dirección, coordenadas, autocompletado |
+
+No mezclar: el polígono **no inventa** calles ni numeración; Mapbox **no define** la zona de cobertura (solo geocodifica).
 
 ---
 
