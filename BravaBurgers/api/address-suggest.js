@@ -87,10 +87,10 @@ module.exports = async function handler(req, res) {
     var outsideZone = false;
     var streetNoNumber = false;
     if (merged.length === 0 && hasNumber) {
-      if (classified.outsideZoneMatchCount > 0) {
-        outsideZone = true;
-      } else if (classified.streetInZoneNoNumber > 0) {
+      if (classified.streetInZoneNoNumber > 0) {
         streetNoNumber = true;
+      } else if (classified.outsideZoneMatchCount > 0) {
+        outsideZone = true;
       } else if (!googleKey && mapboxToken) {
         var wideQueries = expandQueries(q, locHint);
         var wideBatches = await Promise.all(
@@ -151,7 +151,18 @@ function expandQueries(q, locHint) {
 
   expandStreetAliases(q).forEach(push);
 
-  return out.slice(0, 6);
+  if (locHint && hasNumberInQuery(q)) {
+    ZONA_LOCALIDADES.forEach(function (zloc) {
+      if (normalizeLocText(zloc) === normalizeLocText(locHint)) return;
+      push(withLocHint(q, zloc));
+    });
+  }
+
+  return out.slice(0, 8);
+}
+
+function hasNumberInQuery(q) {
+  return /\d/.test(String(q || ''));
 }
 
 /** maipu 1234 → avenida maipu 1234; alberdi → juan bautista alberdi */
@@ -399,6 +410,23 @@ function classifySuggestions(batches, q, locHint) {
 
       if (qNum && !hasVerifiedNumber(s, q)) {
         streetInZoneNoNumber++;
+        var acc = normalizeLocText(s.accuracy);
+        var noMapboxNum = !String(s.mapbox_number || '').trim();
+        if (acc === 'street' || acc === 'approximate' || noMapboxNum) {
+          s.zona = zona;
+          s.pick_ready = false;
+          var streetOnly = String(s.direccion || '')
+            .replace(/\s+\d+.*$/, '')
+            .trim();
+          if (streetOnly) s.direccion = streetOnly;
+          withZonaLabel(s, true);
+          var browseKey =
+            normalizeAddrKey(s.direccion) + '|' + String(s.zona || '').toLowerCase();
+          if (!seen[browseKey]) {
+            seen[browseKey] = true;
+            inZone.push(s);
+          }
+        }
         return;
       }
 

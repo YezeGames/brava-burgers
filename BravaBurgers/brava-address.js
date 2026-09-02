@@ -180,7 +180,9 @@
         delete inp.dataset.lat;
         delete inp.dataset.lng;
         inp.classList.remove('brava-addr-picked');
+        inp.dataset.bravaStreetBrowse = '1';
       }
+      if (loc && s.localidad) loc.value = s.localidad;
       pickedFromList = false;
       hideList();
       if (typeof window.bravaOnStreetBrowsePick === 'function') {
@@ -298,7 +300,13 @@
     delete inp.dataset.lat;
     delete inp.dataset.lng;
     var loc = localityEl();
-    if (loc) loc.value = '';
+    if (loc) {
+      if (inp.dataset.bravaStreetBrowse === '1') {
+        delete inp.dataset.bravaStreetBrowse;
+      } else {
+        loc.value = '';
+      }
+    }
     if (typeof window.bravaResetZoneDelivery === 'function') {
       try {
         window.bravaResetZoneDelivery();
