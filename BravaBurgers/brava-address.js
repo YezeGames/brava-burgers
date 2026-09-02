@@ -32,8 +32,21 @@
     return $('#pregunta_3_respuesta');
   }
 
-  function cacheKey(q) {
-    return q.toLowerCase();
+  function currentQueryKey() {
+    var inp = inputEl();
+    var q = inp ? inp.value.trim() : '';
+    var hint = locHintFromForm();
+    return cacheKey(q + '|' + hint);
+  }
+
+  function invalidateInFlight() {
+    reqSeq++;
+    if (fetchAbort) {
+      try {
+        fetchAbort.abort();
+      } catch (eAbort) {}
+      fetchAbort = null;
+    }
   }
 
   function cacheSet(key, payload) {
@@ -49,15 +62,22 @@
     return hit;
   }
 
-  function presentSuggestions(payload) {
+  function queryHasStreetNumber(q) {
+    return /\d/.test(String(q || ''));
+  }
+
+  function presentSuggestions(payload, forKey) {
+    if (forKey && forKey !== currentQueryKey()) return;
     var items = payload.suggestions || [];
     var meta = { outside_zone: !!payload.outside_zone };
+    var inp = inputEl();
+    var q = inp ? inp.value.trim() : '';
     if (!items.length && typeof window.bravaOnAddressNoResults === 'function') {
       try {
-        window.bravaOnAddressNoResults(meta);
+        window.bravaOnAddressNoResults({ outside_zone: meta.outside_zone, query: q });
       } catch (eNoRes) {}
     }
-    showList(items, meta);
+    showList(items, meta, q);
   }
 
   function hideList() {
@@ -86,15 +106,16 @@
     inp.setAttribute('aria-expanded', 'true');
   }
 
-  function showList(items, meta) {
+  function showList(items, meta, queryText) {
     var ul = listEl();
     var inp = inputEl();
     if (!ul || !inp) return;
     meta = meta || {};
+    queryText = queryText != null ? queryText : inp.value.trim();
     lastSuggestions = items;
     ul.innerHTML = '';
     if (!items.length) {
-      showEmptyList(meta);
+      showEmptyList(meta, queryText);
       return;
     }
     items.forEach(function (s, i) {
@@ -113,17 +134,20 @@
     inp.setAttribute('aria-expanded', 'true');
   }
 
-  function showEmptyList(meta) {
+  function showEmptyList(meta, queryText) {
     var ul = listEl();
     var inp = inputEl();
     if (!ul || !inp) return;
     meta = meta || {};
+    queryText = queryText != null ? queryText : inp.value.trim();
     lastSuggestions = [];
     ul.innerHTML = '';
     var li = document.createElement('li');
     li.className = 'brava-addr-empty';
     li.setAttribute('aria-disabled', 'true');
-    if (meta.outside_zone) {
+    if (!queryHasStreetNumber(queryText)) {
+      li.textContent = 'Seguí escribiendo calle y altura';
+    } else if (meta.outside_zone) {
       li.textContent = 'No llegamos a esta dirección — fuera de nuestra zona';
     } else {
       li.textContent = 'Sin resultados — probá con calle y altura';
@@ -168,22 +192,28 @@
   }
 
   function locHintFromForm() {
-    var loc = localityEl() ? localityEl().value.trim() : '';
-    if (loc) return loc;
     var sel = document.getElementById('pregunta_10_respuesta');
-    if (!sel || sel.selectedIndex < 0) return '';
-    var opt = sel.options[sel.selectedIndex];
-    var zona = (opt && (opt.getAttribute('data-nombre') || opt.textContent)) || '';
-    zona = String(zona).trim();
-    if (!zona) return '';
-    if (/olivos/i.test(zona)) return 'Olivos';
-    if (/la lucila/i.test(zona)) return 'La Lucila';
-    if (/mart[ií]nez/i.test(zona)) return 'Martínez';
-    if (/acasusso/i.test(zona)) return 'Acasusso';
-    if (/munro/i.test(zona)) return 'Munro';
-    if (/carapachay/i.test(zona)) return 'Carapachay';
-    if (/villa adelina/i.test(zona)) return 'Villa Adelina';
-    return zona.split(/\s+/)[0] || '';
+    if (sel && sel.selectedIndex >= 0) {
+      var opt = sel.options[sel.selectedIndex];
+      var zona = (opt && (opt.getAttribute('data-nombre') || opt.textContent)) || '';
+      zona = String(zona).trim();
+      if (zona && !/^[-—]/.test(zona) && !/selecciona/i.test(zona)) {
+        if (/olivos/i.test(zona)) return 'Olivos';
+        if (/la lucila/i.test(zona)) return 'La Lucila';
+        if (/mart[ií]nez/i.test(zona)) return 'Martínez';
+        if (/acasusso/i.test(zona)) return 'Acasusso';
+        if (/munro/i.test(zona)) return 'Munro';
+        if (/carapachay/i.test(zona)) return 'Carapachay';
+        if (/villa adelina/i.test(zona)) return 'Villa Adelina';
+        return zona.split(/\s+/)[0] || '';
+      }
+    }
+    var inp = inputEl();
+    if (inp && inp.classList.contains('brava-addr-picked')) {
+      var loc = localityEl() ? localityEl().value.trim() : '';
+      if (loc) return loc;
+    }
+    return '';
   }
 
   function fetchSuggestions(q) {
@@ -191,17 +221,12 @@
     var key = cacheKey(q + '|' + hint);
     var cached = cachePayload(key);
     if (cached) {
-      presentSuggestions(cached);
+      presentSuggestions(cached, key);
       return;
     }
 
-    if (fetchAbort) {
-      try {
-        fetchAbort.abort();
-      } catch (eAbort) {}
-    }
     fetchAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var seq = ++reqSeq;
+    var seq = reqSeq;
     showLoading();
 
     var url = '/api/address-suggest?q=' + encodeURIComponent(q);
@@ -223,12 +248,14 @@
           suggestions: data.suggestions,
           outside_zone: !!data.outside_zone,
         });
-        var inp = inputEl();
-        if (inp && cacheKey(inp.value.trim() + '|' + hint) !== key) return;
-        presentSuggestions({
-          suggestions: data.suggestions,
-          outside_zone: !!data.outside_zone,
-        });
+        if (currentQueryKey() !== key) return;
+        presentSuggestions(
+          {
+            suggestions: data.suggestions,
+            outside_zone: !!data.outside_zone,
+          },
+          key
+        );
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
@@ -237,30 +264,48 @@
       });
   }
 
-  function onInput() {
+  function onAddressInput() {
     var inp = inputEl();
     if (!inp) return;
     pickedFromList = false;
     inp.classList.remove('brava-addr-picked');
+    delete inp.dataset.lat;
+    delete inp.dataset.lng;
+    var loc = localityEl();
+    if (loc) loc.value = '';
+    if (typeof window.bravaResetZoneDelivery === 'function') {
+      try {
+        window.bravaResetZoneDelivery();
+      } catch (eReset) {}
+    }
+    scheduleFetch();
+  }
+
+  function scheduleFetch() {
+    var inp = inputEl();
+    if (!inp) return;
     var q = inp.value.trim();
     if (debounceTimer) clearTimeout(debounceTimer);
     if (q.length < MIN_CHARS) {
-      if (fetchAbort) {
-        try {
-          fetchAbort.abort();
-        } catch (e2) {}
-      }
+      invalidateInFlight();
       hideList();
       return;
     }
+    invalidateInFlight();
+    showLoading();
     var hint = locHintFromForm();
-    var cached = cachePayload(cacheKey(q + '|' + hint));
+    var key = cacheKey(q + '|' + hint);
+    var cached = cachePayload(key);
     if (cached) {
-      presentSuggestions(cached);
+      presentSuggestions(cached, key);
     }
     debounceTimer = setTimeout(function () {
       fetchSuggestions(q);
     }, DEBOUNCE_MS);
+  }
+
+  function cacheKey(q) {
+    return q.toLowerCase();
   }
 
   function init() {
@@ -272,15 +317,9 @@
     inp.setAttribute('aria-autocomplete', 'list');
     inp.setAttribute('aria-controls', 'brava-addr-suggest');
 
-    inp.addEventListener('input', onInput);
-    var locInp = localityEl();
-    if (locInp) {
-      locInp.addEventListener('input', onInput);
-      locInp.addEventListener('input', syncZonaFromLocalidad);
-      locInp.addEventListener('change', syncZonaFromLocalidad);
-    }
+    inp.addEventListener('input', onAddressInput);
     var zonaSel = document.getElementById('pregunta_10_respuesta');
-    if (zonaSel) zonaSel.addEventListener('change', onInput);
+    if (zonaSel) zonaSel.addEventListener('change', scheduleFetch);
     inp.addEventListener('blur', function () {
       setTimeout(hideList, 180);
     });
@@ -325,7 +364,7 @@
             inp.focus();
             return;
           }
-          if (q.length >= MIN_CHARS && !pickedFromList && !loc) {
+          if (q.length >= MIN_CHARS && !pickedFromList) {
             var ok = window.confirm(
               'No elegiste una dirección de la lista.\n\n¿Enviar igual con la dirección escrita a mano?'
             );

@@ -784,6 +784,10 @@
 	function bravaApplyZoneInside(zonaMapa, sheetNombre, label) {
 		bravaZoneDeliveryOk = true;
 		bravaSelectZonaSheet(sheetNombre);
+		var $loc = $('#pregunta_3_respuesta');
+		if ($loc.length && !String($loc.val() || '').trim()) {
+			$loc.val(zonaMapa || '');
+		}
 		var $opt = $('#pregunta_10_respuesta').find(':selected');
 		var costo = $opt.data('costo');
 		var envTxt = costo !== undefined && !isNaN(parseFloat(costo)) ? ' · envío $' + formatear_moneda(costo) : '';
@@ -794,6 +798,7 @@
 	function bravaApplyZoneOutside() {
 		bravaZoneDeliveryOk = false;
 		$('#pregunta_10_respuesta').val('');
+		$('#pregunta_3_respuesta').val('');
 		calcular_total();
 		bravaSetZoneBanner(
 			'is-outside',
@@ -805,6 +810,7 @@
 	function bravaApplyZoneNoSuggest() {
 		bravaZoneDeliveryOk = false;
 		$('#pregunta_10_respuesta').val('');
+		$('#pregunta_3_respuesta').val('');
 		calcular_total();
 		bravaSetZoneBanner(
 			'is-outside',
@@ -904,6 +910,11 @@
 	window.bravaOnAddressNoResults = function (opts) {
 		if (!bravaZoneDeliveryRequired()) return;
 		opts = opts || {};
+		var q = String(opts.query || '').trim();
+		if (!/\d/.test(q)) {
+			bravaApplyZonePending('Seguí escribiendo calle y altura, y elegí de la lista.');
+			return;
+		}
 		if (opts.outside_zone) {
 			bravaApplyZoneNoSuggest();
 			return;
@@ -1373,11 +1384,11 @@
 			});
 		}
 		if (!g_zonas_envios.length) {
-			$('#pregunta_10_respuesta').closest('p').hide();
+			$('.brava-field-zona-hidden').attr('hidden', true).hide();
 			$('#pregunta_10_respuesta').removeAttr('required');
 			$('#zone-banner').hide();
 		} else {
-			$('#pregunta_10_respuesta').closest('p').show();
+			$('.brava-field-zona-hidden').attr('hidden', true).hide();
 			$('#pregunta_10_respuesta').attr('required', 'required');
 			$('#pregunta_10_respuesta').prop('disabled', true);
 			$('#zone-banner').show();

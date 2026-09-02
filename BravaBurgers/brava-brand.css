@@ -237,7 +237,67 @@ body.tienehover .producto_fila:hover small {
 }
 
 #preguntas_pedido .brava-field {
-	margin: 0 0 10px;
+	margin: 0 0 8px;
+}
+
+.brava-checkout-section {
+	border: 0;
+	margin: 0 0 14px;
+	padding: 0;
+	min-width: 0;
+}
+
+.brava-checkout-section:last-of-type {
+	margin-bottom: 8px;
+}
+
+.brava-checkout-section-title {
+	display: block;
+	width: 100%;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--brava-accent, #ff6b35);
+	margin: 0 0 8px;
+	padding: 0;
+	border: 0;
+	line-height: 1.2;
+}
+
+.brava-checkout-row {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+}
+
+.brava-checkout-row-2 .brava-field {
+	flex: 1 1 0;
+	min-width: 0;
+	margin-bottom: 0;
+}
+
+.brava-field-piso {
+	margin-top: 8px !important;
+	margin-bottom: 0 !important;
+}
+
+.brava-visually-hidden {
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+#preguntas_pedido_pie.brava-checkout-pie-compact {
+	font-size: 11px;
+	margin: 8px 0 0;
+	opacity: 0.75;
 }
 
 .brava-field-hint {
@@ -358,8 +418,8 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 }
 
 .zone-banner {
-	margin: 0 0 12px;
-	padding: 12px 14px;
+	margin: 0 0 8px;
+	padding: 10px 12px;
 	border-radius: 8px;
 	font-size: 0.88rem;
 	font-weight: 600;
