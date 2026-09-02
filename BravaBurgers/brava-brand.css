@@ -172,10 +172,10 @@ body.tienehover .producto_fila:hover small {
 #pregunta_variedades.fancybox-content,
 .fancybox-container.brava-fancybox-modal #preguntas_pedido.fancybox-content,
 .fancybox-container.brava-fancybox-modal #pregunta_variedades.fancybox-content {
-	width: 380px !important;
-	max-width: calc(100vw - 24px) !important;
+	width: 400px !important;
+	max-width: calc(100vw - 20px) !important;
 	min-width: 0 !important;
-	padding: 36px 32px !important;
+	padding: 28px 24px 24px !important;
 	box-sizing: border-box !important;
 	overflow-x: hidden !important;
 	overflow-y: auto !important;
@@ -203,9 +203,9 @@ body.tienehover .producto_fila:hover small {
 }
 
 .brava-checkout-head {
-	padding: 0 24px 12px 0;
-	margin-bottom: 12px;
-	border-bottom: 1px solid var(--brava-accent);
+	padding: 0 28px 0 0;
+	margin-bottom: 14px;
+	border-bottom: none;
 }
 
 .brava-checkout-body {
@@ -213,64 +213,76 @@ body.tienehover .producto_fila:hover small {
 }
 
 .brava-checkout-foot {
-	padding-top: 14px;
-	margin-top: 4px;
-	border-top: 1px solid var(--brava-accent);
+	padding-top: 12px;
+	margin-top: 0;
+	border-top: 1px solid rgba(255, 107, 53, 0.35);
 }
 
 #preguntas_pedido_encabezado {
-	color: var(--brava-accent) !important;
-	text-align: center;
-	font-size: 18px;
+	color: var(--brava-text, #eee) !important;
+	text-align: left;
+	font-size: 1.05rem;
 	font-weight: 700;
-	line-height: 1.35;
+	line-height: 1.25;
 	margin: 0;
-	padding: 0 4px;
-}
-
-#preguntas_pedido_pie.brava-checkout-pie {
-	color: var(--brava-accent) !important;
-	text-align: center;
-	font-size: 14px;
-	margin: 6px 0 0;
-	padding: 0 4px;
+	padding: 0;
 }
 
 #preguntas_pedido .brava-field {
-	margin: 0 0 8px;
+	margin: 0 0 6px;
 }
 
 .brava-checkout-section {
 	border: 0;
-	margin: 0 0 16px;
-	padding: 0 0 14px;
+	margin: 0 0 12px;
+	padding: 12px 12px 10px;
 	min-width: 0;
-	border-bottom: 1px solid rgba(255, 107, 53, 0.22);
+	background: rgba(255, 255, 255, 0.03);
+	border-radius: 10px;
+	border: 1px solid rgba(255, 107, 53, 0.18);
 }
 
 .brava-checkout-section:last-of-type {
-	margin-bottom: 10px;
-	padding-bottom: 0;
-	border-bottom: 0;
+	margin-bottom: 8px;
 }
 
 .brava-checkout-section-title {
 	display: block;
 	width: 100%;
-	font-size: 11px;
+	font-size: 10px;
 	font-weight: 700;
-	letter-spacing: 0.08em;
+	letter-spacing: 0.1em;
 	text-transform: uppercase;
 	color: var(--brava-accent, #ff6b35);
-	margin: 0 0 10px;
+	margin: 0 0 8px;
 	padding: 0;
 	border: 0;
 	line-height: 1.2;
 }
 
+.brava-checkout-grid-2 {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 8px;
+}
+
+.brava-checkout-grid-2 .brava-field {
+	margin-bottom: 0;
+}
+
+@media (max-width: 360px) {
+	.brava-checkout-grid-2 {
+		grid-template-columns: 1fr;
+	}
+}
+
 .brava-field-piso {
-	margin-top: 10px !important;
+	margin-top: 6px !important;
 	margin-bottom: 0 !important;
+}
+
+.brava-field-address {
+	margin-bottom: 4px !important;
 }
 
 .brava-visually-hidden {
@@ -409,12 +421,16 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 }
 
 .zone-banner {
-	margin: 0 0 10px;
-	padding: 9px 11px;
-	border-radius: 8px;
-	font-size: 0.82rem;
+	margin: 6px 0 0;
+	padding: 8px 10px;
+	border-radius: 6px;
+	font-size: 0.78rem;
 	font-weight: 600;
 	line-height: 1.35;
+}
+
+.zone-banner.is-idle {
+	display: none;
 }
 
 .zone-banner.is-inside {
@@ -453,22 +469,24 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 }
 
 #preguntas_pedido label {
-	color: var(--brava-accent) !important;
-	font-weight: 700;
-	font-size: 13px;
+	color: #bbb !important;
+	font-weight: 600;
+	font-size: 11px;
 	display: block;
-	margin-bottom: 5px;
+	margin-bottom: 3px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
 }
 
 #preguntas_pedido .brava-input.form-control {
-	background-color: var(--brava-card) !important;
+	background-color: rgba(0, 0, 0, 0.25) !important;
 	color: var(--brava-text) !important;
-	border: 1px solid #555 !important;
-	border-radius: 4px;
-	font-size: 14px;
-	padding: 6px 12px;
-	height: 40px;
-	min-height: 40px;
+	border: 1px solid rgba(255, 255, 255, 0.12) !important;
+	border-radius: 6px;
+	font-size: 13px;
+	padding: 5px 10px;
+	height: 36px;
+	min-height: 36px;
 	box-sizing: border-box;
 	width: 100%;
 }
@@ -480,8 +498,16 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 }
 
 #preguntas_pedido select.brava-input.form-control {
-	height: 40px;
-	padding-right: 28px;
+	height: 36px;
+	padding-right: 24px;
+}
+
+#preguntas_pedido .brava-field-turno {
+	margin-bottom: 0;
+}
+
+.brava-turno-cupo-notice {
+	margin-top: 6px;
 }
 
 .brava-checkout-actions {

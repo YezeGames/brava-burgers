@@ -57,15 +57,15 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    var rawCount = 0;
     var merged = [];
+    var classified = { streetMatchCount: 0, outsideZoneMatchCount: 0, suggestions: [] };
     var provider = 'mapbox';
 
     if (googleKey) {
       provider = 'google';
       var googlePack = await suggestGoogle(q, locHint, googleKey);
-      rawCount = googlePack.rawCount;
       merged = googlePack.suggestions;
+      var classified = googlePack.classified;
     } else {
       const queries = expandQueries(q, locHint);
       const batches = await Promise.all(
@@ -73,17 +73,26 @@ module.exports = async function handler(req, res) {
           return fetchMapbox(queryText, mapboxToken, bbox, proximity);
         })
       );
-      batches.forEach(function (list) {
-        rawCount += list.length;
-      });
-      merged = mergeSuggestions(batches, locHint);
+      classified = classifySuggestions(batches, q, locHint);
+      merged = classified.suggestions;
     }
 
     var outsideZone = false;
     if (merged.length === 0 && hasNumber) {
-      outsideZone = await detectOutsideZone(q, googleKey, mapboxToken, proximity);
-    } else if (rawCount > 0 && merged.length === 0) {
-      outsideZone = true;
+      if (classified.outsideZoneMatchCount > 0) {
+        outsideZone = true;
+      } else if (!googleKey && mapboxToken) {
+        var wideList = await fetchMapbox(q, mapboxToken, null, proximity);
+        var wideClass = classifySuggestions([wideList], q, locHint);
+        if (wideClass.suggestions.length) {
+          merged = wideClass.suggestions;
+          classified = wideClass;
+        } else if (wideClass.outsideZoneMatchCount > 0) {
+          outsideZone = true;
+        }
+      } else if (classified.streetMatchCount > 0) {
+        outsideZone = true;
+      }
     }
 
     return res.status(200).json({
@@ -140,11 +149,8 @@ async function suggestGoogle(q, locHint, key) {
   const seenPlace = Object.create(null);
   const parsed = [];
 
-  var autocompleteCount = 0;
-
   for (let i = 0; i < queries.length; i++) {
     const preds = await fetchGoogleAutocomplete(queries[i], key);
-    autocompleteCount += preds.length;
     const slice = preds.slice(0, 5);
     const details = await Promise.all(
       slice.map(function (p) {
@@ -162,9 +168,10 @@ async function suggestGoogle(q, locHint, key) {
     });
   }
 
+  var classified = classifySuggestions([parsed], q, locHint);
   return {
-    rawCount: autocompleteCount,
-    suggestions: mergeSuggestions([parsed], locHint),
+    classified: classified,
+    suggestions: classified.suggestions,
   };
 }
 
@@ -315,34 +322,108 @@ function fetchMapbox(q, token, bbox, proximity) {
   });
 }
 
-function mergeSuggestions(batches, locHint) {
+function classifySuggestions(batches, q, locHint) {
   const seen = Object.create(null);
-  const all = [];
+  const inZone = [];
+  var streetMatchCount = 0;
+  var outsideZoneMatchCount = 0;
+
   batches.forEach(function (list) {
     list.forEach(function (s) {
       if (s.lng == null || s.lat == null) return;
+      if (!streetMatchesQuery(s, q)) return;
+
+      streetMatchCount++;
+
       var zona = null;
       try {
         zona = findDeliveryZoneName(s.lng, s.lat);
       } catch (eZone) {
         zona = null;
       }
-      if (!zona) return;
-      if (s.localidad && !localidadMatchesZona(s.localidad, zona)) return;
+
+      if (!zona) {
+        outsideZoneMatchCount++;
+        return;
+      }
+
+      if (s.localidad && !localidadMatchesZona(s.localidad, zona)) {
+        outsideZoneMatchCount++;
+        return;
+      }
+
       s.zona = zona;
       withZonaLabel(s);
       const key =
         String(s.lng) + ',' + String(s.lat) + '|' + String(s.direccion || '').toLowerCase();
       if (seen[key]) return;
       seen[key] = true;
-      all.push(s);
+      inZone.push(s);
     });
   });
 
-  all.sort(function (a, b) {
+  inZone.sort(function (a, b) {
     return scoreSuggestion(b, locHint) - scoreSuggestion(a, locHint);
   });
-  return dedupeSameAddress(all);
+
+  return {
+    suggestions: dedupeSameAddress(inZone),
+    streetMatchCount: streetMatchCount,
+    outsideZoneMatchCount: outsideZoneMatchCount,
+  };
+}
+
+var STREET_QUERY_STOP = {
+  de: 1,
+  la: 1,
+  el: 1,
+  los: 1,
+  las: 1,
+  av: 1,
+  ave: 1,
+  avda: 1,
+  avenida: 1,
+  calle: 1,
+  pasaje: 1,
+  pje: 1,
+  doctor: 1,
+  dr: 1,
+  gral: 1,
+  general: 1,
+};
+
+function streetTokensFromQuery(q) {
+  return normalizeLocText(q)
+    .replace(/\d+/g, ' ')
+    .split(/\s+/)
+    .filter(function (t) {
+      return t.length >= 3 && !STREET_QUERY_STOP[t];
+    });
+}
+
+/** La sugerencia debe coincidir con la calle escrita (evita yerbal → Alberdi). */
+function streetMatchesQuery(s, q) {
+  var tokens = streetTokensFromQuery(q);
+  if (!tokens.length) return true;
+
+  var hay = normalizeLocText(
+    String(s.direccion || '') + ' ' + String(s.label || '') + ' ' + String(s.localidad || '')
+  );
+
+  if (tokens.length === 1) {
+    return hay.indexOf(tokens[0]) !== -1;
+  }
+
+  var matched = tokens.filter(function (t) {
+    return hay.indexOf(t) !== -1;
+  });
+
+  if (tokens.length === 2) return matched.length === 2;
+  return matched.length >= Math.max(2, Math.ceil(tokens.length * 0.6));
+}
+
+function mergeSuggestions(batches, locHint) {
+  return classifySuggestions(batches, '', locHint).suggestions;
 }
 
 function localidadMatchesZona(localidad, zona) {

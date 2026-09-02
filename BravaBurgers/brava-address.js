@@ -148,9 +148,9 @@
     if (!queryHasStreetNumber(queryText)) {
       li.textContent = 'Seguí escribiendo calle y altura';
     } else if (meta.outside_zone) {
-      li.textContent = 'No llegamos a esta dirección — fuera de nuestra zona';
+      li.textContent = 'No llegamos ahí — fuera de nuestra zona de entrega';
     } else {
-      li.textContent = 'Sin resultados — probá con calle y altura';
+      li.textContent = 'No encontramos esa calle en nuestra zona';
     }
     ul.appendChild(li);
     ul.classList.remove('hidden');

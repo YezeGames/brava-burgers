@@ -744,6 +744,13 @@
 		return g_zonas_envios.length > 0;
 	}
 
+	function bravaHideZoneBanner() {
+		var el = document.getElementById('zone-banner');
+		if (!el) return;
+		el.className = 'zone-banner is-idle';
+		el.textContent = '';
+	}
+
 	function bravaSetZoneBanner(state, text) {
 		var el = document.getElementById('zone-banner');
 		if (!el) return;
@@ -823,23 +830,21 @@
 
 	function bravaApplyZonePending(text) {
 		bravaZoneDeliveryOk = false;
-		bravaSetZoneBanner(
-			'is-pending',
-			text || 'Validamos la zona cuando elijas tu dirección de la lista.'
-		);
+		if (text) {
+			bravaSetZoneBanner('is-pending', text);
+		} else {
+			bravaHideZoneBanner();
+		}
 		bravaSetCheckoutSubmitEnabled(false);
 	}
 
 	window.bravaResetZoneDelivery = function () {
 		bravaZoneDeliveryOk = !bravaZoneDeliveryRequired();
 		if (bravaZoneDeliveryRequired()) {
-			bravaApplyZonePending();
+			bravaHideZoneBanner();
+			bravaSetCheckoutSubmitEnabled(false);
 		} else {
-			var el = document.getElementById('zone-banner');
-			if (el) {
-				el.className = 'zone-banner';
-				el.textContent = '';
-			}
+			bravaHideZoneBanner();
 			bravaSetCheckoutSubmitEnabled(true);
 		}
 	};
@@ -911,14 +916,14 @@
 		opts = opts || {};
 		var q = String(opts.query || '').trim();
 		if (!/\d/.test(q)) {
-			bravaApplyZonePending('Seguí escribiendo calle y altura, y elegí de la lista.');
+			bravaApplyZonePending('Escribí calle y altura, y elegí de la lista.');
 			return;
 		}
 		if (opts.outside_zone) {
 			bravaApplyZoneNoSuggest();
 			return;
 		}
-		bravaApplyZonePending('No encontramos esa calle. Probá con calle y altura.');
+		bravaApplyZonePending('No encontramos esa calle en nuestra zona. Revisá el nombre o escribinos por WhatsApp.');
 	};
 
 	window.bravaValidateAddressQuery = function (q) {
