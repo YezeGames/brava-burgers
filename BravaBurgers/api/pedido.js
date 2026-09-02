@@ -25,7 +25,9 @@ module.exports = async function handler(req, res) {
         data.error === 'turno_cerrado' ||
         data.error === 'turno_no_abierto' ||
         data.error === 'turno_invalid' ||
-        data.error === 'turno_no_disponible';
+        data.error === 'turno_no_disponible' ||
+        data.error === 'fuera_de_zona' ||
+        data.error === 'direccion_sin_coordenadas';
       const code = turnoErr ? 409 : 502;
       return res.status(code).json(data);
     }

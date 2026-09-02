@@ -1,15 +1,15 @@
 // Referencia local (la web usa Google Sheets: productos + configuracion)
 var g_telefono = '5491173721945';
 
+// 7 zonas delivery — alineadas con My Maps (sin retiro en local)
 var g_zonas = [
-  { nombre: 'Retiro por el local', costo: 0 },
-  { nombre: 'V. López/Florida', costo: 500 },
   { nombre: 'Olivos', costo: 800 },
-  { nombre: 'Martinez', costo: 1000 },
-  { nombre: 'Villa Adelina', costo: 800 },
-  { nombre: 'Carapachay', costo: 1000 },
   { nombre: 'La Lucila', costo: 1000 },
-  { nombre: 'Munro/F. Oeste', costo: 800 }
+  { nombre: 'Martinez', costo: 1000 },
+  { nombre: 'Acasusso', costo: 1000 },
+  { nombre: 'Munro / F. Oeste', costo: 800 },
+  { nombre: 'Carapachay', costo: 1000 },
+  { nombre: 'Villa Adelina', costo: 800 }
 ];
 
 var g_horarios = [

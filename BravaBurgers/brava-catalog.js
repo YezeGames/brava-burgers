@@ -916,8 +916,10 @@
 				configGet(cfg, 'Zona ' + i + '- Costo de envío') ||
 				configGet(cfg, 'Zona ' + i + ' - Costo de envio');
 			if (nombre && nombre.trim()) {
+				const nombreZona = nombre.trim();
+				if (/retiro/i.test(nombreZona)) continue;
 				global.g_zonas_envios.push({
-					nombre: nombre.trim(),
+					nombre: nombreZona,
 					costo: String(limpiarPrecio(costo)),
 				});
 			}

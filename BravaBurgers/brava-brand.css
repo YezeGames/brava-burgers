@@ -346,6 +346,50 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	background: transparent;
 }
 
+.zone-banner {
+	margin: 0 0 12px;
+	padding: 12px 14px;
+	border-radius: 8px;
+	font-size: 0.88rem;
+	font-weight: 600;
+	line-height: 1.4;
+	display: none;
+}
+.zone-banner.is-inside {
+	display: block;
+	background: rgba(46, 125, 50, 0.2);
+	color: #a5d6a7;
+	border: 1px solid rgba(165, 214, 167, 0.5);
+}
+.zone-banner.is-outside {
+	display: block;
+	background: rgba(198, 40, 40, 0.15);
+	color: #ef9a9a;
+	border: 1px solid rgba(239, 154, 154, 0.45);
+}
+.zone-banner.is-pending {
+	display: block;
+	background: rgba(255, 152, 0, 0.12);
+	color: #ffcc80;
+	border: 1px solid rgba(255, 204, 128, 0.4);
+}
+
+.brava-label-muted {
+	font-weight: 400;
+	color: #888;
+	font-size: 0.85em;
+}
+
+.brava-btn-submit:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
+#pregunta_10_respuesta:disabled {
+	opacity: 0.85;
+	cursor: default;
+}
+
 #preguntas_pedido label {
 	color: var(--brava-accent) !important;
 	font-weight: 700;

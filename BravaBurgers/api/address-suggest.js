@@ -1,9 +1,21 @@
 const { cors } = require('../lib/gasFetch');
+const {
+  findDeliveryZoneName,
+  getDeliveryBboxString,
+  getDeliveryProximityString,
+} = require('../lib/deliveryZone');
 
-/** Olivos — sesgo de proximidad */
-const PROXIMITY = '-58.489,-34.513';
-/** Zona de delivery Brava (aprox.) — minLng,minLat,maxLng,maxLat */
-const DELIVERY_BBOX = '-58.68,-34.75,-58.40,-34.40';
+/** Localidades de las 7 zonas My Maps (hint Mapbox + scoring) */
+const ZONA_LOCALIDADES = [
+  'Olivos',
+  'La Lucila',
+  'Martinez',
+  'Martínez',
+  'Acasusso',
+  'Munro',
+  'Carapachay',
+  'Villa Adelina',
+];
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -30,10 +42,20 @@ module.exports = async function handler(req, res) {
   q = normalizeQuery(q);
   const queries = expandQueries(q, locHint);
 
+  let bbox;
+  let proximity;
+  try {
+    bbox = getDeliveryBboxString();
+    proximity = getDeliveryProximityString();
+  } catch (eBbox) {
+    bbox = '-58.68,-34.75,-58.40,-34.40';
+    proximity = '-58.489,-34.513';
+  }
+
   try {
     const batches = await Promise.all(
       queries.map(function (queryText) {
-        return fetchMapbox(queryText, token);
+        return fetchMapbox(queryText, token, bbox, proximity);
       })
     );
     const merged = mergeSuggestions(batches, locHint);
@@ -81,15 +103,15 @@ function escapeRegExp(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function fetchMapbox(q, token) {
+function fetchMapbox(q, token, bbox, proximity) {
   const url =
     'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
     encodeURIComponent(q) +
     '.json?country=ar&proximity=' +
-    PROXIMITY +
+    proximity +
     '&bbox=' +
-    DELIVERY_BBOX +
-    '&types=address&limit=6&language=es&autocomplete=true&access_token=' +
+    bbox +
+    '&types=address&limit=8&language=es&autocomplete=true&access_token=' +
     encodeURIComponent(token);
 
   return fetch(url).then(function (r) {
@@ -107,12 +129,12 @@ function mergeSuggestions(batches, locHint) {
   const all = [];
   batches.forEach(function (list) {
     list.forEach(function (s) {
+      if (s.lng == null || s.lat == null) return;
+      var zona = findDeliveryZoneName(s.lng, s.lat);
+      if (!zona) return;
+      s.zona = zona;
       const key =
-        String(s.lng || '') +
-        ',' +
-        String(s.lat || '') +
-        '|' +
-        String(s.direccion || '').toLowerCase();
+        String(s.lng) + ',' + String(s.lat) + '|' + String(s.direccion || '').toLowerCase();
       if (seen[key]) return;
       seen[key] = true;
       all.push(s);
@@ -125,23 +147,44 @@ function mergeSuggestions(batches, locHint) {
   return all;
 }
 
+function normalizeLocText(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim();
+}
+
+function zonaMatchesHint(zona, locHint) {
+  if (!zona || !locHint) return false;
+  var z = normalizeLocText(zona);
+  var h = normalizeLocText(locHint);
+  if (z === h || z.indexOf(h) !== -1 || h.indexOf(z) !== -1) return true;
+  if (h.indexOf('munro') !== -1 && z === 'munro') return true;
+  if (h.indexOf('martinez') !== -1 && z === 'martinez') return true;
+  if (h.indexOf('lucila') !== -1 && z === 'la lucila') return true;
+  if (h.indexOf('villa adelina') !== -1 && z === 'villa adelina') return true;
+  return false;
+}
+
 function scoreSuggestion(s, locHint) {
   let score = 0;
-  if (inDeliveryBbox(s.lng, s.lat)) score += 10;
+  if (s.zona) score += 15;
+  if (locHint && zonaMatchesHint(s.zona, locHint)) score += 25;
   if (locHint) {
     const loc = String(s.localidad || '');
     const label = String(s.label || '');
-    if (loc.toLowerCase().indexOf(locHint.toLowerCase()) !== -1) score += 20;
-    if (label.toLowerCase().indexOf(locHint.toLowerCase()) !== -1) score += 8;
+    const hint = normalizeLocText(locHint);
+    if (normalizeLocText(loc).indexOf(hint) !== -1) score += 12;
+    if (normalizeLocText(label).indexOf(hint) !== -1) score += 6;
   }
+  ZONA_LOCALIDADES.forEach(function (zloc) {
+    if (zonaMatchesHint(s.zona, zloc) && normalizeLocText(s.localidad).indexOf(normalizeLocText(zloc)) !== -1) {
+      score += 5;
+    }
+  });
   if (/presidente hip[oó]?lito yrigoyen/i.test(String(s.direccion || ''))) score += 3;
   return score;
-}
-
-function inDeliveryBbox(lng, lat) {
-  if (lng == null || lat == null) return false;
-  const parts = DELIVERY_BBOX.split(',').map(Number);
-  return lng >= parts[0] && lng <= parts[2] && lat >= parts[1] && lat <= parts[3];
 }
 
 function parseFeature(f) {

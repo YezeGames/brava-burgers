@@ -109,12 +109,23 @@
     if (!s) return;
     var inp = inputEl();
     var loc = localityEl();
-    if (inp) inp.value = s.direccion || '';
+    if (inp) {
+      inp.value = s.direccion || '';
+      if (s.lat != null) inp.dataset.lat = String(s.lat);
+      else delete inp.dataset.lat;
+      if (s.lng != null) inp.dataset.lng = String(s.lng);
+      else delete inp.dataset.lng;
+    }
     if (loc) loc.value = s.localidad || '';
     pickedFromList = true;
     inp && inp.classList.add('brava-addr-picked');
     hideList();
     syncZonaFromLocalidad();
+    if (typeof window.bravaOnAddressPicked === 'function') {
+      try {
+        window.bravaOnAddressPicked(s);
+      } catch (ePick) {}
+    }
   }
 
   function locHintFromForm() {
@@ -125,13 +136,14 @@
     var opt = sel.options[sel.selectedIndex];
     var zona = (opt && (opt.getAttribute('data-nombre') || opt.textContent)) || '';
     zona = String(zona).trim();
-    if (!zona || /retiro/i.test(zona)) return '';
-    if (/florida/i.test(zona)) return 'Florida';
+    if (!zona) return '';
     if (/olivos/i.test(zona)) return 'Olivos';
+    if (/la lucila/i.test(zona)) return 'La Lucila';
     if (/mart[ií]nez/i.test(zona)) return 'Martínez';
-    if (/v\.?\s*l[oó]pez/i.test(zona)) return 'Vicente Lopez';
-    var slash = zona.indexOf('/');
-    if (slash !== -1) return zona.slice(slash + 1).trim();
+    if (/acasusso/i.test(zona)) return 'Acasusso';
+    if (/munro/i.test(zona)) return 'Munro';
+    if (/carapachay/i.test(zona)) return 'Carapachay';
+    if (/villa adelina/i.test(zona)) return 'Villa Adelina';
     return zona.split(/\s+/)[0] || '';
   }
 
@@ -255,6 +267,18 @@
         function (e) {
           var q = inp.value.trim();
           var loc = localityEl() ? localityEl().value.trim() : '';
+          if (
+            window.bravaZoneDeliveryRequired &&
+            window.bravaZoneDeliveryRequired() &&
+            q.length >= MIN_CHARS &&
+            !pickedFromList
+          ) {
+            e.preventDefault();
+            e.stopPropagation();
+            alert('Elegí tu dirección de la lista para validar la zona de entrega.');
+            inp.focus();
+            return;
+          }
           if (q.length >= MIN_CHARS && !pickedFromList && !loc) {
             var ok = window.confirm(
               'No elegiste una dirección de la lista.\n\n¿Enviar igual con la dirección escrita a mano?'

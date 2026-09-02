@@ -145,16 +145,19 @@
 				</div>
 				<span class="brava-field-hint">Escribí y elegí tu dirección en la lista; completamos la localidad.</span>
 			</p>
+			<div id="zone-banner" class="zone-banner is-pending" role="status" aria-live="polite">
+				Elegí una dirección de la lista para validar la zona de entrega.
+			</div>
 			<p class="brava-field"><label id="pregunta_3_label">Localidad*</label><input type="text" id="pregunta_3_respuesta" class="form-control brava-input" placeholder="Ej: Olivos" required></p>
 			<p class="brava-field"><label id="pregunta_4_label">Piso/Dpto</label><input type="text" id="pregunta_4_respuesta" class="form-control brava-input" placeholder="Ej: 2B"></p>
 			<p class="brava-field"><label id="pregunta_5_label">Como va a abonar?*</label><select id="pregunta_5_respuesta" class="form-control brava-input" required></select></p>
 			<p class="brava-field brava-field-turno"><label id="pregunta_6_label">Selecciona el turno*</label><select id="pregunta_6_respuesta" class="form-control brava-input" required></select><div id="brava-turno-cupo-notice" class="brava-turno-cupo-notice hidden" role="status" aria-live="polite"></div></p>
-			<p class="brava-field"><label id="pregunta_10_label">Lo enviamos a (seleccione la zona)</label><select id="pregunta_10_respuesta" class="form-control brava-input" required onchange="calcular_total()"></select></p>
+			<p class="brava-field"><label id="pregunta_10_label">Zona de envío <span class="brava-label-muted">(del mapa)</span></label><select id="pregunta_10_respuesta" class="form-control brava-input" required onchange="calcular_total()"></select></p>
 			<div id="preguntas_pedido_pie" class="brava-checkout-pie">🔥 Gracias por elegir Brava Burgers</div>
 			<div class="brava-checkout-foot">
 				<div class="brava-checkout-actions">
 					<button type="button" class="btn btn-outline-brava" onclick="$.fancybox.close();">Cancelar</button>
-					<input type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" value="Enviar Pedido">
+					<input type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" value="Enviar Pedido" disabled>
 				</div>
 			</div>
 		</form>
@@ -207,7 +210,8 @@
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
 	<script src="brava-turnos.js?v=1"></script>
-	<script src="brava-shop.js?v=8"></script>
-	<script src="brava-address.js?v=1"></script>
+	<script src="brava-delivery-zone-client.js?v=2"></script>
+	<script src="brava-shop.js?v=9"></script>
+	<script src="brava-address.js?v=3"></script>
 </body>
 </html>

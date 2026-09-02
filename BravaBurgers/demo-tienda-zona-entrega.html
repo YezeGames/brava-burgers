@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — checkout web · zona My Maps (offline)</title>
+	<link href="brava-brand.css?v=91" rel="stylesheet">
+	<style>
+		body {
+			margin: 0;
+			padding: 20px 14px 48px;
+			font-family: system-ui, 'Segoe UI', sans-serif;
+			background: #f5f5f5;
+		}
+		.demo-wrap { max-width: 420px; margin: 0 auto; }
+		.demo-banner {
+			background: #fff;
+			border-left: 4px solid #ff6b35;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 0.84rem;
+			line-height: 1.45;
+			color: #555;
+			margin-bottom: 16px;
+			box-shadow: 0 1px 4px rgba(0,0,0,.08);
+		}
+		.demo-banner strong { color: #ff6b35; }
+		.demo-banner code { font-size: 0.78rem; background: #f0f0f0; padding: 1px 4px; border-radius: 3px; }
+		h1 {
+			font-size: 2rem;
+			letter-spacing: 0.04em;
+			color: #ff6b35;
+			margin: 0 0 4px;
+			font-weight: 800;
+		}
+		.demo-lead { color: #666; font-size: 0.88rem; margin: 0 0 18px; line-height: 1.45; }
+		.demo-card {
+			background: #fff;
+			border-radius: 12px;
+			box-shadow: 0 2px 12px rgba(0,0,0,.08);
+			overflow: hidden;
+		}
+		#preguntas_pedido {
+			display: block !important;
+			max-width: none;
+			box-shadow: none;
+			border-radius: 0;
+		}
+		.zone-banner {
+			margin: 0 0 12px;
+			padding: 12px 14px;
+			border-radius: 8px;
+			font-size: 0.88rem;
+			font-weight: 600;
+			line-height: 1.4;
+			display: none;
+		}
+		.zone-banner.is-inside {
+			display: block;
+			background: #e8f5e9;
+			color: #1b5e20;
+			border: 1px solid #a5d6a7;
+		}
+		.zone-banner.is-outside {
+			display: block;
+			background: #ffebee;
+			color: #b71c1c;
+			border: 1px solid #ef9a9a;
+		}
+		.zone-banner.is-pending {
+			display: block;
+			background: #fff3e0;
+			color: #e65100;
+			border: 1px solid #ffcc80;
+		}
+		.zone-banner.is-warn {
+			display: block;
+			background: #fff8e1;
+			color: #f57f17;
+			border: 1px solid #ffe082;
+		}
+		.demo-quick {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			margin-bottom: 12px;
+			padding: 0 12px;
+		}
+		.demo-quick button {
+			border: 1px solid #ddd;
+			background: #fafafa;
+			border-radius: 999px;
+			padding: 5px 10px;
+			font-size: 0.72rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.demo-quick button:hover { border-color: #ff6b35; color: #ff6b35; }
+		.demo-quick .tag-out { border-color: #ef9a9a; color: #c62828; }
+		.demo-quick-label { font-size: 0.72rem; color: #888; width: 100%; margin-bottom: 2px; }
+		.brava-btn-submit:disabled { opacity: 0.45; cursor: not-allowed; }
+		.hidden { display: none !important; }
+		.brava-addr-suggest {
+			list-style: none;
+			margin: 4px 0 0;
+			padding: 0;
+			border: 1px solid #ddd;
+			border-radius: 8px;
+			background: #fff;
+			box-shadow: 0 4px 12px rgba(0,0,0,.1);
+			max-height: 180px;
+			overflow-y: auto;
+		}
+		.brava-addr-suggest li {
+			padding: 8px 12px;
+			font-size: 0.85rem;
+			cursor: pointer;
+			border-bottom: 1px solid #f0f0f0;
+		}
+		.brava-addr-suggest li:last-child { border-bottom: none; }
+		.brava-addr-suggest li:hover { background: #fff3e0; }
+		.form-control.brava-input {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 8px 10px;
+			border: 1px solid #ccc;
+			border-radius: 6px;
+			font-size: 0.9rem;
+		}
+		.form-control.brava-input:disabled { background: #f5f5f5; color: #333; }
+		.brava-field { margin: 0 0 12px; }
+		.brava-field label { display: block; font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; }
+		.brava-field-hint { font-size: 0.75rem; color: #888; }
+		.brava-checkout-inner { padding: 12px; }
+		.brava-checkout-head { font-weight: 700; margin-bottom: 12px; font-size: 0.9rem; }
+		.brava-btn-submit {
+			width: 100%;
+			padding: 10px;
+			border: none;
+			border-radius: 8px;
+			background: #ff6b35;
+			color: #fff;
+			font-weight: 700;
+			font-size: 0.95rem;
+			cursor: pointer;
+		}
+	</style>
+</head>
+<body class="brava-shop-b">
+
+<div class="demo-wrap">
+	<div class="demo-banner">
+		<strong>Demo offline</strong> — Abrí con doble clic. Usa los <strong>7 polígonos</strong> del mapa My Maps.
+		Detecta barrio y costo de envío sin internet ni <code>vercel dev</code>.
+	</div>
+
+	<h1>Checkout · zona de entrega</h1>
+	<p class="demo-lead">Elegí una dirección de la lista o tocá «Probar». Validamos cobertura, detectamos la zona del mapa y ponemos el costo de envío.</p>
+
+	<div class="demo-card">
+		<div class="demo-quick" id="demo-quick"></div>
+
+		<div id="preguntas_pedido">
+			<div class="brava-checkout-inner">
+				<div class="brava-checkout-head">
+					<div>¡Completá los datos para que preparemos tu pedido!</div>
+				</div>
+				<form class="brava-checkout-body" id="demo-checkout-form" onsubmit="return onDemoSubmit(event);">
+					<p class="brava-field">
+						<label>Nombre*</label>
+						<input type="text" class="form-control brava-input" value="Demo Cliente" required>
+					</p>
+					<p class="brava-field">
+						<label>Teléfono*</label>
+						<input type="tel" class="form-control brava-input" value="1123973487" required>
+					</p>
+					<p class="brava-field brava-field-address">
+						<label>Dirección (calle y altura)*</label>
+						<div class="brava-addr-wrap">
+							<input type="text" id="pregunta_2_respuesta" class="form-control brava-input" placeholder="Ej: Maipú 120" required autocomplete="off" aria-autocomplete="list" aria-controls="brava-addr-suggest" aria-expanded="false">
+							<ul id="brava-addr-suggest" class="brava-addr-suggest hidden" role="listbox"></ul>
+						</div>
+						<span class="brava-field-hint">Direcciones de demo con coordenadas reales del mapa.</span>
+					</p>
+					<div id="zone-banner" class="zone-banner is-pending" role="status">
+						Elegí una dirección de la lista para validar la zona.
+					</div>
+					<p class="brava-field">
+						<label>Localidad*</label>
+						<input type="text" id="pregunta_3_respuesta" class="form-control brava-input" placeholder="Ej: Olivos" required>
+					</p>
+					<p class="brava-field">
+						<label>Zona envío <span style="font-weight:400;color:#888">(auto del mapa)</span></label>
+						<select id="pregunta_10_respuesta" class="form-control brava-input" disabled></select>
+					</p>
+					<div class="brava-checkout-foot">
+						<div class="brava-checkout-actions">
+							<button type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" id="btn-submit" disabled>Enviar pedido</button>
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+
+<script src="demo-zona-entrega-data.js"></script>
+<script>
+(function () {
+	var geo = window.BRAVA_DEMO_GEOJSON || { features: [] };
+	var costos = window.BRAVA_DEMO_ZONA_COSTOS || [];
+	var presets = window.BRAVA_DEMO_PRESETS || [];
+	var zoneOk = null;
+	var lastResult = null;
+	var $ = function (id) { return document.getElementById(id); };
+
+	var zonas = [];
+
+	(geo.features || []).forEach(function (f) {
+		if (!f.geometry || f.geometry.type !== 'Polygon') return;
+		var ring = f.geometry.coordinates[0];
+		zonas.push({
+			nombre: (f.properties && f.properties.nombre) || '?',
+			ring: ring,
+			area: ringArea(ring),
+		});
+	});
+
+	function pointInRing(lng, lat, r) {
+		if (lng == null || lat == null || !r || !r.length) return false;
+		var inside = false;
+		for (var i = 0, j = r.length - 1; i < r.length; j = i++) {
+			var xi = r[i][0], yi = r[i][1], xj = r[j][0], yj = r[j][1];
+			if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) {
+				inside = !inside;
+			}
+		}
+		return inside;
+	}
+
+	function ringArea(ring) {
+		var a = 0;
+		for (var i = 0; i < ring.length; i++) {
+			var j = i === 0 ? ring.length - 1 : i - 1;
+			a += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+		}
+		return Math.abs(a) / 2;
+	}
+
+	function findZonaAt(lng, lat) {
+		var matches = zonas.filter(function (z) {
+			return pointInRing(lng, lat, z.ring);
+		});
+		if (!matches.length) return null;
+		matches.sort(function (a, b) { return a.area - b.area; });
+		return matches[0].nombre;
+	}
+
+	function costoForMapZona(mapNombre) {
+		var row = costos.find(function (c) { return c.nombre === mapNombre; });
+		return row || null;
+	}
+
+	function resolveDelivery(lng, lat) {
+		if (!zonas.length) return { ok: false, reason: 'no_data' };
+		var mapZona = findZonaAt(lng, lat);
+		if (!mapZona) {
+			return { ok: true, dentro: false };
+		}
+		var costoRow = costoForMapZona(mapZona);
+		return {
+			ok: true,
+			dentro: true,
+			zonaMapa: mapZona,
+			sheetNombre: costoRow ? costoRow.sheetNombre : mapZona,
+			envio: costoRow ? costoRow.costo : null,
+		};
+	}
+
+	function buildZonaSelect() {
+		var sel = $('pregunta_10_respuesta');
+		sel.innerHTML = costos.map(function (c) {
+			return '<option value="' + c.costo + '" data-nombre="' + c.sheetNombre + '" data-mapa="' + c.nombre + '">' +
+				c.sheetNombre + ' ($' + c.costo + ')</option>';
+		}).join('');
+	}
+
+	function selectZona(sheetNombre, envio) {
+		var sel = $('pregunta_10_respuesta');
+		var matched = false;
+		sel.querySelectorAll('option').forEach(function (opt) {
+			if (opt.getAttribute('data-nombre') === sheetNombre) {
+				sel.value = String(envio != null ? envio : opt.value);
+				matched = true;
+			}
+		});
+		return matched;
+	}
+
+	function setBanner(state, text) {
+		var el = $('zone-banner');
+		el.className = 'zone-banner ' + state;
+		el.textContent = text;
+	}
+
+	function setSubmitEnabled(on) {
+		$('btn-submit').disabled = !on;
+	}
+
+	function applyResult(result, label) {
+		lastResult = result;
+		if (!result.ok) {
+			setBanner('is-pending', 'No se cargó el mapa. ¿Falta demo-zona-entrega-data.js?');
+			setSubmitEnabled(false);
+			zoneOk = false;
+			return;
+		}
+		if (!result.dentro) {
+			zoneOk = false;
+			setBanner('is-outside', '✗ Fuera de zona de entrega. Por ahora no llegamos a esta dirección.');
+			setSubmitEnabled(false);
+			return;
+		}
+		selectZona(result.sheetNombre, result.envio);
+		zoneOk = true;
+		var envTxt = result.envio != null ? ' · envío $' + result.envio : '';
+		setBanner('is-inside', '✓ Entregamos en ' + result.zonaMapa + envTxt + (label ? ' · ' + label : ''));
+		setSubmitEnabled(true);
+	}
+
+	function pickAddress(s) {
+		$('pregunta_2_respuesta').value = s.direccion || '';
+		$('pregunta_3_respuesta').value = s.localidad || '';
+		$('pregunta_2_respuesta').classList.add('brava-addr-picked');
+		hideSuggest();
+		applyResult(resolveDelivery(s.lng, s.lat), s.label || s.direccion);
+	}
+
+	function hideSuggest() {
+		$('brava-addr-suggest').classList.add('hidden');
+		$('brava-addr-suggest').innerHTML = '';
+		$('pregunta_2_respuesta').setAttribute('aria-expanded', 'false');
+	}
+
+	function showSuggest(items) {
+		var ul = $('brava-addr-suggest');
+		if (!items.length) { hideSuggest(); return; }
+		ul.innerHTML = items.map(function (s, i) {
+			return '<li role="option" data-i="' + i + '">' + (s.label || s.direccion) + '</li>';
+		}).join('');
+		ul.classList.remove('hidden');
+		$('pregunta_2_respuesta').setAttribute('aria-expanded', 'true');
+		var matches = items;
+		ul.querySelectorAll('li').forEach(function (li) {
+			li.onclick = function () {
+				pickAddress(matches[Number(li.getAttribute('data-i'))]);
+			};
+		});
+	}
+
+	function filterPresets(q) {
+		q = (q || '').toLowerCase().trim();
+		return presets.filter(function (s) {
+			var hay = (s.direccion + ' ' + s.localidad + ' ' + (s.label || '')).toLowerCase();
+			return !q || hay.indexOf(q) !== -1;
+		});
+	}
+
+	function buildQuickButtons() {
+		var wrap = $('demo-quick');
+		var inside = presets.filter(function (p) {
+			var r = resolveDelivery(p.lng, p.lat);
+			return r.dentro && r.zonaMapa;
+		});
+		var outside = presets.filter(function (p) {
+			return !resolveDelivery(p.lng, p.lat).dentro;
+		});
+		var html = '<span class="demo-quick-label">Probar zona (centro del polígono):</span>';
+		inside.forEach(function (p) {
+			var idx = presets.indexOf(p);
+			html += '<button type="button" data-preset="' + idx + '">' + p.localidad + ' ✓</button>';
+		});
+		html += '<span class="demo-quick-label" style="margin-top:6px">Fuera de cobertura:</span>';
+		outside.forEach(function (p) {
+			var idx = presets.indexOf(p);
+			html += '<button type="button" data-preset="' + idx + '" class="tag-out">' + (p.localidad === 'Microcentro' ? 'Obelisco' : p.localidad) + ' ✗</button>';
+		});
+		wrap.innerHTML = html;
+		wrap.querySelectorAll('button[data-preset]').forEach(function (btn) {
+			btn.onclick = function () {
+				var s = presets[Number(btn.getAttribute('data-preset'))];
+				if (s) pickAddress(s);
+			};
+		});
+	}
+
+	var addrInput = $('pregunta_2_respuesta');
+	addrInput.addEventListener('input', function () {
+		zoneOk = null;
+		lastResult = null;
+		setSubmitEnabled(false);
+		setBanner('is-pending', 'Elegí una dirección de la lista para validar la zona.');
+		addrInput.classList.remove('brava-addr-picked');
+		showSuggest(filterPresets(addrInput.value));
+	});
+	addrInput.addEventListener('focus', function () {
+		showSuggest(filterPresets(addrInput.value));
+	});
+	document.addEventListener('click', function (e) {
+		if (!e.target.closest('.brava-addr-wrap')) hideSuggest();
+	});
+
+	window.onDemoSubmit = function (e) {
+		e.preventDefault();
+		if (!zoneOk || !lastResult || !lastResult.zonaMapa) {
+			alert('La dirección está fuera de zona o no fue validada.');
+			return false;
+		}
+		alert(
+			'Demo OK\n' +
+			'Zona mapa: ' + lastResult.zonaMapa + '\n' +
+			'Envío: $' + lastResult.envio + '\n' +
+			'En la tienda real seguiría el checkout.'
+		);
+		return false;
+	};
+
+	buildZonaSelect();
+	buildQuickButtons();
+
+	if (!zonas.length) {
+		setBanner('is-pending', 'No se cargó el mapa. ¿Falta demo-zona-entrega-data.js en la misma carpeta?');
+	}
+})();
+</script>
+</body>
+</html>

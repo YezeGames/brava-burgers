@@ -721,6 +721,178 @@
 		return bestScore >= 55 ? bestNombre : '';
 	};
 
+	/** Nombre del polígono My Maps → nombre en Sheet (configuracion) */
+	window.bravaMapaZonaToSheet = function (mapaNombre) {
+		var m = {
+			Olivos: 'Olivos',
+			'La Lucila': 'La Lucila',
+			Martinez: 'Martinez',
+			Acasusso: 'Acasusso',
+			Munro: 'Munro / F. Oeste',
+			Carapachay: 'Carapachay',
+			'Villa Adelina': 'Villa Adelina',
+		};
+		return m[mapaNombre] || mapaNombre || '';
+	};
+
+	var bravaZoneDeliveryOk = false;
+	var bravaZoneAddrBound = false;
+
+	function bravaZoneDeliveryRequired() {
+		return g_zonas_envios.length > 0;
+	}
+
+	function bravaSetZoneBanner(state, text) {
+		var el = document.getElementById('zone-banner');
+		if (!el) return;
+		el.className = 'zone-banner ' + state;
+		el.textContent = text;
+	}
+
+	function bravaSetCheckoutSubmitEnabled(on) {
+		$('.brava-btn-submit').prop('disabled', !on);
+	}
+
+	window.bravaMensajeErrorZona = function (code) {
+		if (code === 'fuera_de_zona') {
+			return 'Esta dirección está fuera de nuestra zona de entrega. Elegí otra dirección de la lista o escribinos por WhatsApp.';
+		}
+		if (code === 'direccion_sin_coordenadas') {
+			return 'Elegí tu dirección de la lista de sugerencias (no escribas solo a mano).';
+		}
+		return '';
+	};
+
+	function bravaSelectZonaSheet(sheetNombre) {
+		var $sel = $('#pregunta_10_respuesta');
+		if (!$sel.length || !sheetNombre) return false;
+		var matched = false;
+		$sel.find('option').each(function () {
+			var dn = $(this).attr('data-nombre') || '';
+			if (dn === sheetNombre) {
+				$sel.val($(this).val());
+				matched = true;
+				return false;
+			}
+		});
+		if (matched) calcular_total();
+		return matched;
+	}
+
+	function bravaApplyZoneInside(zonaMapa, sheetNombre, label) {
+		bravaZoneDeliveryOk = true;
+		bravaSelectZonaSheet(sheetNombre);
+		var $opt = $('#pregunta_10_respuesta').find(':selected');
+		var costo = $opt.data('costo');
+		var envTxt = costo !== undefined && !isNaN(parseFloat(costo)) ? ' · envío $' + formatear_moneda(costo) : '';
+		bravaSetZoneBanner('is-inside', '✓ Entregamos en ' + zonaMapa + envTxt + (label ? ' · ' + label : ''));
+		bravaSetCheckoutSubmitEnabled(true);
+	}
+
+	function bravaApplyZoneOutside() {
+		bravaZoneDeliveryOk = false;
+		$('#pregunta_10_respuesta').val('');
+		calcular_total();
+		bravaSetZoneBanner('is-outside', '✗ Fuera de zona de entrega. Por ahora no llegamos a esta dirección.');
+		bravaSetCheckoutSubmitEnabled(false);
+	}
+
+	function bravaApplyZonePending(text) {
+		bravaZoneDeliveryOk = false;
+		bravaSetZoneBanner('is-pending', text || 'Elegí una dirección de la lista para validar la zona de entrega.');
+		bravaSetCheckoutSubmitEnabled(false);
+	}
+
+	window.bravaResetZoneDelivery = function () {
+		bravaZoneDeliveryOk = !bravaZoneDeliveryRequired();
+		if (bravaZoneDeliveryRequired()) {
+			bravaApplyZonePending('Elegí una dirección de la lista para validar la zona de entrega.');
+		} else {
+			var el = document.getElementById('zone-banner');
+			if (el) {
+				el.className = 'zone-banner';
+				el.textContent = '';
+			}
+			bravaSetCheckoutSubmitEnabled(true);
+		}
+	};
+
+	function bravaValidateZoneFromCoords(lng, lat, label) {
+		if (!bravaZoneDeliveryRequired()) return;
+		bravaApplyZonePending('Validando zona…');
+
+		function applyFromZona(zonaMapa) {
+			if (!zonaMapa) {
+				bravaApplyZoneOutside();
+				return;
+			}
+			var sheet = window.bravaMapaZonaToSheet(zonaMapa);
+			if (!bravaSelectZonaSheet(sheet)) {
+				bravaApplyZonePending('Zona detectada (' + zonaMapa + ') pero no está en el menú. Revisá configuración.');
+				return;
+			}
+			bravaApplyZoneInside(zonaMapa, sheet, label);
+		}
+
+		if (typeof BravaDeliveryZone === 'undefined') {
+			bravaApplyZonePending('No se cargó el validador de zona.');
+			return;
+		}
+
+		BravaDeliveryZone.checkViaApi(lat, lng)
+			.then(function (data) {
+				if (data && data.ok) {
+					applyFromZona(data.dentro ? data.zona : null);
+					return;
+				}
+				return BravaDeliveryZone.loadZones().then(function () {
+					applyFromZona(BravaDeliveryZone.findZona(lng, lat));
+				});
+			})
+			.catch(function () {
+				BravaDeliveryZone.loadZones()
+					.then(function () {
+						applyFromZona(BravaDeliveryZone.findZona(lng, lat));
+					})
+					.catch(function () {
+						bravaApplyZonePending('No se pudo validar la zona. Probá de nuevo.');
+					});
+			});
+	}
+
+	window.bravaOnAddressPicked = function (s) {
+		if (!bravaZoneDeliveryRequired()) return;
+		var inp = document.getElementById('pregunta_2_respuesta');
+		var lat = s && s.lat != null ? Number(s.lat) : inp && inp.dataset.lat ? parseFloat(inp.dataset.lat) : NaN;
+		var lng = s && s.lng != null ? Number(s.lng) : inp && inp.dataset.lng ? parseFloat(inp.dataset.lng) : NaN;
+		if (isNaN(lat) || isNaN(lng)) {
+			bravaApplyZonePending('Elegí una dirección de la lista (con geocódigo).');
+			return;
+		}
+		if (s && s.zona) {
+			var sheetFast = window.bravaMapaZonaToSheet(s.zona);
+			if (bravaSelectZonaSheet(sheetFast)) {
+				bravaApplyZoneInside(s.zona, sheetFast, s.label || s.direccion || '');
+				return;
+			}
+		}
+		bravaValidateZoneFromCoords(lng, lat, (s && (s.label || s.direccion)) || '');
+	};
+
+	window.bravaZoneDeliveryRequired = bravaZoneDeliveryRequired;
+
+	function bravaBindZoneAddressInput() {
+		if (bravaZoneAddrBound) return;
+		var addr = document.getElementById('pregunta_2_respuesta');
+		if (!addr) return;
+		bravaZoneAddrBound = true;
+		addr.addEventListener('input', function () {
+			if (!addr.classList.contains('brava-addr-picked')) {
+				window.bravaResetZoneDelivery();
+			}
+		});
+	}
+
 	function scoreZonaForLocalidad(zonaNombre, locNorm) {
 		var zn = normalizeLocalidadText(zonaNombre);
 		if (!zn) return 0;
@@ -741,6 +913,7 @@
 		if (/^florida$/.test(locNorm) && /florida/i.test(zonaNombre)) return 92;
 		if (/^olivos$/.test(locNorm) && /^olivos$/i.test(zonaNombre)) return 100;
 		if (/martinez/.test(locNorm) && /martinez/i.test(zonaNombre)) return 95;
+		if (/acasusso/.test(locNorm) && /acasusso/i.test(zonaNombre)) return 95;
 		if (/villa adelina/.test(locNorm) && /villa adelina/i.test(zonaNombre)) return 95;
 		if (/carapachay/.test(locNorm) && /carapachay/i.test(zonaNombre)) return 95;
 		if (/la lucila/.test(locNorm) && /la lucila/i.test(zonaNombre)) return 95;
@@ -769,6 +942,7 @@
 	};
 
 	window.pre_abrir_preguntas = function () {
+		bravaBindZoneAddressInput();
 		if (g_zonas_envios.length > 0) {
 			$('#pregunta_10_respuesta').empty().append('<option value="">');
 			g_zonas_envios.forEach(function (zona) {
@@ -785,7 +959,9 @@
 						.text(label)
 				);
 			});
+			$('#pregunta_10_respuesta').prop('disabled', true);
 		}
+		window.bravaResetZoneDelivery();
 	};
 
 	function buildBravaOrderPayload() {
@@ -809,6 +985,9 @@
 			}
 		}
 		var sub = g_pedido.precio_solo_articulos || window.total || 0;
+		var addrInp = document.getElementById('pregunta_2_respuesta');
+		var lat = addrInp && addrInp.dataset.lat ? parseFloat(addrInp.dataset.lat) : null;
+		var lng = addrInp && addrInp.dataset.lng ? parseFloat(addrInp.dataset.lng) : null;
 		return {
 			cliente: ($('#pregunta_1_respuesta').val() || '').trim(),
 			telefono: ($('#brava_telefono').val() || '').trim(),
@@ -821,11 +1000,17 @@
 			envio: envio,
 			subtotal: sub,
 			total: sub + envio,
+			lat: lat != null && !isNaN(lat) ? lat : undefined,
+			lng: lng != null && !isNaN(lng) ? lng : undefined,
 			items: items,
 		};
 	}
 
 	window.finalizar_pedido = function () {
+		if (bravaZoneDeliveryRequired() && !bravaZoneDeliveryOk) {
+			alert('Elegí tu dirección de la lista y esperá la validación de zona antes de enviar.');
+			return false;
+		}
 		calcular_total();
 		var payload = buildBravaOrderPayload();
 		payload.idempotencyKey =
@@ -897,6 +1082,12 @@
 					if (msgTurno) {
 						falloGuardarPedido(msgTurno);
 						if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
+						return;
+					}
+					var msgZona =
+						data && window.bravaMensajeErrorZona && window.bravaMensajeErrorZona(data.error);
+					if (msgZona) {
+						falloGuardarPedido(msgZona);
 						return;
 					}
 					falloGuardarPedido();
@@ -1150,9 +1341,12 @@
 		if (!g_zonas_envios.length) {
 			$('#pregunta_10_respuesta').closest('p').hide();
 			$('#pregunta_10_respuesta').removeAttr('required');
+			$('#zone-banner').hide();
 		} else {
 			$('#pregunta_10_respuesta').closest('p').show();
 			$('#pregunta_10_respuesta').attr('required', 'required');
+			$('#pregunta_10_respuesta').prop('disabled', true);
+			$('#zone-banner').show();
 		}
 		if (window.bravaResetTurnoCupoNotice) window.bravaResetTurnoCupoNotice();
 	}

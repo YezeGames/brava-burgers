@@ -83,7 +83,7 @@
 
     {
 
-      "source": "/(index.html|brava-catalog.js|brava-shop.js|brava-turnos.js|brava-address.js|brava-brand.css)",
+      "source": "/(index.html|brava-catalog.js|brava-shop.js|brava-turnos.js|brava-address.js|brava-delivery-zone-client.js|brava-brand.css)",
 
       "headers": [
 

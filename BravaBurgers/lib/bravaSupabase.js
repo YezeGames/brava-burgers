@@ -120,6 +120,17 @@ async function createOrderFromShop(order) {
 
   const total = Number(order.total) || subtotal + envio;
 
+  const lat = parseFloat(order.lat);
+  const lng = parseFloat(order.lng);
+  if (isNaN(lat) || isNaN(lng)) {
+    return { ok: false, error: 'direccion_sin_coordenadas' };
+  }
+  const { findDeliveryZoneName } = require('./deliveryZone');
+  const zonaMapa = findDeliveryZoneName(lng, lat);
+  if (!zonaMapa) {
+    return { ok: false, error: 'fuera_de_zona' };
+  }
+
   const { validateShopOrder } = require('./turnosDelivery');
   const turnCheck = await validateShopOrder(order);
   if (!turnCheck.ok) return turnCheck;

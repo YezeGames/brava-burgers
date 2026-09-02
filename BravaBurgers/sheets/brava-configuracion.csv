@@ -48,22 +48,20 @@ Moneda signo,$
 Defina zonas y costos del envío,
 Modelo del pedido en Whatsapp,"*CANTIDAD* x *NOMBRE* *VARIEDAD* *ACLARACION*\nSubtotal = $*SUBTOTAL*\n"
 Zona de envío - Título,Lo enviamos a (seleccione la zona):
-Zona 1 - Nombre,Retiro por el local
-Zona 1 - Costo de envío,0
-Zona 2 - Nombre,V. López / Florida
-Zona 2 - Costo de envío,500
-Zona 3 - Nombre,Olivos
-Zona 3 - Costo de envío,800
-Zona 4 - Nombre,Martinez
+Zona 1 - Nombre,Olivos
+Zona 1 - Costo de envío,800
+Zona 2 - Nombre,La Lucila
+Zona 2 - Costo de envío,1000
+Zona 3 - Nombre,Martinez
+Zona 3 - Costo de envío,1000
+Zona 4 - Nombre,Acasusso
 Zona 4 - Costo de envío,1000
-Zona 5 - Nombre,Villa Adelina
+Zona 5 - Nombre,Munro / F. Oeste
 Zona 5 - Costo de envío,800
 Zona 6 - Nombre,Carapachay
 Zona 6 - Costo de envío,1000
-Zona 7 - Nombre,La Lucila
-Zona 7 - Costo de envío,1000
-Zona 8 - Nombre,Munro / F. Oeste
-Zona 8 - Costo de envío,800
+Zona 7 - Nombre,Villa Adelina
+Zona 7 - Costo de envío,800
 Zona 9 - Nombre,
 Zona 9- Costo de envío,
 Zona 10 - Nombre,
