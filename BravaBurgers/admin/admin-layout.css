@@ -565,9 +565,25 @@ html[data-theme="dark"] .order-card.row-pendiente-nuevo .btn-sm:not(.btn-ok):not
 .order-head {
 	display: flex;
 	flex-wrap: wrap;
-	align-items: baseline;
+	align-items: center;
 	gap: 6px 10px;
 	margin-bottom: 4px;
+	width: 100%;
+}
+
+.order-head .orders-client-name {
+	cursor: help;
+	border-bottom: 1px dotted var(--text-subtle);
+}
+
+.order-inline-chk {
+	margin-left: auto;
+	flex-shrink: 0;
+}
+
+.order-inline-chk .order-chk-label {
+	font-size: 0.68rem;
+	font-weight: 600;
 }
 
 .order-orn {

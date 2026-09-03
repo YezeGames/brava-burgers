@@ -3830,7 +3830,7 @@
     var tip = formatOrderItemsTooltip(o);
     var tipAttr = tip ? ' title="' + escapeAttr(tip) + '"' : '';
     var html =
-      '<span class="orders-client-name"' +
+      '<span class="order-name orders-client-name"' +
       tipAttr +
       '>' +
       escapeHtml(o.cliente || '') +
@@ -3925,7 +3925,7 @@
 
 
 
-  function repartoCheckboxCardHtml(o, card) {
+  function repartoCheckboxHeadHtml(o, card) {
 
     var hasDir = String(o.direccion || '').trim().length > 0;
 
@@ -3943,7 +3943,7 @@
 
     return (
 
-      '<label class="order-chk-label"><input type="checkbox" class="reparto-order-cb" data-orn="' +
+      '<span class="order-inline-chk order-ruta-chk"><label class="order-chk-label"><input type="checkbox" class="reparto-order-cb" data-orn="' +
 
       escapeHtml(o.orn) +
 
@@ -3951,7 +3951,7 @@
 
       (on ? ' checked' : '') +
 
-      '> Ruta</label>'
+      '> Ruta</label></span>'
 
     );
 
@@ -3959,7 +3959,7 @@
 
 
 
-  function waNotifyCheckboxCardHtml(o, card) {
+  function waNotifyCheckboxHeadHtml(o, card) {
 
     if (!orderHasWaPhone(o)) return '';
 
@@ -3969,7 +3969,7 @@
 
     return (
 
-      '<label class="order-chk-label"><input type="checkbox" class="wa-notify-order-cb" data-orn="' +
+      '<span class="order-inline-chk order-wa-chk"><label class="order-chk-label"><input type="checkbox" class="wa-notify-order-cb" data-orn="' +
 
       escapeHtml(o.orn) +
 
@@ -3977,7 +3977,7 @@
 
       (on ? ' checked' : '') +
 
-      '> WA</label>'
+      '> WA</label></span>'
 
     );
 
@@ -4046,33 +4046,21 @@
 
       body.className = 'order-body';
 
-      var chkHtml = '';
-
-      if (panelEstado === 'en_preparacion') {
-
-        chkHtml = repartoCheckboxCardHtml(o, card);
-
-      } else if (waNotifyTabEnabled(panelEstado)) {
-
-        chkHtml = waNotifyCheckboxCardHtml(o, card);
-
-      }
-
-      if (chkHtml) {
-
-        var chks = document.createElement('div');
-
-        chks.className = 'order-card-chks';
-
-        chks.innerHTML = chkHtml;
-
-        body.appendChild(chks);
-
-      }
-
       var head = document.createElement('div');
 
       head.className = 'order-head';
+
+      var headInline = '';
+
+      if (panelEstado === 'en_preparacion') {
+
+        headInline = repartoCheckboxHeadHtml(o, card);
+
+      } else if (waNotifyTabEnabled(panelEstado)) {
+
+        headInline = waNotifyCheckboxHeadHtml(o, card);
+
+      }
 
       head.innerHTML =
 
@@ -4080,17 +4068,15 @@
 
         orderDisplayOrn(o) +
 
-        '</span><span class="order-name">' +
-
-        escapeHtml(o.cliente || '') +
-
         '</span>' +
 
-        (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn) ? ' <span class="badge-nuevo">Nuevo</span>' : '') +
+        formatOrderClientCell(o, panelEstado) +
 
         paymentTagHtml(o.pago) +
 
-        (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '');
+        (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '') +
+
+        headInline;
 
       body.appendChild(head);
 
@@ -4144,8 +4130,6 @@
           !cajaOk
         );
 
-        addActionBtn(actions, 'Comanda', 'btn-sm', 'comanda', o.orn, 'Ver comanda');
-
         addActionBtn(actions, 'Rechazar', 'btn-sm btn-x', 'reject', o.orn, 'Rechazar pedido');
 
       }
@@ -4162,15 +4146,11 @@
           !cajaOk
         );
 
-        addActionBtn(actions, 'Comanda', 'btn-sm', 'comanda', o.orn, 'Ver comanda');
-
         addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
 
       }
 
       if (panelEstado === 'en_preparacion') {
-
-        addActionBtn(actions, 'Comanda', 'btn-sm', 'comanda', o.orn, 'Ver comanda');
 
         addActionBtn(actions, 'Editar', 'btn-sm btn-edit', 'edit', o.orn, 'Editar comanda');
 
@@ -4201,36 +4181,6 @@
         );
 
         addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
-
-      }
-
-      var histTabs = ['entregada', 'cancelada', 'rechazado'];
-
-      if (histTabs.indexOf(panelEstado) < 0) {
-
-        var wa = telWa(o.telefono);
-
-        if (wa) {
-
-          var a = document.createElement('a');
-
-          a.className = 'btn-wa';
-
-          var waFirst = (o.cliente || '').trim().split(/\s+/)[0];
-
-          var waIntro = waFirst ? 'Hola ' + waFirst + ', somos Brava Burgers.' : 'Hola, somos Brava Burgers.';
-
-          a.href = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waIntro);
-
-          a.target = '_blank';
-
-          a.rel = 'noopener';
-
-          a.innerHTML = '<i class="fab fa-whatsapp"></i>';
-
-          actions.appendChild(a);
-
-        }
 
       }
 
