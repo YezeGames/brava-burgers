@@ -770,7 +770,7 @@
 
 	window.bravaMensajeErrorZona = function (code) {
 		if (code === 'fuera_de_zona') {
-			return 'Todavía no llegamos a tu zona. Entregamos en: ' + BRAVA_ZONA_COBERTURA + '.';
+			return 'Todavía no llegamos a tu zona. Entregamos solo en el área naranja del mapa.';
 		}
 		if (code === 'direccion_sin_coordenadas') {
 			return 'Elegí tu dirección de la lista de sugerencias (no escribas solo a mano).';
@@ -815,7 +815,7 @@
 		calcular_total();
 		bravaSetZoneBanner(
 			'is-outside',
-			'Todavía no llegamos a tu zona. Entregamos en: ' + BRAVA_ZONA_COBERTURA + '.'
+			'Todavía no llegamos a tu zona. Entregamos solo en el área naranja del mapa.'
 		);
 		bravaSetCheckoutSubmitEnabled(false);
 		if (window.bravaCheckoutMap) window.bravaCheckoutMap.setZoneOk(false);
