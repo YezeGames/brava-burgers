@@ -685,6 +685,12 @@
 			if (baseAfterShow) baseAfterShow(instance, current);
 			if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
 			if (window.bravaStartTurnosCheckoutTimer) window.bravaStartTurnosCheckoutTimer();
+			if (window.bravaResetZoneDelivery) window.bravaResetZoneDelivery();
+			if (window.bravaCheckoutMap) {
+				window.bravaCheckoutMap.ensureMap().then(function () {
+					window.bravaCheckoutMap.resize();
+				});
+			}
 		};
 		opts.afterClose = function () {
 			if (window.bravaStopTurnosCheckoutTimer) window.bravaStopTurnosCheckoutTimer();
@@ -809,10 +815,42 @@
 		calcular_total();
 		bravaSetZoneBanner(
 			'is-outside',
-			'✗ Fuera de zona de entrega. Por ahora no llegamos a esta dirección.'
+			'✗ Fuera de zona — mové el pin adentro del área naranja del mapa.'
 		);
 		bravaSetCheckoutSubmitEnabled(false);
+		if (window.bravaCheckoutMap) window.bravaCheckoutMap.setZoneOk(false);
 	}
+
+	window.bravaApplyPinZone = function (zonaMapa, lng, lat) {
+		if (!bravaZoneDeliveryRequired()) return;
+		var inp = document.getElementById('pregunta_2_respuesta');
+		if (inp) {
+			if (lng != null) inp.dataset.lng = String(lng);
+			if (lat != null) inp.dataset.lat = String(lat);
+		}
+		var addr = inp ? String(inp.value || '').trim() : '';
+		if (!zonaMapa) {
+			bravaApplyZoneOutside();
+			return;
+		}
+		if (!addr) {
+			bravaZoneDeliveryOk = false;
+			bravaSetZoneBanner(
+				'is-pending',
+				'Pin en ' + zonaMapa + ' — buscá tu calle y altura arriba, o mové el pin a tu entrada.'
+			);
+			bravaSetCheckoutSubmitEnabled(false);
+			if (window.bravaCheckoutMap) window.bravaCheckoutMap.setZoneOk(false);
+			return;
+		}
+		var sheet = window.bravaMapaZonaToSheet(zonaMapa);
+		if (bravaSelectZonaSheet(sheet)) {
+			bravaApplyZoneInside(zonaMapa, sheet, addr);
+		} else {
+			bravaApplyZonePending('Zona detectada (' + zonaMapa + ') pero no está en el menú.');
+		}
+		if (window.bravaCheckoutMap) window.bravaCheckoutMap.setZoneOk(!!bravaZoneDeliveryOk);
+	};
 
 	function bravaApplyZoneNoSuggest() {
 		bravaZoneDeliveryOk = false;
@@ -841,12 +879,13 @@
 	window.bravaResetZoneDelivery = function () {
 		bravaZoneDeliveryOk = !bravaZoneDeliveryRequired();
 		if (bravaZoneDeliveryRequired()) {
-			bravaHideZoneBanner();
+			bravaSetZoneBanner('is-pending', 'Buscá tu dirección o mové el pin en el mapa.');
 			bravaSetCheckoutSubmitEnabled(false);
 		} else {
 			bravaHideZoneBanner();
 			bravaSetCheckoutSubmitEnabled(true);
 		}
+		if (window.bravaCheckoutMap) window.bravaCheckoutMap.setZoneOk(false);
 	};
 
 	function bravaValidateZoneFromCoords(lng, lat, label) {
@@ -1098,7 +1137,7 @@
 
 	window.finalizar_pedido = function () {
 		if (bravaZoneDeliveryRequired() && !bravaZoneDeliveryOk) {
-			alert('Elegí tu dirección de la lista y esperá la validación de zona antes de enviar.');
+			alert('Mové el pin dentro de la zona naranja del mapa para confirmar que entregamos ahí.');
 			return false;
 		}
 		calcular_total();

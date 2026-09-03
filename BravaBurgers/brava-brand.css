@@ -432,6 +432,35 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	background: transparent;
 }
 
+.brava-checkout-map-wrap {
+	margin: 8px 0 4px;
+}
+
+.brava-map-label {
+	margin: 0 0 6px;
+	font-size: 0.72rem;
+	color: #888;
+	line-height: 1.35;
+}
+
+.brava-checkout-map {
+	width: 100%;
+	height: 200px;
+	border-radius: 8px;
+	border: 1px solid #444;
+	overflow: hidden;
+}
+
+.brava-map-error {
+	margin: 0;
+	padding: 12px;
+	font-size: 0.8rem;
+	color: #e57373;
+	text-align: center;
+	border: 1px dashed #555;
+	border-radius: 8px;
+}
+
 .zone-banner {
 	margin: 6px 0 0;
 	padding: 8px 10px;

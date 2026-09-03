@@ -1,20 +1,20 @@
 /**
- * Autocompletado de dirección (Mapbox vía /api/address-suggest) para checkout tienda.
+ * Autocompletado Mapbox directo + sync con mapa checkout (brava-checkout-map.js).
  */
 (function () {
   'use strict';
 
-  var DEBOUNCE_MS = 90;
+  var PROXIMITY = '-58.489,-34.513';
+  var DEBOUNCE_MS = 200;
   var MIN_CHARS = 3;
+
+  var mapboxToken = null;
   var debounceTimer = null;
   var activeIndex = -1;
   var lastSuggestions = [];
-  var pickedFromList = false;
   var fetchAbort = null;
   var reqSeq = 0;
-  var queryCache = Object.create(null);
-  var CACHE_MAX = 24;
-  var zonaSyncTimer = null;
+  var tokenPromise = null;
 
   function $(sel) {
     return document.querySelector(sel);
@@ -32,52 +32,19 @@
     return $('#pregunta_3_respuesta');
   }
 
-  function currentQueryKey() {
-    var inp = inputEl();
-    var q = inp ? inp.value.trim() : '';
-    var hint = locHintFromForm();
-    return cacheKey(q + '|' + hint);
-  }
-
-  function invalidateInFlight() {
-    reqSeq++;
-    if (fetchAbort) {
-      try {
-        fetchAbort.abort();
-      } catch (eAbort) {}
-      fetchAbort = null;
-    }
-  }
-
-  function cacheSet(key, payload) {
-    queryCache[key] = payload;
-    var keys = Object.keys(queryCache);
-    if (keys.length > CACHE_MAX) delete queryCache[keys[0]];
-  }
-
-  function cachePayload(key) {
-    var hit = queryCache[key];
-    if (!hit) return null;
-    if (Array.isArray(hit)) return { suggestions: hit, outside_zone: false, street_no_number: false };
-    return hit;
-  }
-
-  function queryHasStreetNumber(q) {
-    return /\d/.test(String(q || ''));
-  }
-
-  function presentSuggestions(payload, forKey) {
-    if (forKey && forKey !== currentQueryKey()) return;
-    var items = payload.suggestions || [];
-    var meta = { outside_zone: !!payload.outside_zone, street_no_number: !!payload.street_no_number };
-    var inp = inputEl();
-    var q = inp ? inp.value.trim() : '';
-    if (!items.length && typeof window.bravaOnAddressNoResults === 'function') {
-      try {
-        window.bravaOnAddressNoResults({ outside_zone: meta.outside_zone, street_no_number: meta.street_no_number, query: q });
-      } catch (eNoRes) {}
-    }
-    showList(items, meta, q);
+  function getToken() {
+    if (mapboxToken) return Promise.resolve(mapboxToken);
+    if (tokenPromise) return tokenPromise;
+    tokenPromise = fetch('/api/mapbox-config')
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data.ok || !data.token) throw new Error('no_token');
+        mapboxToken = data.token;
+        return mapboxToken;
+      });
+    return tokenPromise;
   }
 
   function hideList() {
@@ -106,16 +73,40 @@
     inp.setAttribute('aria-expanded', 'true');
   }
 
-  function showList(items, meta, queryText) {
+  function parseFeature(f) {
+    var street = String(f.text || '').trim();
+    var num = f.address ? String(f.address).trim() : '';
+    var direccion = num ? street + ' ' + num : street;
+    if (!direccion) direccion = String(f.place_name || '').split(',')[0].trim();
+    var locality = '';
+    (f.context || []).forEach(function (c) {
+      var id = String(c.id || '');
+      if (!locality && (id.indexOf('place.') === 0 || id.indexOf('locality.') === 0)) {
+        locality = c.text || '';
+      }
+    });
+    return {
+      label: f.place_name || direccion,
+      direccion: direccion,
+      localidad: locality,
+      lng: f.center && f.center[0],
+      lat: f.center && f.center[1],
+    };
+  }
+
+  function showList(items) {
     var ul = listEl();
     var inp = inputEl();
     if (!ul || !inp) return;
-    meta = meta || {};
-    queryText = queryText != null ? queryText : inp.value.trim();
     lastSuggestions = items;
     ul.innerHTML = '';
     if (!items.length) {
-      showEmptyList(meta, queryText);
+      var empty = document.createElement('li');
+      empty.className = 'brava-addr-empty';
+      empty.setAttribute('aria-disabled', 'true');
+      empty.textContent = 'No encontramos direcciones. Probá con calle y altura.';
+      ul.appendChild(empty);
+      ul.classList.remove('hidden');
       return;
     }
     items.forEach(function (s, i) {
@@ -130,50 +121,8 @@
       });
       ul.appendChild(li);
     });
-    if (queryHasStreetNumber(queryText) && items.length && !items.some(function (s) { return s.pick_ready !== false; })) {
-      var hint = document.createElement('li');
-      hint.className = 'brava-addr-empty';
-      hint.setAttribute('aria-disabled', 'true');
-      hint.textContent = 'La calle está en nuestra zona, pero no confirmamos esa altura exacta';
-      ul.insertBefore(hint, ul.firstChild);
-    }
     ul.classList.remove('hidden');
     inp.setAttribute('aria-expanded', 'true');
-  }
-
-  function showEmptyList(meta, queryText) {
-    var ul = listEl();
-    var inp = inputEl();
-    if (!ul || !inp) return;
-    meta = meta || {};
-    queryText = queryText != null ? queryText : inp.value.trim();
-    lastSuggestions = [];
-    ul.innerHTML = '';
-    var li = document.createElement('li');
-    li.className = 'brava-addr-empty';
-    li.setAttribute('aria-disabled', 'true');
-    if (!queryHasStreetNumber(queryText)) {
-      li.textContent = 'No encontramos esa calle en nuestra zona';
-    } else if (meta.street_no_number) {
-      li.textContent = 'Calle en nuestra zona, pero no confirmamos esa altura';
-    } else if (meta.outside_zone) {
-      li.textContent = 'No llegamos ahí — fuera de nuestra zona de entrega';
-    } else {
-      li.textContent = 'No encontramos esa calle en nuestra zona';
-    }
-    ul.appendChild(li);
-    ul.classList.remove('hidden');
-    inp.setAttribute('aria-expanded', 'true');
-  }
-
-  function syncZonaFromLocalidad() {
-    if (zonaSyncTimer) clearTimeout(zonaSyncTimer);
-    zonaSyncTimer = setTimeout(function () {
-      var loc = localityEl() ? localityEl().value.trim() : '';
-      if (loc && typeof window.bravaSyncZonaEnvioFromLocalidad === 'function') {
-        window.bravaSyncZonaEnvioFromLocalidad(loc);
-      }
-    }, 180);
   }
 
   function pick(index) {
@@ -181,116 +130,52 @@
     if (!s) return;
     var inp = inputEl();
     var loc = localityEl();
-    if (s.pick_ready === false) {
-      if (inp) {
-        inp.value = s.direccion || '';
-        delete inp.dataset.lat;
-        delete inp.dataset.lng;
-        inp.classList.remove('brava-addr-picked');
-        inp.dataset.bravaStreetBrowse = '1';
-      }
-      if (loc && s.localidad) loc.value = s.localidad;
-      pickedFromList = false;
-      hideList();
-      if (typeof window.bravaOnStreetBrowsePick === 'function') {
-        try {
-          window.bravaOnStreetBrowsePick(s);
-        } catch (eBrowse) {}
-      }
-      if (inp) {
-        inp.focus();
-        var v = inp.value;
-        inp.value = '';
-        inp.value = v + ' ';
-      }
-      return;
-    }
-    if (inp) {
-      inp.value = s.direccion || '';
-      if (s.lat != null) inp.dataset.lat = String(s.lat);
-      else delete inp.dataset.lat;
-      if (s.lng != null) inp.dataset.lng = String(s.lng);
-      else delete inp.dataset.lng;
-    }
-    if (loc) loc.value = s.localidad || '';
-    pickedFromList = true;
-    inp && inp.classList.add('brava-addr-picked');
     hideList();
-    syncZonaFromLocalidad();
-    if (typeof window.bravaOnAddressPicked === 'function') {
-      try {
-        window.bravaOnAddressPicked(s);
-      } catch (ePick) {}
+    if (inp) {
+      inp.value = s.direccion || s.label || '';
+      if (s.lat != null) inp.dataset.lat = String(s.lat);
+      if (s.lng != null) inp.dataset.lng = String(s.lng);
+      inp.classList.add('brava-addr-picked');
     }
-  }
-
-  function locHintFromForm() {
-    var sel = document.getElementById('pregunta_10_respuesta');
-    if (sel && sel.selectedIndex >= 0) {
-      var opt = sel.options[sel.selectedIndex];
-      var zona = (opt && (opt.getAttribute('data-nombre') || opt.textContent)) || '';
-      zona = String(zona).trim();
-      if (zona && !/^[-—]/.test(zona) && !/selecciona/i.test(zona)) {
-        if (/olivos/i.test(zona)) return 'Olivos';
-        if (/la lucila/i.test(zona)) return 'La Lucila';
-        if (/mart[ií]nez/i.test(zona)) return 'Martínez';
-        if (/acasusso/i.test(zona)) return 'Acasusso';
-        if (/munro/i.test(zona)) return 'Munro';
-        if (/carapachay/i.test(zona)) return 'Carapachay';
-        if (/villa adelina/i.test(zona)) return 'Villa Adelina';
-        return zona.split(/\s+/)[0] || '';
-      }
+    if (loc && s.localidad) loc.value = s.localidad;
+    if (s.lng != null && s.lat != null && window.bravaCheckoutMap) {
+      window.bravaCheckoutMap.setPin(Number(s.lng), Number(s.lat), { skipFly: false });
+    } else if (typeof window.bravaApplyPinZone === 'function' && s.lng != null && s.lat != null) {
+      window.bravaApplyPinZone(
+        window.BravaDeliveryZone ? window.BravaDeliveryZone.findZona(s.lng, s.lat) : null,
+        s.lng,
+        s.lat
+      );
     }
-    var inp = inputEl();
-    if (inp && inp.classList.contains('brava-addr-picked')) {
-      var loc = localityEl() ? localityEl().value.trim() : '';
-      if (loc) return loc;
-    }
-    return '';
   }
 
   function fetchSuggestions(q) {
-    var hint = locHintFromForm();
-    var key = cacheKey(q + '|' + hint);
-    var cached = cachePayload(key);
-    if (cached) {
-      presentSuggestions(cached, key);
-      return;
-    }
-
-    fetchAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var seq = reqSeq;
+    var seq = ++reqSeq;
     showLoading();
-
-    var url = '/api/address-suggest?q=' + encodeURIComponent(q);
-    if (hint) url += '&loc=' + encodeURIComponent(hint);
-    var opts = { cache: 'default' };
-    if (fetchAbort) opts.signal = fetchAbort.signal;
-
-    fetch(url, opts)
-      .then(function (r) {
-        return r.json();
+    getToken()
+      .then(function (tok) {
+        var url =
+          'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
+          encodeURIComponent(q) +
+          '.json?country=ar&proximity=' +
+          PROXIMITY +
+          '&types=address&limit=8&language=es&autocomplete=true&access_token=' +
+          encodeURIComponent(tok);
+        if (fetchAbort) {
+          try {
+            fetchAbort.abort();
+          } catch (eA) {}
+        }
+        fetchAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        var opts = fetchAbort ? { signal: fetchAbort.signal } : {};
+        return fetch(url, opts).then(function (r) {
+          return r.json();
+        });
       })
       .then(function (data) {
         if (seq !== reqSeq) return;
-        if (!data.ok || !data.suggestions) {
-          hideList();
-          return;
-        }
-        cacheSet(key, {
-          suggestions: data.suggestions,
-          outside_zone: !!data.outside_zone,
-          street_no_number: !!data.street_no_number,
-        });
-        if (currentQueryKey() !== key) return;
-        presentSuggestions(
-          {
-            suggestions: data.suggestions,
-            outside_zone: !!data.outside_zone,
-            street_no_number: !!data.street_no_number,
-          },
-          key
-        );
+        var items = (data.features || []).map(parseFeature);
+        showList(items);
       })
       .catch(function (err) {
         if (err && err.name === 'AbortError') return;
@@ -302,51 +187,25 @@
   function onAddressInput() {
     var inp = inputEl();
     if (!inp) return;
-    pickedFromList = false;
     inp.classList.remove('brava-addr-picked');
     delete inp.dataset.lat;
     delete inp.dataset.lng;
-    var loc = localityEl();
-    if (loc) {
-      if (inp.dataset.bravaStreetBrowse === '1') {
-        delete inp.dataset.bravaStreetBrowse;
-      } else {
-        loc.value = '';
-      }
-    }
+    if (window.bravaCheckoutMap) window.bravaCheckoutMap.setZoneOk(false);
     if (typeof window.bravaResetZoneDelivery === 'function') {
       try {
         window.bravaResetZoneDelivery();
-      } catch (eReset) {}
+      } catch (eR) {}
     }
-    scheduleFetch();
-  }
-
-  function scheduleFetch() {
-    var inp = inputEl();
-    if (!inp) return;
     var q = inp.value.trim();
     if (debounceTimer) clearTimeout(debounceTimer);
     if (q.length < MIN_CHARS) {
-      invalidateInFlight();
+      reqSeq++;
       hideList();
       return;
-    }
-    invalidateInFlight();
-    showLoading();
-    var hint = locHintFromForm();
-    var key = cacheKey(q + '|' + hint);
-    var cached = cachePayload(key);
-    if (cached) {
-      presentSuggestions(cached, key);
     }
     debounceTimer = setTimeout(function () {
       fetchSuggestions(q);
     }, DEBOUNCE_MS);
-  }
-
-  function cacheKey(q) {
-    return q.toLowerCase();
   }
 
   function init() {
@@ -359,21 +218,8 @@
     inp.setAttribute('aria-controls', 'brava-addr-suggest');
 
     inp.addEventListener('input', onAddressInput);
-    var zonaSel = document.getElementById('pregunta_10_respuesta');
-    if (zonaSel) zonaSel.addEventListener('change', scheduleFetch);
     inp.addEventListener('blur', function () {
-      setTimeout(function () {
-        hideList();
-        if (pickedFromList) return;
-        var q = inp.value.trim();
-        if (
-          q.length >= MIN_CHARS &&
-          queryHasStreetNumber(q) &&
-          typeof window.bravaValidateAddressQuery === 'function'
-        ) {
-          window.bravaValidateAddressQuery(q);
-        }
-      }, 200);
+      setTimeout(hideList, 200);
     });
     inp.addEventListener('keydown', function (e) {
       if (!lastSuggestions.length) return;
@@ -396,47 +242,12 @@
     document.addEventListener('click', function (e) {
       if (!e.target.closest('.brava-addr-wrap')) hideList();
     });
-
-    var form = inp.closest('form');
-    if (form) {
-      form.addEventListener(
-        'submit',
-        function (e) {
-          var q = inp.value.trim();
-          var loc = localityEl() ? localityEl().value.trim() : '';
-          if (
-            window.bravaZoneDeliveryRequired &&
-            window.bravaZoneDeliveryRequired() &&
-            q.length >= MIN_CHARS &&
-            !pickedFromList
-          ) {
-            e.preventDefault();
-            e.stopPropagation();
-            alert('Elegí tu dirección de la lista para validar la zona de entrega.');
-            inp.focus();
-            return;
-          }
-          if (q.length >= MIN_CHARS && !pickedFromList) {
-            var ok = window.confirm(
-              'No elegiste una dirección de la lista.\n\n¿Enviar igual con la dirección escrita a mano?'
-            );
-            if (!ok) {
-              e.preventDefault();
-              e.stopPropagation();
-              inp.focus();
-            }
-          }
-        },
-        true
-      );
-    }
   }
 
   function highlightOption() {
     var ul = listEl();
     if (!ul) return;
-    var opts = ul.querySelectorAll('li[role="option"]');
-    opts.forEach(function (li, i) {
+    ul.querySelectorAll('li[role="option"]').forEach(function (li, i) {
       li.classList.toggle('is-active', i === activeIndex);
     });
   }

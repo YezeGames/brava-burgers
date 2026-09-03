@@ -14,7 +14,8 @@
 	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
-	<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css">
+	<link href="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.css" rel="stylesheet">
+	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 
 	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/js/bootstrap.bundle.min.js"></script>
@@ -148,10 +149,14 @@
 				<p class="brava-field brava-field-address">
 					<label id="pregunta_2_label">Calle y altura*</label>
 					<div class="brava-addr-wrap">
-						<input type="text" id="pregunta_2_respuesta" class="form-control brava-input" placeholder="Maipú 120" required autocomplete="off" aria-autocomplete="list" aria-controls="brava-addr-suggest" aria-expanded="false">
+						<input type="text" id="pregunta_2_respuesta" class="form-control brava-input" placeholder="Buscá tu dirección…" required autocomplete="off" aria-autocomplete="list" aria-controls="brava-addr-suggest" aria-expanded="false">
 						<ul id="brava-addr-suggest" class="brava-addr-suggest hidden" role="listbox" aria-label="Sugerencias de dirección"></ul>
 					</div>
 				</p>
+				<div id="brava-checkout-map-wrap" class="brava-checkout-map-wrap">
+					<p class="brava-map-label">Confirmá tu ubicación · zona naranja = entregamos</p>
+					<div id="brava-checkout-map" class="brava-checkout-map" role="application" aria-label="Mapa de entrega"></div>
+				</div>
 				<div id="zone-banner" class="zone-banner is-idle" role="status" aria-live="polite"></div>
 				<p class="brava-field brava-field-piso">
 					<label id="pregunta_4_label">Piso / Dpto</label>
@@ -230,9 +235,11 @@
 	<div class="helper_footer_padding" style="height:70px;display:none;"></div>
 
 	<script src="https://cdn.jsdelivr.net/gh/fancyapps/fancybox@3.5.7/dist/jquery.fancybox.min.js"></script>
+	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="brava-turnos.js?v=1"></script>
 	<script src="brava-delivery-zone-client.js?v=2"></script>
-	<script src="brava-shop.js?v=18"></script>
-	<script src="brava-address.js?v=13"></script>
+	<script src="brava-checkout-map.js?v=1"></script>
+	<script src="brava-shop.js?v=19"></script>
+	<script src="brava-address.js?v=14"></script>
 </body>
 </html>
