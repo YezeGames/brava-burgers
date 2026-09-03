@@ -8,8 +8,9 @@ const {
 /**
  * Autocompletado de dirección — reglas:
  * - Polígonos My Maps: solo definen ZONA de entrega (¿llegamos?) y costo (Sheet).
- * - Mapbox: fuente de verdad para CALLE + ALTURA (f.address). No inventar numeración.
- * - Sugerencia válida = Mapbox confirmó la altura + punto dentro de un polígono.
+ * - Mapbox: fuente de verdad para CALLE + ALTURA (f.address) cuando existe en la zona.
+ * - Si Mapbox solo devuelve la calle en zona (sin altura), se compone calle+altura del
+ *   cliente usando un punto de la calle dentro del polígono (zone_composed).
  */
 
 /** Localidades de las 7 zonas My Maps (hint + scoring) */
@@ -151,14 +152,16 @@ function expandQueries(q, locHint) {
 
   expandStreetAliases(q).forEach(push);
 
-  if (locHint && hasNumberInQuery(q)) {
+  if (hasNumberInQuery(q)) {
     ZONA_LOCALIDADES.forEach(function (zloc) {
-      if (normalizeLocText(zloc) === normalizeLocText(locHint)) return;
-      push(withLocHint(q, zloc));
+      if (locHint && normalizeLocText(zloc) === normalizeLocText(locHint)) return;
+      var withLoc = withLocHint(q, zloc);
+      push(withLoc);
+      expandStreetAliases(withLoc).forEach(push);
     });
   }
 
-  return out.slice(0, 8);
+  return out.slice(0, 14);
 }
 
 function hasNumberInQuery(q) {
@@ -448,6 +451,14 @@ function classifySuggestions(batches, q, locHint) {
   });
 
   inZone.sort(function (a, b) {
+    if (!!a.pick_ready !== !!b.pick_ready) return a.pick_ready ? -1 : 1;
+    return scoreSuggestion(b, locHint) - scoreSuggestion(a, locHint);
+  });
+
+  appendComposedStreetNumbers(inZone, batches, q, locHint);
+
+  inZone.sort(function (a, b) {
+    if (!!a.pick_ready !== !!b.pick_ready) return a.pick_ready ? -1 : 1;
     return scoreSuggestion(b, locHint) - scoreSuggestion(a, locHint);
   });
 
@@ -488,10 +499,14 @@ function queryNumber(q) {
   return m ? m[0] : '';
 }
 
-/** Solo alturas que Mapbox devolvió explícitamente (no inventar numeración). */
+/** Solo alturas confirmadas por Mapbox o compuestas sobre calle verificada en zona. */
 function hasVerifiedNumber(s, q) {
   var queryNum = queryNumber(q);
   if (!queryNum) return true;
+
+  if (s.zone_composed) {
+    return String(s.mapbox_number || '').trim() === queryNum;
+  }
 
   var mapboxNum = String(s.mapbox_number || '').trim();
   if (mapboxNum) return mapboxNum === queryNum;
@@ -502,6 +517,120 @@ function hasVerifiedNumber(s, q) {
   var dirMatch = String(s.direccion || '').match(/\d+/);
   if (!dirMatch) return false;
   return dirMatch[0] === queryNum;
+}
+
+/** Calle en polígono + altura escrita cuando Mapbox no devuelve esa numeración en zona. */
+function appendComposedStreetNumbers(inZone, batches, q, locHint) {
+  var qNum = queryNumber(q);
+  if (!qNum) return;
+
+  var hasReady = inZone.some(function (s) {
+    return s.pick_ready && hasVerifiedNumber(s, q) && !s.zone_composed;
+  });
+  if (hasReady) return;
+
+  var anchors = [];
+  batches.forEach(function (list) {
+    list.forEach(function (s) {
+      if (s.lng == null || s.lat == null) return;
+      if (!streetMatchesQuery(s, q)) return;
+
+      var zona = null;
+      try {
+        zona = findDeliveryZoneName(s.lng, s.lat);
+      } catch (eZone) {
+        zona = null;
+      }
+      if (!zona) return;
+
+      var acc = normalizeLocText(s.accuracy);
+      var noMapboxNum = !String(s.mapbox_number || '').trim();
+      if (!noMapboxNum && hasVerifiedNumber(s, q)) return;
+
+      if (acc !== 'street' && acc !== 'approximate' && !noMapboxNum) return;
+
+      var streetOnly = String(s.direccion || '')
+        .replace(/\s+\d+.*$/, '')
+        .trim();
+      if (!streetOnly) return;
+
+      anchors.push({
+        street: streetOnly,
+        localidad: s.localidad || '',
+        lng: s.lng,
+        lat: s.lat,
+        zona: zona,
+        relevance: s.relevance || 0,
+      });
+    });
+  });
+
+  if (!anchors.length) return;
+
+  var groups = Object.create(null);
+  anchors.forEach(function (a) {
+    var key = normalizeAddrKey(a.street) + '|' + normalizeLocText(a.zona);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(a);
+  });
+
+  var composedBareKeys = Object.create(null);
+
+  Object.keys(groups).forEach(function (key) {
+    var list = groups[key];
+    var anchor = pickStreetAnchorForNumber(list, qNum);
+    var direccion = anchor.street + ' ' + qNum;
+    var bareKey = normalizeAddrKey(anchor.street) + '|' + normalizeLocText(anchor.zona);
+    if (composedBareKeys[bareKey + '_added']) return;
+    composedBareKeys[bareKey + '_added'] = true;
+    composedBareKeys[bareKey] = true;
+
+    var exists = inZone.some(function (s) {
+      return (
+        s.pick_ready &&
+        normalizeAddrKey(s.direccion) === normalizeAddrKey(direccion) &&
+        normalizeLocText(s.zona) === normalizeLocText(anchor.zona)
+      );
+    });
+    if (exists) return;
+
+    var composed = {
+      label: '',
+      direccion: direccion,
+      localidad: anchor.localidad,
+      lng: anchor.lng,
+      lat: anchor.lat,
+      mapbox_number: qNum,
+      relevance: anchor.relevance,
+      accuracy: 'zone_composed',
+      zona: anchor.zona,
+      pick_ready: true,
+      zone_composed: true,
+    };
+    withZonaLabel(composed, false);
+    inZone.unshift(composed);
+  });
+
+  // Quitar browse sin altura si ya hay compuesta para la misma calle+zona
+  for (var i = inZone.length - 1; i >= 0; i--) {
+    var item = inZone[i];
+    if (item.pick_ready || item.zone_composed) continue;
+    var bare = normalizeAddrKey(item.direccion);
+    if (composedBareKeys[bare + '|' + normalizeLocText(item.zona || '')]) {
+      inZone.splice(i, 1);
+    }
+  }
+}
+
+function pickStreetAnchorForNumber(anchors, qNum) {
+  if (anchors.length === 1) return anchors[0];
+  var num = parseInt(qNum, 10) || 0;
+  var sorted = anchors.slice().sort(function (a, b) {
+    return a.lat - b.lat;
+  });
+  if (num >= 1000) return sorted[0];
+  if (num >= 400) return sorted[Math.floor(sorted.length / 2)] || sorted[0];
+  return sorted[sorted.length - 1];
 }
 
 function streetTokensFromQuery(q) {
