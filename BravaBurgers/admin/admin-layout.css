@@ -880,9 +880,208 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	background: var(--bg-surface);
 	border: 1px solid var(--border);
 	border-radius: 10px;
-	padding: 14px;
-	margin-bottom: 12px;
+	padding: 12px 14px;
+	margin-bottom: 0;
 	box-shadow: var(--shadow-card);
+}
+
+/* Páginas secundarias (reparto, caja) — ancho contenido */
+.view-page {
+	max-width: 920px;
+	width: 100%;
+}
+
+.view-hint {
+	font-size: 0.75rem;
+	color: var(--text-subtle);
+	margin: 0 0 12px;
+	line-height: 1.4;
+}
+
+/* —— Reparto —— */
+.view-page--reparto .reparto-box h2 {
+	margin: 0 0 4px;
+	font-size: 0.95rem;
+}
+
+.reparto-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 320px) minmax(0, 1fr);
+	gap: 14px;
+	align-items: start;
+}
+
+.reparto-fields-row {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 10px;
+	margin-bottom: 8px;
+}
+
+#view-reparto .reparto-field {
+	margin-bottom: 0;
+}
+
+#view-reparto .reparto-field label {
+	display: block;
+	font-size: 0.68rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--text-subtle);
+	margin-bottom: 4px;
+}
+
+#view-reparto .reparto-field input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 7px 10px;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--input-bg, var(--bg-surface-muted));
+	color: var(--text);
+	font-size: 0.78rem;
+	font-family: inherit;
+}
+
+#view-reparto .reparto-stats {
+	font-size: 0.75rem;
+	margin: 0 0 8px;
+	color: var(--text-muted);
+}
+
+#view-reparto .reparto-route-list {
+	max-height: 88px;
+	margin-bottom: 8px;
+}
+
+#view-reparto .reparto-hoja {
+	width: 100%;
+	box-sizing: border-box;
+	min-height: 64px;
+	max-height: 100px;
+	margin-top: 8px;
+	padding: 8px 10px;
+	font-size: 0.72rem;
+	line-height: 1.35;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--input-bg, var(--bg-surface-muted));
+	color: var(--text);
+	font-family: inherit;
+	resize: vertical;
+}
+
+#view-reparto .reparto-map-wrap {
+	position: relative;
+	height: 180px;
+	width: 100%;
+	margin-bottom: 6px;
+}
+
+#view-reparto .reparto-route-status {
+	font-size: 0.72rem;
+	min-height: 1em;
+	margin: 0 0 8px;
+}
+
+#view-reparto .reparto-actions {
+	display: flex;
+	flex-direction: row;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin-top: 0;
+}
+
+#view-reparto .reparto-actions .btn-sm {
+	width: auto;
+	flex: 1 1 calc(50% - 6px);
+	min-width: 0;
+	text-align: center;
+	padding: 7px 8px;
+	font-size: 0.72rem;
+	border-radius: 8px;
+}
+
+/* —— Caja —— */
+.view-page--caja {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	grid-template-areas:
+		"resumen saldos"
+		"ventas movimientos";
+	gap: 12px;
+}
+
+.view-page--caja .caja-box {
+	grid-area: resumen;
+}
+
+.view-page--caja .saldos-usuario-box {
+	grid-area: saldos;
+}
+
+.view-page--caja .ventas-box {
+	grid-area: ventas;
+}
+
+.view-page--caja .movimientos-box {
+	grid-area: movimientos;
+}
+
+#view-caja .sidebar-block h2 {
+	margin: 0 0 8px;
+	font-size: 0.9rem;
+}
+
+#view-caja .caja-hint,
+#view-caja .range-label {
+	font-size: 0.72rem;
+	line-height: 1.35;
+}
+
+#view-caja .caja-row.section {
+	font-size: 0.68rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-subtle);
+	margin: 10px 0 4px;
+}
+
+#view-caja .mov-list {
+	max-height: 140px;
+	overflow-y: auto;
+	font-size: 0.78rem;
+}
+
+#view-caja .mov-actions {
+	display: flex;
+	gap: 8px;
+}
+
+#view-caja .mov-actions .btn-sm {
+	flex: 1;
+	text-align: center;
+}
+
+@media (max-width: 820px) {
+	.reparto-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.reparto-fields-row {
+		grid-template-columns: 1fr;
+	}
+
+	.view-page--caja {
+		grid-template-columns: 1fr;
+		grid-template-areas:
+			"resumen"
+			"saldos"
+			"ventas"
+			"movimientos";
+	}
 }
 
 #view-caja .sidebar-block:last-child,

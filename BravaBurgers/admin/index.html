@@ -1390,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=4" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=5" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1485,37 +1485,47 @@
 					</section>
 
 					<section class="admin-view" id="view-reparto" hidden>
-						<aside class="reparto-box">
-							<h2>Ruta del turno</h2>
-							<p class="caja-hint">Tildá <strong>Ruta</strong> en <strong>En preparación</strong>, armá mapa/hoja y marcá en camino acá.</p>
-							<div class="reparto-field">
-								<label for="reparto-origin">Salida cocina</label>
-								<input type="text" id="reparto-origin" autocomplete="off" placeholder="Diaz Velez 3231, Olivos" value="Diaz Velez 3231, Olivos">
-								<p class="caja-hint" style="margin-top:4px;">Solo se guarda en este navegador.</p>
+						<div class="view-page view-page--reparto">
+							<div class="reparto-box">
+								<h2>Ruta del turno</h2>
+								<p class="view-hint">Tildá <strong>Ruta</strong> en <strong>En preparación</strong>, armá mapa/hoja y marcá en camino acá.</p>
+								<div class="reparto-layout">
+									<div class="reparto-panel reparto-panel--info">
+										<div class="reparto-fields-row">
+											<div class="reparto-field">
+												<label for="reparto-origin">Salida cocina</label>
+												<input type="text" id="reparto-origin" autocomplete="off" placeholder="Diaz Velez 3231, Olivos" value="Diaz Velez 3231, Olivos">
+											</div>
+											<div class="reparto-field">
+												<label for="reparto-deli-wa">WhatsApp repartidor</label>
+												<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…">
+											</div>
+										</div>
+										<p class="reparto-stats">Paradas: <strong id="reparto-n-stops">0</strong> · Efectivo: <strong id="reparto-ef-total">$0</strong></p>
+										<p class="reparto-empty hidden" id="reparto-no-candidates">No hay pedidos en preparación o en camino con dirección.</p>
+										<ol class="reparto-route-list" id="reparto-route-list" aria-label="Orden de paradas"></ol>
+										<textarea class="reparto-hoja" id="reparto-hoja" readonly placeholder="Hoja para el repartidor…"></textarea>
+									</div>
+									<div class="reparto-panel reparto-panel--map">
+										<div class="reparto-map-wrap">
+											<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» y tildá Ruta en En preparación.</div>
+											<div id="reparto-map" class="hidden" hidden></div>
+										</div>
+										<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
+										<div class="reparto-actions">
+											<button type="button" class="btn-sm btn-accent" id="reparto-btn-dispatch" disabled>Marcar en camino</button>
+											<button type="button" class="btn-sm btn-accent" id="reparto-btn-wa" disabled>Enviar al deli (WA + Google)</button>
+											<button type="button" class="btn-sm" id="reparto-btn-gmaps" disabled>Google Maps</button>
+											<button type="button" class="btn-sm" id="reparto-btn-copy" disabled>Copiar hoja</button>
+										</div>
+									</div>
+								</div>
 							</div>
-							<div class="reparto-field">
-								<label for="reparto-deli-wa">WhatsApp repartidor</label>
-								<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…">
-							</div>
-							<p class="reparto-empty hidden" id="reparto-no-candidates">No hay pedidos en preparación o en camino con dirección.</p>
-							<p class="reparto-stats">Paradas: <strong id="reparto-n-stops">0</strong> · Efectivo: <strong id="reparto-ef-total">$0</strong></p>
-							<ol class="reparto-route-list" id="reparto-route-list" aria-label="Orden de paradas"></ol>
-							<div class="reparto-map-wrap">
-								<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» y tildá Ruta en En preparación.</div>
-								<div id="reparto-map" class="hidden" hidden></div>
-							</div>
-							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
-							<div class="reparto-actions">
-								<button type="button" class="btn-sm btn-accent" id="reparto-btn-dispatch" disabled>Marcar en camino</button>
-								<button type="button" class="btn-sm btn-accent" id="reparto-btn-wa" disabled>Enviar al deli (WA + Google)</button>
-								<button type="button" class="btn-sm" id="reparto-btn-gmaps" disabled>Abrir Google Maps</button>
-								<button type="button" class="btn-sm" id="reparto-btn-copy" disabled>Copiar hoja</button>
-							</div>
-							<textarea class="reparto-hoja" id="reparto-hoja" readonly placeholder="Hoja para el repartidor…"></textarea>
-						</aside>
+						</div>
 					</section>
 
 					<section class="admin-view" id="view-caja" hidden>
+						<div class="view-page view-page--caja">
 						<aside class="sidebar-block caja-box">
 							<h2>Resumen operativo</h2>
 							<p class="range-label" id="caja-range">—</p>
@@ -1550,6 +1560,7 @@
 							<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
 							<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
 						</aside>
+						</div>
 					</section>
 
 					<section class="admin-view" id="view-historial" hidden>
@@ -2019,6 +2030,6 @@
 	<script src="/admin/comanda.js?v=16"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
-	<script src="/admin/admin.js?v=105"></script>
+	<script src="/admin/admin.js?v=106"></script>
 </body>
 </html>

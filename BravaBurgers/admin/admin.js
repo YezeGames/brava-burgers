@@ -4204,25 +4204,35 @@
 
       }
 
-      var wa = telWa(o.telefono);
+      var histTabs = ['entregada', 'cancelada', 'rechazado'];
 
-      var a = document.createElement('a');
+      if (histTabs.indexOf(panelEstado) < 0) {
 
-      a.className = 'btn-wa';
+        var wa = telWa(o.telefono);
 
-      var waFirst = (o.cliente || '').trim().split(/\s+/)[0];
+        if (wa) {
 
-      var waIntro = waFirst ? 'Hola ' + waFirst + ', somos Brava Burgers.' : 'Hola, somos Brava Burgers.';
+          var a = document.createElement('a');
 
-      a.href = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waIntro);
+          a.className = 'btn-wa';
 
-      a.target = '_blank';
+          var waFirst = (o.cliente || '').trim().split(/\s+/)[0];
 
-      a.rel = 'noopener';
+          var waIntro = waFirst ? 'Hola ' + waFirst + ', somos Brava Burgers.' : 'Hola, somos Brava Burgers.';
 
-      a.innerHTML = '<i class="fab fa-whatsapp"></i>';
+          a.href = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waIntro);
 
-      actions.appendChild(a);
+          a.target = '_blank';
+
+          a.rel = 'noopener';
+
+          a.innerHTML = '<i class="fab fa-whatsapp"></i>';
+
+          actions.appendChild(a);
+
+        }
+
+      }
 
       side.appendChild(actions);
 
