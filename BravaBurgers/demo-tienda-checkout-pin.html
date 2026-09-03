@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — Checkout Brava · Mapbox + pin (estilo RoadRunner)</title>
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
+	<link href="brava-brand.css?v=94" rel="stylesheet">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			background: #121212;
+			color: #eee;
+			font-family: 'DM Sans', system-ui, sans-serif;
+		}
+		.demo-topbar {
+			background: #1a1a1a;
+			border-bottom: 1px solid #333;
+			padding: 10px 16px;
+			font-size: 0.82rem;
+			line-height: 1.45;
+			color: #aaa;
+		}
+		.demo-topbar strong { color: #ff6b35; }
+		.demo-topbar code { background: #252525; padding: 1px 5px; border-radius: 4px; font-size: 0.76rem; }
+		.demo-hero {
+			text-align: center;
+			padding: 28px 16px 12px;
+		}
+		.demo-hero h1 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 2.6rem;
+			letter-spacing: 0.06em;
+			color: #ff6b35;
+			margin: 0;
+		}
+		.demo-hero p { margin: 6px 0 0; color: #888; font-size: 0.88rem; }
+		.demo-layout {
+			max-width: 960px;
+			margin: 0 auto;
+			padding: 12px 14px 40px;
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 820px) {
+			.demo-layout { grid-template-columns: 1fr; }
+		}
+		.demo-panel {
+			background: #1a1a1a;
+			border: 1px solid #333;
+			border-radius: 12px;
+			overflow: hidden;
+		}
+		.demo-panel-head {
+			padding: 12px 16px;
+			border-bottom: 1px solid #333;
+			font-weight: 700;
+			font-size: 0.88rem;
+			color: #ff6b35;
+		}
+		#preguntas_pedido {
+			display: block !important;
+			max-width: none;
+			box-shadow: none;
+			border-radius: 0;
+			background: transparent;
+		}
+		#preguntas_pedido .brava-checkout-inner { padding: 14px 16px 16px; }
+		#preguntas_pedido_encabezado { font-size: 1rem; }
+		.demo-map-wrap { padding: 12px; }
+		#demo-map {
+			height: 340px;
+			width: 100%;
+			border-radius: 8px;
+			border: 1px solid #444;
+		}
+		.demo-map-hint {
+			font-size: 0.75rem;
+			color: #888;
+			margin: 8px 0 0;
+			line-height: 1.4;
+		}
+		.demo-map-hint kbd {
+			background: #252525;
+			border: 1px solid #444;
+			border-radius: 4px;
+			padding: 1px 5px;
+			font-size: 0.7rem;
+		}
+		.demo-quick {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			padding: 0 16px 12px;
+		}
+		.demo-quick-label { width: 100%; font-size: 0.72rem; color: #666; margin-bottom: 2px; }
+		.demo-quick button {
+			border: 1px solid #444;
+			background: #252525;
+			color: #ccc;
+			border-radius: 999px;
+			padding: 5px 11px;
+			font-size: 0.72rem;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.demo-quick button:hover { border-color: #ff6b35; color: #ff6b35; }
+		.demo-quick .out { border-color: #7a3030; color: #e57373; }
+		.zone-banner.is-idle { display: none; }
+		.zone-banner.is-warn {
+			display: block;
+			background: rgba(255, 193, 7, 0.12);
+			color: #ffc107;
+			border: 1px solid rgba(255, 193, 7, 0.35);
+		}
+		.brava-addr-suggest {
+			background: #1a1a1a;
+			border-color: #ff6b35;
+		}
+		.demo-result {
+			margin: 12px 16px 16px;
+			padding: 12px;
+			border-radius: 8px;
+			background: #252525;
+			border: 1px solid #333;
+			font-size: 0.78rem;
+			line-height: 1.5;
+			color: #aaa;
+			display: none;
+		}
+		.demo-result.visible { display: block; }
+		.demo-result strong { color: #eee; }
+		.map-loading {
+			height: 340px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: #666;
+			font-size: 0.85rem;
+			border: 1px dashed #444;
+			border-radius: 8px;
+		}
+	</style>
+</head>
+<body class="brava-shop-b brava-has-bg-image" id="page-top">
+
+<div class="demo-topbar">
+	<strong>Demo · no producción</strong> — Checkout estilo <strong>RoadRunner</strong>: Mapbox sugiere direcciones,
+	<strong>el pin en el mapa manda</strong> para saber si llegamos. Abrí con
+	<code>npx vercel dev</code> o en Vercel:
+	<code>/demo-tienda-checkout-pin.html</code>
+</div>
+
+<div class="demo-hero">
+	<h1>BRAVA BURGERS</h1>
+	<p>Propuesta checkout entrega · Mapbox + pin arrastrable</p>
+</div>
+
+<div class="demo-layout">
+	<div class="demo-panel">
+		<div class="demo-panel-head">Completá tu pedido</div>
+		<div class="demo-quick" id="demo-quick"></div>
+
+		<div id="preguntas_pedido">
+			<div class="brava-checkout-inner">
+				<div class="brava-checkout-head">
+					<div id="preguntas_pedido_encabezado">Entrega</div>
+				</div>
+				<form class="brava-checkout-body" id="demo-form" onsubmit="return Demo.onSubmit(event);">
+					<fieldset class="brava-checkout-section">
+						<legend class="brava-checkout-section-title">Tus datos</legend>
+						<div class="brava-checkout-grid-2">
+							<p class="brava-field">
+								<label>Nombre*</label>
+								<input type="text" class="form-control brava-input" value="Cliente demo" required>
+							</p>
+							<p class="brava-field">
+								<label>WhatsApp*</label>
+								<input type="tel" class="form-control brava-input" value="11 7372-1945" required>
+							</p>
+						</div>
+					</fieldset>
+
+					<fieldset class="brava-checkout-section">
+						<legend class="brava-checkout-section-title">Dirección</legend>
+						<p class="brava-field brava-field-address">
+							<label for="addr-input">Calle y altura*</label>
+							<div class="brava-addr-wrap">
+								<input type="text" id="addr-input" class="form-control brava-input"
+									placeholder="Maipú 1700" required autocomplete="off"
+									aria-autocomplete="list" aria-controls="addr-suggest">
+								<ul id="addr-suggest" class="brava-addr-suggest hidden" role="listbox"></ul>
+							</div>
+						</p>
+						<div id="zone-banner" class="zone-banner is-pending" role="status">
+							Buscá tu dirección o mové el pin en el mapa.
+						</div>
+						<p class="brava-field brava-field-piso">
+							<label>Piso / Dpto</label>
+							<input type="text" class="form-control brava-input" placeholder="Opcional">
+						</p>
+					</fieldset>
+
+					<input type="hidden" id="zona-select-value" value="">
+					<div class="brava-checkout-foot">
+						<div class="brava-checkout-actions">
+							<button type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" id="btn-submit" disabled>
+								Confirmar pedido demo
+							</button>
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+
+		<div class="demo-result" id="demo-result"></div>
+	</div>
+
+	<div class="demo-panel">
+		<div class="demo-panel-head">Mapa · confirmá ubicación</div>
+		<div class="demo-map-wrap">
+			<div id="map-shell" class="map-loading">Cargando mapa…</div>
+			<div id="demo-map" class="hidden"></div>
+			<p class="demo-map-hint">
+				Arrastrá el pin naranja hasta tu entrada. La <strong>zona de entrega</strong> se valida
+				con el pin, no solo con el texto. Estilo apps de rider.
+			</p>
+		</div>
+	</div>
+</div>
+
+<script src="demo-zona-entrega-data.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+<script>
+(function () {
+	'use strict';
+
+	var API_BASE =
+		location.hostname === 'brava-burgers.vercel.app' ||
+		location.hostname === 'localhost' ||
+		location.hostname === '127.0.0.1'
+			? ''
+			: 'https://brava-burgers.vercel.app';
+
+	var CENTER = [-58.489, -34.513];
+	var DEBOUNCE = 120;
+	var MIN_CHARS = 3;
+
+	var geo = window.BRAVA_DEMO_GEOJSON || { features: [] };
+	var costos = window.BRAVA_DEMO_ZONA_COSTOS || [];
+	var presets = window.BRAVA_DEMO_PRESETS || [];
+
+	var zones = [];
+	var map = null;
+	var marker = null;
+	var debounceTimer = null;
+	var suggestSeq = 0;
+	var pinLngLat = null;
+	var zoneOk = false;
+
+	function $(id) { return document.getElementById(id); }
+
+	function apiUrl(path) { return API_BASE + path; }
+
+	(geo.features || []).forEach(function (f) {
+		if (!f.geometry || f.geometry.type !== 'Polygon') return;
+		zones.push({
+			nombre: (f.properties && f.properties.nombre) || '?',
+			ring: f.geometry.coordinates[0],
+			geojson: f,
+		});
+	});
+
+	function pointInRing(lng, lat, ring) {
+		var inside = false;
+		for (var i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+			var xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+			if (yi > lat !== yj > lat && lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
+		}
+		return inside;
+	}
+
+	function findZona(lng, lat) {
+		var matches = zones.filter(function (z) { return pointInRing(lng, lat, z.ring); });
+		if (!matches.length) return null;
+		matches.sort(function (a, b) {
+			return ringArea(a.ring) - ringArea(b.ring);
+		});
+		return matches[0].nombre;
+	}
+
+	function ringArea(ring) {
+		var a = 0;
+		for (var i = 0; i < ring.length; i++) {
+			var j = i === 0 ? ring.length - 1 : i - 1;
+			a += ring[i][0] * ring[j][1] - ring[j][0] * ring[i][1];
+		}
+		return Math.abs(a) / 2;
+	}
+
+	function costoFor(zonaMapa) {
+		return costos.find(function (c) { return c.nombre === zonaMapa; }) || null;
+	}
+
+	function setBanner(kind, text) {
+		var el = $('zone-banner');
+		el.className = 'zone-banner is-' + kind;
+		el.textContent = text;
+	}
+
+	function setSubmit(on) {
+		$('btn-submit').disabled = !on;
+		zoneOk = !!on;
+	}
+
+	function applyPin(lng, lat, opts) {
+		opts = opts || {};
+		pinLngLat = { lng: lng, lat: lat };
+		if (marker) marker.setLngLat([lng, lat]);
+		if (map && !opts.skipMove) map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 15), duration: 600 });
+
+		var zona = findZona(lng, lat);
+		var addr = ($('addr-input').value || '').trim();
+		if (!zona) {
+			setBanner('outside', '✗ Fuera de zona — mové el pin adentro del área naranja o escribinos por WhatsApp.');
+			setSubmit(false);
+			$('zona-select-value').value = '';
+			return;
+		}
+		var row = costoFor(zona);
+		var envio = row ? row.costo : '?';
+		var sheet = row ? row.sheetNombre : zona;
+		$('zona-select-value').value = sheet;
+		if (!addr) {
+			setBanner('warn', '✓ Pin en ' + zona + ' (envío $' + envio + '). Completá calle y altura arriba.');
+			setSubmit(false);
+			return;
+		}
+		setBanner('inside', '✓ Entregamos en ' + zona + ' · envío $' + envio + (opts.label ? ' · ' + opts.label : ''));
+		setSubmit(true);
+	}
+
+	function hideSuggest() {
+		var ul = $('addr-suggest');
+		ul.classList.add('hidden');
+		ul.innerHTML = '';
+	}
+
+	function showSuggest(items) {
+		var ul = $('addr-suggest');
+		ul.innerHTML = '';
+		if (!items.length) { hideSuggest(); return; }
+		items.forEach(function (s, i) {
+			var li = document.createElement('li');
+			li.textContent = s.label || s.direccion;
+			li.setAttribute('role', 'option');
+			li.addEventListener('mousedown', function (e) {
+				e.preventDefault();
+				pickSuggestion(s);
+			});
+			ul.appendChild(li);
+		});
+		ul.classList.remove('hidden');
+	}
+
+	function pickSuggestion(s) {
+		hideSuggest();
+		if (s.direccion) $('addr-input').value = s.direccion;
+		if (s.lng != null && s.lat != null) {
+			applyPin(Number(s.lng), Number(s.lat), { label: s.label || s.direccion, skipMove: false });
+		} else if (pinLngLat) {
+			applyPin(pinLngLat.lng, pinLngLat.lat, { label: s.direccion });
+		}
+	}
+
+	function fetchSuggest(q) {
+		var seq = ++suggestSeq;
+		var url = apiUrl('/api/address-suggest?q=' + encodeURIComponent(q));
+		fetch(url)
+			.then(function (r) { return r.json(); })
+			.then(function (data) {
+				if (seq !== suggestSeq) return;
+				if (!data.ok) { hideSuggest(); return; }
+				var items = data.suggestions || [];
+				showSuggest(items);
+				if (!items.length && data.outside_zone) {
+					setBanner('outside', '✗ Esa dirección parece fuera de nuestra zona. Mové el pin si estás adentro.');
+					setSubmit(false);
+				} else if (!items.length && data.street_no_number) {
+					setBanner('warn', '⚠ Calle en zona, altura no confirmada por Mapbox. Mové el pin a tu entrada.');
+				}
+			})
+			.catch(function () { hideSuggest(); });
+	}
+
+	function onInput() {
+		var q = $('addr-input').value.trim();
+		if (debounceTimer) clearTimeout(debounceTimer);
+		if (q.length < MIN_CHARS) { hideSuggest(); return; }
+		debounceTimer = setTimeout(function () { fetchSuggest(q); }, DEBOUNCE);
+		if (pinLngLat) applyPin(pinLngLat.lng, pinLngLat.lat, { skipMove: true });
+	}
+
+	function buildQuick() {
+		var wrap = $('demo-quick');
+		var label = document.createElement('span');
+		label.className = 'demo-quick-label';
+		label.textContent = 'Probar rápido:';
+		wrap.appendChild(label);
+		presets.forEach(function (p) {
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.textContent = p.localidad || p.label;
+			if (p.localidad === 'CABA' || p.localidad === 'Microcentro') btn.className = 'out';
+			btn.addEventListener('click', function () {
+				$('addr-input').value = p.direccion || p.label;
+				applyPin(p.lng, p.lat, { label: p.label });
+				hideSuggest();
+			});
+			wrap.appendChild(btn);
+		});
+	}
+
+	function zoneLayers() {
+		return {
+			type: 'FeatureCollection',
+			features: zones.map(function (z) { return z.geojson; }),
+		};
+	}
+
+	function initMap(token) {
+		$('map-shell').classList.add('hidden');
+		$('demo-map').classList.remove('hidden');
+		mapboxgl.accessToken = token;
+		map = new mapboxgl.Map({
+			container: 'demo-map',
+			style: 'mapbox://styles/mapbox/dark-v11',
+			center: CENTER,
+			zoom: 13,
+		});
+		map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), 'top-right');
+
+		map.on('load', function () {
+			map.addSource('brava-zones', { type: 'geojson', data: zoneLayers() });
+			map.addLayer({
+				id: 'zones-fill',
+				type: 'fill',
+				source: 'brava-zones',
+				paint: { 'fill-color': '#ff6b35', 'fill-opacity': 0.15 },
+			});
+			map.addLayer({
+				id: 'zones-line',
+				type: 'line',
+				source: 'brava-zones',
+				paint: { 'line-color': '#ff6b35', 'line-width': 2, 'line-opacity': 0.85 },
+			});
+			zones.forEach(function (z) {
+				new mapboxgl.Popup({ closeButton: false, closeOnClick: false, offset: 8 })
+					.setLngLat(ringCentroid(z.ring))
+					.setHTML('<span style="font-size:11px;font-weight:700;color:#ff6b35">' + z.nombre + '</span>')
+					.addTo(map);
+			});
+
+			marker = new mapboxgl.Marker({ color: '#ff6b35', draggable: true })
+				.setLngLat(CENTER)
+				.addTo(map);
+
+			pinLngLat = { lng: CENTER[0], lat: CENTER[1] };
+			applyPin(CENTER[0], CENTER[1], { skipMove: true });
+
+			marker.on('dragend', function () {
+				var ll = marker.getLngLat();
+				applyPin(ll.lng, ll.lat, { skipMove: true });
+			});
+
+			map.on('click', function (e) {
+				applyPin(e.lngLat.lng, e.lngLat.lat);
+			});
+		});
+	}
+
+	function ringCentroid(ring) {
+		var lng = 0, lat = 0, n = ring.length - 1;
+		for (var i = 0; i < n; i++) { lng += ring[i][0]; lat += ring[i][1]; }
+		return [lng / n, lat / n];
+	}
+
+	function loadMapbox() {
+		fetch(apiUrl('/api/mapbox-config'))
+			.then(function (r) { return r.json(); })
+			.then(function (data) {
+				if (!data.ok || !data.token) throw new Error('no token');
+				initMap(data.token);
+			})
+			.catch(function () {
+				$('map-shell').textContent = 'No se pudo cargar Mapbox. Abrí desde Vercel o vercel dev.';
+			});
+	}
+
+	function onSubmit(e) {
+		e.preventDefault();
+		var res = $('demo-result');
+		var zona = $('zona-select-value').value;
+		var addr = $('addr-input').value.trim();
+		var pin = pinLngLat;
+		res.innerHTML =
+			'<strong>Pedido demo OK</strong><br>' +
+			'Dirección escrita: ' + addr + '<br>' +
+			'Pin: ' + (pin ? pin.lat.toFixed(5) + ', ' + pin.lng.toFixed(5) : '—') + '<br>' +
+			'Zona Sheet: ' + (zona || '—') + '<br>' +
+			'<span style="color:#666">En producción esto iría a Supabase + WhatsApp.</span>';
+		res.classList.add('visible');
+		return false;
+	}
+
+	$('addr-input').addEventListener('input', onInput);
+	document.addEventListener('click', function (e) {
+		if (!e.target.closest('.brava-addr-wrap')) hideSuggest();
+	});
+
+	buildQuick();
+	loadMapbox();
+
+	window.Demo = { onSubmit: onSubmit, applyPin: applyPin };
+})();
+</script>
+</body>
+</html>

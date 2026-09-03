@@ -130,6 +130,13 @@
       });
       ul.appendChild(li);
     });
+    if (queryHasStreetNumber(queryText) && items.length && !items.some(function (s) { return s.pick_ready !== false; })) {
+      var hint = document.createElement('li');
+      hint.className = 'brava-addr-empty';
+      hint.setAttribute('aria-disabled', 'true');
+      hint.textContent = 'La calle está en nuestra zona, pero no confirmamos esa altura exacta';
+      ul.insertBefore(hint, ul.firstChild);
+    }
     ul.classList.remove('hidden');
     inp.setAttribute('aria-expanded', 'true');
   }
