@@ -338,12 +338,12 @@
   }
 
   function syncMainTableRepartoUi() {
-    document.querySelectorAll('#orders-table .reparto-order-cb').forEach(function (cb) {
+    document.querySelectorAll('#orders-list .reparto-order-cb').forEach(function (cb) {
       var orn = cb.getAttribute('data-orn');
       var on = isOrnSelected(orn);
       cb.checked = on;
-      var tr = cb.closest('tr');
-      if (tr) tr.classList.toggle('row-reparto-on', on);
+      var card = cb.closest('.order-card');
+      if (card) card.classList.toggle('row-reparto-on', on);
     });
   }
 
@@ -467,16 +467,23 @@
     pruneSelection();
     syncRouteFromSelection();
     syncMainTableRepartoUi();
-    if ($('sidebar-fold-reparto') && $('sidebar-fold-reparto').open) ensureMapInit();
+    if (!$('view-reparto') || $('view-reparto').hidden) return;
+    ensureMapInit();
+  }
+
+  function onViewShow() {
+    ensureMapInit();
+    if (map && mapReady) {
+      setTimeout(function () {
+        map.resize();
+      }, 120);
+    }
   }
 
   function bindUi() {
-    var fold = $('sidebar-fold-reparto');
-    if (fold) {
-      fold.addEventListener('toggle', function () {
-        if (fold.open) ensureMapInit();
-        else if (map && mapReady) map.resize();
-      });
+    var viewReparto = $('view-reparto');
+    if (viewReparto) {
+      /* Map init handled by admin shell via onViewShow */
     }
     var originEl = $('reparto-origin');
     if (originEl) {
@@ -557,6 +564,7 @@
   window.BravaReparto = {
     init: init,
     onOrdersUpdated: onOrdersUpdated,
+    onViewShow: onViewShow,
     isOrnSelected: isOrnSelected,
     setOrderSelected: setOrderSelected
   };

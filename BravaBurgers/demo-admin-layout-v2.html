@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — Admin Brava · layout propuesto</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<script>
+		(function () {
+			try {
+				if (localStorage.getItem('brava_admin_theme') !== 'light') {
+					document.documentElement.setAttribute('data-theme', 'dark');
+				}
+			} catch (e) {}
+		})();
+	</script>
+	<style>
+		:root {
+			--bg-page: #f0f1f3;
+			--bg-shell: #fff;
+			--bg-elevated: #f8f9fa;
+			--bg-nav: #fff;
+			--text: #333;
+			--text-strong: #111;
+			--text-muted: #666;
+			--text-subtle: #888;
+			--border: #e2e4e8;
+			--shadow: 0 1px 3px rgba(0,0,0,.08);
+			--shadow-lg: 0 8px 24px rgba(0,0,0,.12);
+			--brava: #ff6b35;
+			--brava-dim: rgba(255,107,53,.12);
+			--ok: #2e7d32;
+			--warn: #e65100;
+			--danger: #c62828;
+			--nav-w: 72px;
+			--aside-w: 300px;
+			--top-h: 56px;
+		}
+		html[data-theme="dark"] {
+			color-scheme: dark;
+			--bg-page: #0a0a0a;
+			--bg-shell: #141414;
+			--bg-elevated: #1c1c1c;
+			--bg-nav: #111;
+			--text: #e4e4e4;
+			--text-strong: #f5f5f5;
+			--text-muted: #aaa;
+			--text-subtle: #777;
+			--border: #2e2e2e;
+			--shadow: 0 1px 3px rgba(0,0,0,.4);
+			--shadow-lg: 0 8px 24px rgba(0,0,0,.5);
+			--brava-dim: rgba(255,107,53,.15);
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			background: var(--bg-page);
+			color: var(--text);
+			font-size: 14px;
+			line-height: 1.4;
+		}
+		.demo-note {
+			max-width: 1400px;
+			margin: 0 auto;
+			padding: 12px 16px 0;
+		}
+		.demo-note-inner {
+			background: var(--bg-shell);
+			border-left: 4px solid var(--brava);
+			border-radius: 10px;
+			padding: 12px 16px;
+			font-size: 0.82rem;
+			color: var(--text-muted);
+			box-shadow: var(--shadow);
+		}
+		.demo-note strong { color: var(--brava); }
+		.demo-note ul { margin: 8px 0 0; padding-left: 18px; }
+		.demo-note li { margin: 4px 0; }
+
+		.app-shell {
+			max-width: 1400px;
+			margin: 12px auto 32px;
+			padding: 0 12px;
+			display: grid;
+			grid-template-columns: var(--nav-w) 1fr;
+			grid-template-rows: var(--top-h) 1fr;
+			grid-template-areas:
+				"nav top"
+				"nav main";
+			gap: 0;
+			min-height: calc(100vh - 120px);
+			background: var(--bg-shell);
+			border-radius: 14px;
+			overflow: hidden;
+			box-shadow: var(--shadow-lg);
+			border: 1px solid var(--border);
+		}
+
+		/* —— Nav lateral —— */
+		.app-nav {
+			grid-area: nav;
+			background: var(--bg-nav);
+			border-right: 1px solid var(--border);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			padding: 10px 0;
+			gap: 4px;
+		}
+		.app-nav-logo {
+			width: 40px;
+			height: 40px;
+			border-radius: 10px;
+			background: var(--brava);
+			color: #fff;
+			font-weight: 800;
+			font-size: 0.65rem;
+			display: grid;
+			place-items: center;
+			margin-bottom: 8px;
+			letter-spacing: 0.02em;
+		}
+		.nav-btn {
+			width: 48px;
+			height: 48px;
+			border: none;
+			border-radius: 12px;
+			background: transparent;
+			color: var(--text-muted);
+			cursor: pointer;
+			display: grid;
+			place-items: center;
+			font-size: 1.1rem;
+			position: relative;
+			transition: background .15s, color .15s;
+		}
+		.nav-btn:hover { background: var(--bg-elevated); color: var(--text-strong); }
+		.nav-btn.is-active {
+			background: var(--brava-dim);
+			color: var(--brava);
+		}
+		.nav-btn.is-active::before {
+			content: '';
+			position: absolute;
+			left: -12px;
+			top: 10px;
+			bottom: 10px;
+			width: 3px;
+			background: var(--brava);
+			border-radius: 0 3px 3px 0;
+		}
+		.nav-btn .badge {
+			position: absolute;
+			top: 6px;
+			right: 6px;
+			min-width: 16px;
+			height: 16px;
+			padding: 0 4px;
+			border-radius: 999px;
+			background: var(--brava);
+			color: #fff;
+			font-size: 0.58rem;
+			font-weight: 700;
+			line-height: 16px;
+			text-align: center;
+		}
+		.nav-spacer { flex: 1; }
+		.nav-btn[title] { font-size: 1rem; }
+
+		/* —— Top bar —— */
+		.app-top {
+			grid-area: top;
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			gap: 12px;
+			padding: 0 16px;
+			border-bottom: 1px solid var(--border);
+			background: var(--bg-shell);
+		}
+		.top-title {
+			font-size: 1rem;
+			font-weight: 700;
+			color: var(--text-strong);
+			margin: 0;
+		}
+		.top-title small {
+			display: block;
+			font-size: 0.68rem;
+			font-weight: 500;
+			color: var(--text-subtle);
+			margin-top: 1px;
+		}
+		.top-actions {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+		.turno-pill {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			padding: 5px 12px;
+			border-radius: 999px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			border: 1px solid var(--border);
+			background: var(--bg-elevated);
+		}
+		.turno-pill.is-open {
+			border-color: rgba(46,125,50,.4);
+			background: rgba(46,125,50,.12);
+			color: #81c784;
+		}
+		html:not([data-theme="dark"]) .turno-pill.is-open { color: var(--ok); }
+		.turno-pill .dot {
+			width: 7px;
+			height: 7px;
+			border-radius: 50%;
+			background: currentColor;
+		}
+		.live-dot {
+			font-size: 0.68rem;
+			color: var(--text-subtle);
+			display: flex;
+			align-items: center;
+			gap: 5px;
+		}
+		.live-dot .pulse {
+			width: 6px;
+			height: 6px;
+			border-radius: 50%;
+			background: #4caf50;
+			animation: pulse 2s infinite;
+		}
+		@keyframes pulse {
+			0%, 100% { opacity: 1; }
+			50% { opacity: 0.4; }
+		}
+		.btn {
+			border: 1px solid var(--border);
+			background: var(--bg-elevated);
+			color: var(--text);
+			border-radius: 8px;
+			padding: 6px 12px;
+			font-size: 0.75rem;
+			font-weight: 600;
+			cursor: pointer;
+			font-family: inherit;
+		}
+		.btn:hover { border-color: var(--brava); }
+		.btn-accent {
+			background: var(--brava);
+			border-color: var(--brava);
+			color: #fff;
+		}
+		.btn-accent:hover { filter: brightness(1.06); }
+		.btn-wa {
+			background: #25d366;
+			border-color: #25d366;
+			color: #fff;
+		}
+		.btn-wa:hover { filter: brightness(1.06); }
+		.btn-wa:disabled {
+			opacity: 0.45;
+			cursor: not-allowed;
+			filter: none;
+		}
+		.btn-icon {
+			width: 34px;
+			height: 34px;
+			padding: 0;
+			display: grid;
+			place-items: center;
+		}
+
+		/* —— Main area —— */
+		.app-main {
+			grid-area: main;
+			display: grid;
+			grid-template-columns: 1fr var(--aside-w);
+			min-height: 0;
+		}
+		.main-content {
+			padding: 14px 16px 20px;
+			overflow: auto;
+			min-width: 0;
+		}
+		.main-aside {
+			border-left: 1px solid var(--border);
+			background: var(--bg-elevated);
+			display: flex;
+			flex-direction: column;
+			min-height: 0;
+		}
+
+		/* Pipeline tabs */
+		.pipeline {
+			display: flex;
+			flex-wrap: nowrap;
+			align-items: center;
+			gap: 4px;
+			margin-bottom: 10px;
+			overflow-x: auto;
+			padding-bottom: 2px;
+			scrollbar-width: thin;
+		}
+		.pipeline::-webkit-scrollbar { height: 4px; }
+		.pipeline::-webkit-scrollbar-thumb {
+			background: var(--border);
+			border-radius: 4px;
+		}
+		.pipe-btn {
+			border: 1px solid var(--border);
+			background: var(--bg-shell);
+			color: var(--text-muted);
+			border-radius: 999px;
+			padding: 5px 10px;
+			font-size: 0.68rem;
+			font-weight: 600;
+			cursor: pointer;
+			font-family: inherit;
+			display: inline-flex;
+			align-items: center;
+			gap: 5px;
+			flex-shrink: 0;
+			white-space: nowrap;
+		}
+		.pipe-btn .n {
+			background: var(--bg-elevated);
+			padding: 1px 7px;
+			border-radius: 999px;
+			font-size: 0.68rem;
+			font-variant-numeric: tabular-nums;
+		}
+		.pipe-btn.is-active {
+			background: var(--brava);
+			border-color: var(--brava);
+			color: #fff;
+		}
+		.pipe-btn.is-active .n {
+			background: rgba(255,255,255,.25);
+			color: #fff;
+		}
+		.pipe-btn.is-alert .n { background: #ffc107; color: #111; }
+		.pipe-btn.is-active.is-alert .n { background: rgba(0,0,0,.2); color: #fff; }
+
+		.pipe-btn.is-muted {
+			opacity: 0.82;
+		}
+		.pipe-sep {
+			width: 1px;
+			height: 18px;
+			background: var(--border);
+			flex-shrink: 0;
+			margin: 0 2px;
+		}
+		.pipeline-search {
+			margin-left: auto;
+			flex-shrink: 0;
+		}
+
+		.wa-batch-bar {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px 12px;
+			margin-bottom: 10px;
+			padding: 8px 12px;
+			border-radius: 10px;
+			background: var(--brava-dim);
+			border: 1px solid rgba(255, 107, 53, 0.35);
+			font-size: 0.75rem;
+			color: var(--text-muted);
+		}
+		.wa-batch-bar[hidden] { display: none !important; }
+		.wa-batch-bar .spacer { flex: 1; }
+
+		/* Order cards */
+		.orders-list { display: flex; flex-direction: column; gap: 8px; }
+		.order-card {
+			display: grid;
+			grid-template-columns: 4px 1fr auto;
+			gap: 0 12px;
+			align-items: center;
+			background: var(--bg-shell);
+			border: 1px solid var(--border);
+			border-radius: 12px;
+			overflow: hidden;
+			transition: border-color .15s, box-shadow .15s;
+		}
+		.order-card:hover {
+			border-color: var(--brava);
+			box-shadow: var(--shadow);
+		}
+		.order-card.is-new {
+			animation: flash 1.2s ease 2;
+		}
+		@keyframes flash {
+			0%, 100% { background: var(--bg-shell); }
+			50% { background: var(--brava-dim); }
+		}
+		.order-stripe { background: var(--brava); }
+		.order-stripe.st-aceptado { background: #42a5f5; }
+		.order-stripe.st-prep { background: #ffb74d; }
+		.order-stripe.st-camino { background: #ab47bc; }
+		.order-body { padding: 10px 0; min-width: 0; }
+		.order-side {
+			display: flex;
+			flex-direction: column;
+			align-items: flex-end;
+			gap: 8px;
+			padding: 10px 12px 10px 0;
+			flex-shrink: 0;
+		}
+		.order-head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: baseline;
+			gap: 6px 10px;
+			margin-bottom: 4px;
+		}
+		.order-orn {
+			font-weight: 800;
+			font-size: 0.82rem;
+			color: var(--brava);
+			font-variant-numeric: tabular-nums;
+		}
+		.order-name { font-weight: 700; color: var(--text-strong); }
+		.order-meta {
+			font-size: 0.72rem;
+			color: var(--text-subtle);
+			display: flex;
+			flex-wrap: wrap;
+			gap: 4px 12px;
+		}
+		.order-meta i { opacity: 0.7; margin-right: 3px; }
+		.order-total {
+			font-weight: 800;
+			font-size: 0.9rem;
+			color: var(--text-strong);
+			text-align: right;
+			white-space: nowrap;
+		}
+		.order-actions {
+			display: flex;
+			flex-direction: row;
+			flex-wrap: wrap;
+			justify-content: flex-end;
+			align-items: center;
+			gap: 4px;
+		}
+		.order-actions .btn {
+			font-size: 0.68rem;
+			padding: 5px 10px;
+			text-align: center;
+			white-space: nowrap;
+		}
+		.tag {
+			display: inline-block;
+			padding: 2px 7px;
+			border-radius: 6px;
+			font-size: 0.62rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.03em;
+		}
+		.tag-ef { background: rgba(46,125,50,.15); color: #81c784; }
+		html:not([data-theme="dark"]) .tag-ef { color: var(--ok); }
+		.tag-mp { background: rgba(66,165,245,.15); color: #64b5f6; }
+
+		/* Aside panels */
+		.aside-tabs {
+			display: flex;
+			border-bottom: 1px solid var(--border);
+		}
+		.aside-tab {
+			flex: 1;
+			border: none;
+			background: transparent;
+			padding: 10px 8px;
+			font-size: 0.72rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--text-muted);
+			cursor: pointer;
+			font-family: inherit;
+			border-bottom: 2px solid transparent;
+			margin-bottom: -1px;
+		}
+		.aside-tab.is-active {
+			color: var(--brava);
+			border-bottom-color: var(--brava);
+		}
+		.aside-panel {
+			padding: 14px;
+			overflow: auto;
+			flex: 1;
+		}
+		.aside-panel[hidden] { display: none; }
+		.stat-grid {
+			display: grid;
+			grid-template-columns: 1fr 1fr;
+			gap: 8px;
+			margin-bottom: 14px;
+		}
+		.stat-cell {
+			background: var(--bg-shell);
+			border: 1px solid var(--border);
+			border-radius: 10px;
+			padding: 10px;
+		}
+		.stat-cell .lbl {
+			font-size: 0.62rem;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			color: var(--text-subtle);
+			margin-bottom: 4px;
+		}
+		.stat-cell .val {
+			font-size: 1.15rem;
+			font-weight: 800;
+			font-variant-numeric: tabular-nums;
+		}
+		.stat-cell .val.pos { color: #81c784; }
+		html:not([data-theme="dark"]) .stat-cell .val.pos { color: var(--ok); }
+		.stat-cell.highlight {
+			grid-column: 1 / -1;
+			border-color: var(--brava);
+			background: var(--brava-dim);
+		}
+		.stat-cell.highlight .val { color: var(--brava); font-size: 1.35rem; }
+		.aside-section {
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: var(--text-subtle);
+			margin: 12px 0 6px;
+			padding-bottom: 4px;
+			border-bottom: 1px solid var(--border);
+		}
+		.aside-row {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.78rem;
+			padding: 3px 0;
+		}
+		.cap-box {
+			border: 2px solid var(--brava);
+			border-radius: 10px;
+			padding: 10px;
+			margin-bottom: 12px;
+		}
+		.cap-box h4 {
+			margin: 0 0 6px;
+			font-size: 0.68rem;
+			text-transform: uppercase;
+			color: var(--text-muted);
+		}
+		.cap-row {
+			display: flex;
+			justify-content: space-between;
+			font-size: 0.78rem;
+			margin: 2px 0;
+		}
+		.cap-row .num {
+			font-size: 1.2rem;
+			font-weight: 800;
+			color: var(--brava);
+		}
+		.stock-row {
+			display: grid;
+			grid-template-columns: 1fr auto auto;
+			gap: 6px;
+			align-items: center;
+			padding: 6px 0;
+			border-bottom: 1px solid var(--border);
+			font-size: 0.78rem;
+		}
+		.stock-row:last-child { border-bottom: none; }
+		.stock-row .qty {
+			font-weight: 800;
+			color: #81c784;
+			min-width: 2ch;
+			text-align: right;
+		}
+		html:not([data-theme="dark"]) .stock-row .qty { color: var(--ok); }
+		.stock-row .qty.low { color: var(--warn); }
+		.stock-row button {
+			width: 26px;
+			height: 26px;
+			border: 1px solid var(--border);
+			border-radius: 6px;
+			background: var(--bg-shell);
+			color: var(--text);
+			cursor: pointer;
+		}
+
+		/* Views */
+		.view[hidden] { display: none !important; }
+		.view-placeholder {
+			padding: 40px 20px;
+			text-align: center;
+			color: var(--text-subtle);
+			border: 1px dashed var(--border);
+			border-radius: 12px;
+		}
+		.view-placeholder i {
+			font-size: 2rem;
+			color: var(--brava);
+			opacity: 0.5;
+			margin-bottom: 10px;
+			display: block;
+		}
+
+		/* Mobile */
+		@media (max-width: 900px) {
+			.app-shell {
+				grid-template-columns: 1fr;
+				grid-template-rows: var(--top-h) 1fr auto;
+				grid-template-areas:
+					"top"
+					"main"
+					"nav";
+				border-radius: 0;
+				margin: 0;
+				max-width: none;
+				min-height: 100vh;
+			}
+			.app-nav {
+				flex-direction: row;
+				justify-content: space-around;
+				border-right: none;
+				border-top: 1px solid var(--border);
+				padding: 6px 8px;
+			}
+			.app-nav-logo { display: none; }
+			.nav-btn.is-active::before { display: none; }
+			.nav-spacer { display: none; }
+			.app-main { grid-template-columns: 1fr; }
+			.main-aside {
+				border-left: none;
+				border-top: 1px solid var(--border);
+				max-height: 280px;
+			}
+			.demo-note { padding-top: 8px; }
+		}
+	</style>
+</head>
+<body>
+
+<div class="demo-note">
+	<div class="demo-note-inner">
+		<strong>Propuesta de layout — Admin Brava</strong> (demo interactivo, no producción).
+		<ul>
+			<li><strong>Nav lateral</strong> (abajo en celular): Pedidos · Reparto · Caja · Historial — en vez de 6 acordeones apilados.</li>
+			<li><strong>Barra superior fija</strong>: turno, conexión, tema — separado del contenido.</li>
+			<li><strong>Pipeline</strong>: todos los estados en una sola fila (scroll horizontal si no entran).</li>
+			<li><strong>Tarjetas</strong> en lugar de tabla ancha — más legible en tablet/celular.</li>
+			<li><strong>+ Pedido manual</strong> en la barra superior; <strong>Avisar confirmados</strong> solo en pestaña Aceptados.</li>
+		</ul>
+	</div>
+</div>
+
+<div class="app-shell">
+	<nav class="app-nav" aria-label="Secciones admin">
+		<div class="app-nav-logo" title="Brava Burgers">BRAVA</div>
+		<button type="button" class="nav-btn is-active" data-view="pedidos" title="Pedidos">
+			<i class="fas fa-clipboard-list"></i>
+			<span class="badge">2</span>
+		</button>
+		<button type="button" class="nav-btn" data-view="reparto" title="Reparto">
+			<i class="fas fa-motorcycle"></i>
+		</button>
+		<button type="button" class="nav-btn" data-view="caja" title="Caja y turno">
+			<i class="fas fa-cash-register"></i>
+		</button>
+		<button type="button" class="nav-btn" data-view="historial" title="Historial">
+			<i class="fas fa-folder-open"></i>
+		</button>
+		<span class="nav-spacer"></span>
+		<button type="button" class="nav-btn" id="theme-btn" title="Tema">
+			<i class="fas fa-moon"></i>
+		</button>
+	</nav>
+
+	<header class="app-top">
+		<div>
+			<h1 class="top-title" id="view-title">Pedidos
+				<small id="view-subtitle">Turno vie 19:00 – 23:30</small>
+			</h1>
+		</div>
+		<div class="top-actions">
+			<button type="button" class="btn btn-accent" id="btn-pedido-manual" hidden>
+				<i class="fas fa-plus"></i> Pedido manual
+			</button>
+			<span class="turno-pill is-open"><span class="dot"></span> Turno abierto</span>
+			<span class="live-dot"><span class="pulse"></span> En vivo</span>
+			<button type="button" class="btn btn-icon" title="Alerta sonido"><i class="fas fa-volume-up"></i></button>
+			<button type="button" class="btn">Salir</button>
+		</div>
+	</header>
+
+	<div class="app-main">
+		<div class="main-content">
+			<!-- PEDIDOS -->
+			<section class="view" id="view-pedidos">
+				<div class="pipeline" role="tablist">
+					<button type="button" class="pipe-btn is-active is-alert" data-pipe="pendiente">Pendientes <span class="n">2</span></button>
+					<button type="button" class="pipe-btn" data-pipe="aceptado">Aceptados <span class="n">1</span></button>
+					<button type="button" class="pipe-btn" data-pipe="prep">En prep. <span class="n">3</span></button>
+					<button type="button" class="pipe-btn" data-pipe="camino">En camino <span class="n">1</span></button>
+					<span class="pipe-sep" aria-hidden="true"></span>
+					<button type="button" class="pipe-btn is-muted" data-pipe="entregada">Entregados <span class="n">12</span></button>
+					<button type="button" class="pipe-btn is-muted" data-pipe="cancelada">Cancelados <span class="n">0</span></button>
+					<button type="button" class="pipe-btn is-muted" data-pipe="rechazado">Rechazados <span class="n">1</span></button>
+					<button type="button" class="btn btn-icon pipeline-search" title="Buscar pedido"><i class="fas fa-search"></i></button>
+				</div>
+
+				<div class="wa-batch-bar" id="wa-batch-bar" hidden>
+					<span>Marcá pedidos con la casilla para avisar por WhatsApp.</span>
+					<span class="spacer"></span>
+					<button type="button" class="btn btn-wa" id="wa-batch-btn" disabled>
+						<i class="fab fa-whatsapp"></i> Avisar confirmados (<span id="wa-batch-n">0</span>)
+					</button>
+				</div>
+
+				<div class="orders-list" id="orders-list">
+					<article class="order-card is-new">
+						<div class="order-stripe"></div>
+						<div class="order-body">
+							<div class="order-head">
+								<span class="order-orn">ORN-DEL-0042</span>
+								<span class="order-name">Ezequiel</span>
+								<span class="tag tag-ef">Efectivo</span>
+							</div>
+							<div class="order-meta">
+								<span><i class="fas fa-clock"></i> hace 2 min</span>
+								<span><i class="fab fa-whatsapp"></i> 11 2397-3487</span>
+								<span><i class="fas fa-location-dot"></i> Paraná 5602 · Villa Adelina</span>
+							</div>
+						</div>
+						<div class="order-side">
+							<div class="order-total">$24.800</div>
+							<div class="order-actions">
+								<button type="button" class="btn btn-accent">Aceptar</button>
+								<button type="button" class="btn">Comanda</button>
+								<button type="button" class="btn">Editar</button>
+								<button type="button" class="btn">Rechazar</button>
+							</div>
+						</div>
+					</article>
+
+					<article class="order-card">
+						<div class="order-stripe"></div>
+						<div class="order-body">
+							<div class="order-head">
+								<span class="order-orn">ORN-DEL-0041</span>
+								<span class="order-name">María</span>
+								<span class="tag tag-mp">Mercado Pago</span>
+							</div>
+							<div class="order-meta">
+								<span><i class="fas fa-clock"></i> hace 8 min</span>
+								<span><i class="fab fa-whatsapp"></i> 11 5555-1234</span>
+								<span><i class="fas fa-location-dot"></i> Maipú 1200 · Olivos</span>
+							</div>
+						</div>
+						<div class="order-side">
+							<div class="order-total">$19.500</div>
+							<div class="order-actions">
+								<button type="button" class="btn btn-accent">Aceptar</button>
+								<button type="button" class="btn">Comanda</button>
+								<button type="button" class="btn">Editar</button>
+								<button type="button" class="btn">Rechazar</button>
+							</div>
+						</div>
+					</article>
+				</div>
+			</section>
+
+			<!-- REPARTO -->
+			<section class="view" id="view-reparto" hidden>
+				<div class="view-placeholder">
+					<i class="fas fa-motorcycle"></i>
+					<p><strong>Reparto</strong> — mapa, paradas, hoja ruta y WA al delivery.<br>Todo en una pantalla, sin mezclarlo con la tabla de pedidos.</p>
+				</div>
+			</section>
+
+			<!-- CAJA -->
+			<section class="view" id="view-caja" hidden>
+				<div class="stat-grid" style="max-width:480px;">
+					<div class="stat-cell"><div class="lbl">Efectivo</div><div class="val">$86.400</div></div>
+					<div class="stat-cell"><div class="lbl">Mercado Pago</div><div class="val">$42.000</div></div>
+					<div class="stat-cell"><div class="lbl">Egresos</div><div class="val" style="color:var(--danger)">−$8.500</div></div>
+					<div class="stat-cell"><div class="lbl">Hamburguesas</div><div class="val">28</div></div>
+					<div class="stat-cell highlight"><div class="lbl">Resultado turno</div><div class="val pos">$119.900</div></div>
+				</div>
+				<button type="button" class="btn btn-accent">+ Ingreso</button>
+				<button type="button" class="btn" style="margin-left:6px;">+ Egreso</button>
+				<button type="button" class="btn" style="margin-left:6px;">Cierre de caja</button>
+			</section>
+
+			<!-- HISTORIAL -->
+			<section class="view" id="view-historial" hidden>
+				<div class="view-placeholder">
+					<i class="fas fa-folder-open"></i>
+					<p><strong>Historial</strong> — buscar cierres de caja y comandas / proformas.<br>Un solo lugar para consultas, no en el sidebar del día a día.</p>
+				</div>
+			</section>
+		</div>
+
+		<aside class="main-aside">
+			<div class="aside-tabs">
+				<button type="button" class="aside-tab is-active" data-aside="turno">Turno</button>
+				<button type="button" class="aside-tab" data-aside="stock">Stock</button>
+			</div>
+			<div class="aside-panel" id="aside-turno">
+				<div class="stat-grid">
+					<div class="stat-cell"><div class="lbl">Efectivo</div><div class="val">$86.400</div></div>
+					<div class="stat-cell"><div class="lbl">Mercado Pago</div><div class="val">$42.000</div></div>
+				</div>
+				<div class="aside-section">Ventas entregadas</div>
+				<div class="aside-row"><span>Total</span><strong>$128.400</strong></div>
+				<div class="aside-row"><span>Egresos</span><strong style="color:var(--danger)">−$8.500</strong></div>
+				<div class="aside-row"><span>Resultado</span><strong style="color:#81c784">$119.900</strong></div>
+				<div class="aside-section">Contadores</div>
+				<div class="aside-row"><span>Simples</span><strong>18</strong></div>
+				<div class="aside-row"><span>Dobles</span><strong>10</strong></div>
+				<button type="button" class="btn btn-accent" style="width:100%;margin-top:12px;">Cierre de caja</button>
+			</div>
+			<div class="aside-panel" id="aside-stock" hidden>
+				<div class="cap-box">
+					<h4>¿Cuántas burgers alcanza?</h4>
+					<div class="cap-row"><span>Simples</span><span class="num">14</span></div>
+					<div class="cap-row"><span>Dobles</span><span class="num">7</span></div>
+				</div>
+				<div class="aside-section">Inventario cocina</div>
+				<div class="stock-row">
+					<span>Panes</span>
+					<span class="qty">24</span>
+					<span><button type="button">−</button><button type="button">+</button></span>
+				</div>
+				<div class="stock-row">
+					<span>Medallones</span>
+					<span class="qty">31</span>
+					<span><button type="button">−</button><button type="button">+</button></span>
+				</div>
+				<div class="stock-row">
+					<span>Queso cheddar</span>
+					<span class="qty low">12</span>
+					<span><button type="button">−</button><button type="button">+</button></span>
+				</div>
+				<button type="button" class="btn" style="width:100%;margin-top:10px;">Recontar stock</button>
+			</div>
+		</aside>
+	</div>
+</div>
+
+<script>
+(function () {
+	var titles = {
+		pedidos: ['Pedidos', 'Turno vie 19:00 – 23:30'],
+		reparto: ['Reparto', 'Ruta y envíos del turno'],
+		caja: ['Caja y turno', 'Ingresos, egresos y cierre'],
+		historial: ['Historial', 'Cierres y comandas']
+	};
+
+	document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			var view = btn.getAttribute('data-view');
+			document.querySelectorAll('.nav-btn[data-view]').forEach(function (b) {
+				b.classList.toggle('is-active', b === btn);
+			});
+			document.querySelectorAll('.view').forEach(function (v) {
+				v.hidden = v.id !== 'view-' + view;
+			});
+			var t = titles[view] || ['Admin', ''];
+			document.getElementById('view-title').childNodes[0].textContent = t[0] + ' ';
+			document.getElementById('view-subtitle').textContent = t[1];
+			document.getElementById('btn-pedido-manual').hidden = view !== 'pedidos';
+			document.querySelector('.main-aside').hidden = view === 'caja' || view === 'historial';
+			if (view !== 'pedidos') {
+				document.getElementById('wa-batch-bar').hidden = true;
+			} else {
+				syncWaBatchBar();
+			}
+		});
+	});
+
+	function activePipe() {
+		var el = document.querySelector('.pipe-btn[data-pipe].is-active');
+		return el ? el.getAttribute('data-pipe') : 'pendiente';
+	}
+
+	function syncWaBatchBar() {
+		var bar = document.getElementById('wa-batch-bar');
+		if (!bar) return;
+		bar.hidden = activePipe() !== 'aceptado';
+	}
+
+	document.querySelectorAll('.pipe-btn[data-pipe]').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			document.querySelectorAll('.pipe-btn[data-pipe]').forEach(function (b) {
+				b.classList.remove('is-active', 'is-alert');
+			});
+			btn.classList.add('is-active');
+			if (btn.getAttribute('data-pipe') === 'pendiente') {
+				btn.classList.add('is-alert');
+			}
+			syncWaBatchBar();
+		});
+	});
+
+	document.getElementById('btn-pedido-manual').hidden = false;
+	syncWaBatchBar();
+
+	document.querySelectorAll('.aside-tab').forEach(function (tab) {
+		tab.addEventListener('click', function () {
+			var id = tab.getAttribute('data-aside');
+			document.querySelectorAll('.aside-tab').forEach(function (t) {
+				t.classList.toggle('is-active', t === tab);
+			});
+			document.getElementById('aside-turno').hidden = id !== 'turno';
+			document.getElementById('aside-stock').hidden = id !== 'stock';
+		});
+	});
+
+	document.getElementById('theme-btn').addEventListener('click', function () {
+		var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+		if (dark) {
+			document.documentElement.removeAttribute('data-theme');
+			localStorage.setItem('brava_admin_theme', 'light');
+		} else {
+			document.documentElement.setAttribute('data-theme', 'dark');
+			localStorage.setItem('brava_admin_theme', 'dark');
+		}
+	});
+})();
+</script>
+</body>
+</html>

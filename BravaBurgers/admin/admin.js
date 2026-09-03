@@ -1010,9 +1010,9 @@
         return r.text();
       }),
       fetch(base + encodeURIComponent('extras'))
-        .then(function (r) {
-          return r.text();
-        })
+      .then(function (r) {
+        return r.text();
+      })
         .catch(function () {
           return '';
         }),
@@ -2881,7 +2881,7 @@
       return b.seq - a.seq;
     });
     if (!items.length) {
-      ul.innerHTML = '';
+    ul.innerHTML = '';
       if (empty) {
         empty.classList.remove('hidden');
         if (!isCajaTurnoActivo()) {
@@ -2945,19 +2945,19 @@
           });
         } else {
           var prevG = gastosCache.slice();
-          gastosCache = gastosCache.filter(function (g) {
+        gastosCache = gastosCache.filter(function (g) {
             return g.id !== id;
-          });
+        });
           renderMovimientosList();
           api({ action: 'deleteGasto', token: token, id: id }).then(function (res) {
-            if (res.data.ok) loadGastos(true);
-            else {
+          if (res.data.ok) loadGastos(true);
+          else {
               gastosCache = prevG;
               renderMovimientosList();
-              if (res.status === 401) handleAuthFailure();
+            if (res.status === 401) handleAuthFailure();
               else alert('No se pudo eliminar el egreso.');
-            }
-          });
+          }
+        });
         }
       };
     });
@@ -3678,7 +3678,41 @@
 
       btn.textContent = n ? label + ' (' + n + ')' : label;
 
+      btn.classList.toggle('tab-alert', est === 'pendiente' && n > 0);
+
     });
+
+    var navPed = document.querySelector('.nav-btn[data-view="pedidos"]');
+
+    if (navPed) {
+
+      var pending = counts.pendiente || 0;
+
+      var badge = navPed.querySelector('.nav-pending-badge');
+
+      if (pending > 0) {
+
+        if (!badge) {
+
+          badge = document.createElement('span');
+
+          badge.className = 'nav-pending-badge';
+
+          navPed.appendChild(badge);
+
+        }
+
+        badge.textContent = String(pending);
+
+        badge.hidden = false;
+
+      } else if (badge) {
+
+        badge.hidden = true;
+
+      }
+
+    }
 
   }
 
@@ -3742,43 +3776,7 @@
   }
 
   function updateOrdersTableHead(panelEstado) {
-
-    var row = document.querySelector('#orders-table thead tr');
-
-    if (!row) return;
-
-    var cols = ['Fecha', 'Turno', 'Cliente', 'Teléfono', 'Dirección', 'Pago', 'Total', 'ORN', 'Acciones'];
-
-    var prefix = '';
-
-    if (panelEstado === 'en_preparacion') {
-
-      prefix = '<th class="td-reparto-chk">Ruta</th>';
-
-    } else if (waNotifyTabEnabled(panelEstado)) {
-
-      prefix =
-
-        '<th class="td-wa-notify-chk"><input type="checkbox" id="wa-chk-all" title="Seleccionar todos" aria-label="Seleccionar todos"></th>';
-
-    }
-
-    row.innerHTML =
-
-      prefix +
-
-      cols
-
-        .map(function (c) {
-
-          return '<th>' + c + '</th>';
-
-        })
-
-        .join('');
-
     bindWaNotifySelectAll();
-
   }
 
   function formatOrderAddressCell(o) {
@@ -3833,17 +3831,89 @@
 
     };
 
-    var empty = document.createElement('tr');
+    var empty = document.createElement('div');
 
-    empty.innerHTML =
+    empty.className = 'orders-empty-msg';
 
-      '<td colspan="' + ordersTableColspan(panelEstado) + '" class="orders-empty-msg">' +
-
-      (hints[panelEstado] || 'No hay pedidos en esta pestaña.') +
-
-      '</td>';
+    empty.innerHTML = hints[panelEstado] || 'No hay pedidos en esta pestaña.';
 
     parent.appendChild(empty);
+
+  }
+
+
+
+  function orderStripeClass(panelEstado) {
+
+    if (panelEstado === 'aceptado') return 'st-aceptado';
+
+    if (panelEstado === 'en_preparacion') return 'st-prep';
+
+    if (panelEstado === 'en_camino') return 'st-camino';
+
+    if (panelEstado === 'pendiente') return '';
+
+    return 'st-muted';
+
+  }
+
+
+
+  function repartoCheckboxCardHtml(o, card) {
+
+    var hasDir = String(o.direccion || '').trim().length > 0;
+
+    if (!hasDir) return '';
+
+    var on =
+
+      window.BravaReparto &&
+
+      typeof window.BravaReparto.isOrnSelected === 'function' &&
+
+      window.BravaReparto.isOrnSelected(o.orn);
+
+    if (on) card.className += (card.className ? ' ' : '') + 'row-reparto-on';
+
+    return (
+
+      '<label class="order-chk-label"><input type="checkbox" class="reparto-order-cb" data-orn="' +
+
+      escapeHtml(o.orn) +
+
+      '"' +
+
+      (on ? ' checked' : '') +
+
+      '> Ruta</label>'
+
+    );
+
+  }
+
+
+
+  function waNotifyCheckboxCardHtml(o, card) {
+
+    if (!orderHasWaPhone(o)) return '';
+
+    var on = !!waNotifySelected[o.orn];
+
+    if (on) card.className += (card.className ? ' ' : '') + 'row-wa-notify-on';
+
+    return (
+
+      '<label class="order-chk-label"><input type="checkbox" class="wa-notify-order-cb" data-orn="' +
+
+      escapeHtml(o.orn) +
+
+      '"' +
+
+      (on ? ' checked' : '') +
+
+      '> WA</label>'
+
+    );
 
   }
 
@@ -3890,23 +3960,111 @@
 
     orders.forEach(function (o) {
 
-      var tr = document.createElement('tr');
+      var card = document.createElement('article');
+
+      card.className = 'order-card';
 
       if (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn)) {
 
-        tr.className = 'row-pendiente-nuevo';
+        card.className += ' row-pendiente-nuevo';
 
       }
 
+      var stripe = document.createElement('div');
+
+      stripe.className = 'order-stripe ' + orderStripeClass(panelEstado);
+
+      card.appendChild(stripe);
+
+      var body = document.createElement('div');
+
+      body.className = 'order-body';
+
+      var chkHtml = '';
+
+      if (panelEstado === 'en_preparacion') {
+
+        chkHtml = repartoCheckboxCardHtml(o, card);
+
+      } else if (waNotifyTabEnabled(panelEstado)) {
+
+        chkHtml = waNotifyCheckboxCardHtml(o, card);
+
+      }
+
+      if (chkHtml) {
+
+        var chks = document.createElement('div');
+
+        chks.className = 'order-card-chks';
+
+        chks.innerHTML = chkHtml;
+
+        body.appendChild(chks);
+
+      }
+
+      var head = document.createElement('div');
+
+      head.className = 'order-head';
+
+      head.innerHTML =
+
+        '<span class="order-orn">' +
+
+        orderDisplayOrn(o) +
+
+        '</span><span class="order-name">' +
+
+        escapeHtml(o.cliente || '') +
+
+        '</span>' +
+
+        (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn) ? ' <span class="badge-nuevo">Nuevo</span>' : '') +
+
+        (o.pago ? '<span class="order-tag">' + escapeHtml(o.pago) + '</span>' : '') +
+
+        (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '');
+
+      body.appendChild(head);
+
+      var meta = document.createElement('div');
+
+      meta.className = 'order-meta';
+
       var fecha = o.fecha_creado ? new Date(o.fecha_creado).toLocaleString('es-AR') : '';
 
-      var wa = telWa(o.telefono);
+      var turnoTxt = formatOrderTurnCell(o).replace(/<[^>]+>/g, '').trim();
+
+      meta.innerHTML =
+
+        (fecha ? '<span>' + escapeHtml(fecha) + '</span>' : '') +
+
+        (turnoTxt && turnoTxt !== '—' ? '<span>' + escapeHtml(turnoTxt) + '</span>' : '') +
+
+        (o.telefono ? '<span>' + escapeHtml(o.telefono) + '</span>' : '') +
+
+        '<span>' + formatOrderAddressCell(o) + '</span>';
+
+      body.appendChild(meta);
+
+      card.appendChild(body);
+
+      var side = document.createElement('div');
+
+      side.className = 'order-side';
+
+      var total = document.createElement('div');
+
+      total.className = 'order-total';
+
+      total.textContent = fmt(o.total);
+
+      side.appendChild(total);
 
       var actions = document.createElement('div');
 
-      actions.className = 'actions';
-
-
+      actions.className = 'order-actions actions';
 
       var cajaOk = isCajaTurnoActivo();
 
@@ -3914,15 +4072,15 @@
 
         addActionBtn(
           actions,
-          '✓',
-          'btn-sm btn-ok',
+          'Aceptar',
+          'btn-sm btn-accent',
           'accept',
           o.orn,
           cajaOk ? 'Aceptar pedido' : mensajeBloqueoOperarPedidos(),
           !cajaOk
         );
 
-        addActionBtn(actions, '✕', 'btn-sm btn-x', 'reject', o.orn, 'Rechazar pedido');
+        addActionBtn(actions, 'Rechazar', 'btn-sm btn-x', 'reject', o.orn, 'Rechazar pedido');
 
       }
 
@@ -3938,7 +4096,7 @@
           !cajaOk
         );
 
-        addActionBtn(actions, '✕', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
+        addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
 
       }
 
@@ -3956,7 +4114,7 @@
           !cajaOk
         );
 
-        addActionBtn(actions, '✕', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
+        addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
 
       }
 
@@ -3964,7 +4122,7 @@
 
         addActionBtn(
           actions,
-          '✓',
+          'Entregar',
           'btn-sm btn-ok',
           'deliver',
           o.orn,
@@ -3972,20 +4130,20 @@
           !cajaOk
         );
 
-        addActionBtn(actions, '✕', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
+        addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
 
       }
 
-
+      var wa = telWa(o.telefono);
 
       var a = document.createElement('a');
 
       a.className = 'btn-wa';
 
       var waFirst = (o.cliente || '').trim().split(/\s+/)[0];
-      var waIntro = waFirst
-        ? 'Hola ' + waFirst + ', somos Brava Burgers.'
-        : 'Hola, somos Brava Burgers.';
+
+      var waIntro = waFirst ? 'Hola ' + waFirst + ', somos Brava Burgers.' : 'Hola, somos Brava Burgers.';
+
       a.href = 'https://wa.me/' + wa + '?text=' + encodeURIComponent(waIntro);
 
       a.target = '_blank';
@@ -3996,59 +4154,11 @@
 
       actions.appendChild(a);
 
-      tr.innerHTML =
+      side.appendChild(actions);
 
-        (panelEstado === 'en_preparacion' ? repartoCheckboxCellHtml(o, tr) : '') +
+      card.appendChild(side);
 
-        (waNotifyTabEnabled(panelEstado) ? waNotifyCheckboxCellHtml(o, tr) : '') +
-
-        '<td>' +
-
-        fecha +
-
-        '</td><td>' +
-
-        formatOrderTurnCell(o) +
-
-        '</td><td>' +
-
-        formatOrderClientCell(o, panelEstado) +
-
-        '</td><td>' +
-
-        (o.telefono || '') +
-
-        '</td><td>' +
-
-        formatOrderAddressCell(o) +
-
-        '</td><td>' +
-
-        (o.pago || '') +
-
-        '</td><td>' +
-
-        fmt(o.total) +
-
-        (String(o.modificado || '').toUpperCase() === 'SI'
-
-          ? '<span class="badge-mod">editado</span>'
-
-          : '') +
-
-        '</td><td>' +
-
-        orderDisplayOrn(o) +
-
-        '</td>';
-
-      var td = document.createElement('td');
-
-      td.appendChild(actions);
-
-      tr.appendChild(td);
-
-      frag.appendChild(tr);
+      frag.appendChild(card);
 
     });
 
@@ -4076,17 +4186,17 @@
 
     updateOrdersTableHead(currentEstado);
 
-    var tb = $('tbody');
+    var list = $('orders-list');
 
-    if (!tb) return;
+    if (!list) return;
 
-    tb.replaceChildren();
+    list.replaceChildren();
 
     var frag = panelFrags[currentEstado];
 
-    if (frag) tb.appendChild(frag.cloneNode(true));
+    if (frag) list.appendChild(frag.cloneNode(true));
 
-    else appendEmptyRow(tb, currentEstado);
+    else appendEmptyRow(list, currentEstado);
 
     updateWaBatchBar();
 
@@ -6249,7 +6359,7 @@
 
 
 
-  $('orders-table').addEventListener('change', function (e) {
+  function onOrdersListChange(e) {
     var cb = e.target;
     if (!cb || !cb.classList) return;
     if (cb.classList.contains('reparto-order-cb')) {
@@ -6263,34 +6373,23 @@
       if (!ornW) return;
       if (cb.checked) waNotifySelected[ornW] = true;
       else delete waNotifySelected[ornW];
-      var tr = cb.closest('tr');
-      if (tr) tr.classList.toggle('row-wa-notify-on', cb.checked);
+      var card = cb.closest('.order-card');
+      if (card) card.classList.toggle('row-wa-notify-on', cb.checked);
       updateWaBatchBar();
     }
-  });
+  }
 
-  $('orders-table').addEventListener('click', function (e) {
-
+  function onOrdersListClick(e) {
     var btn = e.target.closest('[data-action]');
-
     if (!btn) return;
-
     var action = btn.dataset.action;
-
     if (action === 'edit') {
-
       var ornEdit = btn.dataset.orn;
-
       if (ornEdit) openEditModal(ornEdit);
-
       return;
-
     }
-
     var orn = btn.dataset.orn;
-
     if (!orn) return;
-
     if (action === 'accept') {
       if (!isCajaTurnoActivo()) {
         alert(mensajeBloqueoOperarPedidos());
@@ -6300,9 +6399,7 @@
         if (r && r.ok) autoPrintComandaOnAccept(r.orn || orn);
       });
     }
-
     if (action === 'reject') openRechazoModal(orn);
-
     if (action === 'prep') {
       if (!isCajaTurnoActivo()) {
         alert(mensajeBloqueoOperarPedidos());
@@ -6310,7 +6407,6 @@
       }
       sendOrderUpdate(orn, { estado: 'en_preparacion' });
     }
-
     if (action === 'dispatch') {
       if (!isCajaTurnoActivo()) {
         alert(mensajeBloqueoOperarPedidos());
@@ -6318,7 +6414,6 @@
       }
       sendOrderUpdate(orn, { estado: 'en_camino' });
     }
-
     if (action === 'deliver') {
       if (!isCajaTurnoActivo()) {
         alert(mensajeBloqueoOperarPedidos());
@@ -6326,14 +6421,17 @@
       }
       sendOrderUpdate(orn, { estado: 'entregada' });
     }
-
     if (action === 'cancel') {
-
       if (confirm('¿Cancelar ' + orn + '?')) sendOrderUpdate(orn, { estado: 'cancelada' });
-
     }
+  }
 
-  });
+  var ordersListEl = $('orders-list');
+
+  if (ordersListEl) {
+    ordersListEl.addEventListener('change', onOrdersListChange);
+    ordersListEl.addEventListener('click', onOrdersListClick);
+  }
 
 
 
@@ -6380,25 +6478,43 @@
     setAdminTheme(isDarkTheme() ? 'light' : 'dark');
   }
 
-  function initSidebarMenuFolds() {
-    ['sidebar-fold-caja', 'sidebar-fold-stock', 'sidebar-fold-reparto'].forEach(function (id) {
-      var el = $(id);
-      if (!el) return;
-      var key = 'brava_admin_sidebar_' + id;
-      try {
-        var v = localStorage.getItem(key);
-        if (v === '0') el.open = false;
-        else if (v === '1') el.open = true;
-      } catch (e) {}
-      el.addEventListener('toggle', function () {
-        try {
-          localStorage.setItem(key, el.open ? '1' : '0');
-        } catch (e2) {}
+  function initAdminShell() {
+    var titles = {
+      pedidos: 'Pedidos',
+      reparto: 'Reparto',
+      caja: 'Caja y turno',
+      historial: 'Historial',
+    };
+    document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var view = btn.getAttribute('data-view');
+        document.querySelectorAll('.nav-btn[data-view]').forEach(function (b) {
+          b.classList.toggle('is-active', b === btn);
+        });
+        document.querySelectorAll('.admin-view').forEach(function (v) {
+          v.hidden = v.id !== 'view-' + view;
+        });
+        if ($('view-title')) $('view-title').textContent = titles[view] || 'Admin';
+        var aside = $('main-aside-pedidos');
+        if (aside) aside.hidden = view !== 'pedidos';
+        if (view === 'reparto' && window.BravaReparto && typeof window.BravaReparto.onViewShow === 'function') {
+          window.BravaReparto.onViewShow();
+        }
+      });
+    });
+    document.querySelectorAll('.aside-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var id = tab.getAttribute('data-aside');
+        document.querySelectorAll('.aside-tab').forEach(function (t) {
+          t.classList.toggle('is-active', t === tab);
+        });
+        if ($('aside-turno')) $('aside-turno').hidden = id !== 'turno';
+        if ($('aside-stock')) $('aside-stock').hidden = id !== 'stock';
       });
     });
   }
 
-  initSidebarMenuFolds();
+  initAdminShell();
 
   if (window.BravaReparto && typeof window.BravaReparto.init === 'function') {
     window.BravaReparto.init();

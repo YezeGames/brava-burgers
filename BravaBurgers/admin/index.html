@@ -809,6 +809,8 @@
 			margin-top: 6px;
 			color: #000;
 		}
+		.ticket-comanda .comanda-nota { font-size: 11px; line-height: 1.4; margin: 2px 0; }
+		.ticket-comanda .ajuste-row-comanda { font-weight: 600; }
 		.ticket-comanda .comanda-foot {
 			background: transparent;
 			color: #555;
@@ -839,56 +841,6 @@
 			margin-left: 6px;
 			vertical-align: middle;
 		}
-		#orders-table tbody tr.row-pendiente-nuevo {
-			animation: fila-pendiente-nuevo 1.1s ease-in-out infinite;
-			color: var(--alert-pendiente-text);
-		}
-		#orders-table tbody tr.row-pendiente-nuevo td {
-			background: transparent;
-			border-bottom-color: transparent;
-			color: inherit;
-		}
-		#orders-table tbody tr.row-pendiente-nuevo .btn-sm:not(.btn-ok):not(.btn-x):not(.btn-accent) {
-			background: rgba(255, 255, 255, 0.12);
-			border-color: rgba(255, 255, 255, 0.25);
-			color: inherit;
-		}
-		html:not([data-theme="dark"]) #orders-table tbody tr.row-pendiente-nuevo .btn-sm:not(.btn-ok):not(.btn-x):not(.btn-accent) {
-			background: rgba(255, 255, 255, 0.55);
-			border-color: rgba(0, 0, 0, 0.12);
-			color: #1a1a1a;
-		}
-		@keyframes fila-pendiente-nuevo {
-			0%, 100% { background-color: var(--alert-pendiente-a); }
-			50% { background-color: var(--alert-pendiente-b); }
-		}
-		html[data-theme="dark"] #orders-table tbody tr.row-pendiente-nuevo {
-			box-shadow: inset 0 0 0 1px rgba(255, 107, 53, 0.35);
-		}
-		#orders-table .orders-addr { font-weight: 600; font-size: 0.82rem; line-height: 1.35; min-width: 140px; }
-		#orders-table .orders-addr-sub { font-size: 0.72rem; color: var(--text-subtle); margin-top: 2px; }
-		#orders-table .orders-addr-muted { color: var(--text-faint); }
-		#orders-table .orders-turno-badge {
-			display: inline-block;
-			font-weight: 700;
-			font-size: 0.78rem;
-			padding: 2px 8px;
-			border-radius: 6px;
-			background: rgba(255, 107, 53, 0.15);
-			color: var(--brava);
-			letter-spacing: 0.04em;
-		}
-		#orders-table .orders-turno-muted { color: var(--text-faint); }
-		#orders-table .orders-client-name {
-			cursor: help;
-			border-bottom: 1px dotted var(--text-subtle);
-		}
-		#orders-table tbody tr.row-reparto-on td { background: rgba(255, 107, 53, 0.08); }
-		#orders-table tbody tr.row-wa-notify-on td { background: rgba(37, 211, 102, 0.1); }
-		#orders-table .td-reparto-chk,
-		#orders-table .td-wa-notify-chk { width: 40px; text-align: center; vertical-align: middle; }
-		#orders-table .reparto-order-cb,
-		#orders-table .wa-notify-order-cb { width: 16px; height: 16px; cursor: pointer; accent-color: var(--brava); }
 		.wa-batch-bar {
 			display: flex;
 			flex-wrap: wrap;
@@ -1437,6 +1389,7 @@
 			text-align: center;
 		}
 	</style>
+	<link href="/admin/admin-layout.css?v=3" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1454,58 +1407,73 @@
 	</div>
 
 	<div id="app-view" class="hidden">
-		<div class="layout">
-			<div class="card">
-				<h1>Órdenes
-					<span class="header-actions">
-						<button type="button" class="btn-sm theme-toggle-btn" id="theme-toggle-app" aria-pressed="false" title="Modo noche / claro">
-							<i class="fas fa-moon" aria-hidden="true"></i> Noche
-						</button>
-						<button type="button" class="btn-sm" id="logout-btn">Salir</button>
-					</span>
-				</h1>
-				<div class="sound-bar turno-toolbar">
+		<div class="app-shell">
+			<nav class="app-nav" aria-label="Secciones admin">
+				<div class="app-nav-logo" title="Brava Burgers">BRAVA</div>
+				<button type="button" class="nav-btn is-active" data-view="pedidos" title="Pedidos">
+					<i class="fas fa-clipboard-list" aria-hidden="true"></i>
+				</button>
+				<button type="button" class="nav-btn" data-view="reparto" title="Reparto">
+					<i class="fas fa-motorcycle" aria-hidden="true"></i>
+				</button>
+				<button type="button" class="nav-btn" data-view="caja" title="Caja y turno">
+					<i class="fas fa-cash-register" aria-hidden="true"></i>
+				</button>
+				<button type="button" class="nav-btn" data-view="historial" title="Historial">
+					<i class="fas fa-folder-open" aria-hidden="true"></i>
+				</button>
+			</nav>
+
+			<header class="app-top">
+				<div>
+					<h1 class="top-title" id="view-title">Pedidos</h1>
+				</div>
+				<div class="top-actions turno-toolbar">
+					<button type="button" class="btn-sm btn-accent" id="btn-pedido-manual" disabled hidden>
+						<i class="fas fa-plus" aria-hidden="true"></i> Pedido manual
+					</button>
 					<audio id="alert-sound-mp3" preload="auto" src="/admin/sounds/zumbido.mp3?v=1"></audio>
 					<span class="turno-badge turno-badge--closed" id="turno-toolbar-badge" role="status">Turno cerrado</span>
 					<button type="button" class="btn-turno btn-turno-abrir" id="btn-turno-abrir" title="Abrir turno (stock + caja en 0)" aria-label="Abrir turno">✓</button>
 					<button type="button" class="btn-turno btn-turno-cerrar hidden" id="btn-turno-cerrar" title="Cierre de caja del turno" aria-label="Cerrar turno">✕</button>
 					<span id="poll-status">Conectando…</span>
-				</div>
-				<div class="tabs">
-					<button type="button" class="tab active" data-estado="pendiente" data-label="Pendientes">Pendientes</button>
-					<button type="button" class="tab" data-estado="aceptado" data-label="Aceptados">Aceptados</button>
-					<button type="button" class="tab" data-estado="en_preparacion" data-label="En preparación">En preparación</button>
-					<button type="button" class="tab" data-estado="en_camino" data-label="En camino">En camino</button>
-					<button type="button" class="tab" data-estado="entregada" data-label="Entregados">Entregados</button>
-					<button type="button" class="tab" data-estado="cancelada" data-label="Cancelados">Cancelados</button>
-					<button type="button" class="tab" data-estado="rechazado" data-label="Rechazados">Rechazados</button>
-				</div>
-				<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
-				<div class="wa-batch-bar hidden" id="wa-batch-bar">
-					<span class="wa-batch-hint" id="wa-batch-hint">Marcá pedidos con la casilla.</span>
-					<button type="button" class="btn-wa-batch" id="wa-batch-btn" disabled>
-						<i class="fab fa-whatsapp"></i>
-						<span id="wa-batch-label">Avisar confirmado</span>
-						(<span id="wa-batch-n">0</span>)
+					<button type="button" class="btn-sm theme-toggle-btn" id="theme-toggle-app" aria-pressed="false" title="Modo noche / claro">
+						<i class="fas fa-moon" aria-hidden="true"></i> Noche
 					</button>
+					<button type="button" class="btn-sm" id="logout-btn">Salir</button>
 				</div>
-				<div style="overflow-x:auto">
-					<table id="orders-table">
-						<thead>
-							<tr>
-								<th>Fecha</th><th>Cliente</th><th>Teléfono</th><th>Dirección</th><th>Pago</th><th>Total</th><th>ORN</th><th>Acciones</th>
-							</tr>
-						</thead>
-						<tbody id="tbody"></tbody>
-					</table>
-				</div>
-				<p class="err" id="app-err" hidden></p>
-			</div>
-			<div class="sidebar">
-				<details class="sidebar-menu-fold" id="sidebar-fold-reparto">
-					<summary>Reparto</summary>
-					<div class="sidebar-menu-body sidebar-reparto-panel">
-						<aside class="sidebar-block reparto-box">
+			</header>
+
+			<div class="app-main">
+				<div class="main-content">
+					<section class="admin-view" id="view-pedidos">
+						<div class="pipeline" role="tablist" aria-label="Estado de pedidos">
+							<button type="button" class="tab active" data-estado="pendiente" data-label="Pendientes">Pendientes</button>
+							<button type="button" class="tab" data-estado="aceptado" data-label="Aceptados">Aceptados</button>
+							<button type="button" class="tab" data-estado="en_preparacion" data-label="En preparación">En preparación</button>
+							<button type="button" class="tab" data-estado="en_camino" data-label="En camino">En camino</button>
+							<span class="pipe-sep" aria-hidden="true"></span>
+							<button type="button" class="tab" data-estado="entregada" data-label="Entregados">Entregados</button>
+							<button type="button" class="tab" data-estado="cancelada" data-label="Cancelados">Cancelados</button>
+							<button type="button" class="tab" data-estado="rechazado" data-label="Rechazados">Rechazados</button>
+						</div>
+						<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
+						<div class="wa-batch-bar hidden" id="wa-batch-bar">
+							<input type="checkbox" id="wa-chk-all" title="Seleccionar todos" aria-label="Seleccionar todos">
+							<span class="wa-batch-hint" id="wa-batch-hint">Marcá pedidos con la casilla.</span>
+							<span class="spacer"></span>
+							<button type="button" class="btn-wa-batch" id="wa-batch-btn" disabled>
+								<i class="fab fa-whatsapp"></i>
+								<span id="wa-batch-label">Avisar confirmado</span>
+								(<span id="wa-batch-n">0</span>)
+							</button>
+						</div>
+						<div class="orders-list" id="orders-list"></div>
+						<p class="err" id="app-err" hidden></p>
+					</section>
+
+					<section class="admin-view" id="view-reparto" hidden>
+						<aside class="reparto-box">
 							<h2>Ruta del turno</h2>
 							<p class="caja-hint">Tildá <strong>Ruta</strong> en <strong>En preparación</strong>, armá mapa/hoja y marcá en camino acá.</p>
 							<div class="reparto-field">
@@ -1533,91 +1501,89 @@
 							</div>
 							<textarea class="reparto-hoja" id="reparto-hoja" readonly placeholder="Hoja para el repartidor…"></textarea>
 						</aside>
+					</section>
+
+					<section class="admin-view" id="view-caja" hidden>
+						<aside class="sidebar-block caja-box">
+							<h2>Resumen operativo</h2>
+							<p class="range-label" id="caja-range">—</p>
+							<div class="caja-row section">Ventas (entregados ✓)</div>
+							<div class="caja-row section">Detalle ingresos y egresos</div>
+							<ul class="mov-list" id="mov-list"></ul>
+							<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
+							<p class="caja-hint">Cierre = guarda el turno y vuelve contadores a 0.</p>
+						</aside>
+						<aside class="sidebar-block ventas-box">
+							<div class="caja-row section">Salidas</div>
+							<h2>Registro de ventas</h2>
+							<div class="caja-row section">Acompañamientos</div>
+							<div id="ventas-acomp-list"></div>
+							<div class="caja-row section">Extras</div>
+							<div id="ventas-extras-list"></div>
+							<div class="caja-row section">Bebidas</div>
+							<div id="ventas-bebidas-list"></div>
+							<p class="caja-hint" id="ventas-turno-hint">Solo cuenta con caja abierta; al cerrar turno vuelve a 0.</p>
+							<p class="caja-hint">Ventas = pedidos entregados + ingresos − egresos (por Efectivo / Mercado Pago). Solo con caja abierta; al cerrar, todo en 0.</p>
+						</aside>
+						<aside class="sidebar-block movimientos-box">
+							<h2>Ingresos y egresos</h2>
+							<div class="mov-actions">
+								<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
+								<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
+							</div>
+							<p class="caja-hint mov-hint">Cargá movimientos acá. Totales y detalle del turno están en Resumen operativo.</p>
+						</aside>
+						<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
+							<h2>Saldos por usuario</h2>
+							<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
+							<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
+						</aside>
+					</section>
+
+					<section class="admin-view" id="view-historial" hidden>
+						<aside class="sidebar-block">
+							<h2>Cierre operativo</h2>
+							<p class="caja-hint">Buscá cierres anteriores por fecha o ID y reimprimí el resumen del turno.</p>
+							<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-cierre-historial">Buscar cierres…</button>
+						</aside>
+						<aside class="sidebar-block">
+							<h2>Comandas guardadas</h2>
+							<p class="caja-hint">Buscá por teléfono, ORN o nombre en todo el histórico de pedidos.</p>
+							<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-proformas">Buscar comandas…</button>
+						</aside>
+					</section>
+				</div>
+
+				<aside class="main-aside" id="main-aside-pedidos">
+					<div class="aside-tabs">
+						<button type="button" class="aside-tab is-active" data-aside="turno">Turno</button>
+						<button type="button" class="aside-tab" data-aside="stock">Stock</button>
 					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-caja" open>
-					<summary>Resumen Operativo</summary>
-					<div class="sidebar-menu-body">
-				<aside class="sidebar-block caja-box">
-					<h2>Resumen operativo</h2>
-					<p class="range-label" id="caja-range">—</p>
-					<div class="caja-row section">Ventas (entregados ✓)</div>
-					<div class="caja-row"><span>Efectivo</span><span id="caja-ventas-ef">$0</span></div>
-					<div class="caja-row"><span>Mercado Pago</span><span id="caja-ventas-mp">$0</span></div>
-					<div class="caja-row total-ventas"><span>Total ventas</span><span id="caja-ventas">$0</span></div>
-					<div class="caja-row section">Detalle ingresos y egresos</div>
-					<ul class="mov-list" id="mov-list"></ul>
-					<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
-					<p class="caja-hint">Cierre = guarda el turno y vuelve contadores a 0.</p>
-				</aside>
-				<aside class="sidebar-block ventas-box">
-					<div class="caja-row section">Salidas</div>
-					<div class="caja-row negative"><span>Egresos</span><span id="caja-gastos">−$0</span></div>
-					<h2>Registro de ventas</h2>
-					<div class="caja-row section">Hamburguesas (entregados ✓)</div>
-					<div class="caja-row"><span>Hamburguesas Simples</span><span id="ventas-hamb-simples">0</span></div>
-					<div class="caja-row"><span>Hamburguesas Dobles</span><span id="ventas-hamb-dobles">0</span></div>
-					<div class="caja-row total-ventas"><span>Vendidas total</span><span id="ventas-hamb-total">0</span></div>
-					<div class="caja-row section">Acompañamientos</div>
-					<div id="ventas-acomp-list"></div>
-					<div class="caja-row section">Extras</div>
-					<div id="ventas-extras-list"></div>
-					<div class="caja-row section">Bebidas</div>
-					<div id="ventas-bebidas-list"></div>
-					<p class="caja-hint" id="ventas-turno-hint">Solo cuenta con caja abierta; al cerrar turno vuelve a 0.</p>
-					<div class="caja-row resultado pos" id="row-resultado"><span>Resultado</span><span id="caja-resultado">$0</span></div>
-					<p class="caja-hint">Ventas = pedidos entregados + ingresos − egresos (por Efectivo / Mercado Pago). Solo con caja abierta; al cerrar, todo en 0.</p>
-					<p class="range-label caja-estado" id="caja-estado">—</p>
-					<p class="range-label" id="caja-cierre-detalle" hidden></p>
-					<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:10px;" id="btn-cierre-caja">Cierre de caja</button>
-				</aside>
+					<div class="aside-panel" id="aside-turno">
+						<div class="aside-stat-grid">
+							<div class="aside-stat-cell">
+								<div class="lbl">Efectivo</div>
+								<div class="val" id="caja-ventas-ef">$0</div>
+							</div>
+							<div class="aside-stat-cell">
+								<div class="lbl">Mercado Pago</div>
+								<div class="val" id="caja-ventas-mp">$0</div>
+							</div>
+						</div>
+						<div class="aside-section">Ventas entregadas</div>
+						<div class="aside-row"><span>Total</span><strong id="caja-ventas">$0</strong></div>
+						<div class="aside-row"><span>Egresos</span><strong id="caja-gastos">−$0</strong></div>
+						<div class="aside-row"><span>Resultado</span><strong id="caja-resultado">$0</strong></div>
+						<div class="aside-section">Contadores</div>
+						<div class="aside-row"><span>Simples</span><strong id="ventas-hamb-simples">0</strong></div>
+						<div class="aside-row"><span>Dobles</span><strong id="ventas-hamb-dobles">0</strong></div>
+						<div class="aside-row"><span>Total hamb.</span><strong id="ventas-hamb-total">0</strong></div>
+						<div class="caja-row resultado pos hidden" id="row-resultado" aria-hidden="true"><span>Resultado</span><span></span></div>
+						<p class="range-label caja-estado" id="caja-estado">—</p>
+						<p class="range-label" id="caja-cierre-detalle" hidden></p>
+						<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:12px;" id="btn-cierre-caja">Cierre de caja</button>
 					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-cierre-historial">
-					<summary>Historial de cierre</summary>
-					<div class="sidebar-menu-body">
-				<aside class="sidebar-block">
-					<h2>Cierre operativo</h2>
-					<p class="caja-hint">Buscá cierres anteriores por fecha o ID y reimprimí el resumen del turno.</p>
-					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-cierre-historial">Buscar cierres…</button>
-				</aside>
-					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-proformas">
-					<summary>Proformas</summary>
-					<div class="sidebar-menu-body">
-				<aside class="sidebar-block">
-					<h2>Comandas guardadas</h2>
-					<p class="caja-hint">Buscá por teléfono, ORN o nombre en todo el histórico de pedidos.</p>
-					<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-proformas">Buscar comandas…</button>
-				</aside>
-					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-gestion-dinero">
-					<summary>Gestión de Dinero</summary>
-					<div class="sidebar-menu-body">
-				<aside class="sidebar-block movimientos-box">
-					<h2>Ingresos y egresos</h2>
-					<div class="mov-actions">
-						<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
-						<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
-					</div>
-					<p class="caja-hint mov-hint">Cargá movimientos acá. Totales y detalle del turno están en Resumen operativo.</p>
-				</aside>
-					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-saldos-usuario">
-					<summary>Saldos por usuario</summary>
-					<div class="sidebar-menu-body">
-				<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
-					<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
-					<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
-				</aside>
-					</div>
-				</details>
-				<details class="sidebar-menu-fold" id="sidebar-fold-stock" open>
-					<summary>Control stock</summary>
-					<div class="sidebar-menu-body sidebar-stock-panel">
+					<div class="aside-panel" id="aside-stock" hidden>
 						<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
 							<h3>¿Cuántas burgers?</h3>
 							<p class="cap-sub" id="burger-cap-sub">Abrí caja y cargá stock.</p>
@@ -1663,7 +1629,7 @@
 							</div>
 						</div>
 					</div>
-				</details>
+				</aside>
 			</div>
 		</div>
 	</div>
@@ -2038,9 +2004,9 @@
 
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-	<script src="/admin/comanda.js?v=15"></script>
+	<script src="/admin/comanda.js?v=16"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=7"></script>
-	<script src="/admin/admin.js?v=101"></script>
+	<script src="/admin/reparto.js?v=8"></script>
+	<script src="/admin/admin.js?v=104"></script>
 </body>
 </html>
