@@ -6550,11 +6550,11 @@
         });
         if ($('view-title')) $('view-title').textContent = titles[view] || 'Admin';
         var aside = $('main-aside-pedidos');
-        if (aside) aside.hidden = view !== 'pedidos';
+        var showAside = view === 'pedidos' || view === 'reparto';
+        if (aside) aside.hidden = !showAside;
         var appMain = document.querySelector('.app-main');
         if (appMain) {
-          appMain.classList.toggle('app-main--full', view !== 'pedidos' && view !== 'reparto');
-          appMain.classList.toggle('app-main--reparto', view === 'reparto');
+          appMain.classList.toggle('app-main--full', view === 'caja' || view === 'historial');
         }
         if (view === 'reparto' && window.BravaReparto && typeof window.BravaReparto.onViewShow === 'function') {
           window.BravaReparto.onViewShow();
