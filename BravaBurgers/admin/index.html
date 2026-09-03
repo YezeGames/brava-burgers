@@ -7,10 +7,11 @@
 	<title>Brava — Admin</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 	<script>
 		(function () {
 			try {
-				if (localStorage.getItem('brava_admin_theme') === 'dark') {
+				if (localStorage.getItem('brava_admin_theme') !== 'light') {
 					document.documentElement.setAttribute('data-theme', 'dark');
 				}
 			} catch (e) {}
@@ -1389,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=3" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=4" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1422,22 +1423,32 @@
 				<button type="button" class="nav-btn" data-view="historial" title="Historial">
 					<i class="fas fa-folder-open" aria-hidden="true"></i>
 				</button>
+				<span class="nav-spacer" aria-hidden="true"></span>
+				<button type="button" class="nav-btn theme-toggle-btn" id="theme-toggle-nav" aria-pressed="false" title="Modo noche / claro">
+					<i class="fas fa-moon" aria-hidden="true"></i>
+				</button>
 			</nav>
 
 			<header class="app-top">
 				<div>
-					<h1 class="top-title" id="view-title">Pedidos</h1>
+					<h1 class="top-title" id="view-title">Pedidos<small id="view-subtitle"></small></h1>
 				</div>
 				<div class="top-actions turno-toolbar">
-					<button type="button" class="btn-sm btn-accent" id="btn-pedido-manual" disabled hidden>
+					<button type="button" class="btn-sm btn-accent" id="btn-pedido-manual" disabled title="Próximamente">
 						<i class="fas fa-plus" aria-hidden="true"></i> Pedido manual
 					</button>
 					<audio id="alert-sound-mp3" preload="auto" src="/admin/sounds/zumbido.mp3?v=1"></audio>
-					<span class="turno-badge turno-badge--closed" id="turno-toolbar-badge" role="status">Turno cerrado</span>
-					<button type="button" class="btn-turno btn-turno-abrir" id="btn-turno-abrir" title="Abrir turno (stock + caja en 0)" aria-label="Abrir turno">✓</button>
-					<button type="button" class="btn-turno btn-turno-cerrar hidden" id="btn-turno-cerrar" title="Cierre de caja del turno" aria-label="Cerrar turno">✕</button>
-					<span id="poll-status">Conectando…</span>
-					<button type="button" class="btn-sm theme-toggle-btn" id="theme-toggle-app" aria-pressed="false" title="Modo noche / claro">
+					<span class="turno-pill turno-pill--closed" id="turno-toolbar-badge" role="status">
+						<span class="dot" aria-hidden="true"></span>
+						<span id="turno-toolbar-label">Turno cerrado</span>
+					</span>
+					<button type="button" class="btn-sm btn-icon btn-turno btn-turno-abrir" id="btn-turno-abrir" title="Abrir turno (stock + caja en 0)" aria-label="Abrir turno">✓</button>
+					<button type="button" class="btn-sm btn-icon btn-turno btn-turno-cerrar hidden" id="btn-turno-cerrar" title="Cierre de caja del turno" aria-label="Cerrar turno">✕</button>
+					<span class="live-dot">
+						<span class="pulse" aria-hidden="true"></span>
+						<span id="poll-status">Conectando…</span>
+					</span>
+					<button type="button" class="btn-sm theme-toggle-btn" id="theme-toggle-app" aria-pressed="false" title="Modo noche / claro" hidden>
 						<i class="fas fa-moon" aria-hidden="true"></i> Noche
 					</button>
 					<button type="button" class="btn-sm" id="logout-btn">Salir</button>
@@ -1448,14 +1459,15 @@
 				<div class="main-content">
 					<section class="admin-view" id="view-pedidos">
 						<div class="pipeline" role="tablist" aria-label="Estado de pedidos">
-							<button type="button" class="tab active" data-estado="pendiente" data-label="Pendientes">Pendientes</button>
-							<button type="button" class="tab" data-estado="aceptado" data-label="Aceptados">Aceptados</button>
-							<button type="button" class="tab" data-estado="en_preparacion" data-label="En preparación">En preparación</button>
-							<button type="button" class="tab" data-estado="en_camino" data-label="En camino">En camino</button>
+							<button type="button" class="tab active" data-estado="pendiente" data-label="Pendientes" data-short="Pendientes">Pendientes <span class="n">0</span></button>
+							<button type="button" class="tab" data-estado="aceptado" data-label="Aceptados" data-short="Aceptados">Aceptados <span class="n">0</span></button>
+							<button type="button" class="tab" data-estado="en_preparacion" data-label="En preparación" data-short="En prep.">En prep. <span class="n">0</span></button>
+							<button type="button" class="tab" data-estado="en_camino" data-label="En camino" data-short="En camino">En camino <span class="n">0</span></button>
 							<span class="pipe-sep" aria-hidden="true"></span>
-							<button type="button" class="tab" data-estado="entregada" data-label="Entregados">Entregados</button>
-							<button type="button" class="tab" data-estado="cancelada" data-label="Cancelados">Cancelados</button>
-							<button type="button" class="tab" data-estado="rechazado" data-label="Rechazados">Rechazados</button>
+							<button type="button" class="tab tab-muted" data-estado="entregada" data-label="Entregados" data-short="Entregados">Entregados <span class="n">0</span></button>
+							<button type="button" class="tab tab-muted" data-estado="cancelada" data-label="Cancelados" data-short="Cancelados">Cancelados <span class="n">0</span></button>
+							<button type="button" class="tab tab-muted" data-estado="rechazado" data-label="Rechazados" data-short="Rechazados">Rechazados <span class="n">0</span></button>
+							<button type="button" class="btn-sm btn-icon pipeline-search" id="btn-pipeline-search" title="Buscar comanda"><i class="fas fa-search" aria-hidden="true"></i></button>
 						</div>
 						<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
 						<div class="wa-batch-bar hidden" id="wa-batch-bar">
@@ -1572,8 +1584,8 @@
 						</div>
 						<div class="aside-section">Ventas entregadas</div>
 						<div class="aside-row"><span>Total</span><strong id="caja-ventas">$0</strong></div>
-						<div class="aside-row"><span>Egresos</span><strong id="caja-gastos">−$0</strong></div>
-						<div class="aside-row"><span>Resultado</span><strong id="caja-resultado">$0</strong></div>
+						<div class="aside-row aside-row--neg"><span>Egresos</span><strong id="caja-gastos">−$0</strong></div>
+						<div class="aside-row aside-row--pos"><span>Resultado</span><strong id="caja-resultado">$0</strong></div>
 						<div class="aside-section">Contadores</div>
 						<div class="aside-row"><span>Simples</span><strong id="ventas-hamb-simples">0</strong></div>
 						<div class="aside-row"><span>Dobles</span><strong id="ventas-hamb-dobles">0</strong></div>
@@ -1581,7 +1593,7 @@
 						<div class="caja-row resultado pos hidden" id="row-resultado" aria-hidden="true"><span>Resultado</span><span></span></div>
 						<p class="range-label caja-estado" id="caja-estado">—</p>
 						<p class="range-label" id="caja-cierre-detalle" hidden></p>
-						<button type="button" class="btn-sm btn-accent hidden" style="width:100%;margin-top:12px;" id="btn-cierre-caja">Cierre de caja</button>
+						<button type="button" class="btn-sm btn-accent aside-cierre-btn hidden" id="btn-cierre-caja">Cierre de caja</button>
 					</div>
 					<div class="aside-panel" id="aside-stock" hidden>
 						<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
@@ -2007,6 +2019,6 @@
 	<script src="/admin/comanda.js?v=16"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
-	<script src="/admin/admin.js?v=104"></script>
+	<script src="/admin/admin.js?v=105"></script>
 </body>
 </html>

@@ -386,6 +386,60 @@
     return Number(n).toLocaleString('es-AR');
   }
 
+  function formatOrderRelativeTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var sec = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (sec < 45) return 'hace un momento';
+    if (sec < 3600) return 'hace ' + Math.floor(sec / 60) + ' min';
+    if (sec < 86400) return 'hace ' + Math.floor(sec / 3600) + ' h';
+    return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function formatOrderAddressInline(o) {
+    var dir = String(o.direccion || '').trim();
+    var sub = [o.piso, o.localidad]
+      .filter(function (x) {
+        return String(x || '').trim();
+      })
+      .join(' · ');
+    if (!dir && !sub) return '';
+    return escapeHtml(dir + (sub ? ' · ' + sub : ''));
+  }
+
+  function paymentTagHtml(pago) {
+    var raw = String(pago || '').trim();
+    if (!raw) return '';
+    var low = raw.toLowerCase();
+    if (low.indexOf('mercado') >= 0 || low === 'mp') {
+      return '<span class="tag tag-mp">Mercado Pago</span>';
+    }
+    if (low.indexOf('efect') >= 0) {
+      return '<span class="tag tag-ef">Efectivo</span>';
+    }
+    return '<span class="tag">' + escapeHtml(raw) + '</span>';
+  }
+
+  function updateViewSubtitle() {
+    var el = $('view-subtitle');
+    if (!el) return;
+    if (!filterDesde) {
+      el.textContent = '';
+      return;
+    }
+    var d = new Date(filterDesde + 'T12:00:00');
+    if (isNaN(d.getTime())) {
+      el.textContent = '';
+      return;
+    }
+    var days = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    var day = days[d.getDay()];
+    var dd = String(d.getDate()).padStart(2, '0');
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    el.textContent = 'Turno ' + day + ' ' + dd + '/' + mm;
+  }
+
   function todayIsoLocal() {
     var d = new Date();
     var y = d.getFullYear();
@@ -1470,17 +1524,15 @@
 
   function updateTurnoToolbarUI() {
     var badge = $('turno-toolbar-badge');
+    var label = $('turno-toolbar-label');
     var btnAbrir = $('btn-turno-abrir');
     var btnCerrar = $('btn-turno-cerrar');
     var abierta = cierresReady && isCajaTurnoActivo();
     if (badge) {
-      if (abierta) {
-        badge.textContent = 'Turno abierto';
-        badge.className = 'turno-badge turno-badge--open';
-      } else {
-        badge.textContent = 'Turno cerrado';
-        badge.className = 'turno-badge turno-badge--closed';
-      }
+      badge.className = 'turno-pill ' + (abierta ? 'turno-pill--open' : 'turno-pill--closed');
+    }
+    if (label) {
+      label.textContent = abierta ? 'Turno abierto' : 'Turno cerrado';
     }
     if (btnAbrir) btnAbrir.classList.toggle('hidden', abierta);
     if (btnCerrar) btnCerrar.classList.toggle('hidden', !abierta);
@@ -1567,6 +1619,11 @@
     if ($('caja-cancel')) $('caja-cancel').textContent = '$' + fmt(st.cancel);
     $('caja-gastos').textContent = '−$' + fmt(st.gTotal);
     $('caja-resultado').textContent = (st.resultado < 0 ? '−$' : '$') + fmt(Math.abs(st.resultado));
+    var resRow = $('caja-resultado') && $('caja-resultado').closest('.aside-row');
+    if (resRow) {
+      resRow.classList.remove('aside-row--pos', 'aside-row--neg');
+      resRow.classList.add(st.resultado >= 0 ? 'aside-row--pos' : 'aside-row--neg');
+    }
     var row = $('row-resultado');
     if (row) {
       row.classList.remove('pos', 'neg');
@@ -1597,6 +1654,7 @@
     }
     updateCierreStatusUI();
     updateTurnoToolbarUI();
+    updateViewSubtitle();
     updateMovimientosChrome();
     syncTurnoPedidosUi();
     updateStockChrome();
@@ -3095,6 +3153,8 @@
 
     initDateFilters();
 
+    updateViewSubtitle();
+
     paintCurrentTab();
 
     loadOrders();
@@ -3660,25 +3720,31 @@
 
     });
 
-    document.querySelectorAll('.tab').forEach(function (btn) {
+    var mutedEstados = ['entregada', 'cancelada', 'rechazado'];
+
+    document.querySelectorAll('#view-pedidos .pipeline .tab').forEach(function (btn) {
 
       var est = btn.dataset.estado;
 
-      var label = btn.getAttribute('data-label');
-
-      if (!label) {
-
-        label = btn.textContent.replace(/\s*\(\d+\)\s*$/, '').trim();
-
-        btn.setAttribute('data-label', label);
-
-      }
+      var short = btn.getAttribute('data-short') || btn.getAttribute('data-label') || est;
 
       var n = counts[est] || 0;
 
-      btn.textContent = n ? label + ' (' + n + ')' : label;
+      btn.textContent = '';
+
+      btn.appendChild(document.createTextNode(short + ' '));
+
+      var countEl = document.createElement('span');
+
+      countEl.className = 'n';
+
+      countEl.textContent = String(n);
+
+      btn.appendChild(countEl);
 
       btn.classList.toggle('tab-alert', est === 'pendiente' && n > 0);
+
+      btn.classList.toggle('tab-muted', mutedEstados.indexOf(est) >= 0);
 
     });
 
@@ -4022,7 +4088,7 @@
 
         (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn) ? ' <span class="badge-nuevo">Nuevo</span>' : '') +
 
-        (o.pago ? '<span class="order-tag">' + escapeHtml(o.pago) + '</span>' : '') +
+        paymentTagHtml(o.pago) +
 
         (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '');
 
@@ -4032,19 +4098,17 @@
 
       meta.className = 'order-meta';
 
-      var fecha = o.fecha_creado ? new Date(o.fecha_creado).toLocaleString('es-AR') : '';
+      var rel = formatOrderRelativeTime(o.fecha_creado);
 
-      var turnoTxt = formatOrderTurnCell(o).replace(/<[^>]+>/g, '').trim();
+      var addrInline = formatOrderAddressInline(o);
 
       meta.innerHTML =
 
-        (fecha ? '<span>' + escapeHtml(fecha) + '</span>' : '') +
+        (rel ? '<span><i class="fas fa-clock" aria-hidden="true"></i> ' + escapeHtml(rel) + '</span>' : '') +
 
-        (turnoTxt && turnoTxt !== '—' ? '<span>' + escapeHtml(turnoTxt) + '</span>' : '') +
+        (o.telefono ? '<span><i class="fab fa-whatsapp" aria-hidden="true"></i> ' + escapeHtml(o.telefono) + '</span>' : '') +
 
-        (o.telefono ? '<span>' + escapeHtml(o.telefono) + '</span>' : '') +
-
-        '<span>' + formatOrderAddressCell(o) + '</span>';
+        (addrInline ? '<span><i class="fas fa-location-dot" aria-hidden="true"></i> ' + addrInline + '</span>' : '');
 
       body.appendChild(meta);
 
@@ -4058,7 +4122,7 @@
 
       total.className = 'order-total';
 
-      total.textContent = fmt(o.total);
+      total.textContent = '$' + fmt(o.total);
 
       side.appendChild(total);
 
@@ -4080,6 +4144,8 @@
           !cajaOk
         );
 
+        addActionBtn(actions, 'Comanda', 'btn-sm', 'comanda', o.orn, 'Ver comanda');
+
         addActionBtn(actions, 'Rechazar', 'btn-sm btn-x', 'reject', o.orn, 'Rechazar pedido');
 
       }
@@ -4096,11 +4162,15 @@
           !cajaOk
         );
 
+        addActionBtn(actions, 'Comanda', 'btn-sm', 'comanda', o.orn, 'Ver comanda');
+
         addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
 
       }
 
       if (panelEstado === 'en_preparacion') {
+
+        addActionBtn(actions, 'Comanda', 'btn-sm', 'comanda', o.orn, 'Ver comanda');
 
         addActionBtn(actions, 'Editar', 'btn-sm btn-edit', 'edit', o.orn, 'Editar comanda');
 
@@ -4340,11 +4410,9 @@
 
     if (!el) return;
 
-    var t = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    if (realtimeLive) el.textContent = 'En vivo';
 
-    if (realtimeLive) el.textContent = 'En vivo · Supabase · lista al día ' + t;
-
-    else el.textContent = 'Lista al día ' + t + ' (sync automático)';
+    else el.textContent = 'Sync automático';
 
   }
 
@@ -6388,6 +6456,11 @@
       if (ornEdit) openEditModal(ornEdit);
       return;
     }
+    if (action === 'comanda') {
+      var ornCom = btn.dataset.orn;
+      if (ornCom) openComanda(ornCom);
+      return;
+    }
     var orn = btn.dataset.orn;
     if (!orn) return;
     if (action === 'accept') {
@@ -6459,6 +6532,13 @@
     var dark = isDarkTheme();
     document.querySelectorAll('.theme-toggle-btn').forEach(function (btn) {
       btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
+      if (btn.id === 'theme-toggle-nav') {
+        btn.innerHTML = dark
+          ? '<i class="fas fa-sun" aria-hidden="true"></i>'
+          : '<i class="fas fa-moon" aria-hidden="true"></i>';
+        btn.title = dark ? 'Modo claro' : 'Modo noche';
+        return;
+      }
       btn.innerHTML =
         (dark ? '<i class="fas fa-sun" aria-hidden="true"></i> Claro' : '<i class="fas fa-moon" aria-hidden="true"></i> Noche');
     });
@@ -6781,6 +6861,7 @@
   }
 
   if ($('btn-open-proformas')) $('btn-open-proformas').onclick = openProformasModal;
+  if ($('btn-pipeline-search')) $('btn-pipeline-search').onclick = openProformasModal;
   if ($('prof-close')) $('prof-close').onclick = closeProformasModal;
   if ($('prof-print')) $('prof-print').onclick = printProformaPreview;
   if ($('prof-load-more')) $('prof-load-more').onclick = function () { fetchProformas(false); };
