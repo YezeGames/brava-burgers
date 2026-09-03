@@ -665,7 +665,7 @@
 					descripcion: (row.descripcion || '').trim(),
 					categoria: (row.categoria || '').trim(),
 					subcategoria: (row.subcategoria || '').trim(),
-					imagen: (row.imagen || row.Imagen || '').trim(),
+					imagen: extractImageUrl((row.imagen || row.Imagen || '').trim()),
 					agotado: false,
 					variedades: [],
 					precioSimple: 0,
@@ -676,7 +676,7 @@
 			}
 
 			const g = groups.get(key);
-			const imgRow = (row.imagen || row.Imagen || '').trim();
+			const imgRow = extractImageUrl((row.imagen || row.Imagen || '').trim());
 			if (imgRow && !g.imagen) g.imagen = imgRow;
 			if (rowMarcaAgotado(row)) g.agotado = true;
 			const extrasGrupo = col(row, ['grupo extras', 'grupo_extras', 'extras_grupo', 'grupo extra']);

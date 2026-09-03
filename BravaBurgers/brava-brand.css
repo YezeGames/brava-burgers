@@ -1691,34 +1691,39 @@ body.brava-shop-b .footer {
 	}
 
 	body.brava-shop-b .brava-row-head {
-		display: block;
-		position: relative;
-		padding: 10px 52px 10px 10px;
+		display: grid;
+		grid-template-columns: 64px 1fr auto;
+		gap: 12px;
+		align-items: center;
+		padding: 12px;
+		position: static;
 	}
 
 	body.brava-shop-b .brava-thumb {
-		display: none !important;
+		display: block;
+		width: 64px;
+		height: 64px;
 	}
 
 	body.brava-shop-b .brava-row-copy small {
-		display: inline;
-		margin-left: 4px;
+		display: block;
+		margin-left: 0;
 	}
 
 	body.brava-shop-b .brava-row-price,
 	body.brava-shop-b .brava-row-copy .precio-box {
-		float: right;
-		margin-top: 0;
+		float: none;
+		margin-top: 4px;
 	}
 
 	body.brava-shop-b .brava-btn-add {
-		position: absolute;
-		top: 50%;
-		right: 10px;
-		transform: translateY(-50%);
-		width: 36px;
-		height: 36px;
-		font-size: 1.1rem;
+		position: static;
+		top: auto;
+		right: auto;
+		transform: none;
+		width: 44px;
+		height: 44px;
+		font-size: 1.25rem;
 	}
 
 	body.brava-shop-b .brava-product-row,
