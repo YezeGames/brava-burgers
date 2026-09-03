@@ -308,7 +308,7 @@
 		var addr = ($('addr-input').value || '').trim();
 
 		if (!zona) {
-			setBanner('outside', '✗ Fuera de zona — mové el pin adentro del área naranja del mapa.');
+			setBanner('outside', 'Todavía no llegamos a tu zona — mové el pin adentro del área naranja del mapa.');
 			setSubmit(false);
 			$('zona-select-value').value = '';
 			return;
@@ -325,7 +325,7 @@
 			return;
 		}
 
-		setBanner('inside', '✓ Entregamos en ' + zona + ' · envío $' + envio);
+		setBanner('inside', '✓ Llegamos a tu zona, envío $' + envio);
 		setSubmit(true);
 	}
 

@@ -770,7 +770,7 @@
 
 	window.bravaMensajeErrorZona = function (code) {
 		if (code === 'fuera_de_zona') {
-			return 'Esta dirección está fuera de nuestra zona de entrega. Elegí otra dirección de la lista o escribinos por WhatsApp.';
+			return 'Todavía no llegamos a tu zona. Mové el pin adentro del área naranja o escribinos por WhatsApp.';
 		}
 		if (code === 'direccion_sin_coordenadas') {
 			return 'Elegí tu dirección de la lista de sugerencias (no escribas solo a mano).';
@@ -803,8 +803,8 @@
 		}
 		var $opt = $('#pregunta_10_respuesta').find(':selected');
 		var costo = $opt.data('costo');
-		var envTxt = costo !== undefined && !isNaN(parseFloat(costo)) ? ' · envío $' + formatear_moneda(costo) : '';
-		bravaSetZoneBanner('is-inside', '✓ Entregamos en ' + zonaMapa + envTxt + (label ? ' · ' + label : ''));
+		var envTxt = costo !== undefined && !isNaN(parseFloat(costo)) ? ', envío $' + formatear_moneda(costo) : '';
+		bravaSetZoneBanner('is-inside', '✓ Llegamos a tu zona' + envTxt);
 		bravaSetCheckoutSubmitEnabled(true);
 	}
 
@@ -815,7 +815,7 @@
 		calcular_total();
 		bravaSetZoneBanner(
 			'is-outside',
-			'✗ Fuera de zona — mové el pin adentro del área naranja del mapa.'
+			'Todavía no llegamos a tu zona — mové el pin adentro del área naranja del mapa.'
 		);
 		bravaSetCheckoutSubmitEnabled(false);
 		if (window.bravaCheckoutMap) window.bravaCheckoutMap.setZoneOk(false);
