@@ -206,6 +206,7 @@ body.tienehover .producto_fila:hover small {
 	padding: 0 28px 0 0;
 	margin-bottom: 14px;
 	border-bottom: none;
+	text-align: center;
 }
 
 .brava-checkout-body {
@@ -220,7 +221,7 @@ body.tienehover .producto_fila:hover small {
 
 #preguntas_pedido_encabezado {
 	color: var(--brava-text, #eee) !important;
-	text-align: left;
+	text-align: center;
 	font-size: 1.05rem;
 	font-weight: 700;
 	line-height: 1.25;
@@ -253,6 +254,7 @@ body.tienehover .producto_fila:hover small {
 	font-weight: 700;
 	letter-spacing: 0.1em;
 	text-transform: uppercase;
+	text-align: center;
 	color: var(--brava-accent, #ff6b35);
 	margin: 0 0 8px;
 	padding: 0;
