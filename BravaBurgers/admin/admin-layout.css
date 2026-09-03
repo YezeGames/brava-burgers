@@ -648,6 +648,22 @@ html:not([data-theme="dark"]) .tag-ef {
 	font-size: 0.68rem;
 }
 
+.order-meta-addr {
+	display: inline-flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 6px 10px;
+}
+
+.order-meta-addr .order-ruta-chk {
+	flex-shrink: 0;
+}
+
+.order-meta-addr .order-chk-label {
+	font-size: 0.68rem;
+	font-weight: 600;
+}
+
 .order-meta .orders-addr {
 	font-weight: 600;
 	font-size: 0.82rem;

@@ -3925,7 +3925,7 @@
 
 
 
-  function repartoCheckboxHeadHtml(o, card) {
+  function repartoCheckboxMetaHtml(o, card) {
 
     var hasDir = String(o.direccion || '').trim().length > 0;
 
@@ -3943,7 +3943,7 @@
 
     return (
 
-      '<span class="order-inline-chk order-ruta-chk"><label class="order-chk-label"><input type="checkbox" class="reparto-order-cb" data-orn="' +
+      '<span class="order-ruta-chk"><label class="order-chk-label"><input type="checkbox" class="reparto-order-cb" data-orn="' +
 
       escapeHtml(o.orn) +
 
@@ -4052,11 +4052,7 @@
 
       var headInline = '';
 
-      if (panelEstado === 'en_preparacion') {
-
-        headInline = repartoCheckboxHeadHtml(o, card);
-
-      } else if (waNotifyTabEnabled(panelEstado)) {
+      if (waNotifyTabEnabled(panelEstado)) {
 
         headInline = waNotifyCheckboxHeadHtml(o, card);
 
@@ -4088,13 +4084,31 @@
 
       var addrInline = formatOrderAddressInline(o);
 
+      var rutaChk = panelEstado === 'en_preparacion' ? repartoCheckboxMetaHtml(o, card) : '';
+
+      var addrBlock = '';
+
+      if (addrInline || rutaChk) {
+
+        addrBlock =
+
+          '<span class="order-meta-addr">' +
+
+          (addrInline ? '<i class="fas fa-location-dot" aria-hidden="true"></i> ' + addrInline : '') +
+
+          rutaChk +
+
+          '</span>';
+
+      }
+
       meta.innerHTML =
 
         (rel ? '<span><i class="fas fa-clock" aria-hidden="true"></i> ' + escapeHtml(rel) + '</span>' : '') +
 
         (o.telefono ? '<span><i class="fab fa-whatsapp" aria-hidden="true"></i> ' + escapeHtml(o.telefono) + '</span>' : '') +
 
-        (addrInline ? '<span><i class="fas fa-location-dot" aria-hidden="true"></i> ' + addrInline + '</span>' : '');
+        addrBlock;
 
       body.appendChild(meta);
 
