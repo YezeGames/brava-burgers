@@ -6551,6 +6551,8 @@
         if ($('view-title')) $('view-title').textContent = titles[view] || 'Admin';
         var aside = $('main-aside-pedidos');
         if (aside) aside.hidden = view !== 'pedidos';
+        var appMain = document.querySelector('.app-main');
+        if (appMain) appMain.classList.toggle('app-main--full', view !== 'pedidos');
         if (view === 'reparto' && window.BravaReparto && typeof window.BravaReparto.onViewShow === 'function') {
           window.BravaReparto.onViewShow();
         }
