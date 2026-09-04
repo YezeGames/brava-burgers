@@ -527,6 +527,16 @@
       })
       .then(function (res) {
         if (!res || !res.ok) return;
+        if (res.wabaSubscribed === false) {
+          showWaSendError(
+            'Meta no tiene la WABA suscripta al webhook. developers.facebook.com → tu app → WhatsApp → Configuration → Subscribe (campo messages).'
+          );
+          return;
+        }
+        if (res.inboxReadOk === false) {
+          showWaSendError('Inbox Supabase: ' + (res.inboxDetail || res.inboxError || 'no se pudo leer wa_messages'));
+          return;
+        }
         if (res.configured) return;
         showWaSendError(
           'WhatsApp API no configurada en el servidor' +
