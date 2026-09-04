@@ -72,16 +72,6 @@
 
   var EDIT_MENU_SHEET_ID = '1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0';
 
-  var waNotifySelected = {};
-
-  var waNotifyQueue = [];
-
-  var waNotifyIndex = 0;
-
-  var waNotifyKind = 'confirmado';
-
-
-
   var allOrdersCache = [];
 
   var fetchInFlight = null;
@@ -3178,6 +3168,16 @@
     ensurePendOrnDelOnce();
     initDefaultAlertSound();
 
+    if (window.BravaWaPanel) {
+      if (typeof BravaWaPanel.setOrdersProvider === 'function') {
+        BravaWaPanel.setOrdersProvider(function () {
+          return allOrdersCache;
+        });
+      }
+      if (typeof BravaWaPanel.init === 'function') BravaWaPanel.init();
+      syncWaPanelOrders();
+    }
+
   }
 
   /** Una vez por sesión: migración ingresos si Vercel tiene SUPABASE_DB_PASSWORD o POSTGRES_URL. */
@@ -3398,14 +3398,6 @@
 
 
 
-  function waNotifyTabEnabled(panelEstado) {
-
-    return panelEstado === 'aceptado' || panelEstado === 'en_camino';
-
-  }
-
-
-
   function orderHasWaPhone(o) {
 
     return String(o && o.telefono ? o.telefono : '').replace(/\D/g, '').length >= 8;
@@ -3414,85 +3406,11 @@
 
 
 
-  function waNotifyFirstName(o) {
+  function syncWaPanelOrders() {
 
-    return String(o && o.cliente ? o.cliente : '')
-      .trim()
-      .split(/\s+/)[0] || 'Hola';
+    if (window.BravaWaPanel && typeof BravaWaPanel.syncOrders === 'function') {
 
-  }
-
-
-
-  function buildWaNotifyMessage(kind, o) {
-
-    var n = waNotifyFirstName(o);
-
-    if (kind === 'camino') return '¡' + n + ', tu pedido ya está en camino!';
-
-    return 'Hola ' + n + ', pedido confirmado!';
-
-  }
-
-
-
-  function waNotifySelectedOrders(estado) {
-
-    return ordersForEstado(allOrdersCache, estado).filter(function (o) {
-
-      return waNotifySelected[o.orn];
-
-    });
-
-  }
-
-
-
-  function waNotifySelectedCount(estado) {
-
-    return waNotifySelectedOrders(estado).length;
-
-  }
-
-
-
-  function updateWaBatchBar() {
-
-    var bar = $('wa-batch-bar');
-
-    if (!bar) return;
-
-    if (!waNotifyTabEnabled(currentEstado)) {
-
-      bar.classList.add('hidden');
-
-      return;
-
-    }
-
-    bar.classList.remove('hidden');
-
-    var kind = currentEstado === 'en_camino' ? 'camino' : 'confirmado';
-
-    if ($('wa-batch-label')) {
-
-      $('wa-batch-label').textContent = kind === 'camino' ? 'Avisar en camino' : 'Avisar confirmado';
-
-    }
-
-    var n = waNotifySelectedCount(currentEstado);
-
-    if ($('wa-batch-n')) $('wa-batch-n').textContent = String(n);
-
-    if ($('wa-batch-btn')) $('wa-batch-btn').disabled = n === 0;
-
-    if ($('wa-batch-hint')) {
-
-      $('wa-batch-hint').textContent = n
-
-        ? n + ' pedido(s) seleccionado(s).'
-
-        : 'Marcá pedidos con la casilla para avisar por WhatsApp.';
+      BravaWaPanel.syncOrders(allOrdersCache);
 
     }
 
@@ -3500,181 +3418,23 @@
 
 
 
-  function waNotifyCheckboxCellHtml(o, tr) {
+  function maybeWaAutoNotify(orn, newEstado) {
 
-    if (!orderHasWaPhone(o)) return '<td class="td-wa-notify-chk"></td>';
+    if (!window.BravaWaPanel || typeof BravaWaPanel.autoNotify !== 'function') return;
 
-    var on = !!waNotifySelected[o.orn];
+    var o = findOrder(orn);
 
-    if (on) tr.className = (tr.className ? tr.className + ' ' : '') + 'row-wa-notify-on';
+    if (!o || !orderHasWaPhone(o)) return;
 
-    return (
+    var est = normalizeEstado(newEstado);
 
-      '<td class="td-wa-notify-chk"><input type="checkbox" class="wa-notify-order-cb" data-orn="' +
+    if (est === 'aceptado') BravaWaPanel.autoNotify(o, 'confirmado');
 
-      escapeHtml(o.orn) +
-
-      '"' +
-
-      (on ? ' checked' : '') +
-
-      ' title="Incluir en aviso WhatsApp"></td>'
-
-    );
+    else if (est === 'en_camino') BravaWaPanel.autoNotify(o, 'camino');
 
   }
 
 
-
-  function bindWaNotifySelectAll() {
-
-    var chk = $('wa-chk-all');
-
-    if (!chk) return;
-
-    chk.onchange = function () {
-
-      var on = chk.checked;
-
-      ordersForEstado(allOrdersCache, currentEstado).forEach(function (o) {
-
-        if (!orderHasWaPhone(o)) return;
-
-        if (on) waNotifySelected[o.orn] = true;
-
-        else delete waNotifySelected[o.orn];
-
-      });
-
-      paintCurrentTab();
-
-    };
-
-  }
-
-
-
-  function openWaNotifyWizard(kind, orders) {
-
-    if (!orders || !orders.length) return;
-
-    waNotifyQueue = orders.slice();
-
-    waNotifyIndex = 0;
-
-    waNotifyKind = kind === 'camino' ? 'camino' : 'confirmado';
-
-    if ($('wa-notify-kind')) {
-
-      $('wa-notify-kind').textContent =
-
-        waNotifyKind === 'camino' ? 'Plantilla: pedido en camino' : 'Plantilla: pedido confirmado';
-
-    }
-
-    if ($('wa-notify-steps')) $('wa-notify-steps').classList.remove('hidden');
-
-    if ($('wa-notify-done')) $('wa-notify-done').classList.add('hidden');
-
-    if ($('wa-notify-modal')) $('wa-notify-modal').classList.remove('hidden');
-
-    renderWaNotifyStep();
-
-  }
-
-
-
-  function closeWaNotifyWizard() {
-
-    waNotifyQueue = [];
-
-    waNotifyIndex = 0;
-
-    if ($('wa-notify-modal')) $('wa-notify-modal').classList.add('hidden');
-
-  }
-
-
-
-  function renderWaNotifyStep() {
-
-    if (waNotifyIndex >= waNotifyQueue.length) {
-
-      if ($('wa-notify-steps')) $('wa-notify-steps').classList.add('hidden');
-
-      if ($('wa-notify-done')) $('wa-notify-done').classList.remove('hidden');
-
-      if ($('wa-notify-done-text')) {
-
-        $('wa-notify-done-text').textContent =
-
-          'Recorriste ' + waNotifyQueue.length + ' cliente(s). Recordá apretar Enviar en WhatsApp.';
-
-      }
-
-      return;
-
-    }
-
-    var o = waNotifyQueue[waNotifyIndex];
-
-    var total = waNotifyQueue.length;
-
-    var step = waNotifyIndex + 1;
-
-    if ($('wa-notify-step-label')) $('wa-notify-step-label').textContent = step + ' de ' + total;
-
-    if ($('wa-notify-bar')) $('wa-notify-bar').style.width = Math.round((step / total) * 100) + '%';
-
-    if ($('wa-notify-name')) $('wa-notify-name').textContent = o.cliente || '—';
-
-    if ($('wa-notify-meta')) {
-
-      $('wa-notify-meta').textContent =
-
-        (o.telefono || '—') + ' · ' + (o.orn || '') + ' · ' + fmt(Number(o.total) || 0);
-
-    }
-
-    if ($('wa-notify-msg')) $('wa-notify-msg').value = buildWaNotifyMessage(waNotifyKind, o);
-
-    if ($('wa-notify-next')) $('wa-notify-next').textContent = step === total ? 'Finalizar' : 'Siguiente';
-
-  }
-
-
-
-  function openWaNotifyWhatsAppForCurrent() {
-
-    var o = waNotifyQueue[waNotifyIndex];
-
-    if (!o) return;
-
-    var wa = telWa(o.telefono);
-
-    if (!wa) {
-
-      alert('Este pedido no tiene teléfono válido.');
-
-      return;
-
-    }
-
-    var text = ($('wa-notify-msg') && $('wa-notify-msg').value) || buildWaNotifyMessage(waNotifyKind, o);
-
-    window.open('https://wa.me/' + wa + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
-
-  }
-
-
-
-  function waNotifyWizardNext() {
-
-    waNotifyIndex++;
-
-    renderWaNotifyStep();
-
-  }
 
 
 
@@ -3788,8 +3548,6 @@
 
     if (panelEstado === 'en_preparacion') return 10;
 
-    if (waNotifyTabEnabled(panelEstado)) return 10;
-
     return 9;
 
   }
@@ -3841,9 +3599,7 @@
     return html;
   }
 
-  function updateOrdersTableHead(panelEstado) {
-    bindWaNotifySelectAll();
-  }
+  function updateOrdersTableHead(panelEstado) {}
 
   function formatOrderAddressCell(o) {
     var dir = String(o.direccion || '').trim();
@@ -3959,32 +3715,6 @@
 
 
 
-  function waNotifyCheckboxHeadHtml(o, card) {
-
-    if (!orderHasWaPhone(o)) return '';
-
-    var on = !!waNotifySelected[o.orn];
-
-    if (on) card.className += (card.className ? ' ' : '') + 'row-wa-notify-on';
-
-    return (
-
-      '<span class="order-inline-chk order-wa-chk"><label class="order-chk-label"><input type="checkbox" class="wa-notify-order-cb" data-orn="' +
-
-      escapeHtml(o.orn) +
-
-      '"' +
-
-      (on ? ' checked' : '') +
-
-      '> WA</label></span>'
-
-    );
-
-  }
-
-
-
   function addActionBtn(parent, text, className, action, orn, title, disabled) {
 
     var b = document.createElement('button');
@@ -4030,6 +3760,8 @@
 
       card.className = 'order-card';
 
+      if (o.orn) card.setAttribute('data-orn', o.orn);
+
       if (panelEstado === 'pendiente' && o.orn && newPendingOrns.has(o.orn)) {
 
         card.className += ' row-pendiente-nuevo';
@@ -4050,14 +3782,6 @@
 
       head.className = 'order-head';
 
-      var headInline = '';
-
-      if (waNotifyTabEnabled(panelEstado)) {
-
-        headInline = waNotifyCheckboxHeadHtml(o, card);
-
-      }
-
       head.innerHTML =
 
         '<span class="order-orn">' +
@@ -4070,9 +3794,7 @@
 
         paymentTagHtml(o.pago) +
 
-        (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '') +
-
-        headInline;
+        (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '');
 
       body.appendChild(head);
 
@@ -4106,7 +3828,7 @@
 
         (rel ? '<span><i class="fas fa-clock" aria-hidden="true"></i> ' + escapeHtml(rel) + '</span>' : '') +
 
-        (o.telefono ? '<span><i class="fab fa-whatsapp" aria-hidden="true"></i> ' + escapeHtml(o.telefono) + '</span>' : '') +
+        (o.telefono ? '<span class="wa-open" role="button" tabindex="0" data-wa-tel="' + escapeAttr(telWa(o.telefono)) + '"><i class="fab fa-whatsapp" aria-hidden="true"></i> ' + escapeHtml(o.telefono) + '</span>' : '') +
 
         addrBlock;
 
@@ -4242,7 +3964,7 @@
 
     else appendEmptyRow(list, currentEstado);
 
-    updateWaBatchBar();
+    syncWaPanelOrders();
 
   }
 
@@ -5956,6 +5678,7 @@
         if (serverOrn !== orn) {
           patchOrderInCache(orn, { orn: serverOrn });
         }
+        if (patch.estado) maybeWaAutoNotify(serverOrn, patch.estado);
         updateCajaUI();
         return { ok: true, orn: serverOrn };
       }
@@ -6020,8 +5743,6 @@
   function switchTab(estado) {
 
     currentEstado = estado;
-
-    waNotifySelected = {};
 
     paintCurrentTab();
 
@@ -6408,20 +6129,19 @@
       var orn = cb.getAttribute('data-orn');
       if (!orn || !window.BravaReparto || typeof window.BravaReparto.setOrderSelected !== 'function') return;
       window.BravaReparto.setOrderSelected(orn, cb.checked);
-      return;
-    }
-    if (cb.classList.contains('wa-notify-order-cb')) {
-      var ornW = cb.getAttribute('data-orn');
-      if (!ornW) return;
-      if (cb.checked) waNotifySelected[ornW] = true;
-      else delete waNotifySelected[ornW];
-      var card = cb.closest('.order-card');
-      if (card) card.classList.toggle('row-wa-notify-on', cb.checked);
-      updateWaBatchBar();
     }
   }
 
   function onOrdersListClick(e) {
+    var waLink = e.target.closest('.wa-open');
+    if (waLink) {
+      e.preventDefault();
+      var tel = waLink.getAttribute('data-wa-tel');
+      if (tel && window.BravaWaPanel && typeof BravaWaPanel.openChat === 'function') {
+        BravaWaPanel.openChat(tel, { manual: true });
+      }
+      return;
+    }
     var btn = e.target.closest('[data-action]');
     if (!btn) return;
     var action = btn.dataset.action;
@@ -6549,7 +6269,7 @@
           v.hidden = v.id !== 'view-' + view;
         });
         if ($('view-title')) $('view-title').textContent = titles[view] || 'Admin';
-        var aside = $('main-aside-pedidos');
+        var aside = $('wa-aside');
         var showAside = view === 'pedidos' || view === 'reparto';
         if (aside) aside.hidden = !showAside;
         var appMain = document.querySelector('.app-main');
@@ -6559,16 +6279,6 @@
         if (view === 'reparto' && window.BravaReparto && typeof window.BravaReparto.onViewShow === 'function') {
           window.BravaReparto.onViewShow();
         }
-      });
-    });
-    document.querySelectorAll('.aside-tab').forEach(function (tab) {
-      tab.addEventListener('click', function () {
-        var id = tab.getAttribute('data-aside');
-        document.querySelectorAll('.aside-tab').forEach(function (t) {
-          t.classList.toggle('is-active', t === tab);
-        });
-        if ($('aside-turno')) $('aside-turno').hidden = id !== 'turno';
-        if ($('aside-stock')) $('aside-stock').hidden = id !== 'stock';
       });
     });
   }
@@ -6691,40 +6401,6 @@
     $('edit-modal').addEventListener('click', function (e) {
 
       if (e.target === $('edit-modal')) closeEditModal();
-
-    });
-
-  }
-
-
-
-  if ($('wa-batch-btn')) {
-
-    $('wa-batch-btn').onclick = function () {
-
-      var kind = currentEstado === 'en_camino' ? 'camino' : 'confirmado';
-
-      openWaNotifyWizard(kind, waNotifySelectedOrders(currentEstado));
-
-    };
-
-  }
-
-  if ($('wa-notify-cancel')) $('wa-notify-cancel').onclick = closeWaNotifyWizard;
-
-  if ($('wa-notify-close')) $('wa-notify-close').onclick = closeWaNotifyWizard;
-
-  if ($('wa-notify-skip')) $('wa-notify-skip').onclick = waNotifyWizardNext;
-
-  if ($('wa-notify-next')) $('wa-notify-next').onclick = waNotifyWizardNext;
-
-  if ($('wa-notify-open-wa')) $('wa-notify-open-wa').onclick = openWaNotifyWhatsAppForCurrent;
-
-  if ($('wa-notify-modal')) {
-
-    $('wa-notify-modal').addEventListener('click', function (e) {
-
-      if (e.target === $('wa-notify-modal')) closeWaNotifyWizard();
 
     });
 

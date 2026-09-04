@@ -1390,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=11" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=12" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1470,16 +1470,6 @@
 							<button type="button" class="btn-sm btn-icon pipeline-search" id="btn-pipeline-search" title="Buscar comanda"><i class="fas fa-search" aria-hidden="true"></i></button>
 						</div>
 						<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
-						<div class="wa-batch-bar hidden" id="wa-batch-bar">
-							<input type="checkbox" id="wa-chk-all" title="Seleccionar todos" aria-label="Seleccionar todos">
-							<span class="wa-batch-hint" id="wa-batch-hint">Marcá pedidos con la casilla.</span>
-							<span class="spacer"></span>
-							<button type="button" class="btn-wa-batch" id="wa-batch-btn" disabled>
-								<i class="fab fa-whatsapp"></i>
-								<span id="wa-batch-label">Avisar confirmado</span>
-								(<span id="wa-batch-n">0</span>)
-							</button>
-						</div>
 						<div class="orders-list" id="orders-list"></div>
 						<p class="err" id="app-err" hidden></p>
 					</section>
@@ -1549,6 +1539,76 @@
 							</div>
 							<p class="caja-hint mov-hint">Cargá movimientos acá. Totales y detalle del turno están en Resumen operativo.</p>
 						</aside>
+						<aside class="sidebar-block sidebar-turno-panel">
+							<h2>Turno en curso</h2>
+							<div class="aside-stat-grid">
+								<div class="aside-stat-cell">
+									<div class="lbl">Efectivo</div>
+									<div class="val" id="caja-ventas-ef">$0</div>
+								</div>
+								<div class="aside-stat-cell">
+									<div class="lbl">Mercado Pago</div>
+									<div class="val" id="caja-ventas-mp">$0</div>
+								</div>
+							</div>
+							<div class="aside-section">Ventas entregadas</div>
+							<div class="aside-row"><span>Total</span><strong id="caja-ventas">$0</strong></div>
+							<div class="aside-row aside-row--neg"><span>Egresos</span><strong id="caja-gastos">−$0</strong></div>
+							<div class="aside-row aside-row--pos"><span>Resultado</span><strong id="caja-resultado">$0</strong></div>
+							<div class="aside-section">Contadores</div>
+							<div class="aside-row"><span>Simples</span><strong id="ventas-hamb-simples">0</strong></div>
+							<div class="aside-row"><span>Dobles</span><strong id="ventas-hamb-dobles">0</strong></div>
+							<div class="aside-row"><span>Total hamb.</span><strong id="ventas-hamb-total">0</strong></div>
+							<p class="range-label caja-estado" id="caja-estado">—</p>
+							<p class="range-label" id="caja-cierre-detalle" hidden></p>
+							<button type="button" class="btn-sm btn-accent aside-cierre-btn hidden" id="btn-cierre-caja">Cierre de caja</button>
+						</aside>
+						<aside class="sidebar-block sidebar-stock-panel">
+							<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
+								<h3>¿Cuántas burgers?</h3>
+								<p class="cap-sub" id="burger-cap-sub">Abrí caja y cargá stock.</p>
+								<div class="burger-cap-row">
+									<span>Hasta · simples</span>
+									<span class="num" id="burger-cap-simples">—</span>
+								</div>
+								<div class="burger-cap-row">
+									<span>Hasta · dobles</span>
+									<span class="num" id="burger-cap-dobles">—</span>
+								</div>
+								<p class="burger-cap-foot" id="burger-cap-foot">2 lonchas/med · extra cheddar +1 al entregar.</p>
+							</div>
+							<div class="stock-cocina-block hidden" id="stock-cocina-block" aria-live="polite">
+								<div class="stock-cocina-head">
+									<h3>Inventario</h3>
+									<button type="button" class="btn-sm" id="btn-stock-recontar">Recontar</button>
+								</div>
+								<p class="stock-cocina-hint">Panes, medallones y lonchas. Bajan al pasar a preparación.</p>
+								<div class="stock-live-row ok" data-stock-key="panes" data-stock-low="8" data-stock-critical="4">
+									<span class="name">Panes</span>
+									<span class="qty" id="stock-live-panes">0</span>
+									<span class="stock-mini-btns">
+										<button type="button" data-stock-delta="-1" aria-label="Menos pan">−</button>
+										<button type="button" data-stock-delta="1" aria-label="Más pan">+</button>
+									</span>
+								</div>
+								<div class="stock-live-row ok" data-stock-key="medallones" data-stock-low="10" data-stock-critical="5">
+									<span class="name">Medallones</span>
+									<span class="qty" id="stock-live-med">0</span>
+									<span class="stock-mini-btns">
+										<button type="button" data-stock-delta="-1">−</button>
+										<button type="button" data-stock-delta="1">+</button>
+									</span>
+								</div>
+								<div class="stock-live-row ok" data-stock-key="queso" data-stock-low="20" data-stock-critical="10">
+									<span class="name">Queso cheddar</span>
+									<span class="qty" id="stock-live-queso">0</span>
+									<span class="stock-mini-btns">
+										<button type="button" data-stock-delta="-1">−</button>
+										<button type="button" data-stock-delta="1">+</button>
+									</span>
+								</div>
+							</div>
+						</aside>
 						<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
 							<h2>Saldos por usuario</h2>
 							<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
@@ -1571,78 +1631,33 @@
 					</section>
 				</div>
 
-				<aside class="main-aside" id="main-aside-pedidos">
-					<div class="aside-tabs">
-						<button type="button" class="aside-tab is-active" data-aside="turno">Turno</button>
-						<button type="button" class="aside-tab" data-aside="stock">Stock</button>
+				<aside class="main-aside wa-aside" id="wa-aside">
+					<div class="wa-toolbar" id="wa-toolbar-inbox">
+						<h2><i class="fab fa-whatsapp" aria-hidden="true"></i> Chats</h2>
+						<span class="wa-demo-tag">Semi-auto</span>
 					</div>
-					<div class="aside-panel" id="aside-turno">
-						<div class="aside-stat-grid">
-							<div class="aside-stat-cell">
-								<div class="lbl">Efectivo</div>
-								<div class="val" id="caja-ventas-ef">$0</div>
-							</div>
-							<div class="aside-stat-cell">
-								<div class="lbl">Mercado Pago</div>
-								<div class="val" id="caja-ventas-mp">$0</div>
-							</div>
-						</div>
-						<div class="aside-section">Ventas entregadas</div>
-						<div class="aside-row"><span>Total</span><strong id="caja-ventas">$0</strong></div>
-						<div class="aside-row aside-row--neg"><span>Egresos</span><strong id="caja-gastos">−$0</strong></div>
-						<div class="aside-row aside-row--pos"><span>Resultado</span><strong id="caja-resultado">$0</strong></div>
-						<div class="aside-section">Contadores</div>
-						<div class="aside-row"><span>Simples</span><strong id="ventas-hamb-simples">0</strong></div>
-						<div class="aside-row"><span>Dobles</span><strong id="ventas-hamb-dobles">0</strong></div>
-						<div class="aside-row"><span>Total hamb.</span><strong id="ventas-hamb-total">0</strong></div>
-						<div class="caja-row resultado pos hidden" id="row-resultado" aria-hidden="true"><span>Resultado</span><span></span></div>
-						<p class="range-label caja-estado" id="caja-estado">—</p>
-						<p class="range-label" id="caja-cierre-detalle" hidden></p>
-						<button type="button" class="btn-sm btn-accent aside-cierre-btn hidden" id="btn-cierre-caja">Cierre de caja</button>
+					<div class="wa-toolbar hidden" id="wa-toolbar-chat">
+						<button type="button" class="wa-back" id="wa-back" title="Volver a chats" aria-label="Volver a chats">
+							<i class="fas fa-arrow-left"></i>
+						</button>
+						<div class="wa-toolbar-who" id="wa-toolbar-who"></div>
 					</div>
-					<div class="aside-panel" id="aside-stock" hidden>
-						<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
-							<h3>¿Cuántas burgers?</h3>
-							<p class="cap-sub" id="burger-cap-sub">Abrí caja y cargá stock.</p>
-							<div class="burger-cap-row">
-								<span>Hasta · simples</span>
-								<span class="num" id="burger-cap-simples">—</span>
-							</div>
-							<div class="burger-cap-row">
-								<span>Hasta · dobles</span>
-								<span class="num" id="burger-cap-dobles">—</span>
-							</div>
-							<p class="burger-cap-foot" id="burger-cap-foot">2 lonchas/med · extra cheddar +1 al entregar.</p>
-						</div>
-						<div class="stock-cocina-block hidden" id="stock-cocina-block" aria-live="polite">
-							<div class="stock-cocina-head">
-								<h3>Inventario</h3>
-								<button type="button" class="btn-sm" id="btn-stock-recontar">Recontar</button>
-							</div>
-							<p class="stock-cocina-hint">Panes, medallones y lonchas. Bajan al pasar a preparación.</p>
-							<div class="stock-live-row ok" data-stock-key="panes" data-stock-low="8" data-stock-critical="4">
-								<span class="name">Panes</span>
-								<span class="qty" id="stock-live-panes">0</span>
-								<span class="stock-mini-btns">
-									<button type="button" data-stock-delta="-1" aria-label="Menos pan">−</button>
-									<button type="button" data-stock-delta="1" aria-label="Más pan">+</button>
-								</span>
-							</div>
-							<div class="stock-live-row ok" data-stock-key="medallones" data-stock-low="10" data-stock-critical="5">
-								<span class="name">Medallones</span>
-								<span class="qty" id="stock-live-med">0</span>
-								<span class="stock-mini-btns">
-									<button type="button" data-stock-delta="-1">−</button>
-									<button type="button" data-stock-delta="1">+</button>
-								</span>
-							</div>
-							<div class="stock-live-row ok" data-stock-key="queso" data-stock-low="20" data-stock-critical="10">
-								<span class="name">Queso cheddar</span>
-								<span class="qty" id="stock-live-queso">0</span>
-								<span class="stock-mini-btns">
-									<button type="button" data-stock-delta="-1">−</button>
-									<button type="button" data-stock-delta="1">+</button>
-								</span>
+					<div class="wa-panel" id="wa-inbox-panel">
+						<div class="wa-inbox-list" id="wa-thread-list" role="list"></div>
+						<p class="wa-inbox-hint">Tocá un chat o el teléfono en un pedido.</p>
+					</div>
+					<div class="wa-panel hidden" id="wa-chat-panel">
+						<div class="wa-order-chip hidden" id="wa-order-chip"></div>
+						<div class="wa-chat-body" id="wa-chat-body"></div>
+						<div class="wa-chat-foot">
+							<p class="wa-auto-hint hidden" id="wa-auto-hint"></p>
+							<div class="wa-snippets-label">Respuestas rápidas</div>
+							<div class="wa-snippets" id="wa-snippets"></div>
+							<div class="wa-compose">
+								<textarea id="wa-input" placeholder="Escribí un mensaje…" rows="1"></textarea>
+								<button type="button" class="btn-send" id="wa-send" title="Enviar por WhatsApp" aria-label="Enviar">
+									<i class="fas fa-paper-plane"></i>
+								</button>
 							</div>
 						</div>
 					</div>
@@ -1694,38 +1709,6 @@
 			<div class="modal-foot">
 				<button type="button" class="btn-sm" id="stock-apertura-cancel">Cancelar</button>
 				<button type="button" class="btn-sm btn-accent" id="stock-apertura-ok">Confirmar y abrir caja</button>
-			</div>
-		</div>
-	</div>
-
-	<div class="modal-backdrop hidden" id="wa-notify-modal" role="dialog" aria-modal="true" aria-labelledby="wa-notify-title">
-		<div class="modal">
-			<div id="wa-notify-steps">
-				<h2 id="wa-notify-title">Avisar al cliente</h2>
-				<p class="sub" id="wa-notify-kind"></p>
-				<div class="wa-notify-progress">
-					<span id="wa-notify-step-label">1 de 1</span>
-					<div class="wa-notify-progress-bar"><span id="wa-notify-bar" style="width:100%"></span></div>
-				</div>
-				<div class="wa-notify-client">
-					<strong id="wa-notify-name">—</strong>
-					<span id="wa-notify-meta">—</span>
-				</div>
-				<label class="field" for="wa-notify-msg">Mensaje (editable)</label>
-				<textarea id="wa-notify-msg"></textarea>
-				<div class="modal-foot">
-					<button type="button" class="btn-sm" id="wa-notify-cancel">Cancelar</button>
-					<button type="button" class="btn-sm" id="wa-notify-skip">Omitir</button>
-					<button type="button" class="btn-wa-modal" id="wa-notify-open-wa"><i class="fab fa-whatsapp"></i> Abrir WhatsApp</button>
-					<button type="button" class="btn-sm btn-accent" id="wa-notify-next">Siguiente</button>
-				</div>
-			</div>
-			<div id="wa-notify-done" class="hidden">
-				<h2>Listo</h2>
-				<p class="sub" id="wa-notify-done-text"></p>
-				<div class="modal-foot">
-					<button type="button" class="btn-sm btn-accent" id="wa-notify-close">Cerrar</button>
-				</div>
 			</div>
 		</div>
 	</div>
@@ -2024,6 +2007,7 @@
 	<script src="/admin/comanda.js?v=16"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
-	<script src="/admin/admin.js?v=111"></script>
+	<script src="/admin/wa-panel.js?v=1"></script>
+	<script src="/admin/admin.js?v=112"></script>
 </body>
 </html>
