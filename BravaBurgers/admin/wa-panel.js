@@ -299,11 +299,51 @@
     var text = input && input.value ? input.value.trim() : '';
     if (!text) return;
     var th = threads[waActiveTel];
-    window.open('https://wa.me/' + th.tel + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
-    th.msgs.push({ dir: 'out', text: text, t: waNowTime() });
-    input.value = '';
-    hideWaAutoHint();
-    renderWaMessages();
+
+    function pushOutAndClear() {
+      th.msgs.push({ dir: 'out', text: text, t: waNowTime() });
+      if (input) input.value = '';
+      hideWaAutoHint();
+      renderWaMessages();
+    }
+
+    function openWaMeFallback() {
+      window.open('https://wa.me/' + th.tel + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
+      pushOutAndClear();
+    }
+
+    var adminToken = '';
+    try {
+      adminToken = sessionStorage.getItem('brava_admin_token') || '';
+    } catch (e) {
+      adminToken = '';
+    }
+
+    if (!adminToken) {
+      openWaMeFallback();
+      return;
+    }
+
+    fetch('/api/whatsapp-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: adminToken, to: th.tel, text: text }),
+    })
+      .then(function (r) {
+        return r.json().catch(function () {
+          return { ok: false };
+        });
+      })
+      .then(function (res) {
+        if (res && res.ok) {
+          pushOutAndClear();
+          return;
+        }
+        openWaMeFallback();
+      })
+      .catch(function () {
+        openWaMeFallback();
+      });
   }
 
   function initSnippets() {
