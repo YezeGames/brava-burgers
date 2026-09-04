@@ -227,11 +227,9 @@
     }
     if (code === 131030 || res.hint === 'recipient_not_allowed') {
       return (
-        'Meta está en modo PRUEBA: el teléfono del cliente (' +
-        (res.to || 'ver pedido') +
-        ') no está en la lista de destinatarios. ' +
-        'developers.facebook.com → app BRAVADELI → WhatsApp → API Setup → agregá el número en "To" (con +549…). ' +
-        'O pasá la app a producción. Mientras tanto usá el botón wa.me abajo.'
+        'WhatsApp sigue en MODO PRUEBA de Meta: no podés escribir a clientes reales. ' +
+        'Hay que conectar el número de Brava en PRODUCCIÓN (Coexistencia App + API), pasar la app a Live y actualizar token/WABA en Vercel. ' +
+        'Mientras tanto: botón wa.me abajo.'
       );
     }
     if (code === 131047 || code === 131026 || res.hint === 'needs_template_or_session') {

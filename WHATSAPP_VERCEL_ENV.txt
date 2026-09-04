@@ -1,0 +1,42 @@
+# Pegar en Vercel → brava-burgers → Settings → Environment Variables → Production
+# App Meta: BRAVADELI (WhatsApp). Portfolio: yeze_games
+#
+# === IMPORTANTE: MODO PRUEBA vs PRODUCCIÓN ===
+# Los IDs de abajo (API Setup → "Test WABA") NO sirven para clientes reales.
+# Error típico en logs: (#131030) Recipient phone number not in allowed list
+#
+# Para PRODUCCIÓN (clientes reales, panel sin wa.me):
+# 1. business.facebook.com → verificar negocio Brava Burgers
+# 2. developers.facebook.com → app BRAVADELI → App mode: LIVE (+ App Review whatsapp_business_messaging)
+# 3. WhatsApp Manager → agregar el número REAL de Brava (5491122529712 o el que uses)
+#    → Coexistencia (Business App + Cloud API mismo número, Argentina OK)
+# 4. Copiar Phone number ID y WABA ID del número REAL (no del sandbox de prueba)
+# 5. System User en Business Settings → token permanente con whatsapp_business_messaging
+# 6. WhatsApp → Configuration → webhook + Subscribe "messages"
+# 7. Actualizar variables acá abajo + Redeploy Vercel
+#
+# Pedidos del admin NO dependen de esto: entran por /api/pedido → Supabase al comprar en la tienda.
+# WhatsApp API producción = enviar/recibir chats en el panel lateral.
+
+WHATSAPP_APP_ID=
+META_BUSINESS_PORTFOLIO_ID=106935511366888
+
+# Meta → WhatsApp → API Setup
+WHATSAPP_PHONE_NUMBER_ID=1251787924691107
+WHATSAPP_WABA_ID=1633805485028916
+
+# System User token (solo Vercel — nunca en chat)
+WHATSAPP_ACCESS_TOKEN=
+
+# Mismo valor en Meta → Webhook → Token de verificación
+WHATSAPP_VERIFY_TOKEN=brava-wa-webhook-verify-2026
+
+# Meta → App → Configuración básica → Secreto de la app (opcional, recomendado)
+WHATSAPP_APP_SECRET=
+
+WHATSAPP_GRAPH_VERSION=v22.0
+
+# Meta Paso 2 → Configurar webhooks:
+#   URL: https://brava-burgers.vercel.app/api/whatsapp-webhook
+#   Token de verificación: (mismo WHATSAPP_VERIFY_TOKEN)
+# Luego "Verificar y guardar" y suscribir campo "messages".
