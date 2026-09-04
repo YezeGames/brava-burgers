@@ -5,6 +5,7 @@ const {
   readRawBody,
   parseWebhookPayload,
 } = require('../lib/whatsappMeta');
+const { insertWaMessage } = require('../lib/waInbox');
 
 async function handler(req, res) {
   if (req.method === 'GET') {
@@ -36,13 +37,24 @@ async function handler(req, res) {
 
     const parsed = parseWebhookPayload(rawBody);
     if (parsed.events && parsed.events.length) {
-      parsed.events.forEach(function (ev) {
+      for (const ev of parsed.events) {
         if (ev.type === 'message') {
           console.log('[wa-webhook] message', ev.from, ev.messageType, ev.text ? ev.text.slice(0, 120) : '');
+          if (ev.text) {
+            const saved = await insertWaMessage({
+              messageId: ev.messageId,
+              tel: ev.from,
+              direction: 'in',
+              body: ev.text,
+            });
+            if (!saved.ok && saved.error !== 'supabase_not_configured') {
+              console.warn('[wa-webhook] save failed', saved.error, saved.detail || '');
+            }
+          }
         } else if (ev.type === 'status') {
           console.log('[wa-webhook] status', ev.messageId, ev.status);
         }
-      });
+      }
     }
 
     return res.status(200).json({ ok: true });

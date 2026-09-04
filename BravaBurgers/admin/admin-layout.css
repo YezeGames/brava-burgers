@@ -1430,6 +1430,12 @@ html[data-theme="dark"] .wa-msg.out { background: #005c4b; color: #e9edef; }
 	color: #128c7e;
 }
 html[data-theme="dark"] .wa-auto-hint { color: #81c784; }
+.wa-auto-hint.is-error {
+	background: rgba(211, 47, 47, 0.1);
+	border-color: rgba(211, 47, 47, 0.35);
+	color: #b71c1c;
+}
+html[data-theme="dark"] .wa-auto-hint.is-error { color: #ef9a9a; }
 .wa-snippets-label {
 	font-size: 0.58rem;
 	text-transform: uppercase;

@@ -10,6 +10,10 @@
   var waActiveTel = null;
   var waInChat = false;
   var activeOrn = null;
+  var waPinnedTels = {};
+  var waMsgIdsSeen = {};
+  var waPollSince = null;
+  var waPollTimer = null;
 
   function $(id) {
     return document.getElementById(id);
@@ -68,6 +72,104 @@
     return th.msgs[th.msgs.length - 1].text.replace(/\n/g, ' ');
   }
 
+  function isoToTime(iso) {
+    try {
+      var d = new Date(iso);
+      return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    } catch (e) {
+      return waNowTime();
+    }
+  }
+
+  function ensureThread(tel, defaults) {
+    tel = telWa(tel);
+    defaults = defaults || {};
+    if (!threads[tel]) {
+      threads[tel] = {
+        name: defaults.name || 'WA ···' + tel.slice(-4),
+        orn: defaults.orn || '',
+        phone: defaults.phone || tel,
+        tel: tel,
+        orderLine: defaults.orderLine || 'WhatsApp',
+        unread: false,
+        msgs: [],
+      };
+    }
+    return threads[tel];
+  }
+
+  function mergeInboxMessages(messages) {
+    if (!Array.isArray(messages) || !messages.length) return false;
+    var changed = false;
+    messages.forEach(function (m) {
+      var id = m.id != null ? String(m.id) : '';
+      if (id && waMsgIdsSeen[id]) return;
+      if (id) waMsgIdsSeen[id] = true;
+      var tel = telWa(m.tel);
+      waPinnedTels[tel] = true;
+      var th = ensureThread(tel, {});
+      if (th.msgs.some(function (x) {
+        return id && x.id === id;
+      })) {
+        return;
+      }
+      th.msgs.push({
+        id: id,
+        dir: m.direction === 'out' ? 'out' : 'in',
+        text: m.body || '',
+        t: isoToTime(m.created_at),
+        at: m.created_at || '',
+      });
+      th.msgs.sort(function (a, b) {
+        return String(a.at || '').localeCompare(String(b.at || ''));
+      });
+      if (m.direction === 'in' && tel !== waActiveTel) th.unread = true;
+      if (m.created_at && (!waPollSince || m.created_at > waPollSince)) {
+        waPollSince = m.created_at;
+      }
+      changed = true;
+    });
+    return changed;
+  }
+
+  function getAdminToken() {
+    try {
+      return sessionStorage.getItem('brava_admin_token') || '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function pollWaInbox() {
+    var adminToken = getAdminToken();
+    if (!adminToken) return;
+    var url =
+      '/api/whatsapp-inbox?token=' +
+      encodeURIComponent(adminToken) +
+      '&limit=300' +
+      (waPollSince ? '&since=' + encodeURIComponent(waPollSince) : '');
+    fetch(url)
+      .then(function (r) {
+        return r.json().catch(function () {
+          return { ok: false };
+        });
+      })
+      .then(function (res) {
+        if (!res || !res.ok || !res.messages || !res.messages.length) return;
+        if (mergeInboxMessages(res.messages)) {
+          renderWaThreads();
+          if (waActiveTel && threads[waActiveTel]) renderWaMessages();
+        }
+      })
+      .catch(function () {});
+  }
+
+  function startWaInboxPoll() {
+    if (waPollTimer) return;
+    pollWaInbox();
+    waPollTimer = setInterval(pollWaInbox, 12000);
+  }
+
   function waLastTime(th) {
     if (!th.msgs.length) return '';
     return th.msgs[th.msgs.length - 1].t;
@@ -76,8 +178,41 @@
   function hideWaAutoHint() {
     var hint = $('wa-auto-hint');
     var compose = document.querySelector('.wa-compose');
-    if (hint) hint.classList.add('hidden');
+    if (hint) {
+      hint.classList.add('hidden');
+      hint.classList.remove('is-error');
+    }
     if (compose) compose.classList.remove('is-auto-draft');
+  }
+
+  function showWaSendError(msg) {
+    var hint = $('wa-auto-hint');
+    if (!hint) return;
+    hint.textContent = msg;
+    hint.classList.remove('hidden');
+    hint.classList.add('is-error');
+  }
+
+  function formatWaApiError(res) {
+    if (!res) return 'Sin respuesta del servidor.';
+    if (res.error === 'whatsapp_not_configured') {
+      return 'WhatsApp API sin token en Vercel. Redeploy después de cargar WHATSAPP_ACCESS_TOKEN.';
+    }
+    if (res.error === 'unauthorized') {
+      return 'Sesión expirada. Recargá el admin e iniciá sesión de nuevo.';
+    }
+    if (res.hint === 'token_invalid' || (res.message && /access token/i.test(res.message))) {
+      return 'Token de WhatsApp inválido o vencido. Regeneralo en Meta y actualizalo en Vercel.';
+    }
+    if (res.hint === 'needs_template_or_session') {
+      return 'Meta no permite texto libre: el cliente no escribió en las últimas 24 h (hace falta plantilla aprobada).';
+    }
+    if (res.hint === 'recipient_not_allowed') {
+      return 'Número no autorizado en Meta (modo prueba: agregalo como destinatario de test).';
+    }
+    if (res.message) return String(res.message);
+    if (res.error) return String(res.error);
+    return 'No se pudo enviar por API.';
   }
 
   function showWaAutoHint(kind) {
@@ -110,6 +245,7 @@
       if (!ACTIVE_ESTADOS[est]) return;
       var tel = telWa(o.telefono);
       seen[tel] = true;
+      waPinnedTels[tel] = true;
       var prev = threads[tel] || { msgs: [], unread: false };
       threads[tel] = {
         name: String(o.cliente || 'Cliente').trim() || 'Cliente',
@@ -122,7 +258,7 @@
       };
     });
     Object.keys(threads).forEach(function (tel) {
-      if (!seen[tel]) delete threads[tel];
+      if (!seen[tel] && !waPinnedTels[tel]) delete threads[tel];
     });
     renderWaThreads();
     if (waActiveTel && threads[waActiveTel]) renderWaMessages();
@@ -134,7 +270,7 @@
     list.innerHTML = '';
     var tels = Object.keys(threads);
     if (!tels.length) {
-      list.innerHTML = '<p class="wa-inbox-empty">Sin chats activos en este turno.</p>';
+      list.innerHTML = '<p class="wa-inbox-empty">Sin chats. Los mensajes de WhatsApp aparecen acá.</p>';
       return;
     }
     tels.sort(function (a, b) {
@@ -229,11 +365,16 @@
       '</div></span>';
 
     chip.classList.remove('hidden');
-    chip.innerHTML =
-      '<span class="orn">' +
-      escapeHtml(th.orn) +
-      '</span><br><strong>Pedido:</strong> ' +
-      escapeHtml(th.orderLine);
+    if (th.orn) {
+      chip.innerHTML =
+        '<span class="orn">' +
+        escapeHtml(th.orn) +
+        '</span><br><strong>Pedido:</strong> ' +
+        escapeHtml(th.orderLine);
+    } else {
+      chip.innerHTML =
+        '<span class="wa-chip-note">Chat WhatsApp · sin pedido activo en panel</span>';
+    }
 
     body.innerHTML = '';
     th.msgs.forEach(function (m) {
@@ -301,26 +442,23 @@
     var th = threads[waActiveTel];
 
     function pushOutAndClear() {
-      th.msgs.push({ dir: 'out', text: text, t: waNowTime() });
+      th.msgs.push({ dir: 'out', text: text, t: waNowTime(), at: new Date().toISOString() });
+      waPinnedTels[waActiveTel] = true;
       if (input) input.value = '';
       hideWaAutoHint();
       renderWaMessages();
     }
 
-    function openWaMeFallback() {
+    function openWaMeFallback(reason) {
+      if (reason) showWaSendError(reason + ' Abriendo WhatsApp…');
       window.open('https://wa.me/' + th.tel + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
       pushOutAndClear();
     }
 
-    var adminToken = '';
-    try {
-      adminToken = sessionStorage.getItem('brava_admin_token') || '';
-    } catch (e) {
-      adminToken = '';
-    }
+    var adminToken = getAdminToken();
 
     if (!adminToken) {
-      openWaMeFallback();
+      openWaMeFallback('Sin sesión de admin.');
       return;
     }
 
@@ -331,18 +469,24 @@
     })
       .then(function (r) {
         return r.json().catch(function () {
-          return { ok: false };
+          return { ok: false, error: 'invalid_json' };
+        }).then(function (data) {
+          return { status: r.status, data: data };
         });
       })
-      .then(function (res) {
+      .then(function (wrap) {
+        var res = wrap && wrap.data ? wrap.data : {};
         if (res && res.ok) {
+          hideWaAutoHint();
           pushOutAndClear();
           return;
         }
-        openWaMeFallback();
+        if (wrap.status === 401) res.error = 'unauthorized';
+        if (wrap.status === 503) res.error = 'whatsapp_not_configured';
+        openWaMeFallback(formatWaApiError(res));
       })
       .catch(function () {
-        openWaMeFallback();
+        openWaMeFallback('Error de red al llamar /api/whatsapp-send.');
       });
   }
 
@@ -366,9 +510,31 @@
     });
   }
 
+  function checkWhatsappApiStatus() {
+    var adminToken = getAdminToken();
+    if (!adminToken) return;
+    fetch('/api/whatsapp-status?token=' + encodeURIComponent(adminToken))
+      .then(function (r) {
+        return r.json().catch(function () {
+          return { ok: false };
+        });
+      })
+      .then(function (res) {
+        if (!res || !res.ok) return;
+        if (res.configured) return;
+        showWaSendError(
+          'WhatsApp API no configurada en el servidor' +
+            (res.hasAccessToken ? '' : ' (falta WHATSAPP_ACCESS_TOKEN)') +
+            '. Hacé redeploy en Vercel.'
+        );
+      })
+      .catch(function () {});
+  }
+
   function init() {
     if (!$('wa-aside')) return;
     initSnippets();
+    checkWhatsappApiStatus();
     if ($('wa-back')) $('wa-back').addEventListener('click', closeChat);
     if ($('wa-send')) $('wa-send').addEventListener('click', sendWaOut);
     var waInput = $('wa-input');
@@ -385,6 +551,7 @@
     }
     setWaView(false);
     renderWaThreads();
+    startWaInboxPoll();
   }
 
   window.BravaWaPanel = {

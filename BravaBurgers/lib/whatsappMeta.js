@@ -119,12 +119,23 @@ function parseWebhookPayload(raw) {
   return { ok: true, events };
 }
 
+function normalizeWaRecipient(to) {
+  let d = String(to || '').replace(/\D/g, '');
+  if (!d) return '';
+  if (d.startsWith('549')) return d;
+  if (d.startsWith('5411') && d.length === 12) return '549' + d.slice(2);
+  if (d.startsWith('54')) return d;
+  if (d.startsWith('15')) d = '11' + d.slice(2);
+  if (d.startsWith('11')) return '549' + d;
+  return '54911' + d;
+}
+
 async function sendTextMessage(to, text) {
   const cfg = getWhatsAppConfig();
   if (!cfg.accessToken || !cfg.phoneNumberId) {
     return { ok: false, error: 'whatsapp_not_configured' };
   }
-  const digits = String(to || '').replace(/\D/g, '');
+  const digits = normalizeWaRecipient(to);
   if (!digits || !String(text || '').trim()) {
     return { ok: false, error: 'invalid_params' };
   }
@@ -155,11 +166,23 @@ async function sendTextMessage(to, text) {
     return {};
   });
   if (!res.ok) {
+    const detail = data.error || data;
+    const code = detail && detail.code != null ? detail.code : null;
+    let hint = '';
+    if (code === 190 || code === 102) {
+      hint = 'token_invalid';
+    } else if (code === 131047 || code === 131026) {
+      hint = 'needs_template_or_session';
+    } else if (code === 131030) {
+      hint = 'recipient_not_allowed';
+    }
     return {
       ok: false,
       error: 'graph_error',
+      hint: hint,
       status: res.status,
-      detail: data.error || data,
+      detail: detail,
+      message: detail && detail.message ? String(detail.message) : 'graph_request_failed',
     };
   }
   return { ok: true, data };
@@ -173,4 +196,5 @@ module.exports = {
   readRawBody,
   parseWebhookPayload,
   sendTextMessage,
+  normalizeWaRecipient,
 };
