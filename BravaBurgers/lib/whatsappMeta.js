@@ -232,6 +232,64 @@ async function sendTextMessage(to, text) {
   return { ok: true, data };
 }
 
+async function fetchWabaSubscribedApps(cfg) {
+  if (!cfg.accessToken || !cfg.wabaId) {
+    return { ok: false, error: 'missing_waba_or_token', apps: [] };
+  }
+  const url =
+    'https://graph.facebook.com/' +
+    encodeURIComponent(cfg.graphVersion) +
+    '/' +
+    encodeURIComponent(cfg.wabaId) +
+    '/subscribed_apps';
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + cfg.accessToken },
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json().catch(function () {
+      return {};
+    });
+    const apps = data && Array.isArray(data.data) ? data.data : [];
+    return { ok: res.ok, status: res.status, apps: apps, data: data };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e), apps: [] };
+  }
+}
+
+async function subscribeWabaToApp(cfg) {
+  if (!cfg.accessToken || !cfg.wabaId) {
+    return { ok: false, error: 'missing_waba_or_token' };
+  }
+  const url =
+    'https://graph.facebook.com/' +
+    encodeURIComponent(cfg.graphVersion) +
+    '/' +
+    encodeURIComponent(cfg.wabaId) +
+    '/subscribed_apps';
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + cfg.accessToken },
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json().catch(function () {
+      return {};
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        status: res.status,
+        error: 'graph_error',
+        detail: data.error || data,
+      };
+    }
+    return { ok: true, data: data };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
 module.exports = {
   getWhatsAppConfig,
   isWebhookConfigured,
@@ -241,4 +299,6 @@ module.exports = {
   parseWebhookPayload,
   sendTextMessage,
   normalizeWaRecipient,
+  fetchWabaSubscribedApps,
+  subscribeWabaToApp,
 };

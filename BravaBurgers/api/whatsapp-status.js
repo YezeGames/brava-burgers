@@ -1,29 +1,12 @@
 const { cors } = require('../lib/gasFetch');
 const { validateAdminToken } = require('../lib/adminAuth');
-const { getWhatsAppConfig } = require('../lib/whatsappMeta');
+const {
+  getWhatsAppConfig,
+  isWebhookConfigured,
+  fetchWabaSubscribedApps,
+  subscribeWabaToApp,
+} = require('../lib/whatsappMeta');
 const { listWaMessages, insertWaMessage } = require('../lib/waInbox');
-
-async function fetchWabaSubscription(cfg) {
-  if (!cfg.accessToken || !cfg.wabaId) return null;
-  const url =
-    'https://graph.facebook.com/' +
-    encodeURIComponent(cfg.graphVersion) +
-    '/' +
-    encodeURIComponent(cfg.wabaId) +
-    '/subscribed_apps';
-  try {
-    const res = await fetch(url, {
-      headers: { Authorization: 'Bearer ' + cfg.accessToken },
-      signal: AbortSignal.timeout(15000),
-    });
-    const data = await res.json().catch(function () {
-      return {};
-    });
-    return { ok: res.ok, status: res.status, data: data };
-  } catch (e) {
-    return { ok: false, error: String(e.message || e) };
-  }
-}
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -40,7 +23,14 @@ module.exports = async function handler(req, res) {
 
   const cfg = getWhatsAppConfig();
   const inbox = await listWaMessages({ limit: 5 });
-  const wabaSub = await fetchWabaSubscription(cfg);
+  let wabaSub = await fetchWabaSubscribedApps(cfg);
+  let subscribeAttempt = null;
+
+  if (req.query.subscribe === '1' && (!wabaSub.ok || !wabaSub.apps.length)) {
+    subscribeAttempt = await subscribeWabaToApp(cfg);
+    wabaSub = await fetchWabaSubscribedApps(cfg);
+  }
+
   let inboxWrite = null;
   if (req.query.probe === '1') {
     inboxWrite = await insertWaMessage({
@@ -50,12 +40,17 @@ module.exports = async function handler(req, res) {
       body: 'probe inbox write',
     });
   }
+
+  const wabaSubscribed = !!(wabaSub.ok && wabaSub.apps && wabaSub.apps.length);
+
   return res.status(200).json({
     ok: true,
     configured: !!(cfg.accessToken && cfg.phoneNumberId),
     hasAccessToken: !!cfg.accessToken,
     hasPhoneNumberId: !!cfg.phoneNumberId,
     hasWabaId: !!cfg.wabaId,
+    hasAppSecret: !!cfg.appSecret,
+    webhookVerifyConfigured: isWebhookConfigured(),
     tokenLength: cfg.accessToken ? cfg.accessToken.length : 0,
     inboxReadOk: !!inbox.ok,
     inboxCount: inbox.messages ? inbox.messages.length : 0,
@@ -64,7 +59,14 @@ module.exports = async function handler(req, res) {
     inboxWriteOk: inboxWrite ? !!inboxWrite.ok : null,
     inboxWriteError: inboxWrite && !inboxWrite.ok ? inboxWrite.error : null,
     inboxWriteDetail: inboxWrite && !inboxWrite.ok ? (inboxWrite.detail || '').slice(0, 200) : null,
-    wabaSubscribed: wabaSub && wabaSub.ok && wabaSub.data && Array.isArray(wabaSub.data.data) && wabaSub.data.data.length > 0,
-    wabaSubDetail: wabaSub ? (wabaSub.ok ? null : JSON.stringify(wabaSub.data || wabaSub.error || '').slice(0, 200)) : 'no_waba_or_token',
+    wabaSubscribed: wabaSubscribed,
+    wabaAppCount: wabaSub.apps ? wabaSub.apps.length : 0,
+    wabaSubDetail: wabaSub.ok
+      ? null
+      : JSON.stringify(wabaSub.data || wabaSub.error || '').slice(0, 200),
+    subscribeAttemptOk: subscribeAttempt ? !!subscribeAttempt.ok : null,
+    subscribeAttemptDetail: subscribeAttempt && !subscribeAttempt.ok
+      ? JSON.stringify(subscribeAttempt.detail || subscribeAttempt.error || '').slice(0, 200)
+      : null,
   });
 };

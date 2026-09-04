@@ -560,10 +560,37 @@
     });
   }
 
+  function applyWaStatusHints(res) {
+    if (!res || !res.ok) return;
+    if (res.inboxReadOk === false) {
+      showWaSendError('Inbox Supabase: ' + (res.inboxDetail || res.inboxError || 'no se pudo leer wa_messages'));
+      return;
+    }
+    if (res.wabaSubscribed === false) {
+      var subDetail = res.subscribeAttemptDetail ? ' Meta: ' + res.subscribeAttemptDetail : '';
+      showWaSendError(
+        'Entrantes: la cuenta WhatsApp Brava no está suscripta a la app BRAVADELI (es distinto al campo messages del webhook).' +
+          subDetail +
+          ' Si persiste: revisá WHATSAPP_APP_SECRET en Vercel (si está mal, borrala y redeploy).'
+      );
+      return;
+    }
+    if (res.hasAppSecret && res.wabaSubscribed) {
+      hideWaAutoHint();
+    }
+    if (res.configured) return;
+    showWaSendError(
+      'WhatsApp API no configurada en el servidor' +
+        (res.hasAccessToken ? '' : ' (falta WHATSAPP_ACCESS_TOKEN)') +
+        '. Hacé redeploy en Vercel.'
+    );
+  }
+
   function checkWhatsappApiStatus() {
     var adminToken = getAdminToken();
     if (!adminToken) return;
-    fetch('/api/whatsapp-status?token=' + encodeURIComponent(adminToken))
+    var base = '/api/whatsapp-status?token=' + encodeURIComponent(adminToken);
+    fetch(base)
       .then(function (r) {
         return r.json().catch(function () {
           return { ok: false };
@@ -572,21 +599,26 @@
       .then(function (res) {
         if (!res || !res.ok) return;
         if (res.wabaSubscribed === false) {
-          showWaSendError(
-            'Meta no recibe mensajes entrantes en el panel. developers.facebook.com → app BRAVADELI → WhatsApp → Configuración → Webhook: URL https://brava-burgers.vercel.app/api/whatsapp-webhook, token brava-wa-webhook-verify-2026, y suscribí el campo messages.'
-          );
-          return;
+          var tried = false;
+          try {
+            tried = sessionStorage.getItem('brava_wa_waba_sub_try') === '1';
+          } catch (e) {}
+          if (!tried) {
+            try {
+              sessionStorage.setItem('brava_wa_waba_sub_try', '1');
+            } catch (e2) {}
+            return fetch(base + '&subscribe=1')
+              .then(function (r2) {
+                return r2.json().catch(function () {
+                  return res;
+                });
+              })
+              .then(function (res2) {
+                applyWaStatusHints(res2 || res);
+              });
+          }
         }
-        if (res.inboxReadOk === false) {
-          showWaSendError('Inbox Supabase: ' + (res.inboxDetail || res.inboxError || 'no se pudo leer wa_messages'));
-          return;
-        }
-        if (res.configured) return;
-        showWaSendError(
-          'WhatsApp API no configurada en el servidor' +
-            (res.hasAccessToken ? '' : ' (falta WHATSAPP_ACCESS_TOKEN)') +
-            '. Hacé redeploy en Vercel.'
-        );
+        applyWaStatusHints(res);
       })
       .catch(function () {});
   }
