@@ -1436,6 +1436,11 @@ html[data-theme="dark"] .wa-auto-hint { color: #81c784; }
 	color: #b71c1c;
 }
 html[data-theme="dark"] .wa-auto-hint.is-error { color: #ef9a9a; }
+.wa-wame-fallback {
+  width: 100%;
+  margin: 0 0 8px;
+  font-size: 0.78rem;
+}
 .wa-snippets-label {
 	font-size: 0.58rem;
 	text-transform: uppercase;

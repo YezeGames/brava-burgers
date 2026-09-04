@@ -184,11 +184,13 @@
   function hideWaAutoHint() {
     var hint = $('wa-auto-hint');
     var compose = document.querySelector('.wa-compose');
+    var wame = $('wa-wame-fallback');
     if (hint) {
       hint.classList.add('hidden');
       hint.classList.remove('is-error');
     }
     if (compose) compose.classList.remove('is-auto-draft');
+    if (wame) wame.classList.add('hidden');
   }
 
   function showWaSendError(msg) {
@@ -199,6 +201,18 @@
     hint.classList.add('is-error');
   }
 
+  function showWaMeFallbackButton() {
+    var btn = $('wa-wame-fallback');
+    if (btn) btn.classList.remove('hidden');
+  }
+
+  function graphErrorCode(res) {
+    if (!res) return null;
+    if (res.detail && res.detail.code != null) return Number(res.detail.code);
+    var m = String(res.message || '').match(/\(#(\d+)\)/);
+    return m ? Number(m[1]) : null;
+  }
+
   function formatWaApiError(res) {
     if (!res) return 'Sin respuesta del servidor.';
     if (res.error === 'whatsapp_not_configured') {
@@ -207,14 +221,21 @@
     if (res.error === 'unauthorized') {
       return 'Sesión expirada. Recargá el admin e iniciá sesión de nuevo.';
     }
-    if (res.hint === 'token_invalid' || (res.message && /access token/i.test(res.message))) {
-      return 'Token de WhatsApp inválido o vencido. Regeneralo en Meta y actualizalo en Vercel.';
+    var code = graphErrorCode(res);
+    if (code === 190 || code === 102 || res.hint === 'token_invalid' || (res.message && /access token/i.test(res.message))) {
+      return 'Token de WhatsApp inválido o vencido. Regeneralo en Meta → System users y actualizalo en Vercel.';
     }
-    if (res.hint === 'needs_template_or_session') {
-      return 'Meta no permite texto libre: el cliente no escribió en las últimas 24 h (hace falta plantilla aprobada).';
+    if (code === 131030 || res.hint === 'recipient_not_allowed') {
+      return (
+        'Meta está en modo PRUEBA: el teléfono del cliente (' +
+        (res.to || 'ver pedido') +
+        ') no está en la lista de destinatarios. ' +
+        'developers.facebook.com → app BRAVADELI → WhatsApp → API Setup → agregá el número en "To" (con +549…). ' +
+        'O pasá la app a producción. Mientras tanto usá el botón wa.me abajo.'
+      );
     }
-    if (res.hint === 'recipient_not_allowed') {
-      return 'Número no autorizado en Meta (modo prueba: agregalo como destinatario de test).';
+    if (code === 131047 || code === 131026 || res.hint === 'needs_template_or_session') {
+      return 'Meta no permite texto libre: el cliente no escribió a Brava en las últimas 24 h. Usá wa.me o una plantilla aprobada.';
     }
     if (res.message) return String(res.message);
     if (res.error) return String(res.error);
@@ -227,9 +248,10 @@
     if (!hint) return;
     hint.textContent =
       kind === 'camino'
-        ? 'En camino → mensaje listo. Revisá y enviá (abre WhatsApp).'
-        : 'Pedido aceptado → mensaje listo. Revisá y enviá (abre WhatsApp).';
+        ? 'En camino → mensaje listo. Revisá y tocá enviar (avión).'
+        : 'Pedido aceptado → mensaje listo. Revisá y tocá enviar (avión).';
     hint.classList.remove('hidden');
+    hint.classList.remove('is-error');
     if (compose) compose.classList.add('is-auto-draft');
   }
 
@@ -455,16 +477,19 @@
       renderWaMessages();
     }
 
-    function openWaMeFallback(reason) {
-      if (reason) showWaSendError(reason + ' Abriendo WhatsApp…');
-      window.open('https://wa.me/' + th.tel + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
-      pushOutAndClear();
+    function failWaSend(res, status) {
+      if (status === 401) res.error = 'unauthorized';
+      if (status === 503) res.error = 'whatsapp_not_configured';
+      res.to = th.phone || th.tel;
+      showWaSendError(formatWaApiError(res));
+      showWaMeFallbackButton();
     }
 
     var adminToken = getAdminToken();
 
     if (!adminToken) {
-      openWaMeFallback('Sin sesión de admin.');
+      showWaSendError('Sin sesión de admin.');
+      showWaMeFallbackButton();
       return;
     }
 
@@ -487,13 +512,31 @@
           pushOutAndClear();
           return;
         }
-        if (wrap.status === 401) res.error = 'unauthorized';
-        if (wrap.status === 503) res.error = 'whatsapp_not_configured';
-        openWaMeFallback(formatWaApiError(res));
+        failWaSend(res, wrap.status);
       })
       .catch(function () {
-        openWaMeFallback('Error de red al llamar /api/whatsapp-send.');
+        showWaSendError('Error de red al llamar /api/whatsapp-send.');
+        showWaMeFallbackButton();
       });
+  }
+
+  function bindWaMeFallback() {
+    var btn = $('wa-wame-fallback');
+    if (!btn || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function () {
+      if (!waActiveTel || !threads[waActiveTel]) return;
+      var input = $('wa-input');
+      var text = input && input.value ? input.value.trim() : '';
+      if (!text) return;
+      var th = threads[waActiveTel];
+      window.open('https://wa.me/' + th.tel + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
+      th.msgs.push({ dir: 'out', text: text, t: waNowTime(), at: new Date().toISOString() });
+      waPinnedTels[waActiveTel] = true;
+      if (input) input.value = '';
+      hideWaAutoHint();
+      renderWaMessages();
+    });
   }
 
   function initSnippets() {
@@ -550,6 +593,7 @@
   function init() {
     if (!$('wa-aside')) return;
     initSnippets();
+    bindWaMeFallback();
     checkWhatsappApiStatus();
     if ($('wa-back')) $('wa-back').addEventListener('click', closeChat);
     if ($('wa-send')) $('wa-send').addEventListener('click', sendWaOut);
