@@ -19,3 +19,14 @@ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE wa_messages;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+-- PostgREST + service_role (Vercel webhook/inbox)
+GRANT ALL ON TABLE wa_messages TO service_role;
+GRANT ALL ON SEQUENCE wa_messages_id_seq TO service_role;
+
+ALTER TABLE wa_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_all_wa_messages" ON wa_messages;
+CREATE POLICY "service_all_wa_messages" ON wa_messages
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+NOTIFY pgrst, 'reload schema';

@@ -3166,6 +3166,7 @@
 
     ensureIngresosSchemaOnce();
     ensurePendOrnDelOnce();
+    ensureWaMessagesOnce();
     initDefaultAlertSound();
 
     if (window.BravaWaPanel) {
@@ -3201,6 +3202,24 @@
   }
 
 
+
+  /** Una vez por sesión: tabla wa_messages si falta (Vercel: SUPABASE_DB_PASSWORD). */
+  function ensureWaMessagesOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_wa_messages_try') === '1') return;
+      sessionStorage.setItem('brava_wa_messages_try', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migrateWaMessages', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_wa_messages_ok', '1');
+        } catch (e2) {}
+      }
+    });
+  }
 
   /** Una vez por sesión: next_pend_del() si falta en Supabase (Vercel: SUPABASE_DB_PASSWORD). */
   function ensurePendOrnDelOnce() {

@@ -155,7 +155,13 @@
         });
       })
       .then(function (res) {
-        if (!res || !res.ok || !res.messages || !res.messages.length) return;
+        if (!res || !res.ok) {
+          if (res && res.error && res.error.indexOf('supabase') >= 0) {
+            showWaSendError('Inbox WhatsApp: ' + (res.detail || res.error));
+          }
+          return;
+        }
+        if (!res.messages || !res.messages.length) return;
         if (mergeInboxMessages(res.messages)) {
           renderWaThreads();
           if (waActiveTel && threads[waActiveTel]) renderWaMessages();

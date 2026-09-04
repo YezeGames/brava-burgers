@@ -155,4 +155,67 @@ async function migratePendOrnDel() {
   }
 }
 
-module.exports = { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel };
+async function migrateWaMessages() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL.',
+    };
+  }
+  const client = new Client({
+    connectionString: conn,
+    ssl: { rejectUnauthorized: false },
+  });
+  try {
+    await client.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wa_messages (
+        id bigserial PRIMARY KEY,
+        wa_message_id text UNIQUE,
+        tel text NOT NULL,
+        direction text NOT NULL CHECK (direction IN ('in', 'out')),
+        body text NOT NULL DEFAULT '',
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await client.query(
+      'CREATE INDEX IF NOT EXISTS wa_messages_tel_created_idx ON wa_messages (tel, created_at DESC);'
+    );
+    await client.query(
+      'CREATE INDEX IF NOT EXISTS wa_messages_created_idx ON wa_messages (created_at DESC);'
+    );
+    await client.query('ALTER TABLE wa_messages REPLICA IDENTITY FULL;');
+    await client.query(`
+      DO $$
+      BEGIN
+        ALTER PUBLICATION supabase_realtime ADD TABLE wa_messages;
+      EXCEPTION WHEN duplicate_object THEN NULL;
+      END $$;
+    `);
+    await client.query('GRANT ALL ON TABLE wa_messages TO service_role;');
+    await client.query('GRANT ALL ON SEQUENCE wa_messages_id_seq TO service_role;');
+    await client.query('ALTER TABLE wa_messages ENABLE ROW LEVEL SECURITY;');
+    await client.query('DROP POLICY IF EXISTS "service_all_wa_messages" ON wa_messages;');
+    await client.query(`
+      CREATE POLICY "service_all_wa_messages" ON wa_messages
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
+    `);
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
+module.exports = {
+  migrateEnCaminoColumn,
+  migrateIngresosSchema,
+  migratePendOrnDel,
+  migrateWaMessages,
+};

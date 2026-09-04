@@ -36,6 +36,7 @@ async function handler(req, res) {
     }
 
     const parsed = parseWebhookPayload(rawBody);
+    const saveResults = [];
     if (parsed.events && parsed.events.length) {
       for (const ev of parsed.events) {
         if (ev.type === 'message') {
@@ -47,6 +48,7 @@ async function handler(req, res) {
               direction: 'in',
               body: ev.text,
             });
+            saveResults.push({ messageId: ev.messageId, ok: saved.ok, error: saved.error || null, detail: saved.detail || null });
             if (!saved.ok && saved.error !== 'supabase_not_configured') {
               console.warn('[wa-webhook] save failed', saved.error, saved.detail || '');
             }
@@ -57,7 +59,7 @@ async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ ok: true });
+    return res.status(200).json({ ok: true, events: (parsed.events || []).length, saved: saveResults });
   }
 
   res.setHeader('Allow', 'GET, POST');
