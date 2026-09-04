@@ -52,6 +52,8 @@ async function handler(req, res) {
             if (!saved.ok && saved.error !== 'supabase_not_configured') {
               console.warn('[wa-webhook] save failed', saved.error, saved.detail || '');
             }
+          } else {
+            console.warn('[wa-webhook] message without body', ev.from, ev.messageType);
           }
         } else if (ev.type === 'status') {
           console.log('[wa-webhook] status', ev.messageId, ev.status);

@@ -62,6 +62,50 @@ function readRawBody(req) {
   });
 }
 
+function extractInboundMessageText(msg) {
+  if (!msg || !msg.type) return '';
+  if (msg.type === 'text' && msg.text && msg.text.body) {
+    return String(msg.text.body).trim();
+  }
+  if (msg.type === 'button' && msg.button && msg.button.text) {
+    return String(msg.button.text).trim();
+  }
+  if (msg.type === 'interactive') {
+    var i = msg.interactive || {};
+    if (i.button_reply && i.button_reply.title) return String(i.button_reply.title).trim();
+    if (i.list_reply && i.list_reply.title) return String(i.list_reply.title).trim();
+  }
+  if (msg.type === 'image' && msg.image && msg.image.caption) {
+    return String(msg.image.caption).trim();
+  }
+  if (msg.type === 'video' && msg.video && msg.video.caption) {
+    return String(msg.video.caption).trim();
+  }
+  if (msg.type === 'document' && msg.document && msg.document.caption) {
+    return String(msg.document.caption).trim();
+  }
+  if (msg.type === 'location' && msg.location) {
+    var loc = msg.location;
+    var label = [loc.name, loc.address].filter(Boolean).join(' · ');
+    if (label) return label;
+    if (loc.latitude != null && loc.longitude != null) {
+      return 'Ubicación: ' + loc.latitude + ', ' + loc.longitude;
+    }
+  }
+  var labels = {
+    audio: '[Audio]',
+    image: '[Imagen]',
+    video: '[Video]',
+    document: '[Documento]',
+    sticker: '[Sticker]',
+    contacts: '[Contacto]',
+    location: '[Ubicación]',
+    reaction: '[Reacción]',
+    unsupported: '[Mensaje no soportado]',
+  };
+  return labels[msg.type] || '[' + msg.type + ']';
+}
+
 function parseWebhookPayload(raw) {
   let body = raw;
   if (Buffer.isBuffer(body)) {
@@ -99,7 +143,7 @@ function parseWebhookPayload(raw) {
           from: msg.from,
           timestamp: msg.timestamp,
           messageType: msg.type,
-          text: msg.type === 'text' && msg.text ? msg.text.body : '',
+          text: extractInboundMessageText(msg),
         });
       });
 

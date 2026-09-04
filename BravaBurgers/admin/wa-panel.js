@@ -21,9 +21,12 @@
 
   function telWa(tel) {
     var d = String(tel || '').replace(/\D/g, '');
+    if (!d) return '';
     if (d.startsWith('549')) return d;
+    if (d.startsWith('5411') && d.length === 12) return '549' + d.slice(2);
     if (d.startsWith('54')) return d;
-    if (d.startsWith('11') || d.startsWith('15')) return '549' + d.replace(/^15/, '11');
+    if (d.startsWith('15')) d = '11' + d.slice(2);
+    if (d.startsWith('11')) return '549' + d;
     return '54911' + d;
   }
 
@@ -173,7 +176,7 @@
   function startWaInboxPoll() {
     if (waPollTimer) return;
     pollWaInbox();
-    waPollTimer = setInterval(pollWaInbox, 12000);
+    waPollTimer = setInterval(pollWaInbox, 5000);
   }
 
   function waLastTime(th) {
@@ -570,7 +573,7 @@
         if (!res || !res.ok) return;
         if (res.wabaSubscribed === false) {
           showWaSendError(
-            'Meta no tiene la WABA suscripta al webhook. developers.facebook.com → tu app → WhatsApp → Configuration → Subscribe (campo messages).'
+            'Meta no recibe mensajes entrantes en el panel. developers.facebook.com → app BRAVADELI → WhatsApp → Configuración → Webhook: URL https://brava-burgers.vercel.app/api/whatsapp-webhook, token brava-wa-webhook-verify-2026, y suscribí el campo messages.'
           );
           return;
         }
