@@ -1438,7 +1438,7 @@ html[data-theme="dark"] .wa-order-chip .orn { color: #25d366; }
 html[data-theme="dark"] .wa-chat-body { background-color: #0b141a; }
 .wa-msg {
 	max-width: 88%;
-	padding: 8px 10px;
+	padding: 7px 10px 4px;
 	border-radius: 8px;
 	font-size: 0.74rem;
 	line-height: 1.45;
@@ -1446,6 +1446,46 @@ html[data-theme="dark"] .wa-chat-body { background-color: #0b141a; }
 	word-break: break-word;
 	box-shadow: 0 1px 0.5px rgba(0,0,0,.08);
 }
+.wa-msg-img {
+	display: block;
+	max-width: min(220px, 100%);
+	max-height: 220px;
+	border-radius: 6px;
+	object-fit: cover;
+	background: rgba(0, 0, 0, 0.06);
+}
+.wa-msg-img.is-broken {
+	min-height: 80px;
+	min-width: 120px;
+}
+.wa-msg-caption {
+	margin-top: 6px;
+	white-space: pre-wrap;
+}
+.wa-image-pending {
+	margin: 0 0 6px;
+	padding: 6px 10px;
+	font-size: 0.68rem;
+	border-radius: 8px;
+	background: rgba(37, 211, 102, 0.12);
+	color: var(--text-strong);
+	cursor: pointer;
+}
+.wa-image-pending.hidden { display: none; }
+.wa-image-input.hidden { display: none; }
+.wa-compose .btn-attach {
+	border: none;
+	background: transparent;
+	color: var(--text-muted);
+	width: 32px;
+	height: 36px;
+	cursor: pointer;
+	flex-shrink: 0;
+	display: grid;
+	place-items: center;
+	font-size: 1rem;
+}
+.wa-compose .btn-attach:hover { color: #128c7e; }
 .wa-msg.in {
 	align-self: flex-start;
 	background: #fff;

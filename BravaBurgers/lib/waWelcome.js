@@ -1,6 +1,6 @@
 const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
 const { normalizeWaRecipient, sendTextMessage, getWhatsAppConfig } = require('./whatsappMeta');
-const { insertWaMessage, AUTO_WELCOME_MARKER } = require('./waInbox');
+const { insertWaMessage, AUTO_WELCOME_MARKER, encodeWaMediaBody } = require('./waInbox');
 
 function getWelcomeMessage() {
   const custom = (process.env.WHATSAPP_WELCOME_MESSAGE || '').trim();
@@ -47,8 +47,13 @@ async function markWelcomeSent(tel) {
   });
 }
 
-async function handleInboundMessage({ from, text, messageId }) {
-  const body = String(text || '').trim();
+async function handleInboundMessage({ from, text, messageId, mediaType, mediaId, caption }) {
+  let body = '';
+  if (mediaId && mediaType === 'image') {
+    body = encodeWaMediaBody('image', mediaId, caption || text || '');
+  } else {
+    body = String(text || '').trim();
+  }
   if (!body) {
     return { ok: true, skipped: true, reason: 'empty_body' };
   }

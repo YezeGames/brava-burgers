@@ -91,6 +91,7 @@ Pantalla **Órdenes** tipo deli (referencia capturada), adaptada a Brava:
 | **Editar** | Mismo ORN; reimprimir comanda; total final al entregar *(pendiente prod.)* |
 
 | **Caja del día** | EF + MP entregados; cancelados info; **− gastos**; estados intermedios no suman |
+| **Registro de ventas** | Por turno de caja: hamburguesas (simples/dobles) + **Acompañamientos** + **Extras** + **Bebidas** (catálogo completo del Sheet, cantidades del turno) |
 
 | **Gastos** | Alta/baja en Supabase; restan del **resultado del día** |
 
@@ -188,7 +189,7 @@ Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supaba
 
 | **Retiro en local** | **No** por el momento. Todos los pedidos son **delivery**. No usar `ORN-RET` hasta que exista retiro. |
 
-| **Menú / tienda** | **Google Sheet** (`productos`, `configuracion`) — Pedilo-compatible, sin backend propio para catálogo. |
+| **Menú / tienda** | **Google Sheet** (`productos`, `configuracion`, `extras`) — catálogo tienda + registro de ventas admin. |
 
 | **Operaciones (pedidos + caja + gastos + admin)** | **Supabase** (Postgres + Realtime + Auth para sesión admin). |
 
@@ -204,7 +205,7 @@ Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supaba
 
 |--------|-----|
 
-| **Sheet (menú)** | Catálogo, precios, zonas, horarios, WhatsApp de la tienda |
+| **Sheet (menú)** | Catálogo, precios, zonas, horarios, WhatsApp de la tienda; pestaña **`extras`** para conteo de ventas en admin |
 
 | **Supabase `orders`** | Una fila por pedido: ORN, fechas, cliente, tel, dirección, pago, `items_json`, total, `estado`, timestamps, `rechazo_mensaje`, etc. |
 
@@ -304,6 +305,20 @@ Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supaba
 
 **Caja del día:** solo **`entregada`** suma EF/MP; **− gastos** del período; filtros de fecha compartidos.
 
+**Registro de ventas (ago 2026 — hecho):** sidebar **Resumen operativo** y ticket **Cierre operativo** cuentan por turno (desde **Abrir caja** hasta **Cierre**):
+
+| Sección | Fuente Sheet | Qué cuenta |
+|---------|--------------|------------|
+| **Hamburguesas** | `productos` (simples/dobles por nombre) | Unidades entregadas |
+| **Acompañamientos** | `productos` (categoría acompañamiento / entrada / papas, etc.) | Ítems sueltos entregados |
+| **Extras** | pestaña `extras` + extras en `variedad` de hamburguesas | Bacon, cheddar, pepinillos… |
+| **Bebidas** | `productos` (categoría bebida) | Coca Cola, Zero, Sprite… |
+
+- Lista **todo** lo cargado en el Sheet (incluso qty **0** en el ticket de cierre).
+- **Sin hardcodear:** producto o extra nuevo en Sheet → aparece solo.
+- Clasificación automática por `categoria` / `subcategoria` del Sheet.
+- Snapshot en `cierres_caja.snapshot_json` incluye estos totales para reimpresión desde **Historial**.
+
 
 
 **Referencia visual — pantalla “Órdenes”:** ver maqueta `panel-pedidos-ejemplo.html`. En producción: columnas similares; faltan filtro pago y buscar tel.
@@ -396,7 +411,9 @@ stateDiagram-v2
 
 | **Resultado del día** | Ventas − gastos |
 
+**Registro de ventas (sidebar):** debajo de hamburguesas → **Acompañamientos**, **Extras**, **Bebidas** (mismo catálogo y cantidades del turno que el ticket de cierre). Solo visible con **caja abierta**; al cerrar turno vuelve a 0.
 
+**Cierre operativo:** ticket imprimible + historial con flujo de caja (EF/MP, ingresos, egresos, arqueo) y registro de ventas completo (hamburguesas + tres secciones anteriores).
 
 **Datos Supabase — tabla `gastos`:**
 
@@ -424,39 +441,49 @@ stateDiagram-v2
 
 
 
-### WhatsApp Business API + inbox admin (decisión ago 2026 — **próximo, en unos días**)
+### WhatsApp Business API + inbox admin
 
 
 
-**Objetivo:** inbox real en `/admin` (basado en `demo-admin-whatsapp-inbox.html`) conectado a **Meta Cloud API**, sin perder el celu.
+**Estado:** ✅ **v1 en producción** (texto, pestañas, bienvenida, cierre de turno). Detalle, coexistencia y roadmap: **[`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md)**.
+
+
+
+**Objetivo:** inbox real en `/admin` conectado a **Meta Cloud API**.
 
 
 
 **Contexto acordado:**
 
-- Número Brava ya está en **WhatsApp Business App** (no WhatsApp personal) → candidato ideal para **Coexistencia** (App + API mismo número, Argentina soportada).
+- Número Brava: **+54 9 11 7372-1945** en API producción (app **BRAVADELI**). Celu con ese número **no** disponible hasta coexistencia o desregistrar API — ver doc coexistencia / chip prepago.
 
-- Mensajes enviados **desde el celu (Business App)** → **$0** de API (como hoy).
+- Mensajes desde **celu (Business App + coexistencia futura)** → **$0** de API.
 
-- Mensajes desde el **panel/API** → gratis dentro de ventana 24 h; plantillas fuera de 24 h ~USD 0,026 (utilidad) / ~USD 0,062 (marketing).
+- Mensajes desde **panel/API** → gratis dentro de ventana 24 h; plantillas fuera ~USD 0,026 (utilidad).
 
-- **Estados, grupos, llamadas** siguen solo en el celu; el panel = chats **1 a 1** con clientes.
+- **Estados, grupos, llamadas** → solo celu; panel = chats **1 a 1**.
 
-- **No** incluir tel/PEND-DEL extra en WA del cliente (ya llega al admin). Batch WA enriquecido → futuro.
-
-- Costo Meta estimado uso normal Brava: **USD 0–5/mes**. Cloud API directo = sin fee de plataforma.
+- Costo Meta estimado uso normal Brava: **USD 0–5/mes**.
 
 
 
-**Implementación prevista (v1):**
+**Hecho (v1):**
 
-1. Meta Business verificado + onboarding **Coexistence** (Embedded Signup, app ≥ 2.24.17).
+1. Webhook + Supabase `wa_messages` + envío `/api/whatsapp-send`.
 
-2. Webhook Vercel (`/api/whatsapp`) + tablas mensajes en Supabase.
+2. Inbox: Pedidos activos / Consultas, badges no leídos, chip ORN, snippets, wa.me fallback.
 
-3. Inbox en admin: lista chats, hilo, link a pedido ORN/turno.
+3. Bienvenida 1× por cliente; purge de chats de pedido al cerrar turno.
 
-4. Plantillas opcionales (“en camino”) — fase 2 si hace falta.
+
+
+**Próximo sugerido (pre-apertura):**
+
+1. Sonido en mensaje WA entrante.
+
+2. Plantillas Meta (rechazo / fuera de 24 h).
+
+3. Coexistencia o chip prepago — [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md).
 
 
 
@@ -472,11 +499,15 @@ stateDiagram-v2
 
 
 
-- Tienda Pedilo-compatible (Sheet `productos` + `configuracion`)
+- Tienda Brava (Sheet `productos` + `configuracion` + `extras`; scripts `brava-catalog.js`, `brava-shop.js`, `brava-turnos.js`)
+
+- Horarios tienda desde Sheet (`Horario abierto LUNES` … `SABADO`); hero 🟢 Abierto / 🔴 Cerrado; franja horaria en pie de página
 
 - Checkout → **`/api/pedido`** → Supabase + ORN en WhatsApp
 
 - Panel **`/admin`**: login, 5 pestañas, aceptar/rechazar, entregar/cancelar, caja, gastos, sonido, **ticket/comanda 80 mm**
+
+- **Registro de ventas** por turno: acompañamientos, extras y bebidas dinámicos desde Sheet (Resumen operativo + Cierre operativo + historial snapshot)
 
 - Backend operaciones en **Supabase** + env en **Vercel**
 
@@ -500,13 +531,69 @@ stateDiagram-v2
 
 |------|---------|
 
-| **Menú** | Google Sheet → `pedilo-data.js` / `pedilo-shop.js` |
+| **Menú** | Google Sheet → `brava-catalog.js` / `brava-shop.js` (admin lee `productos` + `extras` para registro de ventas) |
 
 | **Operaciones** | Supabase (`supabase/schema.sql`); ver `.env.example` |
 
 | **Deploy** | https://brava-burgers.vercel.app/ — repo `YezeGames/brava-burgers`, carpeta `BravaBurgers/` |
 
 | **CSV locales** | `sheets/brava-configuracion.csv`, `sheets/brava-productos.csv` (referencia) |
+
+
+
+---
+
+
+
+## Pedido manual WhatsApp / teléfono (ago 2026)
+
+
+
+Pedidos por WA o mostrador que no pasan por la web. **Plan detallado:** [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md).
+
+
+
+| Estado | Ítem |
+
+|--------|------|
+
+| **Demo UI** | `demo-admin-estado-salon-pedido-manual.html` — modal emisión, comanda+cobro, extras/envío como líneas, agenda cliente unificada |
+
+| **Próximo** | Supabase `clientes` + columnas en `orders` + API + port al admin real |
+
+| **Agenda** | Web y manual comparten teléfono; upsert en cada pedido; editar dirección para próximos pedidos |
+
+| **Envío** | Líneas catálogo (601, 602…), no selector aparte |
+
+
+
+---
+
+
+
+## Zonas de entrega — My Maps (sep 2026)
+
+
+
+Solo **checkout web**: al cargar dirección, detectar automáticamente si está **dentro o fuera** del área dibujada en **Google My Maps** (export KML → GeoJSON; validación point-in-polygon con lat/lng de Mapbox).
+
+
+
+**Plan detallado:** [`ZONAS_ENTREGA.md`](ZONAS_ENTREGA.md)
+
+
+
+| Estado | Ítem |
+
+|--------|------|
+
+| **Hoy** | Bbox aproximado en `address-suggest`; zonas/costo por Sheet + selector |
+
+| **Próximo** | Export My Maps → `data/zonas-entrega.kml` + API `/api/delivery-zone` + bloqueo checkout fuera de zona |
+
+| **Mapa** | [My Maps Brava Burgers](https://www.google.com/maps/d/viewer?mid=19CBdgAGGJnksChZYmVvWSzqaqTgZOuU) — 1 polígono cobertura |
+
+| **Demo** | [`demo-tienda-zona-entrega.html`](demo-tienda-zona-entrega.html) — checkout + mapa (`npx vercel dev`) |
 
 
 
@@ -526,5 +613,5 @@ stateDiagram-v2
 
 
 
-_Última actualización: operaciones migradas de Sheet a Supabase (menú sigue en Sheet)._
+_Última actualización: registro de ventas (acompañamientos / extras / bebidas) dinámico desde Sheet en admin; horarios tienda desde Sheet; scripts tienda renombrados `brava-*`._
 

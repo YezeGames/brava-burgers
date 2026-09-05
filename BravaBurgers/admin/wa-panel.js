@@ -17,6 +17,111 @@
   var waInboxTab = 'pedidos';
   /** Teléfonos con pedido en este turno — se purgan al cerrar caja/turno. */
   var waTurnoPurgaTels = {};
+  var waPendingImage = null;
+  var WA_MEDIA_PREFIX = '__wa_media__:';
+
+  function parseWaMsgBody(raw) {
+    var body = String(raw || '');
+    if (body.indexOf(WA_MEDIA_PREFIX) !== 0) {
+      return { text: body, mediaType: '', mediaId: '', caption: '' };
+    }
+    try {
+      var j = JSON.parse(body.slice(WA_MEDIA_PREFIX.length));
+      return {
+        text: j.c || '',
+        mediaType: j.t || 'image',
+        mediaId: j.id || '',
+        caption: j.c || '',
+      };
+    } catch (e) {
+      return { text: body, mediaType: '', mediaId: '', caption: '' };
+    }
+  }
+
+  function waMediaUrl(mediaId) {
+    var adminToken = getAdminToken();
+    if (!adminToken || !mediaId) return '';
+    return (
+      '/api/whatsapp-media?token=' +
+      encodeURIComponent(adminToken) +
+      '&id=' +
+      encodeURIComponent(mediaId)
+    );
+  }
+
+  function waPreviewText(m) {
+    if (m.mediaId && m.mediaType === 'image') {
+      return m.text && m.text !== '[Imagen]' ? '📷 ' + m.text : '📷 Imagen';
+    }
+    return m.text || '';
+  }
+
+  function clearWaPendingImage() {
+    waPendingImage = null;
+    var chip = $('wa-image-pending');
+    if (chip) chip.classList.add('hidden');
+    var input = $('wa-image-input');
+    if (input) input.value = '';
+  }
+
+  function setWaPendingImage(file) {
+    if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+      showWaSendError('Elegí una imagen JPG o PNG (máx. 5 MB).');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showWaSendError('La imagen supera 5 MB (límite de WhatsApp).');
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      var dataUrl = reader.result || '';
+      var comma = String(dataUrl).indexOf(',');
+      waPendingImage = {
+        base64: comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl,
+        mimeType: file.type || 'image/jpeg',
+        name: file.name || 'imagen',
+      };
+      var chip = $('wa-image-pending');
+      if (chip) {
+        chip.textContent = '📷 ' + (file.name || 'Imagen') + ' — tocá enviar';
+        chip.classList.remove('hidden');
+      }
+      hideWaAutoHint();
+    };
+    reader.onerror = function () {
+      showWaSendError('No se pudo leer la imagen.');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function appendWaMessageContent(el, m) {
+    if (m.mediaType === 'image' && m.mediaId) {
+      var link = document.createElement('a');
+      link.href = waMediaUrl(m.mediaId);
+      link.target = '_blank';
+      link.rel = 'noopener';
+      var img = document.createElement('img');
+      img.className = 'wa-msg-img';
+      img.loading = 'lazy';
+      img.alt = m.text || 'Imagen';
+      img.src = waMediaUrl(m.mediaId);
+      img.addEventListener('error', function () {
+        img.alt = 'Imagen no disponible';
+        img.classList.add('is-broken');
+      });
+      link.appendChild(img);
+      el.appendChild(link);
+      if (m.text && m.text !== '[Imagen]') {
+        var cap = document.createElement('div');
+        cap.className = 'wa-msg-caption';
+        cap.textContent = m.text;
+        el.appendChild(cap);
+      }
+    } else {
+      el.appendChild(document.createTextNode(m.text || ''));
+    }
+  }
 
   function threadHasActiveOrder(th) {
     return !!(th && th.orn && String(th.orn).trim());
@@ -145,7 +250,7 @@
 
   function waLastPreview(th) {
     if (!th.msgs.length) return 'Sin mensajes';
-    return th.msgs[th.msgs.length - 1].text.replace(/\n/g, ' ');
+    return waPreviewText(th.msgs[th.msgs.length - 1]).replace(/\n/g, ' ');
   }
 
   function isoToTime(iso) {
@@ -190,10 +295,13 @@
       })) {
         return;
       }
+      var parsed = parseWaMsgBody(m.body);
       th.msgs.push({
         id: id,
         dir: m.direction === 'out' ? 'out' : 'in',
-        text: m.body || '',
+        text: parsed.mediaId ? parsed.caption || parsed.text || '📷 Imagen' : parsed.text || m.body || '',
+        mediaType: parsed.mediaType,
+        mediaId: parsed.mediaId,
         t: isoToTime(m.created_at),
         at: m.created_at || '',
       });
@@ -507,7 +615,7 @@
     th.msgs.forEach(function (m) {
       var el = document.createElement('div');
       el.className = 'wa-msg ' + (m.dir === 'out' ? 'out' : 'in');
-      el.textContent = m.text;
+      appendWaMessageContent(el, m);
       var tm = document.createElement('div');
       tm.className = 'wa-time';
       tm.textContent = m.t;
@@ -550,6 +658,7 @@
     setWaInboxTab(threadHasActiveOrder(threads[tel]) ? 'pedidos' : 'consultas');
     if (opts.manual) {
       hideWaAutoHint();
+      clearWaPendingImage();
       var input = $('wa-input');
       if (input) input.value = '';
     }
@@ -560,6 +669,7 @@
     waActiveTel = null;
     activeOrn = null;
     hideWaAutoHint();
+    clearWaPendingImage();
     var input = $('wa-input');
     if (input) input.value = '';
     renderWaMessages();
@@ -591,13 +701,15 @@
     if (!waActiveTel || !threads[waActiveTel]) return;
     var input = $('wa-input');
     var text = input && input.value ? input.value.trim() : '';
-    if (!text) return;
+    var hasImage = !!(waPendingImage && waPendingImage.base64);
+    if (!text && !hasImage) return;
     var th = threads[waActiveTel];
 
-    function pushOutAndClear() {
-      th.msgs.push({ dir: 'out', text: text, t: waNowTime(), at: new Date().toISOString() });
+    function pushOutAndClear(outMsg) {
+      th.msgs.push(outMsg);
       waPinnedTels[waActiveTel] = true;
       if (input) input.value = '';
+      clearWaPendingImage();
       hideWaAutoHint();
       renderWaMessages();
     }
@@ -618,10 +730,16 @@
       return;
     }
 
+    var payload = { token: adminToken, to: th.tel, text: text };
+    if (hasImage) {
+      payload.imageBase64 = waPendingImage.base64;
+      payload.mimeType = waPendingImage.mimeType;
+    }
+
     fetch('/api/whatsapp-send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: adminToken, to: th.tel, text: text }),
+      body: JSON.stringify(payload),
     })
       .then(function (r) {
         return r.json().catch(function () {
@@ -634,7 +752,17 @@
         var res = wrap && wrap.data ? wrap.data : {};
         if (res && res.ok) {
           hideWaAutoHint();
-          pushOutAndClear();
+          var outMsg = {
+            dir: 'out',
+            text: text || '📷 Imagen',
+            t: waNowTime(),
+            at: new Date().toISOString(),
+          };
+          if (hasImage && res.mediaId) {
+            outMsg.mediaType = 'image';
+            outMsg.mediaId = res.mediaId;
+          }
+          pushOutAndClear(outMsg);
           return;
         }
         failWaSend(res, wrap.status);
@@ -643,6 +771,25 @@
         showWaSendError('Error de red al llamar /api/whatsapp-send.');
         showWaMeFallbackButton();
       });
+  }
+
+  function bindWaImageAttach() {
+    var btn = $('wa-attach-image');
+    var fileInput = $('wa-image-input');
+    var pending = $('wa-image-pending');
+    if (!btn || !fileInput || btn.dataset.bound) return;
+    btn.dataset.bound = '1';
+    btn.addEventListener('click', function () {
+      fileInput.click();
+    });
+    fileInput.addEventListener('change', function () {
+      if (fileInput.files && fileInput.files[0]) {
+        setWaPendingImage(fileInput.files[0]);
+      }
+    });
+    if (pending) {
+      pending.addEventListener('click', clearWaPendingImage);
+    }
   }
 
   function bindWaMeFallback() {
@@ -751,6 +898,7 @@
     if (!$('wa-aside')) return;
     initSnippets();
     bindWaMeFallback();
+    bindWaImageAttach();
     checkWhatsappApiStatus();
     if ($('wa-back')) $('wa-back').addEventListener('click', closeChat);
     document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {

@@ -41,12 +41,20 @@ async function handler(req, res) {
     if (parsed.events && parsed.events.length) {
       for (const ev of parsed.events) {
         if (ev.type === 'message') {
-          console.log('[wa-webhook] message', ev.from, ev.messageType, ev.text ? ev.text.slice(0, 120) : '');
-          if (ev.text) {
+          console.log(
+            '[wa-webhook] message',
+            ev.from,
+            ev.messageType,
+            ev.mediaId ? 'media:' + ev.mediaId : ev.text ? ev.text.slice(0, 120) : ''
+          );
+          if (ev.text || ev.mediaId) {
             const saved = await handleInboundMessage({
               from: ev.from,
               text: ev.text,
               messageId: ev.messageId,
+              mediaType: ev.mediaType,
+              mediaId: ev.mediaId,
+              caption: ev.caption,
             });
             saveResults.push({
               messageId: ev.messageId,

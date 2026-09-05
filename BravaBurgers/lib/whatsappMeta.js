@@ -106,6 +106,18 @@ function extractInboundMessageText(msg) {
   return labels[msg.type] || '[' + msg.type + ']';
 }
 
+function extractInboundMedia(msg) {
+  if (!msg || !msg.type) return null;
+  if (msg.type === 'image' && msg.image && msg.image.id) {
+    return {
+      mediaType: 'image',
+      mediaId: String(msg.image.id),
+      caption: msg.image.caption ? String(msg.image.caption).trim() : '',
+    };
+  }
+  return null;
+}
+
 function parseWebhookPayload(raw) {
   let body = raw;
   if (Buffer.isBuffer(body)) {
@@ -136,6 +148,7 @@ function parseWebhookPayload(raw) {
       };
 
       (value.messages || []).forEach(function (msg) {
+        const media = extractInboundMedia(msg);
         events.push({
           ...base,
           type: 'message',
@@ -144,6 +157,9 @@ function parseWebhookPayload(raw) {
           timestamp: msg.timestamp,
           messageType: msg.type,
           text: extractInboundMessageText(msg),
+          mediaType: media ? media.mediaType : '',
+          mediaId: media ? media.mediaId : '',
+          caption: media ? media.caption : '',
         });
       });
 
@@ -232,6 +248,155 @@ async function sendTextMessage(to, text) {
   return { ok: true, data };
 }
 
+async function uploadMediaBuffer(buffer, mimeType) {
+  const cfg = getWhatsAppConfig();
+  if (!cfg.accessToken || !cfg.phoneNumberId) {
+    return { ok: false, error: 'whatsapp_not_configured' };
+  }
+  const type = String(mimeType || 'image/jpeg').trim() || 'image/jpeg';
+  const url =
+    'https://graph.facebook.com/' +
+    encodeURIComponent(cfg.graphVersion) +
+    '/' +
+    encodeURIComponent(cfg.phoneNumberId) +
+    '/media';
+
+  const form = new FormData();
+  form.append('messaging_product', 'whatsapp');
+  form.append('type', type);
+  const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer);
+  form.append('file', new Blob([bytes], { type: type }), type.indexOf('png') >= 0 ? 'image.png' : 'image.jpg');
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + cfg.accessToken },
+      body: form,
+      signal: AbortSignal.timeout(45000),
+    });
+    const data = await res.json().catch(function () {
+      return {};
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: 'graph_error',
+        status: res.status,
+        detail: data.error || data,
+        message: data.error && data.error.message ? String(data.error.message) : 'upload_failed',
+      };
+    }
+    const mediaId = data && data.id ? String(data.id) : '';
+    if (!mediaId) {
+      return { ok: false, error: 'missing_media_id', detail: data };
+    }
+    return { ok: true, mediaId: mediaId, data: data };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
+async function sendImageMessage(to, mediaId, caption) {
+  const cfg = getWhatsAppConfig();
+  if (!cfg.accessToken || !cfg.phoneNumberId) {
+    return { ok: false, error: 'whatsapp_not_configured' };
+  }
+  const digits = normalizeWaRecipient(to);
+  const id = String(mediaId || '').trim();
+  if (!digits || !id) {
+    return { ok: false, error: 'invalid_params' };
+  }
+
+  const image = { id: id };
+  const cap = String(caption || '').trim();
+  if (cap) image.caption = cap;
+
+  const url =
+    'https://graph.facebook.com/' +
+    encodeURIComponent(cfg.graphVersion) +
+    '/' +
+    encodeURIComponent(cfg.phoneNumberId) +
+    '/messages';
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      Authorization: 'Bearer ' + cfg.accessToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to: digits,
+      type: 'image',
+      image: image,
+    }),
+    signal: AbortSignal.timeout(25000),
+  });
+
+  const data = await res.json().catch(function () {
+    return {};
+  });
+  if (!res.ok) {
+    const detail = data.error || data;
+    const code = detail && detail.code != null ? detail.code : null;
+    let hint = '';
+    if (code === 190 || code === 102) hint = 'token_invalid';
+    else if (code === 131047 || code === 131026) hint = 'needs_template_or_session';
+    else if (code === 131030) hint = 'recipient_not_allowed';
+    return {
+      ok: false,
+      error: 'graph_error',
+      hint: hint,
+      status: res.status,
+      detail: detail,
+      message: detail && detail.message ? String(detail.message) : 'graph_request_failed',
+    };
+  }
+  return { ok: true, data: data, mediaId: id };
+}
+
+async function downloadMediaBuffer(mediaId) {
+  const cfg = getWhatsAppConfig();
+  if (!cfg.accessToken) {
+    return { ok: false, error: 'whatsapp_not_configured' };
+  }
+  const id = String(mediaId || '').trim();
+  if (!id) {
+    return { ok: false, error: 'invalid_params' };
+  }
+  const metaUrl =
+    'https://graph.facebook.com/' + encodeURIComponent(cfg.graphVersion) + '/' + encodeURIComponent(id);
+  try {
+    const metaRes = await fetch(metaUrl, {
+      headers: { Authorization: 'Bearer ' + cfg.accessToken },
+      signal: AbortSignal.timeout(20000),
+    });
+    const meta = await metaRes.json().catch(function () {
+      return {};
+    });
+    if (!metaRes.ok || !meta.url) {
+      return {
+        ok: false,
+        error: 'media_meta_failed',
+        status: metaRes.status,
+        detail: meta.error || meta,
+      };
+    }
+    const fileRes = await fetch(meta.url, {
+      headers: { Authorization: 'Bearer ' + cfg.accessToken },
+      signal: AbortSignal.timeout(45000),
+    });
+    if (!fileRes.ok) {
+      return { ok: false, error: 'media_download_failed', status: fileRes.status };
+    }
+    const buffer = await fileRes.arrayBuffer();
+    const contentType = fileRes.headers.get('content-type') || meta.mime_type || 'image/jpeg';
+    return { ok: true, buffer: buffer, contentType: contentType };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
+}
+
 async function fetchWabaSubscribedApps(cfg) {
   if (!cfg.accessToken || !cfg.wabaId) {
     return { ok: false, error: 'missing_waba_or_token', apps: [] };
@@ -297,7 +462,11 @@ module.exports = {
   verifyWebhookSignature,
   readRawBody,
   parseWebhookPayload,
+  extractInboundMedia,
   sendTextMessage,
+  sendImageMessage,
+  uploadMediaBuffer,
+  downloadMediaBuffer,
   normalizeWaRecipient,
   fetchWabaSubscribedApps,
   subscribeWabaToApp,

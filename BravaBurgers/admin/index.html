@@ -1390,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=14" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=15" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1658,7 +1658,12 @@
 							<button type="button" class="btn-sm wa-wame-fallback hidden" id="wa-wame-fallback">Abrir WhatsApp manual (wa.me)</button>
 							<div class="wa-snippets-label">Respuestas rápidas</div>
 							<div class="wa-snippets" id="wa-snippets"></div>
+							<p class="wa-image-pending hidden" id="wa-image-pending" title="Tocá para quitar"></p>
 							<div class="wa-compose">
+								<input type="file" id="wa-image-input" class="wa-image-input hidden" accept="image/jpeg,image/png,image/webp" aria-hidden="true">
+								<button type="button" class="btn-attach" id="wa-attach-image" title="Enviar imagen" aria-label="Adjuntar imagen">
+									<i class="fas fa-image"></i>
+								</button>
 								<textarea id="wa-input" placeholder="Escribí un mensaje…" rows="1"></textarea>
 								<button type="button" class="btn-send" id="wa-send" title="Enviar por WhatsApp" aria-label="Enviar">
 									<i class="fas fa-paper-plane"></i>
@@ -2012,7 +2017,7 @@
 	<script src="/admin/comanda.js?v=16"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
-	<script src="/admin/wa-panel.js?v=13"></script>
+	<script src="/admin/wa-panel.js?v=14"></script>
 	<script src="/admin/admin.js?v=112"></script>
 </body>
 </html>

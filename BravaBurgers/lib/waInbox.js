@@ -2,6 +2,44 @@ const { isSupabaseConfigured, restInsert, restSelect } = require('./supabaseServ
 const { normalizeWaRecipient } = require('./whatsappMeta');
 
 const AUTO_WELCOME_MARKER = '__auto_welcome__';
+const WA_MEDIA_PREFIX = '__wa_media__:';
+
+function encodeWaMediaBody(mediaType, mediaId, caption) {
+  return (
+    WA_MEDIA_PREFIX +
+    JSON.stringify({
+      t: String(mediaType || 'image'),
+      id: String(mediaId || ''),
+      c: String(caption || ''),
+    })
+  );
+}
+
+function parseWaMessageBody(raw) {
+  const body = String(raw || '');
+  if (!body.startsWith(WA_MEDIA_PREFIX)) {
+    return { body: body, mediaType: '', mediaId: '', caption: '' };
+  }
+  try {
+    const j = JSON.parse(body.slice(WA_MEDIA_PREFIX.length));
+    return {
+      body: body,
+      mediaType: j.t || 'image',
+      mediaId: j.id || '',
+      caption: j.c || '',
+    };
+  } catch (e) {
+    return { body: body, mediaType: '', mediaId: '', caption: '' };
+  }
+}
+
+function displayTextForBody(raw) {
+  const p = parseWaMessageBody(raw);
+  if (p.mediaId && p.mediaType === 'image') {
+    return p.caption || '📷 Imagen';
+  }
+  return p.caption || p.body || raw;
+}
 
 async function insertWaMessage({ messageId, tel, direction, body }) {
   if (!isSupabaseConfigured()) {
@@ -46,4 +84,12 @@ async function listWaMessages(opts) {
   return { ok: true, messages: res.data || [] };
 }
 
-module.exports = { insertWaMessage, listWaMessages, AUTO_WELCOME_MARKER };
+module.exports = {
+  insertWaMessage,
+  listWaMessages,
+  AUTO_WELCOME_MARKER,
+  WA_MEDIA_PREFIX,
+  encodeWaMediaBody,
+  parseWaMessageBody,
+  displayTextForBody,
+};
