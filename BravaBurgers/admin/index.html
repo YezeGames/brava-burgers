@@ -1390,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=16" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=17" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1510,35 +1510,14 @@
 
 					<section class="admin-view" id="view-caja" hidden>
 						<div class="view-page view-page--caja">
-						<aside class="sidebar-block caja-box">
-							<h2>Resumen operativo</h2>
-							<p class="range-label" id="caja-range">—</p>
-							<div class="caja-row section">Ventas (entregados ✓)</div>
-							<div class="caja-row section">Detalle ingresos y egresos</div>
-							<ul class="mov-list" id="mov-list"></ul>
-							<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
-							<p class="caja-hint">Cierre = guarda el turno y vuelve contadores a 0.</p>
-						</aside>
-						<aside class="sidebar-block ventas-box">
-							<div class="caja-row section">Salidas</div>
-							<h2>Registro de ventas</h2>
-							<div class="caja-row section">Acompañamientos</div>
-							<div id="ventas-acomp-list"></div>
-							<div class="caja-row section">Extras</div>
-							<div id="ventas-extras-list"></div>
-							<div class="caja-row section">Bebidas</div>
-							<div id="ventas-bebidas-list"></div>
-							<p class="caja-hint" id="ventas-turno-hint">Solo cuenta con caja abierta; al cerrar turno vuelve a 0.</p>
-							<p class="caja-hint">Ventas = pedidos entregados + ingresos − egresos (por Efectivo / Mercado Pago). Solo con caja abierta; al cerrar, todo en 0.</p>
-						</aside>
-						<aside class="sidebar-block movimientos-box">
-							<h2>Ingresos y egresos</h2>
-							<div class="mov-actions">
-								<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
-								<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
-							</div>
-							<p class="caja-hint mov-hint">Cargá movimientos acá. Totales y detalle del turno están en Resumen operativo.</p>
-						</aside>
+						<nav class="caja-tabs" role="tablist" aria-label="Secciones de caja">
+							<button type="button" class="caja-tab is-active" data-caja-tab="resumen" role="tab" aria-selected="true">Resumen</button>
+							<button type="button" class="caja-tab" data-caja-tab="ventas" role="tab" aria-selected="false">Salidas</button>
+							<button type="button" class="caja-tab" data-caja-tab="stock" role="tab" aria-selected="false">Stock</button>
+							<button type="button" class="caja-tab" data-caja-tab="movimientos" role="tab" aria-selected="false">Movimientos</button>
+						</nav>
+						<div class="caja-tab-panel is-active" data-caja-panel="resumen" role="tabpanel">
+							<div class="caja-panel-grid caja-panel-grid--2">
 						<aside class="sidebar-block sidebar-turno-panel">
 							<h2>Turno en curso</h2>
 							<div class="aside-stat-grid">
@@ -1563,6 +1542,52 @@
 							<p class="range-label" id="caja-cierre-detalle" hidden></p>
 							<button type="button" class="btn-sm btn-accent aside-cierre-btn hidden" id="btn-cierre-caja">Cierre de caja</button>
 						</aside>
+						<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
+							<h2>Saldos por usuario</h2>
+							<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
+							<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
+						</aside>
+							</div>
+						<aside class="sidebar-block caja-box" style="margin-top:12px;">
+							<h2>Resumen operativo</h2>
+							<p class="range-label" id="caja-range">—</p>
+							<div class="caja-row section">Ventas (entregados ✓)</div>
+							<div class="caja-row section">Detalle ingresos y egresos</div>
+							<ul class="mov-list" id="mov-list"></ul>
+							<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
+							<p class="caja-hint">Cierre = guarda el turno y vuelve contadores a 0.</p>
+						</aside>
+						</div>
+						<div class="caja-tab-panel" data-caja-panel="ventas" role="tabpanel">
+							<div class="caja-panel-grid caja-panel-grid--1">
+						<aside class="sidebar-block ventas-box">
+							<div class="caja-row section">Salidas</div>
+							<h2>Registro de ventas</h2>
+							<div class="caja-row section">Acompañamientos</div>
+							<div id="ventas-acomp-list"></div>
+							<div class="caja-row section">Extras</div>
+							<div id="ventas-extras-list"></div>
+							<div class="caja-row section">Bebidas</div>
+							<div id="ventas-bebidas-list"></div>
+							<p class="caja-hint" id="ventas-turno-hint">Solo cuenta con caja abierta; al cerrar turno vuelve a 0.</p>
+							<p class="caja-hint">Ventas = pedidos entregados + ingresos − egresos (por Efectivo / Mercado Pago). Solo con caja abierta; al cerrar, todo en 0.</p>
+						</aside>
+							</div>
+						</div>
+						<div class="caja-tab-panel" data-caja-panel="movimientos" role="tabpanel">
+							<div class="caja-panel-grid caja-panel-grid--1">
+						<aside class="sidebar-block movimientos-box">
+							<h2>Ingresos y egresos</h2>
+							<div class="mov-actions">
+								<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
+								<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
+							</div>
+							<p class="caja-hint mov-hint">Cargá movimientos acá. El detalle del turno está en la pestaña Resumen.</p>
+						</aside>
+							</div>
+						</div>
+						<div class="caja-tab-panel" data-caja-panel="stock" role="tabpanel">
+							<div class="caja-panel-grid caja-panel-grid--1">
 						<aside class="sidebar-block sidebar-stock-panel">
 							<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
 								<h3>¿Cuántas burgers?</h3>
@@ -1609,11 +1634,8 @@
 								</div>
 							</div>
 						</aside>
-						<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
-							<h2>Saldos por usuario</h2>
-							<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
-							<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
-						</aside>
+							</div>
+						</div>
 						</div>
 					</section>
 
@@ -2018,6 +2040,6 @@
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
 	<script src="/admin/wa-panel.js?v=16"></script>
-	<script src="/admin/admin.js?v=112"></script>
+	<script src="/admin/admin.js?v=113"></script>
 </body>
 </html>

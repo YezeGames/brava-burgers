@@ -39,6 +39,8 @@ html[data-theme="dark"] {
 body:has(#app-view:not(.hidden)) {
 	padding: 0 !important;
 	background: var(--layout-bg-page, var(--bg-page)) !important;
+	overflow: hidden;
+	height: 100vh;
 }
 
 #app-view:not(.hidden) .app-shell {
@@ -62,7 +64,9 @@ body:has(#app-view:not(.hidden)) {
 		"nav top"
 		"nav main";
 	gap: 0;
-	min-height: 100vh;
+	height: 100vh;
+	max-height: 100vh;
+	min-height: 0;
 	background: var(--layout-bg-shell, var(--bg-surface));
 	border-radius: 0;
 	overflow: hidden;
@@ -289,6 +293,8 @@ html:not([data-theme="dark"]) .turno-pill--closed {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
+	max-height: 100%;
+	overflow: hidden;
 }
 
 .layout-btn {
@@ -339,6 +345,7 @@ html:not([data-theme="dark"]) .turno-pill--closed {
 	display: grid;
 	grid-template-columns: 1fr var(--layout-aside-w);
 	min-height: 0;
+	overflow: hidden;
 }
 
 .main-content {
@@ -1089,28 +1096,67 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 
 /* —— Caja —— */
 .view-page--caja {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	min-height: 0;
+}
+
+.caja-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.caja-tab {
+	border: 1px solid var(--border);
+	background: var(--bg-surface-muted);
+	color: var(--text-muted);
+	border-radius: 999px;
+	padding: 7px 14px;
+	font-family: inherit;
+	font-size: 0.72rem;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.caja-tab:hover {
+	border-color: var(--brava);
+	color: var(--text-strong);
+}
+
+.caja-tab.is-active {
+	background: var(--brava);
+	border-color: var(--brava);
+	color: #fff;
+}
+
+.caja-tab-panel {
+	display: none;
+	min-height: 0;
+}
+
+.caja-tab-panel.is-active {
+	display: block;
+}
+
+.caja-panel-grid {
 	display: grid;
-	grid-template-columns: 1fr 1fr;
-	grid-template-areas:
-		"resumen saldos"
-		"ventas movimientos";
 	gap: 12px;
 }
 
-.view-page--caja .caja-box {
-	grid-area: resumen;
+.caja-panel-grid--2 {
+	grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.view-page--caja .saldos-usuario-box {
-	grid-area: saldos;
+.caja-panel-grid--1 {
+	grid-template-columns: minmax(0, 1fr);
+	max-width: 720px;
 }
 
-.view-page--caja .ventas-box {
-	grid-area: ventas;
-}
-
-.view-page--caja .movimientos-box {
-	grid-area: movimientos;
+.caja-panel-grid .sidebar-block {
+	margin-bottom: 0;
 }
 
 #view-caja .sidebar-block h2 {
@@ -1158,13 +1204,8 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 		min-height: 200px;
 	}
 
-	.view-page--caja {
+	.caja-panel-grid--2 {
 		grid-template-columns: 1fr;
-		grid-template-areas:
-			"resumen"
-			"saldos"
-			"ventas"
-			"movimientos";
 	}
 }
 
@@ -1229,6 +1270,16 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 .wa-aside {
 	overflow: hidden;
 	background: var(--layout-bg-elevated, var(--bg-surface-muted));
+	height: 100%;
+	max-height: 100%;
+}
+
+#wa-chat-panel:not(.hidden) {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	overflow: hidden;
 }
 .wa-toolbar {
 	display: flex;
@@ -1475,7 +1526,7 @@ html[data-theme="dark"] .wa-chat-body { background-color: #0b141a; }
 .wa-msg-pdf {
 	display: block;
 	width: min(240px, 100%);
-	height: 280px;
+	height: 200px;
 	border: 1px solid var(--border);
 	border-radius: 6px;
 	background: #fff;
@@ -1530,6 +1581,8 @@ html[data-theme="dark"] .wa-msg.out { background: #005c4b; color: #e9edef; }
 	padding: 8px 10px 10px;
 	flex-shrink: 0;
 	background: var(--layout-bg-elevated, var(--bg-surface-muted));
+	max-height: min(42vh, 280px);
+	overflow-y: auto;
 }
 .wa-auto-hint {
 	margin: 0 0 8px;

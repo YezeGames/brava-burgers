@@ -6287,6 +6287,20 @@
       caja: 'Caja y turno',
       historial: 'Historial',
     };
+    document.querySelectorAll('.caja-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var tab = btn.getAttribute('data-caja-tab');
+        document.querySelectorAll('.caja-tab').forEach(function (b) {
+          var on = b === btn;
+          b.classList.toggle('is-active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+        document.querySelectorAll('.caja-tab-panel').forEach(function (panel) {
+          panel.classList.toggle('is-active', panel.getAttribute('data-caja-panel') === tab);
+        });
+      });
+    });
+
     document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var view = btn.getAttribute('data-view');
