@@ -42,7 +42,7 @@
     var adminToken = getAdminToken();
     if (!adminToken || !mediaId) return '';
     return (
-      '/api/whatsapp-media?token=' +
+      '/api/whatsapp-inbox?token=' +
       encodeURIComponent(adminToken) +
       '&id=' +
       encodeURIComponent(mediaId)

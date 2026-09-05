@@ -14,6 +14,7 @@ Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Actualizado 
 | Panel lateral: lista, hilo, snippets | ✅ |
 | Pestañas **Pedidos activos** / **Consultas** | ✅ |
 | Badges de no leídos por pestaña | ✅ |
+| Imágenes entrantes / salientes | ✅ |
 | Bienvenida automática (1× por teléfono) | ✅ |
 | Limpieza chats de pedido al **cerrar turno** | ✅ |
 | Borrador auto al aceptar / en camino (envío manual) | ✅ |
@@ -87,8 +88,8 @@ Panel + webhook; celu con **otro** número o sin WhatsApp Business en 7372-1945.
 ### Para abrir Brava (alta prioridad)
 
 1. **Sonido al mensaje nuevo en Chats** — el admin ya tiene zumbido para pedidos nuevos; falta dispararlo cuando llega inbound por WhatsApp (poll/webhook).
-2. **Imágenes / audios** — hoy entran como `[Imagen]` / `[Audio]`; conviene mostrar foto y permitir enviar imagen (comprobantes, mapa).
-3. **Plantilla “rechazo” / fuera de 24 h** — si el cliente no escribió en 24 h, la API no deja texto libre; hace falta plantilla aprobada en Meta (rechazo ya usa flujo aparte vía modal).
+2. ~~**Imágenes**~~ ✅ — ver/enviar JPG/PNG/WebP (`GET /api/whatsapp-inbox?id=…` para proxy de media).
+3. **Audios** — siguen como `[Audio]` (futuro). — si el cliente no escribió en 24 h, la API no deja texto libre; hace falta plantilla aprobada en Meta (rechazo ya usa flujo aparte vía modal).
 
 ### Mejora operativa (media)
 
