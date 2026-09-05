@@ -47,10 +47,10 @@ async function markWelcomeSent(tel) {
   });
 }
 
-async function handleInboundMessage({ from, text, messageId, mediaType, mediaId, caption }) {
+async function handleInboundMessage({ from, text, messageId, mediaType, mediaId, caption, fileName }) {
   let body = '';
-  if (mediaId && mediaType === 'image') {
-    body = encodeWaMediaBody('image', mediaId, caption || text || '');
+  if (mediaId && (mediaType === 'image' || mediaType === 'pdf' || mediaType === 'document')) {
+    body = encodeWaMediaBody(mediaType, mediaId, caption || text || '', fileName || '');
   } else {
     body = String(text || '').trim();
   }

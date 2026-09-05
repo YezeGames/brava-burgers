@@ -113,6 +113,18 @@ function extractInboundMedia(msg) {
       mediaType: 'image',
       mediaId: String(msg.image.id),
       caption: msg.image.caption ? String(msg.image.caption).trim() : '',
+      fileName: '',
+    };
+  }
+  if (msg.type === 'document' && msg.document && msg.document.id) {
+    const mime = String(msg.document.mime_type || '').toLowerCase();
+    const fileName = msg.document.filename ? String(msg.document.filename).trim() : '';
+    const isPdf = mime === 'application/pdf' || /\.pdf$/i.test(fileName);
+    return {
+      mediaType: isPdf ? 'pdf' : 'document',
+      mediaId: String(msg.document.id),
+      caption: msg.document.caption ? String(msg.document.caption).trim() : '',
+      fileName: fileName,
     };
   }
   return null;
@@ -160,6 +172,7 @@ function parseWebhookPayload(raw) {
           mediaType: media ? media.mediaType : '',
           mediaId: media ? media.mediaId : '',
           caption: media ? media.caption : '',
+          fileName: media ? media.fileName : '',
         });
       });
 

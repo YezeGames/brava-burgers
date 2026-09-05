@@ -1462,6 +1462,25 @@ html[data-theme="dark"] .wa-chat-body { background-color: #0b141a; }
 	margin-top: 6px;
 	white-space: pre-wrap;
 }
+.wa-msg-doc { max-width: min(240px, 100%); }
+.wa-msg-doc-link {
+	display: inline-block;
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: #128c7e;
+	text-decoration: none;
+	margin-bottom: 6px;
+}
+.wa-msg-doc-link:hover { text-decoration: underline; }
+.wa-msg-pdf {
+	display: block;
+	width: min(240px, 100%);
+	height: 280px;
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	background: #fff;
+}
+html[data-theme="dark"] .wa-msg-pdf { background: #111; }
 .wa-image-pending {
 	margin: 0 0 6px;
 	padding: 6px 10px;

@@ -55,6 +55,7 @@ async function handler(req, res) {
               mediaType: ev.mediaType,
               mediaId: ev.mediaId,
               caption: ev.caption,
+              fileName: ev.fileName,
             });
             saveResults.push({
               messageId: ev.messageId,

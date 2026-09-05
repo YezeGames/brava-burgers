@@ -29,6 +29,9 @@ module.exports = async function handler(req, res) {
     }
     res.setHeader('Content-Type', result.contentType || 'image/jpeg');
     res.setHeader('Cache-Control', 'private, max-age=3600');
+    if (String(result.contentType || '').indexOf('pdf') >= 0) {
+      res.setHeader('Content-Disposition', 'inline');
+    }
     return res.status(200).send(Buffer.from(result.buffer));
   }
 

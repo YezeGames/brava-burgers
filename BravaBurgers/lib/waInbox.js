@@ -4,13 +4,14 @@ const { normalizeWaRecipient } = require('./whatsappMeta');
 const AUTO_WELCOME_MARKER = '__auto_welcome__';
 const WA_MEDIA_PREFIX = '__wa_media__:';
 
-function encodeWaMediaBody(mediaType, mediaId, caption) {
+function encodeWaMediaBody(mediaType, mediaId, caption, fileName) {
   return (
     WA_MEDIA_PREFIX +
     JSON.stringify({
       t: String(mediaType || 'image'),
       id: String(mediaId || ''),
       c: String(caption || ''),
+      f: String(fileName || ''),
     })
   );
 }
@@ -27,6 +28,7 @@ function parseWaMessageBody(raw) {
       mediaType: j.t || 'image',
       mediaId: j.id || '',
       caption: j.c || '',
+      fileName: j.f || '',
     };
   } catch (e) {
     return { body: body, mediaType: '', mediaId: '', caption: '' };
@@ -37,6 +39,9 @@ function displayTextForBody(raw) {
   const p = parseWaMessageBody(raw);
   if (p.mediaId && p.mediaType === 'image') {
     return p.caption || '📷 Imagen';
+  }
+  if (p.mediaId && (p.mediaType === 'pdf' || p.mediaType === 'document')) {
+    return p.caption || (p.fileName ? '📄 ' + p.fileName : '📄 PDF');
   }
   return p.caption || p.body || raw;
 }

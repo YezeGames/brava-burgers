@@ -32,6 +32,7 @@
         mediaType: j.t || 'image',
         mediaId: j.id || '',
         caption: j.c || '',
+        fileName: j.f || '',
       };
     } catch (e) {
       return { text: body, mediaType: '', mediaId: '', caption: '' };
@@ -52,6 +53,11 @@
   function waPreviewText(m) {
     if (m.mediaId && m.mediaType === 'image') {
       return m.text && m.text !== '[Imagen]' ? '📷 ' + m.text : '📷 Imagen';
+    }
+    if (m.mediaId && (m.mediaType === 'pdf' || m.mediaType === 'document')) {
+      var label = m.fileName || m.text;
+      if (label && label !== '[Documento]') return '📄 ' + label;
+      return m.mediaType === 'pdf' ? '📄 PDF' : '📄 Documento';
     }
     return m.text || '';
   }
@@ -117,6 +123,31 @@
         cap.className = 'wa-msg-caption';
         cap.textContent = m.text;
         el.appendChild(cap);
+      }
+    } else if (m.mediaId && (m.mediaType === 'pdf' || m.mediaType === 'document')) {
+      var docUrl = waMediaUrl(m.mediaId);
+      var docWrap = document.createElement('div');
+      docWrap.className = 'wa-msg-doc';
+      var docLink = document.createElement('a');
+      docLink.className = 'wa-msg-doc-link';
+      docLink.href = docUrl;
+      docLink.target = '_blank';
+      docLink.rel = 'noopener';
+      docLink.textContent = '📄 ' + (m.fileName || (m.mediaType === 'pdf' ? 'Abrir PDF' : 'Abrir documento'));
+      docWrap.appendChild(docLink);
+      if (m.mediaType === 'pdf') {
+        var pdfFrame = document.createElement('iframe');
+        pdfFrame.className = 'wa-msg-pdf';
+        pdfFrame.src = docUrl;
+        pdfFrame.title = m.fileName || 'Comprobante PDF';
+        docWrap.appendChild(pdfFrame);
+      }
+      el.appendChild(docWrap);
+      if (m.text && m.text !== '[Documento]' && m.text !== m.fileName) {
+        var docCap = document.createElement('div');
+        docCap.className = 'wa-msg-caption';
+        docCap.textContent = m.text;
+        el.appendChild(docCap);
       }
     } else {
       el.appendChild(document.createTextNode(m.text || ''));
@@ -296,12 +327,23 @@
         return;
       }
       var parsed = parseWaMsgBody(m.body);
+      var previewText = parsed.text || m.body || '';
+      if (parsed.mediaId) {
+        if (parsed.mediaType === 'image') {
+          previewText = parsed.caption || parsed.text || '📷 Imagen';
+        } else if (parsed.mediaType === 'pdf' || parsed.mediaType === 'document') {
+          previewText = parsed.caption || parsed.fileName || parsed.text || (parsed.mediaType === 'pdf' ? '📄 PDF' : '📄 Documento');
+        } else {
+          previewText = parsed.caption || parsed.text || previewText;
+        }
+      }
       th.msgs.push({
         id: id,
         dir: m.direction === 'out' ? 'out' : 'in',
-        text: parsed.mediaId ? parsed.caption || parsed.text || '📷 Imagen' : parsed.text || m.body || '',
+        text: previewText,
         mediaType: parsed.mediaType,
         mediaId: parsed.mediaId,
+        fileName: parsed.fileName || '',
         t: isoToTime(m.created_at),
         at: m.created_at || '',
       });
