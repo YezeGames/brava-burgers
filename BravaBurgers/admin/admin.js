@@ -1597,12 +1597,10 @@
   }
 
   function updateCajaUI() {
-    if (!$('caja-ventas') && !$('caja-ef')) return;
+    if (!$('caja-ventas')) return;
     var st = computeCajaDisplayStats();
     var efTxt = '$' + fmt(st.ef);
     var mpTxt = '$' + fmt(st.mp);
-    if ($('caja-ef')) $('caja-ef').textContent = efTxt;
-    if ($('caja-mp')) $('caja-mp').textContent = mpTxt;
     if ($('caja-ventas-ef')) $('caja-ventas-ef').textContent = efTxt;
     if ($('caja-ventas-mp')) $('caja-ventas-mp').textContent = mpTxt;
     if ($('caja-ventas')) $('caja-ventas').textContent = '$' + fmt(st.ventas);

@@ -1390,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=17" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=18" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1517,9 +1517,10 @@
 							<button type="button" class="caja-tab" data-caja-tab="movimientos" role="tab" aria-selected="false">Movimientos</button>
 						</nav>
 						<div class="caja-tab-panel is-active" data-caja-panel="resumen" role="tabpanel">
-							<div class="caja-panel-grid caja-panel-grid--2">
+							<div class="caja-panel-grid caja-panel-grid--1 caja-panel-grid--turno">
 						<aside class="sidebar-block sidebar-turno-panel">
 							<h2>Turno en curso</h2>
+							<p class="range-label" id="caja-range">—</p>
 							<div class="aside-stat-grid">
 								<div class="aside-stat-cell">
 									<div class="lbl">Efectivo</div>
@@ -1540,23 +1541,10 @@
 							<div class="aside-row"><span>Total hamb.</span><strong id="ventas-hamb-total">0</strong></div>
 							<p class="range-label caja-estado" id="caja-estado">—</p>
 							<p class="range-label" id="caja-cierre-detalle" hidden></p>
+							<p class="caja-hint">Cierre = guarda el turno y vuelve contadores a 0. El detalle completo se imprime al cerrar.</p>
 							<button type="button" class="btn-sm btn-accent aside-cierre-btn hidden" id="btn-cierre-caja">Cierre de caja</button>
 						</aside>
-						<aside class="sidebar-block saldos-usuario-box" aria-live="polite">
-							<h2>Saldos por usuario</h2>
-							<div class="caja-row"><span>Efectivo</span><span id="caja-ef">$0</span></div>
-							<div class="caja-row"><span>Mercado Pago</span><span id="caja-mp">$0</span></div>
-						</aside>
 							</div>
-						<aside class="sidebar-block caja-box" style="margin-top:12px;">
-							<h2>Resumen operativo</h2>
-							<p class="range-label" id="caja-range">—</p>
-							<div class="caja-row section">Ventas (entregados ✓)</div>
-							<div class="caja-row section">Detalle ingresos y egresos</div>
-							<ul class="mov-list" id="mov-list"></ul>
-							<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
-							<p class="caja-hint">Cierre = guarda el turno y vuelve contadores a 0.</p>
-						</aside>
 						</div>
 						<div class="caja-tab-panel" data-caja-panel="ventas" role="tabpanel">
 							<div class="caja-panel-grid caja-panel-grid--1">
@@ -1582,7 +1570,9 @@
 								<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
 								<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
 							</div>
-							<p class="caja-hint mov-hint">Cargá movimientos acá. El detalle del turno está en la pestaña Resumen.</p>
+							<div class="caja-row section">Detalle del turno</div>
+							<ul class="mov-list" id="mov-list"></ul>
+							<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
 						</aside>
 							</div>
 						</div>
@@ -2040,6 +2030,6 @@
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
 	<script src="/admin/wa-panel.js?v=16"></script>
-	<script src="/admin/admin.js?v=113"></script>
+	<script src="/admin/admin.js?v=114"></script>
 </body>
 </html>

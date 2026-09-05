@@ -1155,6 +1155,14 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	max-width: 720px;
 }
 
+.caja-panel-grid--turno {
+	max-width: 480px;
+}
+
+#view-caja .movimientos-box .mov-list {
+	max-height: min(420px, 55vh);
+}
+
 .caja-panel-grid .sidebar-block {
 	margin-bottom: 0;
 }
