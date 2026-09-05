@@ -29,4 +29,8 @@ DROP POLICY IF EXISTS "service_all_wa_messages" ON wa_messages;
 CREATE POLICY "service_all_wa_messages" ON wa_messages
   FOR ALL TO service_role USING (true) WITH CHECK (true);
 
+DROP POLICY IF EXISTS "admin_all_wa_messages" ON wa_messages;
+CREATE POLICY "admin_all_wa_messages" ON wa_messages
+  FOR SELECT TO authenticated USING (true);
+
 NOTIFY pgrst, 'reload schema';
