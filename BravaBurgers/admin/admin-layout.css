@@ -1317,6 +1317,34 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	cursor: pointer;
 	border-bottom: 2px solid transparent;
 	margin-bottom: -1px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 5px;
+}
+.wa-inbox-tab-badge {
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 999px;
+	background: #25d366;
+	color: #fff;
+	font-size: 0.58rem;
+	font-weight: 800;
+	line-height: 16px;
+	text-align: center;
+	flex-shrink: 0;
+}
+.wa-inbox-tab-badge.hidden { display: none; }
+.wa-inbox-tab.has-tab-unread:not(.is-active) {
+	color: var(--text-strong);
+}
+.wa-inbox-tab.has-tab-unread:not(.is-active) .wa-inbox-tab-badge {
+	animation: wa-tab-badge-pulse 1.6s ease-in-out infinite;
+}
+@keyframes wa-tab-badge-pulse {
+	0%, 100% { transform: scale(1); }
+	50% { transform: scale(1.08); }
 }
 .wa-inbox-tab:hover { color: var(--text-strong); }
 .wa-inbox-tab.is-active {

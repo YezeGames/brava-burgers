@@ -1390,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=13" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=14" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1644,8 +1644,8 @@
 					</div>
 					<div class="wa-panel" id="wa-inbox-panel">
 						<div class="wa-inbox-tabs" role="tablist" aria-label="Filtrar chats">
-							<button type="button" class="wa-inbox-tab is-active" data-wa-tab="pedidos" role="tab" aria-selected="true">Pedidos activos</button>
-							<button type="button" class="wa-inbox-tab" data-wa-tab="consultas" role="tab" aria-selected="false">Consultas</button>
+							<button type="button" class="wa-inbox-tab is-active" data-wa-tab="pedidos" data-wa-tab-label="Pedidos activos" role="tab" aria-selected="true">Pedidos activos<span class="wa-inbox-tab-badge hidden" aria-hidden="true"></span></button>
+							<button type="button" class="wa-inbox-tab" data-wa-tab="consultas" data-wa-tab-label="Consultas" role="tab" aria-selected="false">Consultas<span class="wa-inbox-tab-badge hidden" aria-hidden="true"></span></button>
 						</div>
 						<div class="wa-inbox-list" id="wa-thread-list" role="list"></div>
 						<p class="wa-inbox-hint" id="wa-inbox-hint">Pedidos activos: turno en curso. Consultas: sin pedido. Al cerrar caja se limpian los chats de pedidos.</p>
@@ -2012,7 +2012,7 @@
 	<script src="/admin/comanda.js?v=16"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
-	<script src="/admin/wa-panel.js?v=12"></script>
+	<script src="/admin/wa-panel.js?v=13"></script>
 	<script src="/admin/admin.js?v=112"></script>
 </body>
 </html>

@@ -35,6 +35,42 @@
     return !hasOrder && !threadIsTurnoOrderTel(tel) && th.msgs && th.msgs.length > 0;
   }
 
+  function countUnreadInTab(tab) {
+    var n = 0;
+    Object.keys(threads).forEach(function (tel) {
+      if (!threadMatchesTab(tel, tab)) return;
+      if (threads[tel].unread) n++;
+    });
+    return n;
+  }
+
+  function updateWaTabBadges() {
+    document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
+      var tab = btn.getAttribute('data-wa-tab');
+      if (!tab) return;
+      var count = countUnreadInTab(tab);
+      var label = btn.getAttribute('data-wa-tab-label') || tab;
+      var badge = btn.querySelector('.wa-inbox-tab-badge');
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'wa-inbox-tab-badge hidden';
+        badge.setAttribute('aria-hidden', 'true');
+        btn.appendChild(badge);
+      }
+      if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : String(count);
+        badge.classList.remove('hidden');
+        btn.classList.add('has-tab-unread');
+        btn.setAttribute('aria-label', label + ', ' + count + ' chat' + (count === 1 ? '' : 's') + ' sin leer');
+      } else {
+        badge.textContent = '';
+        badge.classList.add('hidden');
+        btn.classList.remove('has-tab-unread');
+        btn.setAttribute('aria-label', label);
+      }
+    });
+  }
+
   function setWaInboxTab(tab) {
     waInboxTab = tab === 'consultas' ? 'consultas' : 'pedidos';
     document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
@@ -360,6 +396,7 @@
           ? 'Sin chats con pedido activo. Aparecen cuando hay un turno en curso.'
           : 'Sin consultas por ahora. Mensajes de clientes sin pedido en este turno van acá.') +
         '</p>';
+      updateWaTabBadges();
       return;
     }
     tels.sort(function (a, b) {
@@ -401,6 +438,7 @@
       });
       list.appendChild(btn);
     });
+    updateWaTabBadges();
   }
 
   function escapeHtml(s) {
