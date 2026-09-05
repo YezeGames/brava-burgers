@@ -7,6 +7,7 @@ const {
   subscribeWabaToApp,
 } = require('../lib/whatsappMeta');
 const { listWaMessages, insertWaMessage } = require('../lib/waInbox');
+const { migrateWaMessages } = require('../lib/dbMigrate');
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -29,6 +30,11 @@ module.exports = async function handler(req, res) {
   if (req.query.subscribe === '1' && (!wabaSub.ok || !wabaSub.apps.length)) {
     subscribeAttempt = await subscribeWabaToApp(cfg);
     wabaSub = await fetchWabaSubscribedApps(cfg);
+  }
+
+  let migrateResult = null;
+  if (req.query.migrate === '1') {
+    migrateResult = await migrateWaMessages();
   }
 
   let inboxWrite = null;
@@ -68,5 +74,8 @@ module.exports = async function handler(req, res) {
     subscribeAttemptDetail: subscribeAttempt && !subscribeAttempt.ok
       ? JSON.stringify(subscribeAttempt.detail || subscribeAttempt.error || '').slice(0, 200)
       : null,
+    migrateOk: migrateResult ? !!migrateResult.ok : null,
+    migrateError: migrateResult && !migrateResult.ok ? migrateResult.error : null,
+    migrateDetail: migrateResult && !migrateResult.ok ? (migrateResult.detail || '').slice(0, 200) : null,
   });
 };

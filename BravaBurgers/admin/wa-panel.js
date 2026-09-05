@@ -1133,7 +1133,12 @@
     var adminToken = getAdminToken();
     if (!adminToken) return;
     var base = '/api/whatsapp-status?token=' + encodeURIComponent(adminToken);
-    fetch(base)
+    var migrateOnce = false;
+    try {
+      migrateOnce = sessionStorage.getItem('brava_wa_inbox_migrate_v2') !== '1';
+    } catch (e) {}
+    var firstUrl = migrateOnce ? base + '&migrate=1' : base;
+    fetch(firstUrl)
       .then(function (r) {
         return r.json().catch(function () {
           return { ok: false };
@@ -1141,6 +1146,11 @@
       })
       .then(function (res) {
         if (!res || !res.ok) return;
+        if (migrateOnce && res.migrateOk) {
+          try {
+            sessionStorage.setItem('brava_wa_inbox_migrate_v2', '1');
+          } catch (eM) {}
+        }
         if (res.wabaSubscribed === false) {
           var tried = false;
           try {
