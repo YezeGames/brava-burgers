@@ -1,6 +1,8 @@
 const { isSupabaseConfigured, restInsert, restSelect } = require('./supabaseServer');
 const { normalizeWaRecipient } = require('./whatsappMeta');
 
+const AUTO_WELCOME_MARKER = '__auto_welcome__';
+
 async function insertWaMessage({ messageId, tel, direction, body }) {
   if (!isSupabaseConfigured()) {
     return { ok: false, error: 'supabase_not_configured' };
@@ -27,7 +29,10 @@ async function listWaMessages(opts) {
   }
   const lim = Math.min(Math.max(Number(opts.limit) || 200, 1), 500);
   let q =
-    'select=id,tel,direction,body,created_at,wa_message_id&order=created_at.asc&limit=' + lim;
+    'select=id,tel,direction,body,created_at,wa_message_id&body=neq.' +
+    encodeURIComponent(AUTO_WELCOME_MARKER) +
+    '&order=created_at.asc&limit=' +
+    lim;
   if (opts.since) {
     q += '&created_at=gt.' + encodeURIComponent(String(opts.since));
   } else {
@@ -41,4 +46,4 @@ async function listWaMessages(opts) {
   return { ok: true, messages: res.data || [] };
 }
 
-module.exports = { insertWaMessage, listWaMessages };
+module.exports = { insertWaMessage, listWaMessages, AUTO_WELCOME_MARKER };

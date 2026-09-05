@@ -1390,7 +1390,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=12" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=13" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1643,8 +1643,12 @@
 						<div class="wa-toolbar-who" id="wa-toolbar-who"></div>
 					</div>
 					<div class="wa-panel" id="wa-inbox-panel">
+						<div class="wa-inbox-tabs" role="tablist" aria-label="Filtrar chats">
+							<button type="button" class="wa-inbox-tab is-active" data-wa-tab="pedidos" role="tab" aria-selected="true">Pedidos activos</button>
+							<button type="button" class="wa-inbox-tab" data-wa-tab="consultas" role="tab" aria-selected="false">Consultas</button>
+						</div>
 						<div class="wa-inbox-list" id="wa-thread-list" role="list"></div>
-						<p class="wa-inbox-hint">Tocá un chat o el teléfono en un pedido.</p>
+						<p class="wa-inbox-hint" id="wa-inbox-hint">Pedidos activos: clientes con turno en curso. Consultas: mensajes sin pedido activo.</p>
 					</div>
 					<div class="wa-panel hidden" id="wa-chat-panel">
 						<div class="wa-order-chip hidden" id="wa-order-chip"></div>
@@ -2008,7 +2012,7 @@
 	<script src="/admin/comanda.js?v=16"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=8"></script>
-	<script src="/admin/wa-panel.js?v=10"></script>
+	<script src="/admin/wa-panel.js?v=11"></script>
 	<script src="/admin/admin.js?v=112"></script>
 </body>
 </html>

@@ -14,6 +14,36 @@
   var waMsgIdsSeen = {};
   var waPollSince = null;
   var waPollTimer = null;
+  var waInboxTab = 'pedidos';
+
+  function threadHasActiveOrder(th) {
+    return !!(th && th.orn && String(th.orn).trim());
+  }
+
+  function threadMatchesTab(tel, tab) {
+    var th = threads[tel];
+    if (!th) return false;
+    var hasOrder = threadHasActiveOrder(th);
+    if (tab === 'pedidos') return hasOrder;
+    return !hasOrder && th.msgs && th.msgs.length > 0;
+  }
+
+  function setWaInboxTab(tab) {
+    waInboxTab = tab === 'consultas' ? 'consultas' : 'pedidos';
+    document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
+      var isActive = btn.getAttribute('data-wa-tab') === waInboxTab;
+      btn.classList.toggle('is-active', isActive);
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    var hint = $('wa-inbox-hint');
+    if (hint) {
+      hint.textContent =
+        waInboxTab === 'pedidos'
+          ? 'Clientes con pedido en curso (pendiente → en camino).'
+          : 'Consultas y mensajes sin pedido activo en el panel.';
+    }
+    renderWaThreads();
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -297,9 +327,16 @@
     var list = $('wa-thread-list');
     if (!list) return;
     list.innerHTML = '';
-    var tels = Object.keys(threads);
+    var tels = Object.keys(threads).filter(function (tel) {
+      return threadMatchesTab(tel, waInboxTab);
+    });
     if (!tels.length) {
-      list.innerHTML = '<p class="wa-inbox-empty">Sin chats. Los mensajes de WhatsApp aparecen acá.</p>';
+      list.innerHTML =
+        '<p class="wa-inbox-empty">' +
+        (waInboxTab === 'pedidos'
+          ? 'Sin chats con pedido activo. Aparecen cuando hay un turno en curso.'
+          : 'Sin consultas por ahora. Mensajes de clientes sin pedido activo van acá.') +
+        '</p>';
       return;
     }
     tels.sort(function (a, b) {
@@ -402,7 +439,7 @@
         escapeHtml(th.orderLine);
     } else {
       chip.innerHTML =
-        '<span class="wa-chip-note">Chat WhatsApp · sin pedido activo en panel</span>';
+        '<span class="wa-chip-note">Consulta · sin pedido activo en panel</span>';
     }
 
     body.innerHTML = '';
@@ -425,6 +462,7 @@
     opts = opts || {};
     if (!threads[tel]) return;
     waActiveTel = tel;
+    setWaInboxTab(threadHasActiveOrder(threads[tel]) ? 'pedidos' : 'consultas');
     if (opts.manual) {
       hideWaAutoHint();
       var input = $('wa-input');
@@ -447,6 +485,7 @@
     syncOrders(getOrdersSnapshot());
     var tel = telWa(order.telefono);
     if (!threads[tel]) return;
+    setWaInboxTab('pedidos');
     openChat(tel, { manual: false });
     var input = $('wa-input');
     var msg = buildNotifyMessage(kind, order);
@@ -629,6 +668,11 @@
     bindWaMeFallback();
     checkWhatsappApiStatus();
     if ($('wa-back')) $('wa-back').addEventListener('click', closeChat);
+    document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        setWaInboxTab(btn.getAttribute('data-wa-tab'));
+      });
+    });
     if ($('wa-send')) $('wa-send').addEventListener('click', sendWaOut);
     var waInput = $('wa-input');
     if (waInput) {
