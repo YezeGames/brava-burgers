@@ -14,6 +14,12 @@
   var waMsgIdsSeen = {};
   var waPollSince = null;
   var waPollTimer = null;
+  var waSending = false;
+  var waRealtimeLive = false;
+  var WA_POLL_MS = 5000;
+  var WA_POLL_FALLBACK_MS = 30000;
+  var WA_AUTO_WELCOME = '__auto_welcome__';
+  var WA_AUTO_CONSULTA = '__auto_consulta__';
   var waInboxTab = 'pedidos';
   /** Teléfono del repartidor (uno solo); mismo storage que pantalla Reparto. */
   var waRepartidorTel = '';
@@ -363,13 +369,45 @@
     return threads[tel];
   }
 
+  function trackWaMsgId(id, waMsgId) {
+    if (id) waMsgIdsSeen[String(id)] = true;
+    if (waMsgId) waMsgIdsSeen['g:' + String(waMsgId)] = true;
+  }
+
+  function isWaMsgSeen(m) {
+    var id = m.id != null ? String(m.id) : '';
+    var waMid = m.wa_message_id ? String(m.wa_message_id) : '';
+    if (id && waMsgIdsSeen[id]) return true;
+    if (waMid && waMsgIdsSeen['g:' + waMid]) return true;
+    return false;
+  }
+
+  function findOptimisticOutDup(th, m, previewText) {
+    var waMid = m.wa_message_id ? String(m.wa_message_id) : '';
+    var dir = m.direction === 'out' ? 'out' : 'in';
+    for (var i = th.msgs.length - 1; i >= 0; i--) {
+      var x = th.msgs[i];
+      if (x.dir !== dir) continue;
+      if (waMid && x.waMsgId === waMid) return i;
+      if (dir === 'out' && !x.id && x.text === previewText) {
+        if (m.created_at && x.at) {
+          var diff = Math.abs(new Date(m.created_at).getTime() - new Date(x.at).getTime());
+          if (diff < 120000) return i;
+        }
+      }
+    }
+    return -1;
+  }
+
   function mergeInboxMessages(messages) {
     if (!Array.isArray(messages) || !messages.length) return false;
     var changed = false;
     messages.forEach(function (m) {
+      var bodyRaw = String(m.body || '');
+      if (bodyRaw === WA_AUTO_WELCOME || bodyRaw === WA_AUTO_CONSULTA) return;
+      if (isWaMsgSeen(m)) return;
       var id = m.id != null ? String(m.id) : '';
-      if (id && waMsgIdsSeen[id]) return;
-      if (id) waMsgIdsSeen[id] = true;
+      var waMid = m.wa_message_id ? String(m.wa_message_id) : '';
       var tel = telWa(m.tel);
       if (threadIsRepartidor(tel)) {
         waPinnedTels[tel] = true;
@@ -384,6 +422,7 @@
       if (th.msgs.some(function (x) {
         return id && x.id === id;
       })) {
+        trackWaMsgId(id, waMid);
         return;
       }
       var parsed = parseWaMsgBody(m.body);
@@ -397,8 +436,22 @@
           previewText = parsed.caption || parsed.text || previewText;
         }
       }
+      var dupIdx = findOptimisticOutDup(th, m, previewText);
+      if (dupIdx >= 0) {
+        var existing = th.msgs[dupIdx];
+        if (id && !existing.id) existing.id = id;
+        if (waMid && !existing.waMsgId) existing.waMsgId = waMid;
+        if (m.created_at) {
+          existing.at = m.created_at;
+          existing.t = isoToTime(m.created_at);
+        }
+        trackWaMsgId(id, waMid);
+        changed = true;
+        return;
+      }
       th.msgs.push({
         id: id,
+        waMsgId: waMid,
         dir: m.direction === 'out' ? 'out' : 'in',
         text: previewText,
         mediaType: parsed.mediaType,
@@ -407,6 +460,7 @@
         t: isoToTime(m.created_at),
         at: m.created_at || '',
       });
+      trackWaMsgId(id, waMid);
       th.msgs.sort(function (a, b) {
         return String(a.at || '').localeCompare(String(b.at || ''));
       });
@@ -460,7 +514,26 @@
   function startWaInboxPoll() {
     if (waPollTimer) return;
     pollWaInbox();
-    waPollTimer = setInterval(pollWaInbox, 5000);
+    var ms = waRealtimeLive ? WA_POLL_FALLBACK_MS : WA_POLL_MS;
+    waPollTimer = setInterval(pollWaInbox, ms);
+  }
+
+  function setWaInboxRealtimeLive(live) {
+    waRealtimeLive = !!live;
+    if (waPollTimer) {
+      clearInterval(waPollTimer);
+      waPollTimer = null;
+    }
+    startWaInboxPoll();
+  }
+
+  function ingestInboxRows(rows) {
+    var list = Array.isArray(rows) ? rows : rows ? [rows] : [];
+    if (!list.length) return;
+    if (mergeInboxMessages(list)) {
+      renderWaThreads();
+      if (waActiveTel && threads[waActiveTel]) renderWaMessages();
+    }
   }
 
   function waLastTime(th) {
@@ -812,15 +885,18 @@
   }
 
   function sendWaOut() {
+    if (waSending) return;
     if (!waActiveTel || !threads[waActiveTel]) return;
     var input = $('wa-input');
     var text = input && input.value ? input.value.trim() : '';
     var hasImage = !!(waPendingImage && waPendingImage.base64);
     if (!text && !hasImage) return;
     var th = threads[waActiveTel];
+    var sendBtn = $('wa-send');
 
     function pushOutAndClear(outMsg) {
       th.msgs.push(outMsg);
+      trackWaMsgId(outMsg.id, outMsg.waMsgId);
       waPinnedTels[waActiveTel] = true;
       if (input) input.value = '';
       clearWaPendingImage();
@@ -850,6 +926,9 @@
       payload.mimeType = waPendingImage.mimeType;
     }
 
+    waSending = true;
+    if (sendBtn) sendBtn.disabled = true;
+
     fetch('/api/whatsapp-send', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -866,7 +945,14 @@
         var res = wrap && wrap.data ? wrap.data : {};
         if (res && res.ok) {
           hideWaAutoHint();
+          var graphId =
+            (res.graphId ||
+              (res.data && res.data.messages && res.data.messages[0] && res.data.messages[0].id)) ||
+            '';
+          var inboxId = res.inboxId != null ? String(res.inboxId) : '';
           var outMsg = {
+            id: inboxId,
+            waMsgId: graphId ? String(graphId) : '',
             dir: 'out',
             text: text || '📷 Imagen',
             t: waNowTime(),
@@ -884,6 +970,10 @@
       .catch(function () {
         showWaSendError('Error de red al llamar /api/whatsapp-send.');
         showWaMeFallbackButton();
+      })
+      .finally(function () {
+        waSending = false;
+        if (sendBtn) sendBtn.disabled = false;
       });
   }
 
@@ -930,12 +1020,21 @@
               threads[to].isRepartidor = true;
               waPinnedTels[to] = true;
             }
-            threads[to].msgs.push({
+            var graphId =
+              (res.graphId ||
+                (res.data && res.data.messages && res.data.messages[0] && res.data.messages[0].id)) ||
+              '';
+            var inboxId = res.inboxId != null ? String(res.inboxId) : '';
+            var outMsg = {
+              id: inboxId,
+              waMsgId: graphId ? String(graphId) : '',
               dir: 'out',
               text: body,
               t: waNowTime(),
               at: new Date().toISOString(),
-            });
+            };
+            threads[to].msgs.push(outMsg);
+            trackWaMsgId(outMsg.id, outMsg.waMsgId);
             renderWaThreads();
           }
           return res;
@@ -1119,5 +1218,7 @@
     getRepartidorTel: function () {
       return waRepartidorTel;
     },
+    ingestInboxRows: ingestInboxRows,
+    setWaInboxRealtimeLive: setWaInboxRealtimeLive,
   };
 })();
