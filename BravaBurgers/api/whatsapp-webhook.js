@@ -61,14 +61,15 @@ async function handler(req, res) {
               messageId: ev.messageId,
               ok: saved.ok,
               firstContact: saved.firstContact,
+              autoReply: saved.autoReply || null,
               autoWelcome: saved.autoWelcome || null,
               error: saved.error || null,
               detail: saved.detail || null,
             });
             if (!saved.ok && saved.error !== 'supabase_not_configured') {
               console.warn('[wa-webhook] inbound failed', saved.error, saved.detail || '');
-            } else if (saved.autoWelcome && saved.autoWelcome.sent) {
-              console.log('[wa-webhook] welcome sent', ev.from);
+            } else if (saved.autoReply && saved.autoReply.sent) {
+              console.log('[wa-webhook] auto reply', saved.autoReply.kind || 'unknown', ev.from);
             }
           } else {
             console.warn('[wa-webhook] message without body', ev.from, ev.messageType);

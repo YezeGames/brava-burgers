@@ -2,6 +2,7 @@ const { isSupabaseConfigured, restInsert, restSelect } = require('./supabaseServ
 const { normalizeWaRecipient } = require('./whatsappMeta');
 
 const AUTO_WELCOME_MARKER = '__auto_welcome__';
+const AUTO_CONSULTA_MARKER = '__auto_consulta__';
 const WA_MEDIA_PREFIX = '__wa_media__:';
 
 function encodeWaMediaBody(mediaType, mediaId, caption, fileName) {
@@ -74,6 +75,8 @@ async function listWaMessages(opts) {
   let q =
     'select=id,tel,direction,body,created_at,wa_message_id&body=neq.' +
     encodeURIComponent(AUTO_WELCOME_MARKER) +
+    '&body=neq.' +
+    encodeURIComponent(AUTO_CONSULTA_MARKER) +
     '&order=created_at.asc&limit=' +
     lim;
   if (opts.since) {
@@ -93,6 +96,7 @@ module.exports = {
   insertWaMessage,
   listWaMessages,
   AUTO_WELCOME_MARKER,
+  AUTO_CONSULTA_MARKER,
   WA_MEDIA_PREFIX,
   encodeWaMediaBody,
   parseWaMessageBody,
