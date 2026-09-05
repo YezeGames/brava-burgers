@@ -96,5 +96,10 @@ module.exports = async function handler(req, res) {
     console.warn('[whatsapp-send] inbox save failed', saved.error);
   }
 
-  return res.status(200).json(result);
+  return res.status(200).json(
+    Object.assign({}, result, {
+      inboxId: saved.id != null ? saved.id : null,
+      graphId: graphId || null,
+    })
+  );
 };

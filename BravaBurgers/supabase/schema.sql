@@ -246,3 +246,11 @@ BEGIN
   ALTER PUBLICATION supabase_realtime ADD TABLE wa_messages;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
+ALTER TABLE wa_messages ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "service_all_wa_messages" ON wa_messages;
+CREATE POLICY "service_all_wa_messages" ON wa_messages
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS "admin_all_wa_messages" ON wa_messages;
+CREATE POLICY "admin_all_wa_messages" ON wa_messages
+  FOR SELECT TO authenticated USING (true);

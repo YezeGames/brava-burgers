@@ -62,8 +62,13 @@ async function insertWaMessage({ messageId, tel, direction, body }) {
     direction: direction === 'out' ? 'out' : 'in',
     body: text,
   };
-  const prefer = messageId ? 'return=minimal,resolution=ignore-duplicates' : 'return=minimal';
-  return restInsert('wa_messages', row, prefer);
+  const prefer = messageId
+    ? 'return=representation,resolution=ignore-duplicates'
+    : 'return=representation';
+  const inserted = await restInsert('wa_messages', row, prefer);
+  if (!inserted.ok) return inserted;
+  const rowData = Array.isArray(inserted.data) ? inserted.data[0] : inserted.data;
+  return { ok: true, id: rowData && rowData.id != null ? rowData.id : null };
 }
 
 async function listWaMessages(opts) {

@@ -202,6 +202,11 @@ async function migrateWaMessages() {
       CREATE POLICY "service_all_wa_messages" ON wa_messages
         FOR ALL TO service_role USING (true) WITH CHECK (true);
     `);
+    await client.query('DROP POLICY IF EXISTS "admin_all_wa_messages" ON wa_messages;');
+    await client.query(`
+      CREATE POLICY "admin_all_wa_messages" ON wa_messages
+        FOR SELECT TO authenticated USING (true);
+    `);
     await client.query("NOTIFY pgrst, 'reload schema';");
     return { ok: true, migrated: true };
   } catch (e) {
