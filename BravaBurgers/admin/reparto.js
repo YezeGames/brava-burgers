@@ -504,6 +504,14 @@
         var savedWa = sessionStorage.getItem(DELI_WA_KEY);
         if (savedWa) waEl.value = savedWa;
       } catch (eWa) {}
+      function syncRepartidorWa() {
+        if (window.BravaWaPanel && typeof window.BravaWaPanel.setRepartidorTel === 'function') {
+          window.BravaWaPanel.setRepartidorTel(waEl.value);
+        }
+      }
+      waEl.addEventListener('change', syncRepartidorWa);
+      waEl.addEventListener('blur', syncRepartidorWa);
+      if (waEl.value) syncRepartidorWa();
     }
     $('reparto-btn-gmaps').onclick = function () {
       var u = gmapsUrl(stops());
@@ -552,7 +560,7 @@
 
       if (window.BravaWaPanel && typeof window.BravaWaPanel.sendTextTo === 'function') {
         window.BravaWaPanel
-          .sendTextTo(phone, text, { name: 'Repartidor' })
+          .sendTextTo(phone, text, { name: 'Repartidor', isRepartidor: true })
           .then(function () {
             setStatus('Ruta enviada al repartidor desde el número Brava.');
             finish();

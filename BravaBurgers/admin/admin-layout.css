@@ -1368,9 +1368,9 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	flex: 1;
 	border: none;
 	background: transparent;
-	padding: 10px 8px;
+	padding: 10px 4px;
 	font-family: inherit;
-	font-size: 0.68rem;
+	font-size: 0.62rem;
 	font-weight: 600;
 	color: var(--text-muted);
 	cursor: pointer;

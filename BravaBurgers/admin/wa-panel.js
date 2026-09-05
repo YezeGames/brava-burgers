@@ -15,6 +15,9 @@
   var waPollSince = null;
   var waPollTimer = null;
   var waInboxTab = 'pedidos';
+  /** Teléfono del repartidor (uno solo); mismo storage que pantalla Reparto. */
+  var waRepartidorTel = '';
+  var REPARTIDOR_TEL_KEY = 'brava_demo_deli_wa_v1';
   /** Teléfonos con pedido en este turno — se purgan al cerrar caja/turno. */
   var waTurnoPurgaTels = {};
   var waPendingImage = null;
@@ -154,6 +157,41 @@
     }
   }
 
+  function threadIsRepartidor(tel) {
+    if (!waRepartidorTel) return false;
+    return telWa(tel) === waRepartidorTel;
+  }
+
+  function loadRepartidorTel() {
+    try {
+      var raw = sessionStorage.getItem(REPARTIDOR_TEL_KEY) || '';
+      waRepartidorTel = telWa(raw);
+    } catch (e) {
+      waRepartidorTel = '';
+    }
+  }
+
+  function setRepartidorTel(raw) {
+    var normalized = telWa(raw);
+    waRepartidorTel = normalized || '';
+    try {
+      if (raw != null && String(raw).trim() !== '') {
+        sessionStorage.setItem(REPARTIDOR_TEL_KEY, String(raw).trim());
+      }
+    } catch (e2) {}
+    if (waRepartidorTel) {
+      var th = ensureThread(waRepartidorTel, {
+        name: 'Repartidor',
+        orderLine: 'Repartidor del turno',
+        phone: String(raw || '').trim() || waRepartidorTel,
+      });
+      th.isRepartidor = true;
+      waPinnedTels[waRepartidorTel] = true;
+    }
+    renderWaThreads();
+    updateWaTabBadges();
+  }
+
   function threadHasActiveOrder(th) {
     return !!(th && th.orn && String(th.orn).trim());
   }
@@ -165,9 +203,11 @@
   function threadMatchesTab(tel, tab) {
     var th = threads[tel];
     if (!th) return false;
+    if (threadIsRepartidor(tel)) return tab === 'repartidores';
     if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(th)) return false;
     var hasOrder = threadHasActiveOrder(th);
     if (tab === 'pedidos') return hasOrder;
+    if (tab === 'repartidores') return false;
     return !hasOrder && !threadIsTurnoOrderTel(tel) && th.msgs && th.msgs.length > 0;
   }
 
@@ -208,7 +248,8 @@
   }
 
   function setWaInboxTab(tab) {
-    waInboxTab = tab === 'consultas' ? 'consultas' : 'pedidos';
+    waInboxTab =
+      tab === 'consultas' ? 'consultas' : tab === 'repartidores' ? 'repartidores' : 'pedidos';
     document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
       var isActive = btn.getAttribute('data-wa-tab') === waInboxTab;
       btn.classList.toggle('is-active', isActive);
@@ -216,12 +257,24 @@
     });
     var hint = $('wa-inbox-hint');
     if (hint) {
-      hint.textContent =
-        waInboxTab === 'pedidos'
-          ? 'Clientes con pedido en curso (pendiente → en camino).'
-          : 'Consultas: mensajes sin pedido en este turno (se limpian pedidos al cerrar caja).';
+      if (waInboxTab === 'pedidos') {
+        hint.textContent = 'Clientes con pedido en curso (pendiente → en camino).';
+      } else if (waInboxTab === 'repartidores') {
+        hint.textContent = waRepartidorTel
+          ? 'Repartidor asignado en Reparto. Rutas y mensajes del delivery van acá.'
+          : 'Cargá el WhatsApp del repartidor en Reparto para asignarlo acá.';
+      } else {
+        hint.textContent =
+          'Consultas: clientes sin pedido en este turno (se limpian pedidos al cerrar caja).';
+      }
     }
     renderWaThreads();
+  }
+
+  function waTabForTel(tel) {
+    if (threadIsRepartidor(tel)) return 'repartidores';
+    if (threads[tel] && threadHasActiveOrder(threads[tel])) return 'pedidos';
+    return 'consultas';
   }
 
   function $(id) {
@@ -318,9 +371,16 @@
       if (id && waMsgIdsSeen[id]) return;
       if (id) waMsgIdsSeen[id] = true;
       var tel = telWa(m.tel);
-      if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(threads[tel])) return;
+      if (threadIsRepartidor(tel)) {
+        waPinnedTels[tel] = true;
+      } else if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(threads[tel])) return;
       waPinnedTels[tel] = true;
       var th = ensureThread(tel, {});
+      if (threadIsRepartidor(tel)) {
+        th.name = 'Repartidor';
+        th.isRepartidor = true;
+        th.orderLine = 'Repartidor del turno';
+      }
       if (th.msgs.some(function (x) {
         return id && x.id === id;
       })) {
@@ -528,7 +588,8 @@
       };
     });
     Object.keys(threads).forEach(function (tel) {
-      if (!seen[tel] && !waPinnedTels[tel]) delete threads[tel];
+      if (seen[tel] || threadIsRepartidor(tel)) return;
+      if (!waPinnedTels[tel]) delete threads[tel];
     });
     renderWaThreads();
     if (waActiveTel && threads[waActiveTel]) renderWaMessages();
@@ -542,12 +603,18 @@
       return threadMatchesTab(tel, waInboxTab);
     });
     if (!tels.length) {
-      list.innerHTML =
-        '<p class="wa-inbox-empty">' +
-        (waInboxTab === 'pedidos'
-          ? 'Sin chats con pedido activo. Aparecen cuando hay un turno en curso.'
-          : 'Sin consultas por ahora. Mensajes de clientes sin pedido en este turno van acá.') +
-        '</p>';
+      var emptyMsg = 'Sin chats en esta pestaña.';
+      if (waInboxTab === 'pedidos') {
+        emptyMsg = 'Sin chats con pedido activo. Aparecen cuando hay un turno en curso.';
+      } else if (waInboxTab === 'repartidores') {
+        emptyMsg = waRepartidorTel
+          ? 'Repartidor asignado — aparece acá cuando haya mensajes o envíes una ruta.'
+          : 'Cargá el WhatsApp del repartidor en la pantalla Reparto.';
+      } else {
+        emptyMsg =
+          'Sin consultas por ahora. Mensajes de clientes sin pedido en este turno van acá.';
+      }
+      list.innerHTML = '<p class="wa-inbox-empty">' + emptyMsg + '</p>';
       updateWaTabBadges();
       return;
     }
@@ -638,9 +705,9 @@
       '<span><div class="wa-toolbar-name">' +
       escapeHtml(th.name) +
       '</div><div class="wa-toolbar-meta">' +
-      escapeHtml(th.orn) +
-      ' · ' +
-      escapeHtml(th.phone) +
+      (threadIsRepartidor(waActiveTel)
+        ? escapeHtml(th.phone)
+        : escapeHtml(th.orn) + ' · ' + escapeHtml(th.phone)) +
       '</div></span>';
 
     chip.classList.remove('hidden');
@@ -650,6 +717,8 @@
         escapeHtml(th.orn) +
         '</span><br><strong>Pedido:</strong> ' +
         escapeHtml(th.orderLine);
+    } else if (threadIsRepartidor(waActiveTel)) {
+      chip.innerHTML = '<span class="wa-chip-note">Repartidor · rutas y delivery</span>';
     } else {
       chip.innerHTML =
         '<span class="wa-chip-note">Consulta · sin pedido activo en panel</span>';
@@ -674,10 +743,11 @@
   /** Al cerrar turno/caja: sacar chats de pedidos; quedan solo consultas del turno. */
   function clearTurnoChats() {
     Object.keys(waTurnoPurgaTels).forEach(function (tel) {
+      if (threadIsRepartidor(tel)) return;
       delete threads[tel];
       delete waPinnedTels[tel];
     });
-    if (waActiveTel && waTurnoPurgaTels[waActiveTel]) {
+    if (waActiveTel && waTurnoPurgaTels[waActiveTel] && !threadIsRepartidor(waActiveTel)) {
       waActiveTel = null;
       activeOrn = null;
       hideWaAutoHint();
@@ -699,7 +769,7 @@
     opts = opts || {};
     if (!threads[tel]) return;
     waActiveTel = tel;
-    setWaInboxTab(threadHasActiveOrder(threads[tel]) ? 'pedidos' : 'consultas');
+    setWaInboxTab(waTabForTel(tel));
     if (opts.manual) {
       hideWaAutoHint();
       clearWaPendingImage();
@@ -845,8 +915,20 @@
         var res = wrap && wrap.data ? wrap.data : {};
         if (res.ok) {
           if (!opts.skipThread) {
+            if (opts.isRepartidor) setRepartidorTel(to);
             if (!threads[to]) {
-              threads[to] = { tel: to, phone: to, name: opts.name || 'Contacto', msgs: [] };
+              threads[to] = {
+                tel: to,
+                phone: opts.phone || to,
+                name: opts.name || 'Contacto',
+                msgs: [],
+                orderLine: opts.isRepartidor ? 'Repartidor del turno' : 'WhatsApp',
+              };
+            }
+            if (opts.isRepartidor || threadIsRepartidor(to)) {
+              threads[to].name = 'Repartidor';
+              threads[to].isRepartidor = true;
+              waPinnedTels[to] = true;
             }
             threads[to].msgs.push({
               dir: 'out',
@@ -987,6 +1069,11 @@
 
   function init() {
     if (!$('wa-aside')) return;
+    loadRepartidorTel();
+    try {
+      var rawInit = sessionStorage.getItem(REPARTIDOR_TEL_KEY);
+      if (rawInit) setRepartidorTel(rawInit);
+    } catch (eInit) {}
     initSnippets();
     bindWaMeFallback();
     bindWaImageAttach();
@@ -1028,5 +1115,9 @@
     },
     telWa: telWa,
     sendTextTo: sendTextTo,
+    setRepartidorTel: setRepartidorTel,
+    getRepartidorTel: function () {
+      return waRepartidorTel;
+    },
   };
 })();
