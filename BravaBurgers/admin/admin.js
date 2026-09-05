@@ -1695,6 +1695,9 @@
             });
             setCajaMarcadaAbierta(true);
             setAperturaNow();
+            if (window.BravaWaPanel && typeof BravaWaPanel.resetTurnoChats === 'function') {
+              BravaWaPanel.resetTurnoChats();
+            }
             updateCajaUI();
             renderMovimientosList();
             loadCierres(true);
@@ -1709,6 +1712,9 @@
     openStockAperturaModal('apertura', function () {
       setCajaMarcadaAbierta(true);
       setAperturaNow();
+      if (window.BravaWaPanel && typeof BravaWaPanel.resetTurnoChats === 'function') {
+        BravaWaPanel.resetTurnoChats();
+      }
       updateCajaUI();
       renderMovimientosList();
     });
@@ -2831,6 +2837,9 @@
         var c = res.data.cierre;
         setCajaMarcadaAbierta(false);
         clearApertura();
+        if (window.BravaWaPanel && typeof BravaWaPanel.clearTurnoChats === 'function') {
+          BravaWaPanel.clearTurnoChats();
+        }
         cierresCache.unshift(c);
         cierresHistorialList.unshift(c);
         updateCajaUI();

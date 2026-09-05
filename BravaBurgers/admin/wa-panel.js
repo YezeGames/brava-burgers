@@ -15,17 +15,24 @@
   var waPollSince = null;
   var waPollTimer = null;
   var waInboxTab = 'pedidos';
+  /** Teléfonos con pedido en este turno — se purgan al cerrar caja/turno. */
+  var waTurnoPurgaTels = {};
 
   function threadHasActiveOrder(th) {
     return !!(th && th.orn && String(th.orn).trim());
   }
 
+  function threadIsTurnoOrderTel(tel) {
+    return !!waTurnoPurgaTels[tel];
+  }
+
   function threadMatchesTab(tel, tab) {
     var th = threads[tel];
     if (!th) return false;
+    if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(th)) return false;
     var hasOrder = threadHasActiveOrder(th);
     if (tab === 'pedidos') return hasOrder;
-    return !hasOrder && th.msgs && th.msgs.length > 0;
+    return !hasOrder && !threadIsTurnoOrderTel(tel) && th.msgs && th.msgs.length > 0;
   }
 
   function setWaInboxTab(tab) {
@@ -40,7 +47,7 @@
       hint.textContent =
         waInboxTab === 'pedidos'
           ? 'Clientes con pedido en curso (pendiente → en camino).'
-          : 'Consultas y mensajes sin pedido activo en el panel.';
+          : 'Consultas: mensajes sin pedido en este turno (se limpian pedidos al cerrar caja).';
     }
     renderWaThreads();
   }
@@ -139,6 +146,7 @@
       if (id && waMsgIdsSeen[id]) return;
       if (id) waMsgIdsSeen[id] = true;
       var tel = telWa(m.tel);
+      if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(threads[tel])) return;
       waPinnedTels[tel] = true;
       var th = ensureThread(tel, {});
       if (th.msgs.some(function (x) {
@@ -304,6 +312,7 @@
       if (!ACTIVE_ESTADOS[est]) return;
       var tel = telWa(o.telefono);
       seen[tel] = true;
+      waTurnoPurgaTels[tel] = true;
       waPinnedTels[tel] = true;
       var prev = threads[tel] || { msgs: [], unread: false };
       threads[tel] = {
@@ -314,6 +323,20 @@
         orderLine: buildOrderLine(o),
         unread: prev.unread,
         msgs: prev.msgs || [],
+      };
+    });
+    Object.keys(threads).forEach(function (tel) {
+      if (seen[tel]) return;
+      var th = threads[tel];
+      if (!th || !threadHasActiveOrder(th)) return;
+      threads[tel] = {
+        name: th.name || 'WA ···' + tel.slice(-4),
+        orn: '',
+        phone: th.phone || tel,
+        tel: tel,
+        orderLine: 'WhatsApp',
+        unread: th.unread,
+        msgs: th.msgs || [],
       };
     });
     Object.keys(threads).forEach(function (tel) {
@@ -335,7 +358,7 @@
         '<p class="wa-inbox-empty">' +
         (waInboxTab === 'pedidos'
           ? 'Sin chats con pedido activo. Aparecen cuando hay un turno en curso.'
-          : 'Sin consultas por ahora. Mensajes de clientes sin pedido activo van acá.') +
+          : 'Sin consultas por ahora. Mensajes de clientes sin pedido en este turno van acá.') +
         '</p>';
       return;
     }
@@ -456,6 +479,30 @@
     body.scrollTop = body.scrollHeight;
     highlightOrderCards();
     renderWaThreads();
+  }
+
+  /** Al cerrar turno/caja: sacar chats de pedidos; quedan solo consultas del turno. */
+  function clearTurnoChats() {
+    Object.keys(waTurnoPurgaTels).forEach(function (tel) {
+      delete threads[tel];
+      delete waPinnedTels[tel];
+    });
+    if (waActiveTel && waTurnoPurgaTels[waActiveTel]) {
+      waActiveTel = null;
+      activeOrn = null;
+      hideWaAutoHint();
+      var input = $('wa-input');
+      if (input) input.value = '';
+      setWaView(false);
+    }
+    setWaInboxTab('consultas');
+    renderWaThreads();
+    highlightOrderCards();
+  }
+
+  /** Al abrir turno nuevo: permitir de nuevo chats de clientes que pidieron antes. */
+  function resetTurnoChats() {
+    waTurnoPurgaTels = {};
   }
 
   function openChat(tel, opts) {
@@ -697,6 +744,8 @@
     autoNotify: autoNotify,
     openChat: openChat,
     closeChat: closeChat,
+    clearTurnoChats: clearTurnoChats,
+    resetTurnoChats: resetTurnoChats,
     setOrdersProvider: function (fn) {
       ordersSnapshotFn = fn;
     },
