@@ -16,8 +16,11 @@
   var waPollTimer = null;
   var waSending = false;
   var waRealtimeLive = false;
-  var WA_POLL_MS = 5000;
-  var WA_POLL_FALLBACK_MS = 30000;
+  var waSbClient = null;
+  var waRealtimeChannel = null;
+  var WA_POLL_MS = 1200;
+  var WA_POLL_FALLBACK_MS = 1200;
+  var WA_POLL_CHAT_MS = 600;
   var WA_AUTO_WELCOME = '__auto_welcome__';
   var WA_AUTO_CONSULTA = '__auto_consulta__';
   var waInboxTab = 'pedidos';
@@ -511,20 +514,62 @@
       .catch(function () {});
   }
 
-  function startWaInboxPoll() {
-    if (waPollTimer) return;
-    pollWaInbox();
-    var ms = waRealtimeLive ? WA_POLL_FALLBACK_MS : WA_POLL_MS;
-    waPollTimer = setInterval(pollWaInbox, ms);
+  function getWaPollIntervalMs() {
+    if (waInChat || waActiveTel) return WA_POLL_CHAT_MS;
+    return waRealtimeLive ? WA_POLL_FALLBACK_MS : WA_POLL_MS;
   }
 
-  function setWaInboxRealtimeLive(live) {
-    waRealtimeLive = !!live;
+  function restartWaInboxPoll() {
     if (waPollTimer) {
       clearInterval(waPollTimer);
       waPollTimer = null;
     }
-    startWaInboxPoll();
+    if (!getAdminToken()) return;
+    pollWaInbox();
+    waPollTimer = setInterval(pollWaInbox, getWaPollIntervalMs());
+  }
+
+  function startWaInboxPoll() {
+    if (waPollTimer) return;
+    restartWaInboxPoll();
+  }
+
+  function setWaInboxRealtimeLive(live) {
+    waRealtimeLive = !!live;
+    restartWaInboxPoll();
+  }
+
+  function detachSupabaseRealtime() {
+    if (waRealtimeChannel && waSbClient) {
+      try {
+        waSbClient.removeChannel(waRealtimeChannel);
+      } catch (e) {}
+    }
+    waRealtimeChannel = null;
+    waSbClient = null;
+    setWaInboxRealtimeLive(false);
+  }
+
+  function attachSupabaseRealtime(sbClient) {
+    detachSupabaseRealtime();
+    if (!sbClient) return;
+    waSbClient = sbClient;
+    waRealtimeChannel = sbClient
+      .channel('brava-wa-inbox-live')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'wa_messages' },
+        function (payload) {
+          if (payload && payload.new) ingestInboxRows(payload.new);
+        }
+      )
+      .subscribe(function (status) {
+        if (status === 'SUBSCRIBED') {
+          setWaInboxRealtimeLive(true);
+        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setWaInboxRealtimeLive(false);
+        }
+      });
   }
 
   function ingestInboxRows(rows) {
@@ -622,6 +667,7 @@
     if ($('wa-inbox-panel')) $('wa-inbox-panel').classList.toggle('hidden', inChat);
     if ($('wa-chat-panel')) $('wa-chat-panel').classList.toggle('hidden', !inChat);
     if (!inChat) hideWaAutoHint();
+    if (waPollTimer) restartWaInboxPoll();
   }
 
   function syncOrders(orders) {
@@ -1135,7 +1181,7 @@
     var base = '/api/whatsapp-status?token=' + encodeURIComponent(adminToken);
     var migrateOnce = false;
     try {
-      migrateOnce = sessionStorage.getItem('brava_wa_inbox_migrate_v2') !== '1';
+      migrateOnce = sessionStorage.getItem('brava_wa_inbox_migrate_v3') !== '1';
     } catch (e) {}
     var firstUrl = migrateOnce ? base + '&migrate=1' : base;
     fetch(firstUrl)
@@ -1148,7 +1194,7 @@
         if (!res || !res.ok) return;
         if (migrateOnce && res.migrateOk) {
           try {
-            sessionStorage.setItem('brava_wa_inbox_migrate_v2', '1');
+            sessionStorage.setItem('brava_wa_inbox_migrate_v3', '1');
           } catch (eM) {}
         }
         if (res.wabaSubscribed === false) {
@@ -1209,6 +1255,10 @@
     setWaView(false);
     renderWaThreads();
     startWaInboxPoll();
+    document.addEventListener('visibilitychange', function () {
+      if (!document.hidden) pollWaInbox();
+    });
+    window.addEventListener('focus', pollWaInbox);
   }
 
   window.BravaWaPanel = {
@@ -1230,5 +1280,7 @@
     },
     ingestInboxRows: ingestInboxRows,
     setWaInboxRealtimeLive: setWaInboxRealtimeLive,
+    attachSupabaseRealtime: attachSupabaseRealtime,
+    detachSupabaseRealtime: detachSupabaseRealtime,
   };
 })();

@@ -254,3 +254,4 @@ CREATE POLICY "service_all_wa_messages" ON wa_messages
 DROP POLICY IF EXISTS "admin_all_wa_messages" ON wa_messages;
 CREATE POLICY "admin_all_wa_messages" ON wa_messages
   FOR SELECT TO authenticated USING (true);
+GRANT SELECT ON TABLE wa_messages TO authenticated;

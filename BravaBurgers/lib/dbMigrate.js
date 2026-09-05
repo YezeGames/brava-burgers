@@ -207,6 +207,7 @@ async function migrateWaMessages() {
       CREATE POLICY "admin_all_wa_messages" ON wa_messages
         FOR SELECT TO authenticated USING (true);
     `);
+    await client.query('GRANT SELECT ON TABLE wa_messages TO authenticated;');
     await client.query("NOTIFY pgrst, 'reload schema';");
     return { ok: true, migrated: true };
   } catch (e) {

@@ -202,7 +202,9 @@
 
     realtimeLive = false;
 
-    if (window.BravaWaPanel && typeof BravaWaPanel.setWaInboxRealtimeLive === 'function') {
+    if (window.BravaWaPanel && typeof BravaWaPanel.detachSupabaseRealtime === 'function') {
+      BravaWaPanel.detachSupabaseRealtime();
+    } else if (window.BravaWaPanel && typeof BravaWaPanel.setWaInboxRealtimeLive === 'function') {
       BravaWaPanel.setWaInboxRealtimeLive(false);
     }
 
@@ -324,47 +326,13 @@
 
           .subscribe();
 
-        var chWa = sbClient
+        if (window.BravaWaPanel && typeof BravaWaPanel.attachSupabaseRealtime === 'function') {
+          BravaWaPanel.attachSupabaseRealtime(sbClient);
+        }
 
-          .channel('brava-admin-wa-messages')
-
-          .on(
-
-            'postgres_changes',
-
-            { event: 'INSERT', schema: 'public', table: 'wa_messages' },
-
-            function (payload) {
-
-              if (
-
-                payload &&
-
-                payload.new &&
-
-                window.BravaWaPanel &&
-
-                typeof BravaWaPanel.ingestInboxRows === 'function'
-
-              ) {
-
-                BravaWaPanel.ingestInboxRows(payload.new);
-
-              }
-
-            }
-
-          )
-
-          .subscribe();
-
-        sbChannels.push(chOrders, chGastos, chIngresos, chWa);
+        sbChannels.push(chOrders, chGastos, chIngresos);
 
         realtimeLive = true;
-
-        if (window.BravaWaPanel && typeof BravaWaPanel.setWaInboxRealtimeLive === 'function') {
-          BravaWaPanel.setWaInboxRealtimeLive(true);
-        }
 
         updatePollStatusLabel();
 
@@ -3256,8 +3224,8 @@
   function ensureWaMessagesOnce() {
     if (!token) return;
     try {
-      if (sessionStorage.getItem('brava_wa_messages_try_v2') === '1') return;
-      sessionStorage.setItem('brava_wa_messages_try_v2', '1');
+      if (sessionStorage.getItem('brava_wa_messages_try_v3') === '1') return;
+      sessionStorage.setItem('brava_wa_messages_try_v3', '1');
     } catch (e) {
       return;
     }
