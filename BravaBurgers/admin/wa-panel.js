@@ -455,12 +455,14 @@
     if (code === 131030 || res.hint === 'recipient_not_allowed') {
       return (
         'WhatsApp sigue en MODO PRUEBA de Meta: no podés escribir a clientes reales. ' +
-        'Hay que conectar el número de Brava en PRODUCCIÓN (Coexistencia App + API), pasar la app a Live y actualizar token/WABA en Vercel. ' +
-        'Mientras tanto: botón wa.me abajo.'
+        'Hay que conectar el número de Brava en PRODUCCIÓN (Coexistencia App + API), pasar la app a Live y actualizar token/WABA en Vercel.'
       );
     }
     if (code === 131047 || code === 131026 || res.hint === 'needs_template_or_session') {
-      return 'Meta no permite texto libre: el cliente no escribió a Brava en las últimas 24 h. Usá wa.me o una plantilla aprobada.';
+      return (
+        'Meta no permite texto libre: no escribió a Brava (+54 9 11 7372-1945) en las últimas 24 h. ' +
+        'Pedile que mande un mensaje al arrancar el turno o usá una plantilla aprobada.'
+      );
     }
     if (res.message) return String(res.message);
     if (res.error) return String(res.error);
@@ -815,6 +817,53 @@
       });
   }
 
+  /** Envío API a cualquier tel (reparto, etc.) sin abrir el chat lateral. */
+  function sendTextTo(tel, text, opts) {
+    opts = opts || {};
+    var adminToken = getAdminToken();
+    if (!adminToken) {
+      return Promise.reject(new Error('Sesión expirada. Recargá el admin e iniciá sesión de nuevo.'));
+    }
+    var to = telWa(tel);
+    if (!to) return Promise.reject(new Error('Número de WhatsApp inválido.'));
+    var body = String(text || '').trim();
+    if (!body) return Promise.reject(new Error('Mensaje vacío.'));
+
+    return fetch('/api/whatsapp-send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: adminToken, to: to, text: body }),
+    })
+      .then(function (r) {
+        return r.json().catch(function () {
+          return { ok: false, error: 'invalid_json' };
+        }).then(function (data) {
+          return { status: r.status, data: data };
+        });
+      })
+      .then(function (wrap) {
+        var res = wrap && wrap.data ? wrap.data : {};
+        if (res.ok) {
+          if (!opts.skipThread) {
+            if (!threads[to]) {
+              threads[to] = { tel: to, phone: to, name: opts.name || 'Contacto', msgs: [] };
+            }
+            threads[to].msgs.push({
+              dir: 'out',
+              text: body,
+              t: waNowTime(),
+              at: new Date().toISOString(),
+            });
+            renderWaThreads();
+          }
+          return res;
+        }
+        if (wrap.status === 401) res.error = 'unauthorized';
+        if (wrap.status === 503) res.error = 'whatsapp_not_configured';
+        return Promise.reject(new Error(formatWaApiError(res)));
+      });
+  }
+
   function bindWaImageAttach() {
     var btn = $('wa-attach-image');
     var fileInput = $('wa-image-input');
@@ -978,5 +1027,6 @@
       ordersSnapshotFn = fn;
     },
     telWa: telWa,
+    sendTextTo: sendTextTo,
   };
 })();

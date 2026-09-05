@@ -100,13 +100,6 @@
     return d;
   }
 
-  function whatsAppSendUrl(text, phone) {
-    var q = 'text=' + encodeURIComponent(text);
-    var p = normalizeWaPhone(phone);
-    if (p) return 'https://wa.me/' + p + '?' + q;
-    return 'https://wa.me/?' + q;
-  }
-
   function setStatus(msg, err) {
     var el = $('reparto-route-status');
     if (!el) return;
@@ -540,10 +533,39 @@
       var list = stops();
       if (!list.length) return;
       var phone = waEl ? waEl.value : '';
+      if (!normalizeWaPhone(phone)) {
+        setStatus('Completá el WhatsApp del repartidor (54911…).', true);
+        if (waEl) waEl.focus();
+        return;
+      }
       try {
         sessionStorage.setItem(DELI_WA_KEY, phone);
       } catch (e) {}
-      window.open(whatsAppSendUrl(buildDeliWhatsAppText(list), phone), '_blank', 'noopener');
+      var text = buildDeliWhatsAppText(list);
+      var btn = $('reparto-btn-wa');
+      if (btn) btn.disabled = true;
+      setStatus('Enviando ruta por WhatsApp (Brava)…');
+
+      function finish() {
+        if (btn) btn.disabled = !stops().length;
+      }
+
+      if (window.BravaWaPanel && typeof window.BravaWaPanel.sendTextTo === 'function') {
+        window.BravaWaPanel
+          .sendTextTo(phone, text, { name: 'Repartidor' })
+          .then(function () {
+            setStatus('Ruta enviada al repartidor desde el número Brava.');
+            finish();
+          })
+          .catch(function (err) {
+            setStatus((err && err.message) || 'No se pudo enviar por WhatsApp.', true);
+            finish();
+          });
+        return;
+      }
+
+      setStatus('Panel WhatsApp no cargado. Recargá la página.', true);
+      finish();
     };
     $('reparto-btn-copy').onclick = function () {
       var ta = $('reparto-hoja');
