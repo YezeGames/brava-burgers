@@ -42,6 +42,23 @@
 		return 0;
 	}
 
+	function bravaCouponAppliedMessage(coupon, grand) {
+		var label = String((coupon && coupon.label) || '').trim();
+		if (!label && coupon) {
+			if (coupon.tipo === 'pct') label = coupon.valor + '% off';
+			else if (coupon.tipo === 'monto') label = '$' + formatear_moneda(coupon.valor) + ' off';
+			else if (coupon.tipo === 'envio') label = 'Envío gratis';
+			else if (coupon.tipo === 'item') label = 'Papas Brava gratis';
+		}
+		return (
+			'¡Cupón aplicado! · <strong>' +
+			escapeHtml(label || 'Descuento') +
+			'</strong> · Total <strong>$' +
+			formatear_moneda(grand) +
+			'</strong>'
+		);
+	}
+
 	function bravaResetCouponUi() {
 		bravaAppliedCoupon = null;
 		$('#brava-coupon-code').val('');
@@ -56,6 +73,9 @@
 		if (bravaAppliedCoupon && bravaAppliedCoupon.tipo === 'envio') env = 0;
 		var grand = Math.max(0, sub + env - disc);
 		if (bravaAppliedCoupon) {
+			$('#brava-coupon-applied')
+				.removeClass('hidden')
+				.html(bravaCouponAppliedMessage(bravaAppliedCoupon, grand));
 			$('#brava-coupon-totals').removeClass('hidden');
 			$('#brava-c-t-sub').text('$' + formatear_moneda(sub));
 			$('#brava-c-t-env').text('$' + formatear_moneda(env));
@@ -70,6 +90,7 @@
 			}
 			$('#brava-c-t-grand').text('$' + formatear_moneda(grand));
 		} else {
+			$('#brava-coupon-applied').addClass('hidden').html('');
 			$('#brava-coupon-totals').addClass('hidden');
 		}
 		return { envio: env, descuento: disc, total: grand };
@@ -123,9 +144,6 @@
 					return;
 				}
 				bravaAppliedCoupon = data.coupon;
-				okEl
-					.removeClass('hidden')
-					.html('✓ <strong>' + escapeHtml(data.coupon.codigo) + '</strong> aplicado · ' + escapeHtml(data.coupon.label || ''));
 				calcular_total();
 			})
 			.catch(function () {

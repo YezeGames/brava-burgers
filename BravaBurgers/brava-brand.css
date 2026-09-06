@@ -651,11 +651,17 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 .brava-coupon-applied {
 	background: rgba(46, 125, 50, 0.15);
 	border: 1px solid rgba(129, 199, 132, 0.35);
-	color: #81c784;
+	color: #a5d6a7;
 	border-radius: 6px;
-	padding: 8px 10px;
-	font-size: 0.78rem;
+	padding: 10px 12px;
+	font-size: 0.8rem;
+	line-height: 1.35;
 	margin-top: 8px;
+	text-align: center;
+}
+
+.brava-coupon-applied strong {
+	color: #c8e6c9;
 }
 
 .brava-checkout-coupon-totals {
