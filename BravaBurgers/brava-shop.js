@@ -111,7 +111,6 @@
 	function bravaResetCouponUi() {
 		bravaAppliedCoupon = null;
 		$('#brava-coupon-code').val('');
-		$('#brava-coupon-error').addClass('hidden').text('');
 	}
 
 	function bravaUpdateCouponTotals(sub, envOrig) {
@@ -125,15 +124,13 @@
 	window.bravaApplyCoupon = function () {
 		var codigo = String($('#brava-coupon-code').val() || '').trim().toUpperCase();
 		var telefono = String($('#brava_telefono').val() || '').trim();
-		var errEl = $('#brava-coupon-error');
-		errEl.addClass('hidden').text('');
 		bravaAppliedCoupon = null;
 		if (!codigo) {
 			calcular_total();
 			return;
 		}
 		if (!telefono.replace(/\D/g, '')) {
-			errEl.removeClass('hidden').text('Completá tu WhatsApp antes de aplicar el código.');
+			bravaShowToast('Completá tu WhatsApp antes de aplicar el código.', 'error');
 			calcular_total();
 			return;
 		}
@@ -151,19 +148,13 @@
 			.then(function (pack) {
 				var data = pack.data || {};
 				if (!pack.httpOk || !data.ok) {
+					var msg = 'No pudimos validar el código. Probá de nuevo.';
 					if (data.error === 'codigo_otro_telefono') {
-						errEl
-							.removeClass('hidden')
-							.text(
-								'Este código es para otro teléfono (…' + (data.telHint || '****') + ').'
-							);
-					} else if (data.error === 'codigo_usado') {
-						errEl.removeClass('hidden').text('Código inválido o ya usado.');
-					} else if (data.error === 'codigo_invalido') {
-						errEl.removeClass('hidden').text('Código inválido o ya usado.');
-					} else {
-						errEl.removeClass('hidden').text('No pudimos validar el código. Probá de nuevo.');
+						msg = 'Este código es para otro teléfono (…' + (data.telHint || '****') + ').';
+					} else if (data.error === 'codigo_usado' || data.error === 'codigo_invalido') {
+						msg = 'Código inválido o ya usado.';
 					}
+					bravaShowToast(msg, 'error');
 					calcular_total();
 					return;
 				}
@@ -175,7 +166,7 @@
 				);
 			})
 			.catch(function () {
-				errEl.removeClass('hidden').text('Error de red al validar el código.');
+				bravaShowToast('Error de red al validar el código.', 'error');
 				calcular_total();
 			})
 			.finally(function () {
