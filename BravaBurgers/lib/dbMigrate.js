@@ -13,12 +13,21 @@ function postgresConnectionString() {
   const pw = process.env.SUPABASE_DB_PASSWORD || process.env.POSTGRES_PASSWORD || '';
   const m = base.match(/https:\/\/([a-z0-9]+)\.supabase\.co/i);
   if (m && pw) {
+    const ref = m[1];
+    const poolerHost =
+      process.env.SUPABASE_POOLER_HOST || 'aws-0-ca-central-1.pooler.supabase.com';
+    const poolerPort = process.env.SUPABASE_POOLER_PORT || '5432';
+    // Vercel/serverless: db.*.supabase.co suele fallar (IPv6). Session pooler IPv4.
     return (
-      'postgresql://postgres:' +
+      'postgresql://postgres.' +
+      ref +
+      ':' +
       encodeURIComponent(pw) +
-      '@db.' +
-      m[1] +
-      '.supabase.co:5432/postgres?sslmode=require'
+      '@' +
+      poolerHost +
+      ':' +
+      poolerPort +
+      '/postgres?sslmode=require'
     );
   }
   return '';
