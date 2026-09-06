@@ -251,6 +251,7 @@ async function migrateCompensacionesSchema() {
     await client.query('CREATE INDEX IF NOT EXISTS compensaciones_tel_idx ON compensaciones (telefono);');
     await client.query('CREATE INDEX IF NOT EXISTS compensaciones_usado_idx ON compensaciones (usado, creado_at DESC);');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS cupon_codigo text;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS cupon_label text;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS descuento numeric NOT NULL DEFAULT 0;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reenvio_de text;');
     await client.query('ALTER TABLE compensaciones ENABLE ROW LEVEL SECURITY;');

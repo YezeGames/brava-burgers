@@ -272,6 +272,7 @@ CREATE TABLE IF NOT EXISTS compensaciones (
 CREATE INDEX IF NOT EXISTS compensaciones_tel_idx ON compensaciones (telefono);
 CREATE INDEX IF NOT EXISTS compensaciones_usado_idx ON compensaciones (usado, creado_at DESC);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cupon_codigo text;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS cupon_label text;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS descuento numeric NOT NULL DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS reenvio_de text;
 ALTER TABLE compensaciones ENABLE ROW LEVEL SECURITY;

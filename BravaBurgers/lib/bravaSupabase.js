@@ -4,6 +4,7 @@ const {
   telNorm,
   genCouponCode,
   couponLabel,
+  couponLabelComanda,
   calcDiscount,
   effectiveEnvio,
   buildCompensationWaText,
@@ -86,6 +87,8 @@ function rowToOrder(row) {
     rechazo_mensaje: row.rechazo_mensaje,
 
     cupon_codigo: row.cupon_codigo || '',
+
+    cupon_label: row.cupon_label || '',
 
     descuento: Number(row.descuento) || 0,
 
@@ -189,6 +192,7 @@ async function createOrderFromShop(order) {
     total,
     descuento,
     cupon_codigo: cuponCodigo,
+    cupon_label: cuponRow ? couponLabelComanda(cuponRow) : null,
     idempotency_key: idem || null,
   };
 

@@ -1,5 +1,5 @@
 (function (global) {
-  var COMANDA_VER = 15;
+  var COMANDA_VER = 18;
 
   function $(id) {
     return document.getElementById(id);
@@ -17,6 +17,32 @@
   function fmtMoney(n) {
     var x = Number(n) || 0;
     return '$' + x.toLocaleString('es-AR', { maximumFractionDigits: 0 });
+  }
+
+  function fmtAjusteMonto(n) {
+    var x = Number(n) || 0;
+    if (x === 0) return fmtMoney(0);
+    if (x < 0) return '− ' + fmtMoney(-x);
+    return '+ ' + fmtMoney(x);
+  }
+
+  function orderNotaPedido(order) {
+    return String(order.nota || order.nota_pedido || order.notas_pedido || '').trim();
+  }
+
+  function orderAjusteInfo(order, sub, envio, total) {
+    var monto = Number(order.ajuste_monto);
+    if (isNaN(monto)) {
+      monto = total - sub - (Number(envio) || 0);
+    }
+    monto = Math.round(monto);
+    var label = String(order.ajuste_label || order.ajuste || '').trim();
+    var motivo = String(order.ajuste_motivo || order.ajuste_motivo_nota || '').trim();
+    if (!label && monto !== 0) {
+      label = monto < 0 ? 'Descuento' : 'Recargo';
+    }
+    if (!label && monto === 0) return null;
+    return { label: label, monto: monto, motivo: motivo };
   }
 
   function fmtFecha(iso) {
@@ -57,6 +83,33 @@
 
   function itemAcl(it) {
     return (it.acl || it.aclaraciones || it.aclaracion || it.ACL || '').trim();
+  }
+
+  function stripReenvioAclNote(acl) {
+    var s = String(acl || '').trim();
+    if (!s) return '';
+    s = s.replace(/\s*·?\s*Reenvío parcial reclamo\s+ORN-[^\s·]+/gi, '');
+    s = s.replace(/\s*·?\s*Reenvío reclamo\s+ORN-[^\s·]+/gi, '');
+    return s.replace(/^\s*·\s*|\s*·\s*$/g, '').trim();
+  }
+
+  function isReenvioOrder(order) {
+    if (!order) return false;
+    if (order.reenvio_de) return true;
+    var mod = String(order.modificado || '').toUpperCase();
+    return mod === 'REENVIO' || mod === 'REENVIO_PARCIAL';
+  }
+
+  function isReenvioParcial(order) {
+    return String(order.modificado || '').toUpperCase() === 'REENVIO_PARCIAL';
+  }
+
+  function reenvioBannerHtml(order) {
+    if (!isReenvioOrder(order)) return '';
+    var orig = String(order.reenvio_de || '').trim();
+    var label = isReenvioParcial(order) ? 'REENVÍO PARCIAL' : 'REENVÍO';
+    var ref = orig ? ' · reclamo ' + esc(orig) : '';
+    return '<div class="edit-note reenvio-note">*** ' + label + ref + ' · SIN CARGO ***</div>';
   }
 
   function itemVariedad(it) {
@@ -127,17 +180,17 @@
     return p;
   }
 
-  function renderItemsHtml(items) {
+  function renderItemsHtml(items, opts) {
+    opts = opts || {};
+    var hidePrices = !!opts.hidePrices;
     if (!items.length) {
       return '<div class="item"><div class="item-name">(Sin ítems en el pedido)</div></div>';
     }
     var html = '';
     items.forEach(function (it) {
       var qty = itemQty(it);
-      var precio = itemUnitPrecio(it);
-      var lineTotal = qty * precio;
       var variedad = itemVariedad(it);
-      var acl = itemAcl(it);
+      var acl = stripReenvioAclNote(itemAcl(it));
       var aclLine = formatAclLineComanda(acl);
       html += '<div class="item">';
       html += '<div class="item-name">' + esc(qty) + ' x ' + esc(itemName(it)) + '</div>';
@@ -147,14 +200,32 @@
       if (aclLine) {
         html += '<div class="item-aclaracion">Acl: ' + esc(aclLine) + '</div>';
       }
-      html += '<div class="row"><span></span><span>Subtotal ' + esc(fmtMoney(lineTotal)) + '</span></div>';
+      if (!hidePrices) {
+        var precio = itemUnitPrecio(it);
+        var lineTotal = qty * precio;
+        html += '<div class="row"><span></span><span>Subtotal ' + esc(fmtMoney(lineTotal)) + '</span></div>';
+      }
       html += '</div>';
     });
     return html;
   }
 
+  function cuponComandaLineHtml(order) {
+    var descuento = Number(order.descuento) || 0;
+    if (descuento <= 0) return '';
+    var label = String(order.cupon_label || '').trim() || 'Descuento';
+    return (
+      '<div class="row cupon-row-comanda"><span>' +
+      esc(label) +
+      '</span><span>− ' +
+      esc(fmtMoney(descuento)) +
+      '</span></div>'
+    );
+  }
+
   function renderTicketHtml(order) {
     var items = parseItems(order);
+    var reenvio = isReenvioOrder(order);
     var sub = Number(order.subtotal);
     if (isNaN(sub) || sub <= 0) {
       sub = 0;
@@ -165,6 +236,11 @@
     var envio = Number(order.envio) || 0;
     var total = Number(order.total);
     if (isNaN(total)) total = sub + envio;
+    if (reenvio) {
+      sub = 0;
+      envio = 0;
+      total = 0;
+    }
 
     var zonaLine = order.zona ? 'Zona: ' + esc(order.zona) : '';
     var pisoLine = order.piso ? esc(order.piso) : '';
@@ -179,6 +255,8 @@
     }
 
     var envioLabel = envio > 0 ? 'Envío' + (order.zona ? ' (' + esc(order.zona) + ')' : '') : 'Envío';
+    var notaPedido = orderNotaPedido(order);
+    var ajuste = reenvio ? null : orderAjusteInfo(order, sub, envio, total);
 
     var headWrap =
       'text-align:center;padding:4px 0 2px;margin:0;background:transparent !important;';
@@ -188,6 +266,40 @@
       'padding:6px 2mm;font-size:11px;line-height:1.4;color:#000;background:#fff;border-bottom:1px dashed #000;margin:0;';
     var footStyle =
       'padding:6px 4px 2px;font-size:8px;color:#555;text-align:center;border-top:1px dashed #000;background:#fff;margin:0;';
+
+    var totalsHtml = '';
+    if (reenvio) {
+      totalsHtml =
+        '<div class="line"></div>' +
+        '<div class="pago-line reenvio-total-line">REENVÍO SIN CARGO</div>' +
+        '<div class="row total-row"><span>TOTAL</span><span>' +
+        esc(fmtMoney(0)) +
+        '</span></div>';
+    } else {
+      totalsHtml =
+        '<div class="line"></div>' +
+        '<div class="row"><span>Subtotal productos</span><span>' +
+        esc(fmtMoney(sub)) +
+        '</span></div>' +
+        (envio > 0
+          ? '<div class="row"><span>' + envioLabel + '</span><span>' + esc(fmtMoney(envio)) + '</span></div>'
+          : '') +
+        cuponComandaLineHtml(order) +
+        (ajuste
+          ? '<div class="row ajuste-row-comanda"><span>' +
+            esc(ajuste.label + (ajuste.motivo ? ' — ' + ajuste.motivo : '')) +
+            '</span><span>' +
+            esc(fmtAjusteMonto(ajuste.monto)) +
+            '</span></div>'
+          : '') +
+        '<div class="line"></div>' +
+        '<div class="pago-line">Medio de pago: ' +
+        esc(order.pago || '—') +
+        '</div>' +
+        '<div class="row total-row"><span>TOTAL</span><span>' +
+        esc(fmtMoney(total)) +
+        '</span></div>';
+    }
 
     return (
       '<div class="comanda-head" style="' +
@@ -206,6 +318,7 @@
       '</div>' +
       (order.turno ? '<div class="meta-line">Turno: ' + esc(order.turno) + '</div>' : '') +
       '<div class="meta-line">Tipo: DELIVERY</div>' +
+      reenvioBannerHtml(order) +
       editNote +
       '</div>' +
       '<div class="comanda-body">' +
@@ -219,23 +332,15 @@
       (order.direccion ? '<div>' + esc(order.direccion) + '</div>' : '') +
       (locLine ? '<div>' + locLine + '</div>' : '') +
       (zonaLine ? '<div>' + zonaLine + '</div>' : '') +
-      '<div class="line"></div>' +
-      '<div class="section-title">Ítems</div>' +
-      renderItemsHtml(items) +
-      '<div class="line"></div>' +
-      '<div class="row"><span>Subtotal productos</span><span>' +
-      esc(fmtMoney(sub)) +
-      '</span></div>' +
-      (envio > 0
-        ? '<div class="row"><span>' + envioLabel + '</span><span>' + esc(fmtMoney(envio)) + '</span></div>'
+      (notaPedido
+        ? '<div class="line"></div><div class="comanda-nota"><span class="bold">Nota:</span> ' +
+          esc(notaPedido) +
+          '</div>'
         : '') +
       '<div class="line"></div>' +
-      '<div class="pago-line">Medio de pago: ' +
-      esc(order.pago || '—') +
-      '</div>' +
-      '<div class="row total-row"><span>TOTAL</span><span>' +
-      esc(fmtMoney(total)) +
-      '</span></div>' +
+      '<div class="section-title">Ítems</div>' +
+      renderItemsHtml(items, { hidePrices: reenvio }) +
+      totalsHtml +
       '</div>' +
       '<div class="comanda-foot" style="' +
       footStyle +
@@ -286,10 +391,14 @@
       '.ticket-comanda .comanda-meta { padding: 6px 2mm 6px; color: #000; font-size: 11px; line-height: 1.4; border-bottom: 1px dashed #000; }' +
       '.ticket-comanda .comanda-meta .meta-line { margin: 0 0 2px; }' +
       '.ticket-comanda .comanda-meta .edit-note { font-size: 10px; font-weight: 700; margin-top: 6px; color: #000; }' +
+      '.ticket-comanda .comanda-meta .reenvio-note { text-transform: uppercase; letter-spacing: 0.03em; }' +
       '.ticket-comanda .comanda-body { padding: 6px 2mm 8px; color: #000; }' +
       '.ticket-comanda .bold { font-weight: 700; }' +
       '.ticket-comanda .line { border-top: 1px dashed #000; margin: 6px 0; }' +
       '.ticket-comanda .section-title { font-weight: 700; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; color: #555; margin: 2px 0 4px; }' +
+      '.ticket-comanda .comanda-nota { font-size: 11px; line-height: 1.4; margin: 2px 0; }' +
+      '.ticket-comanda .ajuste-row-comanda { font-weight: 600; }' +
+      '.ticket-comanda .cupon-row-comanda { font-weight: 600; }' +
       '.ticket-comanda .item { margin: 6px 0; }' +
       '.ticket-comanda .item-name { font-weight: 700; font-size: 12px; }' +
       '.ticket-comanda .item-detail, .ticket-comanda .item-aclaracion { font-size: 11px; font-weight: 400; margin-top: 2px; }' +
@@ -298,6 +407,7 @@
       '.ticket-comanda .row > span:last-child { white-space: nowrap; text-align: right; flex-shrink: 0; }' +
       '.ticket-comanda .total-row { font-weight: 700; font-size: 13px; margin-top: 4px; }' +
       '.ticket-comanda .pago-line { font-weight: 700; margin: 4px 0; font-size: 11px; }' +
+      '.ticket-comanda .reenvio-total-line { text-transform: uppercase; letter-spacing: 0.03em; }' +
       '.ticket-comanda .comanda-foot { background: transparent; color: #555; font-size: 8px; font-weight: 400; text-align: center; padding: 6px 2mm 0; border-top: 1px dashed #000; }'
     );
   }

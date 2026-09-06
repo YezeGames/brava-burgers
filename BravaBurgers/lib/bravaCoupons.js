@@ -23,6 +23,18 @@ function couponLabel(c) {
   return tipo;
 }
 
+/** Etiqueta amigable para comanda / ticket (sin código BRAVA-XXXX). */
+function couponLabelComanda(c) {
+  if (!c) return 'Descuento';
+  const tipo = String(c.tipo || '');
+  const valor = Number(c.valor) || 0;
+  if (tipo === 'pct') return valor + '% de descuento';
+  if (tipo === 'monto') return '$' + Math.round(valor).toLocaleString('es-AR') + ' de descuento';
+  if (tipo === 'envio') return 'Envío gratis';
+  if (tipo === 'item') return 'Papas Brava gratis';
+  return 'Descuento';
+}
+
 function calcDiscount(c, subtotal, envio) {
   if (!c || c.usado) return 0;
   const valor = Number(c.valor) || 0;
@@ -89,6 +101,7 @@ module.exports = {
   telNorm,
   genCouponCode,
   couponLabel,
+  couponLabelComanda,
   calcDiscount,
   effectiveEnvio,
   buildCompensationWaText,
