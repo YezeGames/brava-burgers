@@ -18,6 +18,7 @@ CREATE INDEX IF NOT EXISTS compensaciones_usado_idx ON compensaciones (usado, cr
 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS cupon_codigo text;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS descuento numeric NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reenvio_de text;
 
 ALTER TABLE compensaciones ENABLE ROW LEVEL SECURITY;
 

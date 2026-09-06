@@ -202,7 +202,59 @@
 
   bindUi();
 
+  function confirmReenvio(orn) {
+    if (!global.getAdminToken || !global.findOrderByOrn) return;
+    var o = global.findOrderByOrn(orn);
+    if (!o) return;
+    if (o.reenvio_de) {
+      alert('Este pedido ya es un reenvío.');
+      return;
+    }
+    if (!confirm('¿Generar reenvío $0 por reclamo de ' + orn + '?')) return;
+    adminApi({ action: 'createReenvio', orn: orn })
+      .then(function (data) {
+        if (!data.ok) {
+          if (data.error === 'reenvio_pendiente_existe') {
+            alert('Ya hay un reenvío pendiente: ' + (data.orn || ''));
+            return;
+          }
+          if (data.error === 'order_lookup_failed' || (data.detail && /reenvio_de|compensaciones/.test(data.detail))) {
+            alert(
+              'Error al crear reenvío. Abrí el admin de nuevo (migración Supabase) o ejecutá compensaciones.sql.\n' +
+                (data.detail || data.error || '')
+            );
+            return;
+          }
+          alert('No se pudo crear el reenvío: ' + (data.error || 'error'));
+          return;
+        }
+        var waTo = telWa(o.telefono);
+        if (!waTo) {
+          alert('Reenvío ' + data.orn + ' creado en Pendientes (sin teléfono para WA).');
+          if (global.fetchOrdersFromServer) global.fetchOrdersFromServer(true);
+          return;
+        }
+        return sendWa(waTo, data.waText).then(function (waRes) {
+          if (!waRes.ok) {
+            alert(
+              'Reenvío ' +
+                data.orn +
+                ' en Pendientes, pero falló WhatsApp: ' +
+                (waRes.error || 'error')
+            );
+          } else {
+            alert('Reenvío ' + data.orn + ' creado y avisado por WhatsApp.');
+          }
+          if (global.fetchOrdersFromServer) global.fetchOrdersFromServer(true);
+        });
+      })
+      .catch(function () {
+        alert('Error de red al crear reenvío.');
+      });
+  }
+
   global.BravaCompensaciones = {
     openModal: openModal,
+    confirmReenvio: confirmReenvio,
   };
 })(window);

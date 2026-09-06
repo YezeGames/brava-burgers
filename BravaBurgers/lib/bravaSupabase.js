@@ -7,6 +7,7 @@ const {
   calcDiscount,
   effectiveEnvio,
   buildCompensationWaText,
+  buildReenvioWaText,
   orderTotalsWithCoupon,
 } = require('./bravaCoupons');
 
@@ -87,6 +88,8 @@ function rowToOrder(row) {
     cupon_codigo: row.cupon_codigo || '',
 
     descuento: Number(row.descuento) || 0,
+
+    reenvio_de: row.reenvio_de || '',
 
   };
 
@@ -991,6 +994,142 @@ async function listCompensaciones(limit) {
 
 
 
+async function createReenvio(body) {
+
+  const origOrn = String(body.orn || body.orn_origen || '').trim();
+
+  if (!origOrn) return { ok: false, error: 'missing_orn' };
+
+
+
+  const r = await restSelect('orders', 'select=*&orn=eq.' + encodeURIComponent(origOrn) + '&limit=1');
+
+  if (!r.ok) return supabaseFail(r, 'order_lookup_failed');
+
+  if (!r.data || !r.data[0]) return { ok: false, error: 'order_not_found' };
+
+  const orig = r.data[0];
+
+  if (String(orig.estado || '').toLowerCase() !== 'entregada') {
+
+    return { ok: false, error: 'order_not_delivered' };
+
+  }
+
+  if (orig.reenvio_de) return { ok: false, error: 'is_reenvio_order' };
+
+
+
+  const pending = await restSelect(
+
+    'orders',
+
+    'select=orn&reenvio_de=eq.' +
+
+      encodeURIComponent(origOrn) +
+
+      '&estado=eq.pendiente&limit=1'
+
+  );
+
+  if (pending.ok && pending.data && pending.data[0]) {
+
+    return { ok: false, error: 'reenvio_pendiente_existe', orn: pending.data[0].orn };
+
+  }
+
+
+
+  const ornRes = await restRpc('next_pend_del');
+
+  if (!ornRes.ok || !ornRes.data) return supabaseFail(ornRes, 'orn_failed');
+
+  const newOrn = ornRes.data;
+
+
+
+  let items = orig.items_json;
+
+  if (typeof items === 'string') {
+
+    try {
+
+      items = JSON.parse(items);
+
+    } catch (e) {
+
+      items = [];
+
+    }
+
+  }
+
+  items = JSON.parse(JSON.stringify(Array.isArray(items) ? items : []));
+
+  if (items.length) {
+
+    items[0].acl = String(items[0].acl || '').trim();
+
+    items[0].acl = (items[0].acl ? items[0].acl + ' · ' : '') + 'Reenvío reclamo ' + origOrn;
+
+  }
+
+
+
+  const row = {
+
+    orn: newOrn,
+
+    estado: 'pendiente',
+
+    cliente: orig.cliente || '',
+
+    telefono: orig.telefono || '',
+
+    direccion: orig.direccion || '',
+
+    localidad: orig.localidad || '',
+
+    piso: orig.piso || '',
+
+    turno: orig.turno || '',
+
+    zona: orig.zona || '',
+
+    envio: 0,
+
+    pago: orig.pago || '',
+
+    items_json: items,
+
+    subtotal: 0,
+
+    total: 0,
+
+    descuento: 0,
+
+    reenvio_de: origOrn,
+
+    modificado: 'REENVIO',
+
+  };
+
+
+
+  const ins = await restInsert('orders', row);
+
+  if (!ins.ok) return supabaseFail(ins, 'insert_failed');
+
+
+
+  const waText = buildReenvioWaText(orig.cliente, newOrn, origOrn);
+
+  return { ok: true, orn: newOrn, reenvio_de: origOrn, waText: waText };
+
+}
+
+
+
 module.exports = {
 
   createOrderFromShop,
@@ -1028,6 +1167,8 @@ module.exports = {
   createCompensacion,
 
   listCompensaciones,
+
+  createReenvio,
 
 };
 

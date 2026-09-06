@@ -61,6 +61,20 @@ function buildCompensationWaText(cliente, orn, codigo, c) {
   );
 }
 
+function buildReenvioWaText(cliente, newOrn, origOrn) {
+  const nombre = String(cliente || 'Hola').split(/\s+/)[0];
+  return (
+    '¡' +
+    nombre +
+    '! Armamos tu reenvío ' +
+    newOrn +
+    ' sin cargo por el inconveniente con ' +
+    origOrn +
+    '.\n' +
+    'Misma dirección · lo preparamos en el próximo turno. 🍔'
+  );
+}
+
 function orderTotalsWithCoupon(subtotal, envioOriginal, coupon) {
   const sub = Number(subtotal) || 0;
   const envOrig = Number(envioOriginal) || 0;
@@ -81,5 +95,6 @@ module.exports = {
   calcDiscount,
   effectiveEnvio,
   buildCompensationWaText,
+  buildReenvioWaText,
   orderTotalsWithCoupon,
 };

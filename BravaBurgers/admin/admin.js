@@ -3184,6 +3184,7 @@
     ensureIngresosSchemaOnce();
     ensurePendOrnDelOnce();
     ensureWaMessagesOnce();
+    ensureCompensacionesOnce();
     initDefaultAlertSound();
 
     if (window.BravaWaPanel) {
@@ -3219,6 +3220,24 @@
   }
 
 
+
+  /** Una vez por sesión: compensaciones + columnas cupón/reenvío (Vercel: SUPABASE_DB_PASSWORD). */
+  function ensureCompensacionesOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_compensaciones_try_v1') === '1') return;
+      sessionStorage.setItem('brava_compensaciones_try_v1', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migrateCompensaciones', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_compensaciones_ok', '1');
+        } catch (e2) {}
+      }
+    });
+  }
 
   /** Una vez por sesión: tabla wa_messages si falta (Vercel: SUPABASE_DB_PASSWORD). */
   function ensureWaMessagesOnce() {
@@ -3831,7 +3850,8 @@
         paymentTagHtml(o.pago) +
 
         (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '') +
-        (Number(o.descuento) > 0 ? ' <span class="badge-mod">cupón</span>' : '');
+        (Number(o.descuento) > 0 ? ' <span class="badge-mod">cupón</span>' : '') +
+        (o.reenvio_de ? ' <span class="badge-mod">reenvío</span>' : '');
 
       body.appendChild(head);
 
@@ -3866,6 +3886,8 @@
         (rel ? '<span><i class="fas fa-clock" aria-hidden="true"></i> ' + escapeHtml(rel) + '</span>' : '') +
 
         (o.telefono ? '<span class="wa-open" role="button" tabindex="0" data-wa-tel="' + escapeAttr(telWa(o.telefono)) + '"><i class="fab fa-whatsapp" aria-hidden="true"></i> ' + escapeHtml(o.telefono) + '</span>' : '') +
+
+        (o.reenvio_de ? '<span><i class="fas fa-rotate-left" aria-hidden="true"></i> Reclamo de ' + escapeHtml(o.reenvio_de) + ' · $0</span>' : '') +
 
         addrBlock;
 
@@ -3959,14 +3981,25 @@
 
       if (panelEstado === 'entregada') {
 
-        addActionBtn(
-          actions,
-          'Gratificar',
-          'btn-sm btn-accent',
-          'gratificar',
-          o.orn,
-          'Crear cupón de compensación y avisar por WhatsApp'
-        );
+        if (!o.reenvio_de) {
+          addActionBtn(
+            actions,
+            'Gratificar',
+            'btn-sm btn-accent',
+            'gratificar',
+            o.orn,
+            'Crear cupón de compensación y avisar por WhatsApp'
+          );
+
+          addActionBtn(
+            actions,
+            'Reenvío',
+            'btn-sm btn-x',
+            'reenvio',
+            o.orn,
+            'Clonar pedido $0 en Pendientes por reclamo'
+          );
+        }
 
       }
 
@@ -6246,6 +6279,11 @@
         BravaCompensaciones.openModal(orn);
       }
     }
+    if (action === 'reenvio') {
+      if (window.BravaCompensaciones && typeof BravaCompensaciones.confirmReenvio === 'function') {
+        BravaCompensaciones.confirmReenvio(orn);
+      }
+    }
   }
 
   var ordersListEl = $('orders-list');
@@ -6806,6 +6844,8 @@
   };
 
   window.findOrderByOrn = findOrder;
+
+  window.fetchOrdersFromServer = fetchOrdersFromServer;
 
 })();
 

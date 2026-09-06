@@ -16,6 +16,7 @@ const {
   deleteCierre,
   createCompensacion,
   listCompensaciones,
+  createReenvio,
 } = require('../lib/bravaSupabase');
 const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateCompensacionesSchema } = require('../lib/dbMigrate');
 
@@ -151,6 +152,13 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'listCompensaciones') {
     return listCompensaciones(body.limit);
+  }
+
+  if (action === 'createReenvio') {
+    return createReenvio({
+      orn: body.orn,
+      orn_origen: body.orn,
+    });
   }
 
   return { ok: false, error: 'unknown_action' };
