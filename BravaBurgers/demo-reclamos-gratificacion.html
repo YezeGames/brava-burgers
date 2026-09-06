@@ -8,7 +8,7 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
-	<link href="brava-brand.css?v=97" rel="stylesheet">
+	<link href="brava-brand.css?v=98" rel="stylesheet">
 	<link href="brava-mobile.css?v=5" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		:root {
@@ -258,11 +258,36 @@
 		}
 		.hidden { display: none !important; }
 
-		/* —— Tienda: checkout real Brava —— */
+		/* —— Tienda: checkout real Brava (mismos params que Fancybox en index.html) —— */
+		body.demo-shop-open {
+			overflow: hidden !important;
+			height: 100% !important;
+			touch-action: none;
+		}
+		body.demo-shop-open .shell {
+			padding-bottom: 0;
+		}
 		#view-shop.view-panel.is-active {
-			background: #0f0f0f;
-			border-radius: 0 8px 8px 8px;
-			padding-bottom: 24px;
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			top: var(--demo-shop-top, 108px);
+			z-index: 200;
+			background: rgba(0, 0, 0, 0.88);
+			border-radius: 0;
+			padding: max(8px, env(safe-area-inset-top, 0px)) 8px max(8px, env(safe-area-inset-bottom, 0px));
+			display: flex !important;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			overflow: hidden;
+		}
+		#view-shop .shop-hint,
+		#view-shop .checkout-context,
+		#view-shop .checkout-frame-caption,
+		#view-shop .demo-send-preview {
+			display: none;
 		}
 		.shop-hint {
 			margin: 0 0 12px;
@@ -271,27 +296,19 @@
 		.checkout-stage {
 			display: flex;
 			justify-content: center;
-			padding: 8px 0 20px;
+			align-items: center;
+			width: 100%;
+			flex: 1;
+			min-height: 0;
+			padding: 0;
 		}
 		.checkout-phone-col {
 			width: 100%;
 			max-width: 390px;
-		}
-		.checkout-context {
-			text-align: center;
-			font-size: 0.72rem;
-			color: #777;
-			margin: 0 0 10px;
-		}
-		.demo-send-preview {
-			position: relative !important;
-			margin-bottom: 12px;
-			border-radius: 8px;
-			overflow: hidden;
-			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
-		}
-		.demo-send-preview .brava-send-btn {
-			pointer-events: none;
+			height: min(92vh, 100dvh);
+			max-height: min(92vh, 100dvh);
+			display: flex;
+			flex-direction: column;
 		}
 		#view-shop #preguntas_pedido.checkout-frame {
 			display: flex !important;
@@ -304,15 +321,19 @@
 			background-color: var(--brava-bg, #1a1a1a);
 			border-radius: 8px;
 			box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
-			border: 1px solid #333;
-			max-height: min(92vh, 680px);
+			border: 2px solid var(--brava-accent, #ff6b35);
+			height: min(92vh, 100dvh);
+			max-height: min(92vh, 100dvh);
 			overflow: hidden;
+			flex: 1;
+			min-height: 0;
 		}
 		#view-shop .brava-checkout-inner {
 			display: flex;
 			flex-direction: column;
 			flex: 1;
 			min-height: 0;
+			height: 100%;
 			max-height: 100%;
 		}
 		#view-shop .brava-checkout-body {
@@ -324,7 +345,29 @@
 		}
 		#view-shop .brava-checkout-foot {
 			flex-shrink: 0;
+			background: linear-gradient(to top, var(--brava-bg, #1a1a1a) 88%, rgba(26, 26, 26, 0));
 			box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.22);
+		}
+		@media (max-width: 768px) {
+			#view-shop #preguntas_pedido.checkout-frame {
+				padding: 10px 10px 0;
+				height: min(92vh, 100dvh);
+				max-height: min(92vh, 100dvh);
+			}
+			#view-shop .brava-checkout-section {
+				margin-bottom: 6px;
+				padding: 6px 8px;
+			}
+			#view-shop .brava-checkout-map-wrap {
+				margin: 4px 0 2px;
+			}
+			#view-shop .brava-map-label {
+				font-size: 0.65rem;
+				margin-bottom: 3px;
+			}
+			.brava-demo-map-placeholder {
+				height: 108px;
+			}
 		}
 		.checkout-frame-caption {
 			text-align: center;
@@ -465,8 +508,7 @@
 
 	<div id="view-shop" class="view-panel">
 		<div class="flow-hint shop-hint">
-			<strong>Checkout real Brava</strong> — mismo layout que el Fancybox de <code>index.html</code> + sección <em>Compensación</em> (nueva).
-			La barra naranja simula el botón <em>Enviar pedido</em> de la tienda con el total del carrito.
+			<strong>Checkout real Brava</strong> — mismo modal que al tocar <em>Enviar pedido</em> en la tienda (+ sección <em>Compensación</em> del demo).
 		</div>
 		<div class="checkout-stage">
 			<div class="checkout-phone-col">
@@ -1022,9 +1064,17 @@
 			var view = btn.getAttribute('data-view');
 			document.getElementById('view-' + view).classList.add('is-active');
 			if (view === 'shop') {
-				document.body.classList.add('brava-shop-b', 'brava-has-bg-image');
+				document.body.classList.add('brava-shop-b', 'brava-has-bg-image', 'demo-shop-open');
+				var top = 0;
+				var topEl = document.querySelector('.demo-top');
+				var tabsEl = document.querySelector('.view-tabs');
+				if (topEl) top += topEl.offsetHeight;
+				if (tabsEl) top += tabsEl.offsetHeight;
+				document.documentElement.style.setProperty('--demo-shop-top', top + 'px');
+				window.scrollTo(0, 0);
 			} else {
-				document.body.classList.remove('brava-shop-b', 'brava-has-bg-image');
+				document.body.classList.remove('brava-shop-b', 'brava-has-bg-image', 'demo-shop-open');
+				document.documentElement.style.removeProperty('--demo-shop-top');
 			}
 		});
 	});
