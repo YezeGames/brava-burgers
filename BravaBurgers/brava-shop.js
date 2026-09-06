@@ -1595,6 +1595,7 @@
 	function aplicarPreguntasCheckout() {
 		var p = g_preguntas || {};
 		$('#preguntas_pedido_encabezado').text('Completá tu pedido');
+		$('#pregunta_2_label').text('Buscá tu dirección o mové el pin en el mapa.');
 		if (p.pie) {
 			$('#preguntas_pedido_pie').html(p.pie.replace(/<BR>/gi, '<br>'));
 		}
@@ -1602,6 +1603,7 @@
 			$('#pregunta_10_label').text(p.zonaTitulo);
 		}
 		for (var i = 0; i < 6; i++) {
+			if (i === 1) continue;
 			if (p.labels && p.labels[i]) $('#pregunta_' + (i + 1) + '_label').text(p.labels[i]);
 		}
 		var pago = $('#pregunta_5_respuesta');
