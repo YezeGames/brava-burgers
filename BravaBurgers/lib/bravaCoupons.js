@@ -62,17 +62,13 @@ function buildCompensationWaText(cliente, orn, codigo, c) {
 }
 
 function buildReenvioWaText(cliente, newOrn, origOrn, itemsSummary) {
-  const nombre = String(cliente || 'Hola').split(/\s+/)[0];
+  const nombre = String(cliente || 'Hola').split(/\s+/)[0].toUpperCase();
   let text =
     '¡' +
     nombre +
-    '! Armamos tu reenvío ' +
-    newOrn +
-    ' sin cargo por el inconveniente con ' +
-    origOrn +
-    '.\n' +
-    'Misma dirección · lo preparamos en el próximo turno. 🍔';
-  if (itemsSummary) text += '\n\nIncluye: ' + itemsSummary;
+    '! Te pedimos mil disculpas, ya estamos armando nuevamente tu orden.\n' +
+    'Misma dirección · ya lo pasamos a preparación. 🍔';
+  if (itemsSummary) text += '\n\n' + itemsSummary;
   return text;
 }
 

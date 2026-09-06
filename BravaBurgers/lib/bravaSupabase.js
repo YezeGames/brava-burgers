@@ -1053,11 +1053,20 @@ function reenvioItemQty(it) {
   return isNaN(n) || n <= 0 ? 1 : n;
 }
 
+function reenvioAclForDisplay(acl) {
+  let s = String(acl || '').trim();
+  if (!s) return '';
+  s = s.replace(/\s*·?\s*Reenvío parcial reclamo\s+ORN-[^\s·]+/gi, '');
+  s = s.replace(/\s*·?\s*Reenvío reclamo\s+ORN-[^\s·]+/gi, '');
+  return s.replace(/^\s*·\s*|\s*·\s*$/g, '').trim();
+}
+
 function reenvioItemLabel(it) {
   const name = String((it && (it.nombre || it.name)) || 'Ítem').trim();
   const parts = [];
   if (it && it.variedad) parts.push(String(it.variedad).trim());
-  if (it && it.acl) parts.push(String(it.acl).trim());
+  const acl = reenvioAclForDisplay(it && it.acl);
+  if (acl) parts.push(acl);
   const extra = parts.length ? ' · ' + parts.join(' · ') : '';
   return name + extra;
 }
@@ -1067,7 +1076,7 @@ function reenvioItemsSummary(items) {
     .map(function (it) {
       return reenvioItemQty(it) + '× ' + reenvioItemLabel(it);
     })
-    .join(', ');
+    .join('\n');
 }
 
 function parseOrderItemsJson(raw) {
@@ -1199,7 +1208,7 @@ async function createReenvio(body) {
 
   if (!ins.ok) return supabaseFail(ins, 'insert_failed');
 
-  const waText = buildReenvioWaText(orig.cliente, newOrn, origOrn, partial ? reenvioItemsSummary(items) : '');
+  const waText = buildReenvioWaText(orig.cliente, newOrn, origOrn, reenvioItemsSummary(items));
 
   return { ok: true, orn: newOrn, reenvio_de: origOrn, partial: partial, waText: waText };
 }
