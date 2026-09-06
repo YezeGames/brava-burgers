@@ -140,6 +140,14 @@
             alert('Ya hay un cupón activo para este teléfono (' + (data.codigo || '') + ').');
             return;
           }
+          if (data.error === 'reclamo_ya_gratificado') {
+            alert('Este pedido ya tiene cupón de reclamo (' + (data.codigo || '') + ').');
+            return;
+          }
+          if (data.error === 'reclamo_ya_reenvio') {
+            alert('Este pedido ya tiene reenvío (' + (data.orn || '') + '). Usá cupón o reenvío, no ambos.');
+            return;
+          }
           if (data.error === 'cupon_lookup_failed' || data.detail) {
             alert(
               'Error al crear cupón. ¿Ejecutaste la migración compensaciones en Supabase?\n' +
@@ -150,6 +158,7 @@
           alert('No se pudo crear el cupón: ' + (data.error || 'error'));
           return;
         }
+        if (global.markCompensacionOrigen) global.markCompensacionOrigen(modalOrn);
         var waTo = telWa(modalOrder.telefono);
         if (!waTo) {
           alert('Cupón ' + data.compensacion.codigo + ' creado (sin teléfono para WA).');
@@ -214,8 +223,12 @@
     adminApi({ action: 'createReenvio', orn: orn })
       .then(function (data) {
         if (!data.ok) {
-          if (data.error === 'reenvio_pendiente_existe') {
-            alert('Ya hay un reenvío pendiente: ' + (data.orn || ''));
+          if (data.error === 'reenvio_pendiente_existe' || data.error === 'reenvio_ya_existe') {
+            alert('Ya hay un reenvío para este pedido: ' + (data.orn || ''));
+            return;
+          }
+          if (data.error === 'reclamo_ya_gratificado') {
+            alert('Este pedido ya tiene cupón de reclamo (' + (data.codigo || '') + ').');
             return;
           }
           if (data.error === 'order_lookup_failed' || (data.detail && /reenvio_de|compensaciones/.test(data.detail))) {

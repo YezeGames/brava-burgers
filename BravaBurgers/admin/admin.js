@@ -74,6 +74,8 @@
 
   var allOrdersCache = [];
 
+  var compensacionesOrigenSet = {};
+
   var fetchInFlight = null;
 
   var cacheSignature = '';
@@ -3851,7 +3853,8 @@
 
         (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '') +
         (Number(o.descuento) > 0 ? ' <span class="badge-mod">cupón</span>' : '') +
-        (o.reenvio_de ? ' <span class="badge-mod">reenvío</span>' : '');
+        (o.reenvio_de ? ' <span class="badge-mod">reenvío</span>' : '') +
+        orderReclamoBadgeHtml(o);
 
       body.appendChild(head);
 
@@ -3981,7 +3984,8 @@
 
       if (panelEstado === 'entregada') {
 
-        if (!o.reenvio_de) {
+        if (!o.reenvio_de && !orderReclamoResuelto(o.orn)) {
+
           addActionBtn(
             actions,
             'Gratificar',
@@ -3999,6 +4003,7 @@
             o.orn,
             'Clonar pedido $0 en Pendientes por reclamo'
           );
+
         }
 
       }
@@ -4320,6 +4325,14 @@
 
     fetchOrdersFromServer(true).then(function (ok) {
 
+      return fetchCompensacionesOrigenes().then(function () {
+
+        return ok;
+
+      });
+
+    }).then(function (ok) {
+
       if (!ok && !allOrdersCache.length) {
 
         rebuildAllPanelFrags();
@@ -4346,6 +4359,94 @@
 
 
 
+  function orderReenvioForOrigen(orn) {
+
+    for (var i = 0; i < allOrdersCache.length; i++) {
+
+      var r = allOrdersCache[i];
+
+      if (r.reenvio_de !== orn) continue;
+
+      var est = normalizeEstado(r.estado);
+
+      if (est !== 'cancelada' && est !== 'rechazado') return r;
+
+    }
+
+    return null;
+
+  }
+
+  function orderReclamoResuelto(orn) {
+
+    return !!(compensacionesOrigenSet[orn] || orderReenvioForOrigen(orn));
+
+  }
+
+  function orderReclamoBadgeHtml(o) {
+
+    if (!o || o.reenvio_de) return '';
+
+    var parts = [];
+
+    if (compensacionesOrigenSet[o.orn]) parts.push('cupón reclamo');
+
+    var re = orderReenvioForOrigen(o.orn);
+
+    if (re) parts.push('reenvío ' + re.orn);
+
+    if (!parts.length) return '';
+
+    return ' <span class="badge-mod">' + escapeHtml(parts.join(' · ')) + '</span>';
+
+  }
+
+  function fetchCompensacionesOrigenes() {
+
+    if (!token) return Promise.resolve(false);
+
+    return api({ action: 'listCompensacionOrigenes', token: token, limit: 300 })
+
+      .then(function (res) {
+
+        if (!res.data || !res.data.ok) return false;
+
+        var next = {};
+
+        (res.data.origenes || []).forEach(function (orn) {
+
+          if (orn) next[orn] = true;
+
+        });
+
+        var prevKeys = Object.keys(compensacionesOrigenSet).sort().join(',');
+
+        var nextKeys = Object.keys(next).sort().join(',');
+
+        compensacionesOrigenSet = next;
+
+        if (prevKeys !== nextKeys) {
+
+          rebuildAllPanelFrags();
+
+          paintCurrentTab();
+
+        }
+
+        return true;
+
+      })
+
+      .catch(function () {
+
+        return false;
+
+      });
+
+  }
+
+
+
   function findOrder(orn) {
 
     for (var i = 0; i < allOrdersCache.length; i++) {
@@ -4355,6 +4456,22 @@
     }
 
     return null;
+
+  }
+
+
+
+  function markCompensacionOrigen(orn) {
+
+    if (!orn) return;
+
+    if (compensacionesOrigenSet[orn]) return;
+
+    compensacionesOrigenSet[orn] = true;
+
+    rebuildAllPanelFrags();
+
+    paintCurrentTab();
 
   }
 
@@ -6846,6 +6963,8 @@
   window.findOrderByOrn = findOrder;
 
   window.fetchOrdersFromServer = fetchOrdersFromServer;
+  window.fetchCompensacionesOrigenes = fetchCompensacionesOrigenes;
+  window.markCompensacionOrigen = markCompensacionOrigen;
 
 })();
 

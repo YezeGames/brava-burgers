@@ -890,6 +890,35 @@ async function redeemCoupon(codigo, telefono, orn) {
 
 
 
+async function reclamoAccionTomadaForOrn(origOrn) {
+  const orn = String(origOrn || '').trim();
+  if (!orn) return { gratificado: false, reenvioOrn: null, codigo: null };
+
+  const comp = await restSelect(
+    'compensaciones',
+    'select=codigo&orn_origen=eq.' + encodeURIComponent(orn) + '&limit=1'
+  );
+  if (comp.ok && comp.data && comp.data[0]) {
+    return { gratificado: true, reenvioOrn: null, codigo: comp.data[0].codigo };
+  }
+
+  const reenv = await restSelect(
+    'orders',
+    'select=orn,estado&reenvio_de=eq.' + encodeURIComponent(orn) + '&limit=5'
+  );
+  if (reenv.ok && reenv.data) {
+    for (let i = 0; i < reenv.data.length; i++) {
+      const row = reenv.data[i];
+      const est = String(row.estado || '').toLowerCase();
+      if (est !== 'cancelada' && est !== 'rechazado') {
+        return { gratificado: false, reenvioOrn: row.orn, codigo: null };
+      }
+    }
+  }
+
+  return { gratificado: false, reenvioOrn: null, codigo: null };
+}
+
 async function createCompensacion(body) {
 
   const orn = String(body.orn_origen || body.orn || '').trim();
@@ -908,7 +937,13 @@ async function createCompensacion(body) {
 
   if (!['pct', 'monto', 'envio', 'item'].includes(tipo)) return { ok: false, error: 'tipo_invalido' };
 
-
+  const reclamo = await reclamoAccionTomadaForOrn(orn);
+  if (reclamo.gratificado) {
+    return { ok: false, error: 'reclamo_ya_gratificado', codigo: reclamo.codigo };
+  }
+  if (reclamo.reenvioOrn) {
+    return { ok: false, error: 'reclamo_ya_reenvio', orn: reclamo.reenvioOrn };
+  }
 
   const active = await restSelect(
 
@@ -992,7 +1027,25 @@ async function listCompensaciones(limit) {
 
 }
 
-
+async function listCompensacionOrigenes(limit) {
+  const n = Math.min(Math.max(Number(limit) || 300, 1), 500);
+  const r = await restSelect(
+    'compensaciones',
+    'select=orn_origen&order=creado_at.desc&limit=' + n
+  );
+  if (!r.ok) return supabaseFail(r, r.error);
+  const rows = Array.isArray(r.data) ? r.data : [];
+  const origenes = [];
+  const seen = {};
+  rows.forEach(function (row) {
+    const orn = String((row && row.orn_origen) || '').trim();
+    if (orn && !seen[orn]) {
+      seen[orn] = true;
+      origenes.push(orn);
+    }
+  });
+  return { ok: true, origenes: origenes };
+}
 
 async function createReenvio(body) {
 
@@ -1018,24 +1071,12 @@ async function createReenvio(body) {
 
   if (orig.reenvio_de) return { ok: false, error: 'is_reenvio_order' };
 
-
-
-  const pending = await restSelect(
-
-    'orders',
-
-    'select=orn&reenvio_de=eq.' +
-
-      encodeURIComponent(origOrn) +
-
-      '&estado=eq.pendiente&limit=1'
-
-  );
-
-  if (pending.ok && pending.data && pending.data[0]) {
-
-    return { ok: false, error: 'reenvio_pendiente_existe', orn: pending.data[0].orn };
-
+  const reclamo = await reclamoAccionTomadaForOrn(origOrn);
+  if (reclamo.gratificado) {
+    return { ok: false, error: 'reclamo_ya_gratificado', codigo: reclamo.codigo };
+  }
+  if (reclamo.reenvioOrn) {
+    return { ok: false, error: 'reenvio_ya_existe', orn: reclamo.reenvioOrn };
   }
 
 
@@ -1167,6 +1208,8 @@ module.exports = {
   createCompensacion,
 
   listCompensaciones,
+
+  listCompensacionOrigenes,
 
   createReenvio,
 
