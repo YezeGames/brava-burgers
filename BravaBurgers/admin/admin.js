@@ -3251,6 +3251,7 @@
     ensurePendOrnDelOnce();
     ensureWaMessagesOnce();
     ensureCompensacionesOnce();
+    ensureManualOrderSchemaOnce();
     initDefaultAlertSound();
 
     if (window.BravaWaPanel) {
@@ -3318,6 +3319,24 @@
       if (res.data && res.data.ok) {
         try {
           sessionStorage.setItem('brava_wa_messages_ok', '1');
+        } catch (e2) {}
+      }
+    });
+  }
+
+  /** Una vez por sesión: clientes + columnas pedido manual (Vercel: SUPABASE_DB_PASSWORD). */
+  function ensureManualOrderSchemaOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_manual_order_try_v1') === '1') return;
+      sessionStorage.setItem('brava_manual_order_try_v1', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migrateManualOrderSchema', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_manual_order_ok_v1', '1');
         } catch (e2) {}
       }
     });
