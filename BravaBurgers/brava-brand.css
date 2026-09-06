@@ -524,12 +524,14 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 }
 
 .zone-banner {
-	margin: 6px 0 0;
+	margin: 0 0 6px;
 	padding: 8px 10px;
 	border-radius: 6px;
 	font-size: 0.78rem;
 	font-weight: 600;
 	line-height: 1.35;
+	text-transform: none;
+	letter-spacing: 0;
 }
 
 .zone-banner.is-idle {

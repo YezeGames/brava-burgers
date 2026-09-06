@@ -1595,7 +1595,6 @@
 	function aplicarPreguntasCheckout() {
 		var p = g_preguntas || {};
 		$('#preguntas_pedido_encabezado').text('Completá tu pedido');
-		$('#pregunta_2_label').text('Buscá tu dirección o mové el pin en el mapa.');
 		if (p.pie) {
 			$('#preguntas_pedido_pie').html(p.pie.replace(/<BR>/gi, '<br>'));
 		}

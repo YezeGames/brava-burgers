@@ -34,7 +34,7 @@
 		var g_telefono = '';
 	</script>
 	<script src="brava-catalog.js?v=13"></script>
-	<link href="brava-brand.css?v=103" rel="stylesheet">
+	<link href="brava-brand.css?v=104" rel="stylesheet">
 	<link href="brava-mobile.css?v=6" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		#preguntas_pedido.fancybox-content,
@@ -152,8 +152,9 @@
 
 			<fieldset class="brava-checkout-section">
 				<legend class="brava-checkout-section-title">Entrega</legend>
+				<div id="zone-banner" class="zone-banner is-idle" role="status" aria-live="polite"></div>
 				<p class="brava-field brava-field-address">
-					<label id="pregunta_2_label">Buscá tu dirección o mové el pin en el mapa.</label>
+					<label id="pregunta_2_label" class="brava-visually-hidden" for="pregunta_2_respuesta">Dirección</label>
 					<div class="brava-addr-wrap">
 						<input type="text" id="pregunta_2_respuesta" class="form-control brava-input" placeholder="Calle y altura…" required autocomplete="off" aria-autocomplete="list" aria-controls="brava-addr-suggest" aria-expanded="false">
 						<ul id="brava-addr-suggest" class="brava-addr-suggest hidden" role="listbox" aria-label="Sugerencias de dirección"></ul>
@@ -162,7 +163,6 @@
 				<div id="brava-checkout-map-wrap" class="brava-checkout-map-wrap">
 					<div id="brava-checkout-map" class="brava-checkout-map" role="application" aria-label="Mapa de entrega"></div>
 				</div>
-				<div id="zone-banner" class="zone-banner is-idle" role="status" aria-live="polite"></div>
 				<p class="brava-field brava-field-piso">
 					<label id="pregunta_4_label">Piso / Dpto</label>
 					<input type="text" id="pregunta_4_respuesta" class="form-control brava-input" placeholder="Opcional — ej: 2B">
