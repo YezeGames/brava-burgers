@@ -121,6 +121,78 @@ function rowToCliente(row) {
   };
 }
 
+function restErrorBlob(r) {
+  return String((r && r.detail) || (r && r.error) || '').toLowerCase();
+}
+
+function isClientesUnavailable(r) {
+  if (!r || r.ok) return false;
+  const blob = restErrorBlob(r);
+  return (
+    blob.indexOf('clientes') >= 0 &&
+    (blob.indexOf('does not exist') >= 0 ||
+      blob.indexOf('pgrst205') >= 0 ||
+      blob.indexOf('could not find') >= 0 ||
+      blob.indexOf('schema cache') >= 0)
+  );
+}
+
+function isManualOrderColumnsMissing(r) {
+  if (!r || r.ok) return false;
+  const blob = restErrorBlob(r);
+  return (
+    blob.indexOf('origen') >= 0 ||
+    blob.indexOf('nota_pedido') >= 0 ||
+    blob.indexOf('ajuste_') >= 0
+  );
+}
+
+async function getClienteFromOrders(telefono) {
+  const tel = telNorm(telefono);
+  if (!tel) return { ok: true, cliente: null };
+  const pat = '*' + tel + '*';
+  const r = await restSelect(
+    'orders',
+    'select=cliente,telefono,direccion,localidad,piso,fecha_creado&telefono=ilike.' +
+      encodeURIComponent(pat) +
+      '&order=fecha_creado.desc&limit=15'
+  );
+  if (!r.ok || !Array.isArray(r.data)) return { ok: true, cliente: null };
+  for (let i = 0; i < r.data.length; i++) {
+    const row = r.data[i];
+    if (telNorm(row.telefono) === tel) {
+      return {
+        ok: true,
+        cliente: rowToCliente({
+          telefono: tel,
+          nombre: row.cliente || '',
+          direccion: row.direccion || '',
+          localidad: row.localidad || '',
+          piso: row.piso || '',
+          ultimo_pedido_at: row.fecha_creado,
+          origen_ultimo: 'orders',
+        }),
+      };
+    }
+  }
+  return { ok: true, cliente: null };
+}
+
+async function insertManualOrderRow(row) {
+  let ins = await restInsert('orders', row);
+  if (ins.ok || !isManualOrderColumnsMissing(ins)) return ins;
+  const slim = Object.assign({}, row);
+  delete slim.origen;
+  delete slim.nota_pedido;
+  delete slim.ajuste_label;
+  delete slim.ajuste_monto;
+  delete slim.ajuste_motivo;
+  if (row.nota_pedido && !slim.turno) {
+    slim.turno = String(row.nota_pedido).slice(0, 120);
+  }
+  return restInsert('orders', slim);
+}
+
 async function upsertClienteFromOrder(order, origenUltimo) {
   const tel = telNorm(order.telefono);
   if (!tel || tel.length < 8) return { ok: true, skipped: true };
@@ -136,13 +208,16 @@ async function upsertClienteFromOrder(order, origenUltimo) {
     actualizado_at: now,
   };
   const ex = await restSelect('clientes', 'select=telefono&telefono=eq.' + encodeURIComponent(tel) + '&limit=1');
+  if (!ex.ok && isClientesUnavailable(ex)) return { ok: true, skipped: true, agenda_fallback: true };
   if (ex.ok && ex.data && ex.data[0]) {
     const r = await restPatch('clientes', 'telefono=eq.' + encodeURIComponent(tel), payload);
+    if (!r.ok && isClientesUnavailable(r)) return { ok: true, skipped: true, agenda_fallback: true };
     if (!r.ok) return supabaseFail(r, 'cliente_update_failed');
     return { ok: true, telefono: tel, updated: true };
   }
   payload.creado_at = now;
   const ins = await restInsert('clientes', payload);
+  if (!ins.ok && isClientesUnavailable(ins)) return { ok: true, skipped: true, agenda_fallback: true };
   if (!ins.ok) return supabaseFail(ins, 'cliente_insert_failed');
   return { ok: true, telefono: tel, created: true };
 }
@@ -169,10 +244,13 @@ async function getCliente(telefono) {
   const tel = telNorm(telefono);
   if (!tel) return { ok: false, error: 'missing_telefono' };
   const r = await restSelect('clientes', 'select=*&telefono=eq.' + encodeURIComponent(tel) + '&limit=1');
-  if (!r.ok) return supabaseFail(r, r.error || 'get_cliente_failed');
-  const row = r.data && r.data[0];
-  if (!row) return { ok: true, cliente: null };
-  return { ok: true, cliente: rowToCliente(row) };
+  if (r.ok) {
+    const row = r.data && r.data[0];
+    if (!row) return getClienteFromOrders(telefono);
+    return { ok: true, cliente: rowToCliente(row) };
+  }
+  if (isClientesUnavailable(r)) return getClienteFromOrders(telefono);
+  return supabaseFail(r, r.error || 'get_cliente_failed');
 }
 
 async function saveCliente(body) {
@@ -190,14 +268,27 @@ async function saveCliente(body) {
     actualizado_at: now,
   };
   const ex = await restSelect('clientes', 'select=telefono&telefono=eq.' + encodeURIComponent(tel) + '&limit=1');
+  if (!ex.ok && isClientesUnavailable(ex)) {
+    return {
+      ok: true,
+      cliente: Object.assign({}, payload, { origen_ultimo: body.origen_ultimo || 'manual' }),
+      agenda_fallback: true,
+    };
+  }
   if (ex.ok && ex.data && ex.data[0]) {
     const r = await restPatch('clientes', 'telefono=eq.' + encodeURIComponent(tel), payload);
+    if (!r.ok && isClientesUnavailable(r)) {
+      return { ok: true, cliente: Object.assign({}, payload, { origen_ultimo: body.origen_ultimo || 'manual' }), agenda_fallback: true };
+    }
     if (!r.ok) return supabaseFail(r, 'cliente_update_failed');
     return { ok: true, cliente: Object.assign({}, payload, { origen_ultimo: body.origen_ultimo || 'manual' }) };
   }
   payload.creado_at = now;
   payload.origen_ultimo = body.origen_ultimo || 'manual';
   const ins = await restInsert('clientes', payload);
+  if (!ins.ok && isClientesUnavailable(ins)) {
+    return { ok: true, cliente: payload, agenda_fallback: true };
+  }
   if (!ins.ok) return supabaseFail(ins, 'cliente_insert_failed');
   return { ok: true, cliente: payload };
 }
@@ -295,7 +386,7 @@ async function createManualOrder(body) {
     ajuste_motivo: String(body.ajuste_motivo || '').trim(),
   };
 
-  const ins = await restInsert('orders', row);
+  const ins = await insertManualOrderRow(row);
   if (!ins.ok) return supabaseFail(ins, 'insert_failed');
 
   const up = await upsertClienteFromOrder(row, 'manual');
