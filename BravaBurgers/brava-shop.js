@@ -1312,6 +1312,16 @@
 		};
 	}
 
+	function buildBravaWhatsAppConfirmUrl(nombre) {
+		var n = String(nombre || '').trim();
+		var primera = n.split(/\s+/)[0] || '';
+		var saludo = primera
+			? 'Hola Brava! Soy ' + primera + ', pedido hecho desde la web. Gracias 🍔'
+			: 'Hola Brava! Pedido hecho desde la web. Gracias 🍔';
+		var msg = saludo + '\n\n¡Espero la confirmación de mi pedido!';
+		return 'https://wa.me/' + g_telefono + '?text=' + encodeURIComponent(msg);
+	}
+
 	window.finalizar_pedido = function () {
 		if (bravaZoneDeliveryRequired() && !bravaZoneDeliveryOk) {
 			alert('Mové el pin dentro de la zona naranja del mapa para confirmar que entregamos ahí.');
@@ -1332,13 +1342,13 @@
 		var $submit = $('.brava-btn-submit');
 		$submit.prop('disabled', true);
 
-		function irWhatsApp() {
-			var url = $('#form_url').val();
+		function irWhatsApp(url) {
 			$.fancybox.close();
 			if (url) window.location.href = url;
 			$submit.prop('disabled', false);
 		}
 
+		var waConfirmUrl = null;
 		var waAbierto = false;
 		var serverAck = false;
 		var serverFailed = false;
@@ -1346,7 +1356,7 @@
 		function abrirWhatsApp() {
 			if (waAbierto) return;
 			waAbierto = true;
-			irWhatsApp();
+			irWhatsApp(waConfirmUrl || buildBravaWhatsAppConfirmUrl(payload.cliente));
 		}
 
 		function falloGuardarPedido(mensaje) {
@@ -1411,6 +1421,7 @@
 				}
 				if (data && data.ok) {
 					serverAck = true;
+					waConfirmUrl = buildBravaWhatsAppConfirmUrl(payload.cliente);
 				}
 				if (!waAbierto && data && data.ok) {
 					clearTimeout(tLimite);
