@@ -962,7 +962,7 @@
   }
 
   function buildVentasCatalogFromSheets(productoRows, extraRows) {
-    var catalog = { bebidas: [], acompanamientos: [], extras: [], productoTipo: {} };
+    var catalog = { bebidas: [], acompanamientos: [], extras: [], hamburguesas: [], productoTipo: {} };
     (productoRows || []).forEach(function (row) {
       var nombre = String(row.nombre || row.Nombre || '').trim();
       if (!nombre) return;
@@ -973,6 +973,7 @@
       var tipo = ventasTipoFromRow(cat, sub, nombre);
       if (!tipo || tipo === 'hamburguesa') {
         catalog.productoTipo[nombre.toLowerCase()] = 'hamburguesa';
+        catalog.hamburguesas.push({ nombre: nombre });
         return;
       }
       catalog.productoTipo[nombre.toLowerCase()] = tipo;
@@ -990,6 +991,7 @@
     catalog.bebidas.sort(sortNombre);
     catalog.acompanamientos.sort(sortNombre);
     catalog.extras.sort(sortNombre);
+    catalog.hamburguesas.sort(sortNombre);
     return catalog;
   }
 
@@ -1230,7 +1232,7 @@
       simples: 0,
       dobles: 0,
       hambTotal: 0,
-      productosVentas: [],
+      productosVentas: buildProductosVentasList({}),
       bebidasVentas: ventasListas.bebidasVentas,
       acompanamientosVentas: ventasListas.acompanamientosVentas,
       extrasVentas: ventasListas.extrasVentas,
@@ -1259,8 +1261,17 @@
   }
 
   function buildProductosVentasList(porProducto) {
-    var list = Object.keys(porProducto || {}).map(function (nombre) {
-      return { nombre: nombre, qty: porProducto[nombre] };
+    var map = {};
+    if (ventasCatalog && ventasCatalog.hamburguesas) {
+      ventasCatalog.hamburguesas.forEach(function (x) {
+        map[x.nombre] = 0;
+      });
+    }
+    Object.keys(porProducto || {}).forEach(function (nombre) {
+      map[nombre] = porProducto[nombre];
+    });
+    var list = Object.keys(map).map(function (nombre) {
+      return { nombre: nombre, qty: map[nombre] };
     });
     return sortProductosVentasLista(list);
   }
@@ -1700,6 +1711,9 @@
     renderVentasSidebarList('ventas-acomp-list', st.acompanamientosVentas);
     renderVentasSidebarList('ventas-extras-list', st.extrasVentas);
     renderVentasSidebarList('ventas-bebidas-list', st.bebidasVentas);
+    var hambSplit = splitProductosSimplesDobles(st.productosVentas);
+    renderVentasSidebarList('ventas-hamb-prod-simples-list', hambSplit.simples);
+    renderVentasSidebarList('ventas-hamb-prod-dobles-list', hambSplit.dobles);
     updateVentasRegistroChrome();
     if ($('caja-range')) {
       var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
