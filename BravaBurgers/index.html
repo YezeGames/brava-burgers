@@ -34,7 +34,7 @@
 		var g_telefono = '';
 	</script>
 	<script src="brava-catalog.js?v=13"></script>
-	<link href="brava-brand.css?v=106" rel="stylesheet">
+	<link href="brava-brand.css?v=107" rel="stylesheet">
 	<link href="brava-mobile.css?v=6" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		#preguntas_pedido.fancybox-content,
@@ -180,13 +180,10 @@
 
 			<fieldset class="brava-checkout-section brava-comp-section">
 				<legend class="brava-checkout-section-title">Compensación</legend>
-				<p class="brava-field">
-					<label for="brava-coupon-code">¿Tenés un código de Brava?</label>
-					<div class="brava-coupon-row">
-						<input type="text" id="brava-coupon-code" class="form-control brava-input" placeholder="BRAVA-XXXX" autocomplete="off">
-						<button type="button" class="btn btn-outline-brava" id="brava-coupon-apply">Aplicar</button>
-					</div>
-				</p>
+				<div class="brava-coupon-row">
+					<input type="text" id="brava-coupon-code" class="form-control brava-input" placeholder="BRAVA-XXXX" autocomplete="off" aria-label="Código de compensación Brava">
+					<button type="button" class="btn btn-outline-brava" id="brava-coupon-apply">Aplicar</button>
+				</div>
 				<div class="brava-coupon-error hidden" id="brava-coupon-error" role="alert"></div>
 			</fieldset>
 

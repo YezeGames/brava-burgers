@@ -615,6 +615,15 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	margin-top: 6px;
 }
 
+.brava-comp-section {
+	padding-top: 6px;
+	padding-bottom: 6px;
+}
+
+.brava-comp-section .brava-checkout-section-title {
+	margin-bottom: 6px;
+}
+
 .brava-coupon-row {
 	display: flex;
 	gap: 8px;
