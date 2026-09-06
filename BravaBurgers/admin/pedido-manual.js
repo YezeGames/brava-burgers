@@ -867,25 +867,15 @@
           alert('Teléfono y nombre son obligatorios.');
           return;
         }
-        api({
+        var payload = {
           action: 'saveCliente',
           telefono: tel,
           nombre: nombre,
           direccion: $('pm-cli-dir').value.trim(),
           localidad: $('pm-cli-loc').value.trim(),
           piso: $('pm-cli-piso').value.trim(),
-        }).then(function (res) {
-          if (!res.data || !res.data.ok) {
-            var err = (res.data && res.data.error) || '';
-            if (err.indexOf('cliente') >= 0 || err.indexOf('insert') >= 0) {
-              alert(
-                'No se pudo guardar en agenda. Entrá de nuevo al admin para correr la migración, o revisá SUPABASE_DB_PASSWORD en Vercel.'
-              );
-            } else {
-              alert('No se pudo guardar el cliente.');
-            }
-            return;
-          }
+        };
+        function applySaved() {
           state.cliente = {
             tel: tel,
             nombre: nombre,
@@ -896,8 +886,56 @@
           if ($('pm-tel-buscar')) $('pm-tel-buscar').value = tel;
           syncClienteField();
           hide($('modal-cliente-manual'));
-        });
+        }
+        function saveOnce() {
+          return api(payload);
+        }
+        saveOnce()
+          .then(function (res) {
+            if (res.data && res.data.ok) {
+              applySaved();
+              return;
+            }
+            var err = (res.data && res.data.error) || '';
+            if (err.indexOf('cliente') >= 0 || err.indexOf('get_cliente') >= 0 || err.indexOf('PGRST') >= 0) {
+              return api({ action: 'migrateManualOrderSchema' }).then(function (mig) {
+                if (mig.data && mig.data.ok) {
+                  return saveOnce().then(function (res2) {
+                    if (res2.data && res2.data.ok) applySaved();
+                    else showAgendaError(res2);
+                  });
+                }
+                showAgendaError(mig);
+              });
+            }
+            showAgendaError(res);
+          })
+          .catch(function () {
+            alert('Error de red al guardar cliente.');
+          });
       };
+    }
+
+    function showAgendaError(res) {
+      var err = (res.data && res.data.error) || '';
+      var hint = (res.data && res.data.hint) || '';
+      var detail = (res.data && res.data.detail) || '';
+      var msg =
+        'No se pudo guardar en agenda.\n\n' +
+        'La tabla clientes todavía no existe en Supabase.\n\n' +
+        'Solución rápida (1 min):\n' +
+        '1. Abrí Supabase → SQL Editor\n' +
+        '2. Pegá el archivo supabase/manual-order.sql del repo\n' +
+        '3. Run → recargá el admin (Ctrl+F5)\n\n' +
+        'Link directo:\n' +
+        'https://supabase.com/dashboard/project/yjwikpwvjpymphiwuocz/sql/new';
+      if (err === 'no_postgres_url') {
+        msg +=
+          '\n\n(Opcional: en Vercel agregá SUPABASE_DB_PASSWORD para que migre solo al entrar al admin.)';
+      }
+      if (hint) msg += '\n\n' + hint;
+      if (detail) msg += '\n\nDetalle: ' + detail;
+      alert(msg);
     }
     if ($('pm-line-qty-minus')) {
       $('pm-line-qty-minus').onclick = function () {

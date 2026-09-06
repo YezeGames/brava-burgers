@@ -26,6 +26,7 @@ Por cada fila: **Add Environment Variable** → Name / Value → marcar **Produc
 |------|--------|
 | `SUPABASE_ANON_KEY` | **Publishable key** (`sb_publishable_…`) |
 | `SUPABASE_SERVICE_ROLE_KEY` | **Secret key** (`sb_secret_…`) — botón Copy |
+| `SUPABASE_DB_PASSWORD` | Supabase → Settings → **Database** → database password *(para migraciones automáticas: clientes, ingresos, etc.)* |
 
 *(Si falla, pestaña **Legacy anon, service_role** → anon + service_role.)*
 

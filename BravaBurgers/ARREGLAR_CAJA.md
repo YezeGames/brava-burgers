@@ -16,6 +16,8 @@ ALTER TABLE cierres_caja ADD COLUMN IF NOT EXISTS ingresos numeric NOT NULL DEFA
 Para **+ Ingreso** en el admin, en el mismo SQL Editor ejecutá también el archivo  
 `supabase/ingresos_migration.sql` del repo (copiar/pegar completo → Run).
 
+Para **pedido manual / agenda clientes**, ejecutá `supabase/manual-order.sql` (copiar/pegar → Run).
+
 ## Paso 2 — Admin
 
 1. Abrí https://brava-burgers.vercel.app/admin/  
