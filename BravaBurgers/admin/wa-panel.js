@@ -344,7 +344,7 @@
 
   function buildConfirmadoNotifyMessage(o) {
     var n = waFirstName(o);
-    var lines = ['Hola, ' + n + ' 👋', 'Tu pedido fue confirmado 🍔', ''];
+    var lines = ['Hola, ' + n + ' ¿cómo va?', 'Tu pedido fue confirmado 🍔', ''];
     parseOrderItems(o).forEach(function (it) {
       lines.push('x' + orderItemQty(it) + ' ' + orderItemName(it));
     });
