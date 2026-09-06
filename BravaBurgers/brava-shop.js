@@ -64,7 +64,6 @@
 		$('#brava-coupon-code').val('');
 		$('#brava-coupon-error').addClass('hidden').text('');
 		$('#brava-coupon-applied').addClass('hidden').html('');
-		$('#brava-coupon-totals').addClass('hidden');
 	}
 
 	function bravaUpdateCouponTotals(sub, envOrig) {
@@ -76,22 +75,8 @@
 			$('#brava-coupon-applied')
 				.removeClass('hidden')
 				.html(bravaCouponAppliedMessage(bravaAppliedCoupon, grand));
-			$('#brava-coupon-totals').removeClass('hidden');
-			$('#brava-c-t-sub').text('$' + formatear_moneda(sub));
-			$('#brava-c-t-env').text('$' + formatear_moneda(env));
-			if (disc > 0) {
-				$('#brava-c-t-disc-row').removeClass('hidden');
-				$('#brava-c-t-disc-label').text(
-					bravaAppliedCoupon.tipo === 'item' ? 'Papas regalo (−)' : 'Compensación'
-				);
-				$('#brava-c-t-disc').text('−$' + formatear_moneda(disc));
-			} else {
-				$('#brava-c-t-disc-row').addClass('hidden');
-			}
-			$('#brava-c-t-grand').text('$' + formatear_moneda(grand));
 		} else {
 			$('#brava-coupon-applied').addClass('hidden').html('');
-			$('#brava-coupon-totals').addClass('hidden');
 		}
 		return { envio: env, descuento: disc, total: grand };
 	}
@@ -1609,9 +1594,7 @@
 
 	function aplicarPreguntasCheckout() {
 		var p = g_preguntas || {};
-		if (p.encabezado) {
-			$('#preguntas_pedido_encabezado').html(p.encabezado.replace(/<BR>/gi, '<br>'));
-		}
+		$('#preguntas_pedido_encabezado').text('Completá tu pedido');
 		if (p.pie) {
 			$('#preguntas_pedido_pie').html(p.pie.replace(/<BR>/gi, '<br>'));
 		}
