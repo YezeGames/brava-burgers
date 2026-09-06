@@ -109,27 +109,38 @@ Panel + webhook; celu con **otro** número o sin WhatsApp Business en 7372-1945.
 
 ---
 
+## Decisiones inbox (sep 2026)
+
+| Tema | Decisión |
+|------|----------|
+| **Sonido al mensaje WA** | **No** por ahora — el panel de chats está a la vista; el zumbido de pedidos nuevos web sigue. |
+| **Audios entrantes** | **No** implementar por el momento (quedan sin reproducir). |
+| **Historial de chats** | **Purgar a las 24 h** — no acumular hilos viejos en el panel; alinear API `listWaMessages`, UI y (si aplica) limpieza en Supabase. Hoy la API filtra ~48 h; falta bajar a 24 h y purga coherente con pestañas Consultas / cierre turno. |
+
+---
+
 ## Panel admin — qué falta (priorizado)
 
 ### Para abrir Brava (alta prioridad)
 
-1. **Sonido al mensaje nuevo en Chats** — el admin ya tiene zumbido para pedidos nuevos; falta dispararlo cuando llega inbound por WhatsApp (poll/webhook).
+1. ~~**Sonido al mensaje nuevo en Chats**~~ — **descartado** (panel WA visible; ver decisiones arriba).
 2. ~~**Imágenes**~~ ✅ — ver/enviar JPG/PNG/WebP (`GET /api/whatsapp-inbox?id=…` para proxy de media).
-3. **Audios** — siguen como `[Audio]` (futuro). — si el cliente no escribió en 24 h, la API no deja texto libre; hace falta plantilla aprobada en Meta (rechazo ya usa flujo aparte vía modal).
+3. ~~**Audios**~~ — **fuera de alcance por ahora** (no reproducir notas de voz).
+4. **Plantillas Meta** — si el cliente no escribió en 24 h, la API no deja texto libre; hace falta plantilla aprobada (rechazo ya usa flujo aparte vía modal).
 
 ### Mejora operativa (media)
 
-4. **Estados de entrega** — webhook recibe `sent` / `delivered` / `read`; no se muestran en el hilo (✓✓).
-5. **Historial > 48 h** — `listWaMessages` filtra ventana; al abrir un chat conviene cargar más atrás.
-6. **Enviar auto al cambiar estado** — hoy es borrador + botón enviar (aceptado / en camino); definir si querés one-click real.
-7. **Rechazo integrado al inbox** — el modal de rechazo sigue siendo wa.me / plantilla aparte.
+5. **Purgar historial chats 24 h** — ventana de lectura + limpieza UI/Supabase (ver decisiones).
+6. **Estados de entrega** — webhook recibe `sent` / `delivered` / `read`; no se muestran en el hilo (✓✓).
+7. **Enviar auto al cambiar estado** — hoy es borrador + botón enviar (aceptado / en camino); definir si querés one-click real.
+8. **Rechazo integrado al inbox** — el modal de rechazo sigue siendo wa.me / plantilla aparte.
 
 ### Más adelante (baja)
 
-8. ~~Realtime Supabase en `wa_messages`~~ ✅ (sep 2026).
-9. Buscar chat por nombre / teléfono.
-10. Pedido manual desde chat (ver `PEDIDO_MANUAL.md`).
-11. Plantillas marketing / “¿repetís pedido?”.
+9. ~~**Realtime Supabase en `wa_messages`**~~ ✅ (sep 2026).
+10. Buscar chat por nombre / teléfono.
+11. Pedido manual desde chat (ver `PEDIDO_MANUAL.md`).
+12. Plantillas marketing / “¿repetís pedido?”.
 
 ---
 

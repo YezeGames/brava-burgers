@@ -479,17 +479,98 @@ stateDiagram-v2
 
 **Próximo sugerido (pre-apertura):**
 
-1. Sonido en mensaje WA entrante.
+1. **Pedido manual** — ver [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md) (demo UI lista; falta Supabase + admin real).
 
 2. Plantillas Meta (rechazo / fuera de 24 h).
 
-3. **Cambio de número WhatsApp** (pendiente) — hoy **7372-1945**; migrar API, Vercel, tienda y materiales cuando se defina el número definitivo. Checklist en [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md) → *Cambio de número (pendiente)*.
+3. **Purgar chats WA a 24 h** — no sonido WA (panel visible); sin audios por ahora. Detalle: [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md) → *Decisiones inbox*.
 
-4. Coexistencia o chip prepago — [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md).
+4. **Cambio de número WhatsApp** (pendiente) — hoy **7372-1945**; migrar API, Vercel, tienda y materiales cuando se defina el número definitivo. Checklist en [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md) → *Cambio de número (pendiente)*.
+
+5. Coexistencia o chip prepago — [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md).
 
 
 
 **Referencia demo:** `demo-admin-whatsapp-inbox.html` (raíz workspace local).
+
+
+
+---
+
+
+
+## Reclamos y gratificación (ideas — sep 2026)
+
+
+
+Cuando un cliente se queja (pedido frío, faltante, demora, error de cocina). Objetivo: **resolver rápido**, **costo acotado**, **que vuelva el sábado**.
+
+
+
+### Niveles de respuesta (escalera)
+
+
+
+| Gravedad | Ejemplos | Gratificación típica |
+|----------|----------|-------------------|
+| **Leve** | Papas pocas, salsa aparte olvidada, demora 10 min | Disculpa + **extra chico** (papas/bacon) en el **próximo pedido** sin cargo |
+| **Media** | Ítem equivocado, hamburguesa incompleta, delivery muy tarde | **Reenvío del ítem** mismo turno si da, o **cupón 15–20%** próximo sábado |
+| **Alta** | Pedido muy mal, no comible, doble cobro, cliente muy enojado | **Reembolso parcial/total** (EF devuelto / MP) + **pedido de reemplazo gratis** o **50% off** próxima compra |
+| **Crítica** | Salud/higiene, agresión, fraude | Protocolo aparte: no discutir por chat; dueño responde; reembolso + registro interno |
+
+
+
+### Formas concretas de “gratificar” (sin complicar el sistema hoy)
+
+
+
+1. **Mensaje WA + código verbal** — “Tu código **BRAVA15** en el próximo pedido (solo sábado, 1 uso)”. Lo anotás en agenda/nota del cliente; al armar pedido manual descontás en total.
+
+2. **Extra en comanda sin cobrar** — En pedido manual o edición: línea “Papas regalo reclamo ORN-DEL-XXXX” a $0 + nota en comanda.
+
+3. **Reenvío mismo turno** — Si el turno sigue abierto y hay stock: nuevo pedido $0 o solo envío; marcar en admin como ajuste / nota en ORN original.
+
+4. **Devolución EF en mano** — Si pagó efectivo al delivery: anotar en caja como egreso “Reclamo ORN-…” para que cuadre el arqueo.
+
+5. **Devolución MP** — Manual desde Mercado Pago (no hay integración automática); guardar captura + referencia en nota del pedido.
+
+6. **Prioridad próximo sábado** — “Te guardamos slot primero del turno 2” — costo $0, alto valor percibido.
+
+7. **Tarjeta física / sticker** — “Una simple a elección” en la bolsa del reemplazo (solo si el error fue nuestro claro).
+
+
+
+### Flujo operativo sugerido (cuando exista pedido manual + notas)
+
+
+
+1. Identificar **ORN** (o teléfono si fue consulta WA).
+
+2. Clasificar gravedad en 30 segundos.
+
+3. Responder por WA con **qué hacemos** (no solo “disculpas”).
+
+4. Registrar en pedido: `reclamo_at`, `reclamo_motivo`, `reclamo_accion` (extra / % / reenvío / reembolso).
+
+5. Al cerrar turno: contar reclamos en cierre operativo (opcional, futuro).
+
+
+
+### Qué podría ser producto después (backlog)
+
+
+
+- Botón **“Reclamo”** en tarjeta de pedido → modal motivo + acción + snippet WA prearmado.
+
+- Tabla `reclamos` o campos en `orders` + reporte en cierre.
+
+- Cupones con código único por teléfono (1 uso) validados al crear pedido web/manual.
+
+- Límite automático: “máx. 1 gratificación por teléfono por turno” para ever abuso.
+
+
+
+**Principio:** compensar **proporcional al daño**, siempre **visible en comanda/caja**, nunca pelear por chat.
 
 
 
@@ -615,5 +696,5 @@ Solo **checkout web**: al cargar dirección, detectar automáticamente si está 
 
 
 
-_Última actualización: WhatsApp inbox realtime + doc cambio de número pendiente; pedido manual sigue en demo._
+_Última actualización: decisiones inbox WA (sin sonido, sin audios, purge 24 h); ideas reclamos/gratificación._
 
