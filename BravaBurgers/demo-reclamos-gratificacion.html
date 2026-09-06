@@ -7,6 +7,9 @@
 	<title>Demo — Reclamos · cupón + reenvío (admin + tienda)</title>
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
+	<link href="brava-brand.css?v=96" rel="stylesheet">
+	<link href="brava-mobile.css?v=4" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		:root {
 			--brava: #ff6b35;
@@ -243,93 +246,6 @@
 		@keyframes toast-in {
 			from { opacity: 0; transform: translateX(-50%) translateY(8px); }
 		}
-		/* —— Tienda —— */
-		#view-shop.view-panel.is-active .card {
-			background: var(--shop-panel);
-			color: var(--shop-text);
-			border: 1px solid var(--shop-border);
-		}
-		.shop-wrap {
-			max-width: 420px;
-			margin: 0 auto;
-		}
-		.shop-hero {
-			text-align: center;
-			padding: 20px 0 8px;
-		}
-		.shop-hero h1 {
-			font-family: 'Bebas Neue', sans-serif;
-			font-size: 2.4rem;
-			color: var(--brava);
-			margin: 0;
-			letter-spacing: 0.06em;
-		}
-		.shop-hero p { margin: 4px 0 0; color: var(--shop-muted); font-size: 0.82rem; }
-		.cart-line {
-			display: flex;
-			justify-content: space-between;
-			padding: 8px 0;
-			border-bottom: 1px solid var(--shop-border);
-			font-size: 0.85rem;
-		}
-		.checkout-field label { color: var(--shop-muted); }
-		.checkout-field input {
-			width: 100%;
-			padding: 10px 12px;
-			border: 1px solid var(--shop-border);
-			border-radius: 8px;
-			background: #252525;
-			color: var(--shop-text);
-			font: inherit;
-		}
-		.coupon-row {
-			display: flex;
-			gap: 8px;
-			align-items: stretch;
-		}
-		.coupon-row input { flex: 1; }
-		.coupon-applied {
-			background: var(--ok-bg);
-			border: 1px solid rgba(46, 125, 50, 0.35);
-			color: #81c784;
-			border-radius: 8px;
-			padding: 10px 12px;
-			font-size: 0.8rem;
-			margin-top: 8px;
-			display: none;
-		}
-		.coupon-applied.visible { display: block; }
-		.coupon-error {
-			color: #e57373;
-			font-size: 0.75rem;
-			margin-top: 6px;
-			display: none;
-		}
-		.coupon-error.visible { display: block; }
-		.totals { margin-top: 14px; font-size: 0.88rem; }
-		.totals .row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--shop-muted); }
-		.totals .row.disc { color: #81c784; }
-		.totals .row.grand { font-weight: 800; font-size: 1.05rem; color: var(--shop-text); border-top: 1px solid var(--shop-border); margin-top: 6px; padding-top: 10px; }
-		.btn-shop {
-			width: 100%;
-			margin-top: 14px;
-			padding: 14px;
-			border: none;
-			border-radius: 10px;
-			background: var(--brava);
-			color: #fff;
-			font-weight: 700;
-			font-size: 0.95rem;
-			cursor: pointer;
-		}
-		.btn-shop:disabled { opacity: 0.5; cursor: not-allowed; }
-		.success-box {
-			display: none;
-			text-align: center;
-			padding: 24px 16px;
-		}
-		.success-box.visible { display: block; }
-		.success-box .orn { font-size: 1.4rem; font-weight: 800; color: var(--brava); margin: 8px 0; }
 		.flow-hint {
 			background: var(--brava-dim);
 			border: 1px dashed var(--brava);
@@ -341,6 +257,138 @@
 			line-height: 1.45;
 		}
 		.hidden { display: none !important; }
+
+		/* —— Tienda: checkout real Brava —— */
+		#view-shop.view-panel.is-active {
+			background: #0f0f0f;
+			border-radius: 0 8px 8px 8px;
+			padding-bottom: 24px;
+		}
+		.shop-hint {
+			margin: 0 0 12px;
+			border-radius: 8px;
+		}
+		.checkout-stage {
+			display: flex;
+			justify-content: center;
+			padding: 8px 0 20px;
+		}
+		.checkout-phone-col {
+			width: 100%;
+			max-width: 390px;
+		}
+		.checkout-context {
+			text-align: center;
+			font-size: 0.72rem;
+			color: #777;
+			margin: 0 0 10px;
+		}
+		.demo-send-preview {
+			position: relative !important;
+			margin-bottom: 12px;
+			border-radius: 8px;
+			overflow: hidden;
+			box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+		}
+		.demo-send-preview .brava-send-btn {
+			pointer-events: none;
+		}
+		#view-shop #preguntas_pedido.checkout-frame {
+			display: block !important;
+			width: 100%;
+			max-width: 390px;
+			margin: 0 auto;
+			padding: 44px 36px;
+			box-sizing: border-box;
+			background-color: var(--brava-bg, #1a1a1a);
+			border-radius: 8px;
+			box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+			border: 1px solid #333;
+		}
+		.checkout-frame-caption {
+			text-align: center;
+			font-size: 0.72rem;
+			color: #666;
+			margin: 10px 0 0;
+			line-height: 1.4;
+		}
+		.brava-demo-coupon-row {
+			display: flex;
+			gap: 8px;
+			align-items: stretch;
+		}
+		.brava-demo-coupon-row .brava-input { flex: 1; min-width: 0; }
+		.brava-demo-coupon-row .btn {
+			flex-shrink: 0;
+			font-size: 0.78rem;
+			padding: 8px 12px;
+			align-self: stretch;
+		}
+		.brava-demo-checkout-totals {
+			margin-top: 10px;
+			padding: 10px 12px;
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.04);
+			border: 1px solid rgba(255, 255, 255, 0.08);
+			font-size: 0.82rem;
+		}
+		.brava-demo-checkout-totals .row {
+			display: flex;
+			justify-content: space-between;
+			padding: 3px 0;
+			color: var(--brava-text-muted, #aaa);
+		}
+		.brava-demo-checkout-totals .row.disc { color: #81c784; }
+		.brava-demo-checkout-totals .row.grand {
+			font-weight: 700;
+			font-size: 0.95rem;
+			color: var(--brava-text, #eee);
+			border-top: 1px solid rgba(255, 255, 255, 0.1);
+			margin-top: 6px;
+			padding-top: 8px;
+		}
+		#view-shop .coupon-error {
+			color: #e57373;
+			font-size: 0.75rem;
+			margin-top: 6px;
+			display: none;
+		}
+		#view-shop .coupon-error.visible { display: block; }
+		#view-shop .coupon-applied {
+			background: rgba(46, 125, 50, 0.15);
+			border: 1px solid rgba(129, 199, 132, 0.35);
+			color: #81c784;
+			border-radius: 6px;
+			padding: 8px 10px;
+			font-size: 0.78rem;
+			margin-top: 8px;
+			display: none;
+		}
+		#view-shop .coupon-applied.visible { display: block; }
+		.brava-demo-map-placeholder {
+			height: 180px;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			color: #666;
+			font-size: 0.78rem;
+			border: 1px dashed #444;
+			border-radius: 8px;
+			background: rgba(0, 0, 0, 0.2);
+		}
+		#shop-success.success-box {
+			text-align: center;
+			padding: 20px 8px 8px;
+			color: var(--brava-text, #eee);
+		}
+		#shop-success .orn {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 1.6rem;
+			color: var(--brava-accent, #ff6b35);
+			letter-spacing: 0.04em;
+			margin: 8px 0;
+		}
+		#shop-success p { color: #999; font-size: 0.82rem; }
 	</style>
 </head>
 <body>
@@ -390,44 +438,115 @@
 	</div>
 
 	<div id="view-shop" class="view-panel">
-		<div class="shop-wrap">
-			<div class="shop-hero">
-				<h1>BRAVA BURGERS</h1>
-				<p>Checkout · cupón de compensación</p>
-			</div>
-			<div class="card">
-				<div id="shop-form-wrap">
-					<h2 style="font-size:0.9rem;color:var(--shop-muted);margin:0 0 12px;">Tu carrito</h2>
-					<div class="cart-line"><span>1× Brava Simple</span><span>$8.500</span></div>
-					<div class="cart-line"><span>1× Papas Brava</span><span>$4.500</span></div>
-					<div class="checkout-field" style="margin-top:14px;">
-						<label>Teléfono WhatsApp</label>
-						<input type="tel" id="shop-tel" placeholder="11 2397 3487" value="1123973487">
+		<div class="flow-hint shop-hint">
+			<strong>Checkout real Brava</strong> — mismo layout que el Fancybox de <code>index.html</code> + sección <em>Compensación</em> (nueva).
+			La barra naranja simula el botón <em>Enviar pedido</em> de la tienda con el total del carrito.
+		</div>
+		<div class="checkout-stage">
+			<div class="checkout-phone-col">
+				<p class="checkout-context">Vista móvil · carrito demo: 1× Brava Simple + 1× Papas</p>
+				<div id="footer_enviar" class="brava-send-bar demo-send-preview">
+					<div class="brava-shop-wrap">
+						<a href="javascript:void(0)" class="btn my-btn-primary brava-send-btn" id="demo-send-bar-btn">Enviar pedido · $15.800</a>
 					</div>
-					<div class="checkout-field" style="margin-top:10px;">
-						<label>Código de compensación (opcional)</label>
-						<div class="coupon-row">
-							<input type="text" id="shop-coupon" placeholder="BRAVA-XXXX" autocomplete="off">
-							<button type="button" class="btn btn-primary" id="btn-apply-coupon">Aplicar</button>
+				</div>
+				<div id="preguntas_pedido" class="checkout-frame">
+					<div id="shop-form-wrap">
+						<div class="brava-checkout-inner">
+							<div class="brava-checkout-head">
+								<div id="preguntas_pedido_encabezado">Completá tu pedido</div>
+							</div>
+							<form class="brava-checkout-body" id="demo-checkout-form" onsubmit="return false;">
+								<fieldset class="brava-checkout-section">
+									<legend class="brava-checkout-section-title">Tus datos</legend>
+									<div class="brava-checkout-grid-2">
+										<p class="brava-field">
+											<label for="demo-nombre">Nombre*</label>
+											<input type="text" id="demo-nombre" class="form-control brava-input" value="Ezequiel" required>
+										</p>
+										<p class="brava-field">
+											<label for="shop-tel">WhatsApp*</label>
+											<input type="tel" id="shop-tel" class="form-control brava-input" value="11 2397 3487" required inputmode="tel">
+										</p>
+									</div>
+								</fieldset>
+
+								<fieldset class="brava-checkout-section">
+									<legend class="brava-checkout-section-title">Entrega</legend>
+									<p class="brava-field brava-field-address">
+										<label for="demo-direccion">Calle y altura*</label>
+										<input type="text" id="demo-direccion" class="form-control brava-input" value="Manuel Díaz Vélez 3231" required>
+									</p>
+									<div id="brava-checkout-map-wrap" class="brava-checkout-map-wrap">
+										<p class="brava-map-label">Confirmá tu ubicación · zona naranja = entregamos</p>
+										<div class="brava-demo-map-placeholder">Mapa (demo — en producción Mapbox)</div>
+									</div>
+									<div id="zone-banner" class="zone-banner is-idle" role="status">Olivos · dentro de zona</div>
+									<p class="brava-field brava-field-piso">
+										<label for="demo-piso">Piso / Dpto</label>
+										<input type="text" id="demo-piso" class="form-control brava-input" placeholder="Opcional">
+									</p>
+									<input type="hidden" id="demo-localidad" value="Olivos">
+								</fieldset>
+
+								<fieldset class="brava-checkout-section">
+									<legend class="brava-checkout-section-title">Pago y horario</legend>
+									<div class="brava-checkout-grid-2">
+										<p class="brava-field">
+											<label for="demo-pago">Pago*</label>
+											<select id="demo-pago" class="form-control brava-input" required>
+												<option value="Efectivo" selected>Efectivo</option>
+												<option value="Mercado Pago">Mercado Pago</option>
+											</select>
+										</p>
+										<p class="brava-field brava-field-turno">
+											<label for="demo-turno">Turno*</label>
+											<select id="demo-turno" class="form-control brava-input" required>
+												<option value="Turno 2 (21:00)" selected>Turno 2 (21:00)</option>
+												<option value="Turno 1 (20:00)">Turno 1 (20:00)</option>
+											</select>
+										</p>
+									</div>
+								</fieldset>
+
+								<fieldset class="brava-checkout-section brava-demo-comp-section">
+									<legend class="brava-checkout-section-title">Compensación</legend>
+									<p class="brava-field">
+										<label for="shop-coupon">¿Tenés un código de Brava?</label>
+										<div class="brava-demo-coupon-row">
+											<input type="text" id="shop-coupon" class="form-control brava-input" placeholder="BRAVA-XXXX" autocomplete="off">
+											<button type="button" class="btn btn-outline-brava" id="btn-apply-coupon">Aplicar</button>
+										</div>
+										<span class="brava-field-hint">Te lo enviamos por WhatsApp si hubo un inconveniente con tu pedido.</span>
+									</p>
+									<div class="coupon-error" id="coupon-error"></div>
+									<div class="coupon-applied" id="coupon-applied"></div>
+									<div class="brava-demo-checkout-totals" id="shop-totals">
+										<div class="row"><span>Subtotal</span><span id="t-sub">$13.000</span></div>
+										<div class="row"><span>Envío Olivos</span><span id="t-env">$2.800</span></div>
+										<div class="row disc hidden" id="t-disc-row"><span id="t-disc-label">Compensación</span><span id="t-disc">−$0</span></div>
+										<div class="row grand"><span>Total</span><span id="t-grand">$15.800</span></div>
+									</div>
+								</fieldset>
+
+								<div class="brava-checkout-foot">
+									<div class="brava-checkout-actions">
+										<button type="button" class="btn btn-outline-brava" id="btn-checkout-cancel">Cancelar</button>
+										<button type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" id="btn-checkout">Enviar Pedido</button>
+									</div>
+								</div>
+							</form>
 						</div>
-						<div class="coupon-error" id="coupon-error"></div>
-						<div class="coupon-applied" id="coupon-applied"></div>
 					</div>
-					<div class="totals" id="shop-totals">
-						<div class="row"><span>Subtotal</span><span id="t-sub">$13.000</span></div>
-						<div class="row"><span>Envío Olivos</span><span id="t-env">$2.800</span></div>
-						<div class="row disc hidden" id="t-disc-row"><span id="t-disc-label">Descuento</span><span id="t-disc">−$0</span></div>
-						<div class="row grand"><span>Total</span><span id="t-grand">$15.800</span></div>
+					<div class="success-box hidden" id="shop-success">
+						<div style="font-size:2rem;">✅</div>
+						<p style="color:#ccc;margin:0;">Pedido enviado a cocina</p>
+						<div class="orn" id="success-orn">ORN-DEL-0040</div>
+						<p id="success-detail"></p>
+						<button type="button" class="btn btn-primary my-btn-primary" id="btn-new-order" style="margin-top:12px;width:100%;">Nuevo pedido</button>
 					</div>
-					<button type="button" class="btn-shop" id="btn-checkout">Confirmar pedido</button>
 				</div>
-				<div class="success-box" id="shop-success">
-					<div style="font-size:2rem;">✅</div>
-					<p>Pedido enviado a cocina</p>
-					<div class="orn" id="success-orn">ORN-DEL-0040</div>
-					<p style="color:var(--shop-muted);font-size:0.82rem;" id="success-detail"></p>
-					<button type="button" class="btn-shop" id="btn-new-order">Nuevo pedido</button>
-				</div>
+				<p class="checkout-frame-caption">Equivalente al modal de checkout en producción · <code>brava-brand.css</code></p>
 			</div>
 		</div>
 	</div>
@@ -784,6 +903,8 @@
 			dr.classList.add('hidden');
 		}
 		document.getElementById('t-grand').textContent = fmt(grand);
+		var bar = document.getElementById('demo-send-bar-btn');
+		if (bar) bar.textContent = 'Enviar pedido · ' + fmt(grand);
 	}
 
 	function shopCheckout() {
@@ -802,18 +923,22 @@
 			appliedCoupon.used_orn = newOrn;
 			renderCoupons();
 		}
+		var disc = appliedCoupon ? calcDiscount(appliedCoupon, SUBTOTAL, ENVIO) : 0;
+		var env = ENVIO;
+		if (appliedCoupon && appliedCoupon.tipo === 'envio') env = 0;
+		var grand = Math.max(0, SUBTOTAL + env - disc);
 		orders.unshift({
 			orn: newOrn,
 			cliente: 'Cliente web',
 			tel: tel,
 			estado: 'pendiente',
-			total: appliedCoupon ? calcDiscount(appliedCoupon, SUBTOTAL, ENVIO) : SUBTOTAL + ENVIO,
+			total: grand,
 			items: '1× Brava Simple, 1× Papas' + (appliedCoupon ? ' + cupón' : ''),
 			reclamo: false,
 			reenvioDe: null,
 		});
 		document.getElementById('shop-form-wrap').classList.add('hidden');
-		document.getElementById('shop-success').classList.add('visible');
+		document.getElementById('shop-success').classList.remove('hidden');
 		document.getElementById('success-orn').textContent = newOrn;
 		document.getElementById('success-detail').textContent = appliedCoupon
 			? 'Con cupón ' + appliedCoupon.codigo + ' · aparece en admin → Pendientes'
@@ -855,7 +980,7 @@
 		document.getElementById('coupon-error').classList.remove('visible');
 		document.getElementById('coupon-applied').classList.remove('visible');
 		document.getElementById('shop-form-wrap').classList.remove('hidden');
-		document.getElementById('shop-success').classList.remove('visible');
+		document.getElementById('shop-success').classList.add('hidden');
 		updateShopTotals();
 		renderOrders();
 		renderCoupons();
@@ -868,7 +993,13 @@
 			document.querySelectorAll('.view-tabs button').forEach(function (b) { b.classList.remove('is-active'); });
 			document.querySelectorAll('.view-panel').forEach(function (p) { p.classList.remove('is-active'); });
 			btn.classList.add('is-active');
-			document.getElementById('view-' + btn.getAttribute('data-view')).classList.add('is-active');
+			var view = btn.getAttribute('data-view');
+			document.getElementById('view-' + view).classList.add('is-active');
+			if (view === 'shop') {
+				document.body.classList.add('brava-shop-b', 'brava-has-bg-image');
+			} else {
+				document.body.classList.remove('brava-shop-b', 'brava-has-bg-image');
+			}
 		});
 	});
 
@@ -885,14 +1016,20 @@
 	});
 	document.getElementById('btn-modal-confirm').addEventListener('click', confirmGratificar);
 	document.getElementById('btn-apply-coupon').addEventListener('click', applyShopCoupon);
-	document.getElementById('btn-checkout').addEventListener('click', shopCheckout);
+	document.getElementById('demo-checkout-form').addEventListener('submit', function (e) {
+		e.preventDefault();
+		shopCheckout();
+	});
+	document.getElementById('btn-checkout-cancel').addEventListener('click', function () {
+		document.querySelector('.view-tabs button[data-view="admin"]').click();
+	});
 	document.getElementById('btn-new-order').addEventListener('click', function () {
 		appliedCoupon = null;
 		document.getElementById('shop-coupon').value = '';
 		document.getElementById('coupon-error').classList.remove('visible');
 		document.getElementById('coupon-applied').classList.remove('visible');
 		document.getElementById('shop-form-wrap').classList.remove('hidden');
-		document.getElementById('shop-success').classList.remove('visible');
+		document.getElementById('shop-success').classList.add('hidden');
 		updateShopTotals();
 	});
 	document.getElementById('btn-reset').addEventListener('click', resetDemo);
