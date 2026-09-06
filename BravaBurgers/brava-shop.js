@@ -170,16 +170,15 @@
 			},
 			afterShow: function (_instance, current) {
 				if (!current || !current.$content) return;
-				var isDesktop = window.innerWidth >= 769;
 				var css = {
-					maxWidth: isDesktop ? 'calc(100vw - 32px)' : 'calc(100vw - 16px)',
+					width: '350px',
+					maxWidth: 'calc(100vw - 16px)',
 					boxSizing: 'border-box',
 				};
 				if (isCheckout) {
-					css.width = isDesktop ? 'min(720px, calc(100vw - 32px))' : '350px';
 					css.padding = '0';
-					css.maxHeight = isDesktop ? '90vh' : '92vh';
-					css.height = isDesktop ? 'auto' : '92vh';
+					css.maxHeight = '92vh';
+					css.height = '92vh';
 					css.overflow = 'hidden';
 					css.display = 'flex';
 					css.flexDirection = 'column';
