@@ -1,5 +1,5 @@
 (function (global) {
-  var COMANDA_VER = 18;
+  var COMANDA_VER = 19;
 
   function $(id) {
     return document.getElementById(id);
@@ -33,7 +33,9 @@
   function orderAjusteInfo(order, sub, envio, total) {
     var monto = Number(order.ajuste_monto);
     if (isNaN(monto)) {
-      monto = total - sub - (Number(envio) || 0);
+      // Cupón ya va en cuponComandaLineHtml; no duplicar como "Descuento"
+      var descuentoCupon = Number(order.descuento) || 0;
+      monto = total - sub - (Number(envio) || 0) + descuentoCupon;
     }
     monto = Math.round(monto);
     var label = String(order.ajuste_label || order.ajuste || '').trim();
