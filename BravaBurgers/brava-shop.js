@@ -1336,14 +1336,26 @@
 	}
 
 	function buildBravaWhatsAppConfirmUrl(nombre) {
-		var wave = '\u{1F44B}';
-		var burger = '\u{1F354}';
 		var primera = bravaClienteFirstName(nombre);
-		var cierre = '\u00A1Espero la confirmaci\u00F3n! ' + burger;
-		var msg = primera
-			? 'Hola Brava ' + wave + '\nSoy ' + primera + '. Acabo de pedir desde la web.\n' + cierre
-			: 'Hola Brava ' + wave + '\nAcabo de pedir desde la web.\n' + cierre;
-		return 'https://wa.me/' + g_telefono + '?text=' + encodeURIComponent(msg);
+		var phone = String(g_telefono || '').replace(/\D/g, '');
+		// Bytes UTF-8 fijos: wa.me a veces rompe emojis si encodeURIComponent falla en el celular.
+		var E_WAVE = '%F0%9F%91%8B';
+		var E_BURGER = '%F0%9F%8D%94';
+		var parts = [encodeURIComponent('Hola Brava '), E_WAVE];
+		if (primera) {
+			parts.push(
+				encodeURIComponent('\nSoy ' + primera + '. Acabo de pedir desde la web.\n'),
+				encodeURIComponent('¡Espero la confirmación! '),
+				E_BURGER
+			);
+		} else {
+			parts.push(
+				encodeURIComponent('\nAcabo de pedir desde la web.\n'),
+				encodeURIComponent('¡Espero la confirmación! '),
+				E_BURGER
+			);
+		}
+		return 'https://api.whatsapp.com/send?phone=' + phone + '&text=' + parts.join('');
 	}
 
 	window.finalizar_pedido = function () {
@@ -1385,7 +1397,16 @@
 
 		function irWhatsApp(url) {
 			$.fancybox.close();
-			if (url) window.location.href = url;
+			if (!url) {
+				$submit.prop('disabled', false);
+				return;
+			}
+			var opened = false;
+			try {
+				var w = window.open(url, '_blank');
+				opened = !!w;
+			} catch (eOpen) {}
+			if (!opened) window.location.href = url;
 			$submit.prop('disabled', false);
 		}
 
