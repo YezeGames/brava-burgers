@@ -14,8 +14,10 @@ const {
   listCierres,
   createCierre,
   deleteCierre,
+  createCompensacion,
+  listCompensaciones,
 } = require('../lib/bravaSupabase');
-const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages } = require('../lib/dbMigrate');
+const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateCompensacionesSchema } = require('../lib/dbMigrate');
 
 function parseRequestBody(req) {
   let body = req.body;
@@ -129,6 +131,26 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateWaMessages') {
     return migrateWaMessages();
+  }
+
+  if (action === 'migrateCompensaciones') {
+    return migrateCompensacionesSchema();
+  }
+
+  if (action === 'createCompensacion') {
+    return createCompensacion({
+      orn: body.orn,
+      orn_origen: body.orn,
+      telefono: body.telefono,
+      cliente: body.cliente,
+      tipo: body.tipo,
+      valor: body.valor,
+      motivo: body.motivo,
+    });
+  }
+
+  if (action === 'listCompensaciones') {
+    return listCompensaciones(body.limit);
   }
 
   return { ok: false, error: 'unknown_action' };

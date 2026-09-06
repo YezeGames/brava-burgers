@@ -1,5 +1,15 @@
 const { restSelect, restInsert, restPatch, restDelete, restRpc } = require('./supabaseServer');
 
+const {
+  telNorm,
+  genCouponCode,
+  couponLabel,
+  calcDiscount,
+  effectiveEnvio,
+  buildCompensationWaText,
+  orderTotalsWithCoupon,
+} = require('./bravaCoupons');
+
 
 
 function rowToOrder(row) {
@@ -74,6 +84,10 @@ function rowToOrder(row) {
 
     rechazo_mensaje: row.rechazo_mensaje,
 
+    cupon_codigo: row.cupon_codigo || '',
+
+    descuento: Number(row.descuento) || 0,
+
   };
 
 }
@@ -116,9 +130,29 @@ async function createOrderFromShop(order) {
 
   const subtotal = Number(order.subtotal) || 0;
 
-  const envio = Number(order.envio) || 0;
+  const envioOriginal = Number(order.envio) || 0;
 
-  const total = Number(order.total) || subtotal + envio;
+  let cuponRow = null;
+
+  if (order.cuponCodigo) {
+
+    const v = await validateCouponForShop(order.cuponCodigo, order.telefono);
+
+    if (!v.ok) return v;
+
+    cuponRow = v.coupon;
+
+  }
+
+  const totals = orderTotalsWithCoupon(subtotal, envioOriginal, cuponRow);
+
+  const envio = totals.envio;
+
+  const descuento = totals.descuento;
+
+  const total = totals.total;
+
+  const cuponCodigo = cuponRow ? cuponRow.codigo : null;
 
   const lat = parseFloat(order.lat);
   const lng = parseFloat(order.lng);
@@ -150,6 +184,8 @@ async function createOrderFromShop(order) {
     items_json: order.items || [],
     subtotal,
     total,
+    descuento,
+    cupon_codigo: cuponCodigo,
     idempotency_key: idem || null,
   };
 
@@ -170,6 +206,18 @@ async function createOrderFromShop(order) {
     }
 
     return supabaseFail(ins, 'insert_failed');
+
+  }
+
+  if (cuponCodigo) {
+
+    const red = await redeemCoupon(cuponCodigo, order.telefono, ornVal);
+
+    if (!red.ok) {
+
+      console.error('[createOrderFromShop] cupon no marcado usado', cuponCodigo, red.error);
+
+    }
 
   }
 
@@ -769,6 +817,180 @@ async function deleteCierre(id) {
 
 
 
+async function validateCouponForShop(codigo, telefono) {
+
+  const code = String(codigo || '').trim().toUpperCase();
+
+  const tel = telNorm(telefono);
+
+  if (!code || !tel) return { ok: false, error: 'missing_fields' };
+
+  const r = await restSelect('compensaciones', 'select=*&codigo=eq.' + encodeURIComponent(code) + '&limit=1');
+
+  if (!r.ok) return supabaseFail(r, 'cupon_lookup_failed');
+
+  if (!r.data || !r.data[0]) return { ok: false, error: 'codigo_invalido' };
+
+  const row = r.data[0];
+
+  if (row.usado) return { ok: false, error: 'codigo_usado' };
+
+  if (telNorm(row.telefono) !== tel) {
+
+    return { ok: false, error: 'codigo_otro_telefono', telHint: telNorm(row.telefono).slice(-4) };
+
+  }
+
+  const coupon = {
+
+    codigo: row.codigo,
+
+    tipo: row.tipo,
+
+    valor: Number(row.valor) || 0,
+
+    label: couponLabel(row),
+
+    usado: false,
+
+  };
+
+  return { ok: true, coupon: coupon };
+
+}
+
+
+
+async function redeemCoupon(codigo, telefono, orn) {
+
+  const code = String(codigo || '').trim().toUpperCase();
+
+  const tel = telNorm(telefono);
+
+  if (!code || !tel || !orn) return { ok: false, error: 'missing_fields' };
+
+  const r = await restPatch(
+
+    'compensaciones',
+
+    'codigo=eq.' + encodeURIComponent(code) + '&usado=eq.false&telefono=eq.' + encodeURIComponent(tel),
+
+    { usado: true, usado_orn: orn, usado_at: new Date().toISOString() }
+
+  );
+
+  if (!r.ok) return supabaseFail(r, 'cupon_redeem_failed');
+
+  return { ok: true };
+
+}
+
+
+
+async function createCompensacion(body) {
+
+  const orn = String(body.orn_origen || body.orn || '').trim();
+
+  const tel = telNorm(body.telefono);
+
+  const tipo = String(body.tipo || 'pct').trim();
+
+  const valor = Number(body.valor) || 0;
+
+  const motivo = String(body.motivo || '').trim();
+
+  const cliente = String(body.cliente || '').trim();
+
+  if (!orn || !tel) return { ok: false, error: 'missing_fields' };
+
+  if (!['pct', 'monto', 'envio', 'item'].includes(tipo)) return { ok: false, error: 'tipo_invalido' };
+
+
+
+  const active = await restSelect(
+
+    'compensaciones',
+
+    'select=codigo&telefono=eq.' + encodeURIComponent(tel) + '&usado=eq.false&limit=1'
+
+  );
+
+  if (!active.ok) return supabaseFail(active, 'cupon_lookup_failed');
+
+  if (active.data && active.data[0]) {
+
+    return { ok: false, error: 'cupon_activo_existe', codigo: active.data[0].codigo };
+
+  }
+
+
+
+  let codigo = genCouponCode();
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+
+    const row = {
+
+      codigo: codigo,
+
+      telefono: tel,
+
+      tipo: tipo,
+
+      valor: valor,
+
+      motivo: motivo,
+
+      orn_origen: orn,
+
+      usado: false,
+
+    };
+
+    const ins = await restInsert('compensaciones', row);
+
+    if (ins.ok) {
+
+      const waText = buildCompensationWaText(cliente, orn, codigo, row);
+
+      return { ok: true, compensacion: row, waText: waText };
+
+    }
+
+    if (ins.error !== 'insert_failed' && ins.status !== 409) return supabaseFail(ins, 'insert_failed');
+
+    codigo = genCouponCode();
+
+  }
+
+  return { ok: false, error: 'codigo_collision' };
+
+}
+
+
+
+async function listCompensaciones(limit) {
+
+  const n = Math.min(Math.max(Number(limit) || 40, 1), 100);
+
+  const r = await restSelect(
+
+    'compensaciones',
+
+    'select=*&order=creado_at.desc&limit=' + n
+
+  );
+
+  if (!r.ok) return supabaseFail(r, r.error);
+
+  const rows = Array.isArray(r.data) ? r.data : [];
+
+  return { ok: true, compensaciones: rows };
+
+}
+
+
+
 module.exports = {
 
   createOrderFromShop,
@@ -798,6 +1020,14 @@ module.exports = {
   deleteCierre,
 
   rowToOrder,
+
+  validateCouponForShop,
+
+  redeemCoupon,
+
+  createCompensacion,
+
+  listCompensaciones,
 
 };
 

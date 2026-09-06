@@ -3830,7 +3830,8 @@
 
         paymentTagHtml(o.pago) +
 
-        (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '');
+        (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '') +
+        (Number(o.descuento) > 0 ? ' <span class="badge-mod">cupón</span>' : '');
 
       body.appendChild(head);
 
@@ -3953,6 +3954,19 @@
         );
 
         addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
+
+      }
+
+      if (panelEstado === 'entregada') {
+
+        addActionBtn(
+          actions,
+          'Gratificar',
+          'btn-sm btn-accent',
+          'gratificar',
+          o.orn,
+          'Crear cupón de compensación y avisar por WhatsApp'
+        );
 
       }
 
@@ -6227,6 +6241,11 @@
     if (action === 'cancel') {
       if (confirm('¿Cancelar ' + orn + '?')) sendOrderUpdate(orn, { estado: 'cancelada' });
     }
+    if (action === 'gratificar') {
+      if (window.BravaCompensaciones && typeof BravaCompensaciones.openModal === 'function') {
+        BravaCompensaciones.openModal(orn);
+      }
+    }
   }
 
   var ordersListEl = $('orders-list');
@@ -6781,6 +6800,12 @@
   if (token) showApp();
 
   else showLogin();
+
+  window.getAdminToken = function () {
+    return token;
+  };
+
+  window.findOrderByOrn = findOrder;
 
 })();
 

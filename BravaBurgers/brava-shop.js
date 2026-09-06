@@ -18,6 +18,7 @@
 	window.g_ingredientes_catalog = window.g_ingredientes_catalog || [];
 	var _brava_pers_prod_id = null;
 	var _brava_pers_line = null;
+	var bravaAppliedCoupon = null;
 
 	function escapeHtml(s) {
 		return String(s || '')
@@ -30,6 +31,111 @@
 	function escapeAttr(s) {
 		return escapeHtml(s).replace(/'/g, '&#39;');
 	}
+
+	function bravaCouponCalcDiscount(c, subtotal, envio) {
+		if (!c) return 0;
+		var valor = Number(c.valor) || 0;
+		if (c.tipo === 'pct') return Math.round(subtotal * (valor / 100));
+		if (c.tipo === 'monto') return Math.min(valor, subtotal + envio);
+		if (c.tipo === 'envio') return envio;
+		if (c.tipo === 'item') return 4500;
+		return 0;
+	}
+
+	function bravaResetCouponUi() {
+		bravaAppliedCoupon = null;
+		$('#brava-coupon-code').val('');
+		$('#brava-coupon-error').addClass('hidden').text('');
+		$('#brava-coupon-applied').addClass('hidden').html('');
+		$('#brava-coupon-totals').addClass('hidden');
+	}
+
+	function bravaUpdateCouponTotals(sub, envOrig) {
+		var disc = bravaAppliedCoupon ? bravaCouponCalcDiscount(bravaAppliedCoupon, sub, envOrig) : 0;
+		var env = envOrig;
+		if (bravaAppliedCoupon && bravaAppliedCoupon.tipo === 'envio') env = 0;
+		var grand = Math.max(0, sub + env - disc);
+		if (bravaAppliedCoupon) {
+			$('#brava-coupon-totals').removeClass('hidden');
+			$('#brava-c-t-sub').text('$' + formatear_moneda(sub));
+			$('#brava-c-t-env').text('$' + formatear_moneda(env));
+			if (disc > 0) {
+				$('#brava-c-t-disc-row').removeClass('hidden');
+				$('#brava-c-t-disc-label').text(
+					bravaAppliedCoupon.tipo === 'item' ? 'Papas regalo (−)' : 'Compensación'
+				);
+				$('#brava-c-t-disc').text('−$' + formatear_moneda(disc));
+			} else {
+				$('#brava-c-t-disc-row').addClass('hidden');
+			}
+			$('#brava-c-t-grand').text('$' + formatear_moneda(grand));
+		} else {
+			$('#brava-coupon-totals').addClass('hidden');
+		}
+		return { envio: env, descuento: disc, total: grand };
+	}
+
+	window.bravaApplyCoupon = function () {
+		var codigo = String($('#brava-coupon-code').val() || '').trim().toUpperCase();
+		var telefono = String($('#brava_telefono').val() || '').trim();
+		var errEl = $('#brava-coupon-error');
+		var okEl = $('#brava-coupon-applied');
+		errEl.addClass('hidden').text('');
+		okEl.addClass('hidden').html('');
+		bravaAppliedCoupon = null;
+		if (!codigo) {
+			calcular_total();
+			return;
+		}
+		if (!telefono.replace(/\D/g, '')) {
+			errEl.removeClass('hidden').text('Completá tu WhatsApp antes de aplicar el código.');
+			calcular_total();
+			return;
+		}
+		$('#brava-coupon-apply').prop('disabled', true);
+		fetch('/api/cupon', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ codigo: codigo, telefono: telefono }),
+		})
+			.then(function (r) {
+				return r.json().then(function (data) {
+					return { httpOk: r.ok, data: data };
+				});
+			})
+			.then(function (pack) {
+				var data = pack.data || {};
+				if (!pack.httpOk || !data.ok) {
+					if (data.error === 'codigo_otro_telefono') {
+						errEl
+							.removeClass('hidden')
+							.text(
+								'Este código es para otro teléfono (…' + (data.telHint || '****') + ').'
+							);
+					} else if (data.error === 'codigo_usado') {
+						errEl.removeClass('hidden').text('Código inválido o ya usado.');
+					} else if (data.error === 'codigo_invalido') {
+						errEl.removeClass('hidden').text('Código inválido o ya usado.');
+					} else {
+						errEl.removeClass('hidden').text('No pudimos validar el código. Probá de nuevo.');
+					}
+					calcular_total();
+					return;
+				}
+				bravaAppliedCoupon = data.coupon;
+				okEl
+					.removeClass('hidden')
+					.html('✓ <strong>' + escapeHtml(data.coupon.codigo) + '</strong> aplicado · ' + escapeHtml(data.coupon.label || ''));
+				calcular_total();
+			})
+			.catch(function () {
+				errEl.removeClass('hidden').text('Error de red al validar el código.');
+				calcular_total();
+			})
+			.finally(function () {
+				$('#brava-coupon-apply').prop('disabled', false);
+			});
+	};
 
 	/** Modal checkout (~350px). Estilos finos en brava-brand.css (no pisar padding acá). */
 	function bravaModalCheckoutOpts(src) {
@@ -648,7 +754,15 @@
 		if (pedido_extras > 0) {
 			pedido += '\n*Envío:* $' + formatear_moneda(pedido_extras);
 		}
-		pedido += '\n*Total pedido: $' + formatear_moneda(total + pedido_extras) + '*';
+		var couponTotals = bravaUpdateCouponTotals(total, pedido_extras);
+		var grandTotal = couponTotals.total;
+		if (couponTotals.descuento > 0) {
+			pedido += '\n*Compensación:* −$' + formatear_moneda(couponTotals.descuento);
+			if (bravaAppliedCoupon && bravaAppliedCoupon.codigo) {
+				pedido += ' (' + bravaAppliedCoupon.codigo + ')';
+			}
+		}
+		pedido += '\n*Total pedido: $' + formatear_moneda(grandTotal) + '*';
 		pedido += formatWhatsAppFooter(g_texto_final_whatsapp);
 
 		var url_pedido = 'https://wa.me/' + g_telefono + '?text=' + encodeURIComponent(pedido);
@@ -665,7 +779,7 @@
 			document.body.classList.add('brava-cart-open');
 			$('#boton_enviar').html(
 				"<i class='fab fa-whatsapp'></i> <b>Enviar pedido por WhatsApp - $" +
-					formatear_moneda(total + pedido_extras) +
+					formatear_moneda(grandTotal) +
 					'</b>'
 			);
 			$('#footer_enviar').slideDown();
@@ -786,6 +900,16 @@
 		}
 		if (code === 'direccion_sin_coordenadas') {
 			return 'Elegí tu dirección de la lista de sugerencias (no escribas solo a mano).';
+		}
+		return '';
+	};
+
+	window.bravaMensajeErrorCupon = function (code) {
+		if (code === 'codigo_invalido' || code === 'codigo_usado') {
+			return 'El código de compensación no es válido o ya fue usado.';
+		}
+		if (code === 'codigo_otro_telefono') {
+			return 'Este código no corresponde al WhatsApp que ingresaste.';
 		}
 		return '';
 	};
@@ -1083,6 +1207,7 @@
 	};
 
 	window.pre_abrir_preguntas = function () {
+		bravaResetCouponUi();
 		bravaBindZoneAddressInput();
 		if (g_zonas_envios.length > 0) {
 			$('#pregunta_10_respuesta').empty().append('<option value="">');
@@ -1129,6 +1254,7 @@
 		var addrInp = document.getElementById('pregunta_2_respuesta');
 		var lat = addrInp && addrInp.dataset.lat ? parseFloat(addrInp.dataset.lat) : null;
 		var lng = addrInp && addrInp.dataset.lng ? parseFloat(addrInp.dataset.lng) : null;
+		var couponTotals = bravaUpdateCouponTotals(sub, envio);
 		return {
 			cliente: ($('#pregunta_1_respuesta').val() || '').trim(),
 			telefono: ($('#brava_telefono').val() || '').trim(),
@@ -1138,9 +1264,11 @@
 			pago: $('#pregunta_5_respuesta').val() || '',
 			turno: $('#pregunta_6_respuesta').val() || '',
 			zona: $('#pregunta_10_respuesta').val() || '',
-			envio: envio,
+			envio: couponTotals.envio,
 			subtotal: sub,
-			total: sub + envio,
+			descuento: couponTotals.descuento,
+			total: couponTotals.total,
+			cuponCodigo: bravaAppliedCoupon ? bravaAppliedCoupon.codigo : '',
 			lat: lat != null && !isNaN(lat) ? lat : undefined,
 			lng: lng != null && !isNaN(lng) ? lng : undefined,
 			items: items,
@@ -1150,6 +1278,10 @@
 	window.finalizar_pedido = function () {
 		if (bravaZoneDeliveryRequired() && !bravaZoneDeliveryOk) {
 			alert('Mové el pin dentro de la zona naranja del mapa para confirmar que entregamos ahí.');
+			return false;
+		}
+		if ($('#brava-coupon-code').val().trim() && !bravaAppliedCoupon) {
+			alert('Aplicá el cupón o borrá el código.');
 			return false;
 		}
 		calcular_total();
@@ -1229,6 +1361,12 @@
 						data && window.bravaMensajeErrorZona && window.bravaMensajeErrorZona(data.error);
 					if (msgZona) {
 						falloGuardarPedido(msgZona);
+						return;
+					}
+					var msgCupon =
+						data && window.bravaMensajeErrorCupon && window.bravaMensajeErrorCupon(data.error);
+					if (msgCupon) {
+						falloGuardarPedido(msgCupon);
 						return;
 					}
 					falloGuardarPedido();
@@ -1557,5 +1695,8 @@
 	}
 	$(document).ready(function () {
 		if (!hasTouch()) document.body.className += ' tienehover';
+		$('#brava-coupon-apply').on('click', function () {
+			window.bravaApplyCoupon();
+		});
 	});
 })();

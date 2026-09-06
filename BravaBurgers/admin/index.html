@@ -553,6 +553,17 @@
 		.motivo-list input { width: auto; margin: 0; }
 		.msg-preview { margin-top: 8px; padding: 10px 12px; background: var(--preview-bg); border-radius: 6px; font-size: 0.8rem; white-space: pre-wrap; color: var(--preview-text); max-height: 140px; overflow-y: auto; }
 		.modal-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+		.wa-preview-comp {
+			background: #0b141a;
+			border-radius: 8px;
+			padding: 10px 12px;
+			font-size: 0.78rem;
+			line-height: 1.45;
+			color: #d1f4dd;
+			white-space: pre-wrap;
+			max-height: 140px;
+			overflow-y: auto;
+		}
 		.comanda-modal-chrome .comanda-auto-print-lbl {
 			display: inline-flex;
 			align-items: center;
@@ -2007,6 +2018,38 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="comp-modal" role="dialog" aria-labelledby="comp-modal-title">
+		<div class="modal">
+			<h2 id="comp-modal-title">Gratificar cliente</h2>
+			<p class="sub" id="comp-orn-ref"></p>
+			<label class="field" for="comp-motivo">Motivo del reclamo</label>
+			<select id="comp-motivo">
+				<option value="faltante">Faltante / olvidaron algo</option>
+				<option value="demora">Demora en delivery</option>
+				<option value="frio">Pedido frío</option>
+				<option value="item_mal">Ítem equivocado / incompleto</option>
+				<option value="otro">Otro</option>
+			</select>
+			<label class="field" for="comp-tipo">Tipo de compensación</label>
+			<select id="comp-tipo">
+				<option value="pct">Porcentaje off próximo pedido</option>
+				<option value="monto">Monto fijo off ($)</option>
+				<option value="envio">Envío gratis</option>
+				<option value="item">Extra gratis (papas)</option>
+			</select>
+			<div id="comp-valor-wrap">
+				<label class="field" for="comp-valor" id="comp-valor-label">Porcentaje (%)</label>
+				<input type="number" id="comp-valor" value="15" min="1" max="100000">
+			</div>
+			<label class="field">Vista previa WhatsApp</label>
+			<div class="wa-preview-comp" id="comp-wa-preview"></div>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="comp-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="comp-confirm"><i class="fab fa-whatsapp"></i> Enviar y crear cupón</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal-backdrop hidden" id="comanda-modal" role="dialog" aria-labelledby="comanda-modal-title">
 		<div class="modal comanda-modal-box">
 			<h2 id="comanda-modal-title">Comanda</h2>
@@ -2031,6 +2074,7 @@
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=10"></script>
 	<script src="/admin/wa-panel.js?v=22"></script>
-	<script src="/admin/admin.js?v=116"></script>
+	<script src="/admin/compensaciones.js?v=1"></script>
+	<script src="/admin/admin.js?v=117"></script>
 </body>
 </html>

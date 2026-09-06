@@ -34,7 +34,7 @@
 		var g_telefono = '';
 	</script>
 	<script src="brava-catalog.js?v=13"></script>
-	<link href="brava-brand.css?v=98" rel="stylesheet">
+	<link href="brava-brand.css?v=99" rel="stylesheet">
 	<link href="brava-mobile.css?v=5" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		#preguntas_pedido.fancybox-content,
@@ -179,6 +179,26 @@
 				<div id="brava-turno-cupo-notice" class="brava-turno-cupo-notice hidden" role="status" aria-live="polite"></div>
 			</fieldset>
 
+			<fieldset class="brava-checkout-section brava-comp-section">
+				<legend class="brava-checkout-section-title">Compensación</legend>
+				<p class="brava-field">
+					<label for="brava-coupon-code">¿Tenés un código de Brava?</label>
+					<div class="brava-coupon-row">
+						<input type="text" id="brava-coupon-code" class="form-control brava-input" placeholder="BRAVA-XXXX" autocomplete="off">
+						<button type="button" class="btn btn-outline-brava" id="brava-coupon-apply">Aplicar</button>
+					</div>
+					<span class="brava-field-hint">Te lo enviamos por WhatsApp si hubo un inconveniente con tu pedido.</span>
+				</p>
+				<div class="brava-coupon-error hidden" id="brava-coupon-error" role="alert"></div>
+				<div class="brava-coupon-applied hidden" id="brava-coupon-applied"></div>
+				<div class="brava-checkout-coupon-totals hidden" id="brava-coupon-totals">
+					<div class="row"><span>Subtotal</span><span id="brava-c-t-sub">$0</span></div>
+					<div class="row"><span>Envío</span><span id="brava-c-t-env">$0</span></div>
+					<div class="row disc hidden" id="brava-c-t-disc-row"><span id="brava-c-t-disc-label">Compensación</span><span id="brava-c-t-disc">−$0</span></div>
+					<div class="row grand"><span>Total</span><span id="brava-c-t-grand">$0</span></div>
+				</div>
+			</fieldset>
+
 			<input type="hidden" id="pregunta_3_respuesta" value="">
 			<label id="pregunta_3_label" class="brava-visually-hidden">Localidad</label>
 			<p class="brava-field brava-field-zona-hidden" hidden aria-hidden="true">
@@ -245,7 +265,7 @@
 	<script src="brava-turnos.js?v=1"></script>
 	<script src="brava-delivery-zone-client.js?v=2"></script>
 	<script src="brava-checkout-map.js?v=1"></script>
-	<script src="brava-shop.js?v=23"></script>
+	<script src="brava-shop.js?v=24"></script>
 	<script src="brava-address.js?v=14"></script>
 </body>
 </html>

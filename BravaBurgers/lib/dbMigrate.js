@@ -219,9 +219,65 @@ async function migrateWaMessages() {
   }
 }
 
+async function migrateCompensacionesSchema() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'En Vercel agregá SUPABASE_DB_PASSWORD o POSTGRES_URL.',
+    };
+  }
+  const client = new Client({
+    connectionString: conn,
+    ssl: { rejectUnauthorized: false },
+  });
+  try {
+    await client.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS compensaciones (
+        codigo text PRIMARY KEY,
+        telefono text NOT NULL,
+        tipo text NOT NULL CHECK (tipo IN ('pct', 'monto', 'envio', 'item')),
+        valor numeric NOT NULL DEFAULT 0,
+        motivo text NOT NULL DEFAULT '',
+        orn_origen text NOT NULL DEFAULT '',
+        usado boolean NOT NULL DEFAULT false,
+        usado_orn text,
+        usado_at timestamptz,
+        creado_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await client.query('CREATE INDEX IF NOT EXISTS compensaciones_tel_idx ON compensaciones (telefono);');
+    await client.query('CREATE INDEX IF NOT EXISTS compensaciones_usado_idx ON compensaciones (usado, creado_at DESC);');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS cupon_codigo text;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS descuento numeric NOT NULL DEFAULT 0;');
+    await client.query('ALTER TABLE compensaciones ENABLE ROW LEVEL SECURITY;');
+    await client.query('DROP POLICY IF EXISTS "service_all_compensaciones" ON compensaciones;');
+    await client.query(`
+      CREATE POLICY "service_all_compensaciones" ON compensaciones
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
+    `);
+    await client.query('DROP POLICY IF EXISTS "admin_read_compensaciones" ON compensaciones;');
+    await client.query(`
+      CREATE POLICY "admin_read_compensaciones" ON compensaciones
+        FOR SELECT TO authenticated USING (true);
+    `);
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
 module.exports = {
   migrateEnCaminoColumn,
   migrateIngresosSchema,
   migratePendOrnDel,
   migrateWaMessages,
+  migrateCompensacionesSchema,
 };

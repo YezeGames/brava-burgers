@@ -28,7 +28,11 @@ module.exports = async function handler(req, res) {
         data.error === 'turno_no_disponible' ||
         data.error === 'fuera_de_zona' ||
         data.error === 'direccion_sin_coordenadas';
-      const code = turnoErr ? 409 : 502;
+      const cuponErr =
+        data.error === 'codigo_invalido' ||
+        data.error === 'codigo_usado' ||
+        data.error === 'codigo_otro_telefono';
+      const code = turnoErr || cuponErr ? 409 : 502;
       return res.status(code).json(data);
     }
     return res.status(200).json(data);
