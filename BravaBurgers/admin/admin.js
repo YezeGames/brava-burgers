@@ -3627,7 +3627,7 @@
   function formatOrderTurnoShort(turno) {
     var s = String(turno || '').trim();
     if (!s) return '—';
-    var m = s.match(/turno\s*(\d+)/i);
+    var m = s.match(/turno[^0-9]*(\d+)/i);
     if (m) return 'T' + m[1];
     m = s.match(/noche\s*(\d+)/i);
     if (m) return 'T' + m[1];
@@ -3635,9 +3635,16 @@
   }
 
   function formatOrderTurnCell(o) {
-    var t = formatOrderTurnoShort(o.turno);
-    if (t === '—') return '<span class="orders-turno-muted">—</span>';
-    return '<span class="orders-turno-badge">' + escapeHtml(t) + '</span>';
+    var full = String(o.turno || '').trim();
+    var t = formatOrderTurnoShort(full);
+    if (t === '—') return '';
+    return (
+      ' <span class="orders-turno-badge" title="' +
+      escapeAttr(full) +
+      '">' +
+      escapeHtml(t) +
+      '</span>'
+    );
   }
 
   function formatOrderItemsTooltip(o) {
@@ -3863,6 +3870,8 @@
         '</span>' +
 
         formatOrderClientCell(o, panelEstado) +
+
+        formatOrderTurnCell(o) +
 
         paymentTagHtml(o.pago) +
 
