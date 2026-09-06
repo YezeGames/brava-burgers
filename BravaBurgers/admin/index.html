@@ -1461,7 +1461,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=20" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=21" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1737,6 +1737,9 @@
 				<aside class="main-aside wa-aside" id="wa-aside">
 					<div class="wa-toolbar" id="wa-toolbar-inbox">
 						<h2><i class="fab fa-whatsapp" aria-hidden="true"></i> Chats</h2>
+						<button type="button" class="wa-toolbar-action hidden" id="wa-clear-consultas" title="Vaciar todas las consultas">
+							<i class="fas fa-trash-can" aria-hidden="true"></i> Vaciar
+						</button>
 						<span class="wa-demo-tag">Semi-auto</span>
 					</div>
 					<div class="wa-toolbar hidden" id="wa-toolbar-chat">
@@ -1744,6 +1747,9 @@
 							<i class="fas fa-arrow-left"></i>
 						</button>
 						<div class="wa-toolbar-who" id="wa-toolbar-who"></div>
+						<button type="button" class="wa-delete-chat hidden" id="wa-delete-chat" title="Eliminar chat" aria-label="Eliminar chat">
+							<i class="fas fa-trash-can" aria-hidden="true"></i>
+						</button>
 					</div>
 					<div class="wa-panel" id="wa-inbox-panel">
 						<div class="wa-inbox-tabs" role="tablist" aria-label="Filtrar chats">
@@ -2342,7 +2348,7 @@
 	<script src="/admin/comanda.js?v=20"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=12"></script>
-	<script src="/admin/wa-panel.js?v=27"></script>
+	<script src="/admin/wa-panel.js?v=28"></script>
 	<script src="/admin/compensaciones.js?v=4"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
 	<script src="/admin/admin.js?v=126"></script>

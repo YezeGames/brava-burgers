@@ -1,4 +1,4 @@
-const { isSupabaseConfigured, restInsert, restSelect } = require('./supabaseServer');
+const { isSupabaseConfigured, restInsert, restSelect, restDelete } = require('./supabaseServer');
 const { normalizeWaRecipient } = require('./whatsappMeta');
 
 const AUTO_WELCOME_MARKER = '__auto_welcome__';
@@ -97,9 +97,23 @@ async function listWaMessages(opts) {
   return { ok: true, messages: res.data || [] };
 }
 
+async function deleteWaMessagesForTel(tel) {
+  if (!isSupabaseConfigured()) {
+    return { ok: false, error: 'supabase_not_configured' };
+  }
+  const normalized = normalizeWaRecipient(tel);
+  if (!normalized) {
+    return { ok: false, error: 'invalid_tel' };
+  }
+  const res = await restDelete('wa_messages', 'tel=eq.' + encodeURIComponent(normalized));
+  if (!res.ok) return res;
+  return { ok: true, tel: normalized };
+}
+
 module.exports = {
   insertWaMessage,
   listWaMessages,
+  deleteWaMessagesForTel,
   AUTO_WELCOME_MARKER,
   AUTO_CONSULTA_MARKER,
   WA_MEDIA_PREFIX,

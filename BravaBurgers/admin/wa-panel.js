@@ -275,10 +275,11 @@
           : 'Cargá el WhatsApp del repartidor en Reparto para asignarlo acá.';
       } else {
         hint.textContent =
-          'Consultas: clientes sin pedido en este turno (se limpian pedidos al cerrar caja).';
+          'Consultas: sin pedido activo. Podés eliminar chats (🗑) o Vaciar la pestaña.';
       }
     }
     renderWaThreads();
+    updateWaDeleteChrome();
   }
 
   function waTabForTel(tel) {
@@ -770,6 +771,140 @@
     if (waActiveTel && threads[waActiveTel]) renderWaMessages();
   }
 
+  function threadIsConsultaDeletable(tel) {
+    if (!tel || threadIsRepartidor(tel)) return false;
+    var th = threads[tel];
+    if (!th) return false;
+    if (threadHasActiveOrder(th)) return false;
+    return true;
+  }
+
+  function listConsultaDeletableTels() {
+    return Object.keys(threads).filter(function (tel) {
+      if (!threadIsConsultaDeletable(tel)) return false;
+      var th = threads[tel];
+      if (!th || !th.msgs || !th.msgs.length) return false;
+      if (threadMatchesTab(tel, 'consultas')) return true;
+      if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(th)) return true;
+      return false;
+    });
+  }
+
+  function purgeWaMsgIdsForThread(th) {
+    if (!th || !th.msgs) return;
+    th.msgs.forEach(function (m) {
+      if (m.id) delete waMsgIdsSeen[String(m.id)];
+      if (m.waMsgId) delete waMsgIdsSeen['g:' + String(m.waMsgId)];
+    });
+  }
+
+  function removeThreadLocal(tel) {
+    var th = threads[tel];
+    if (th) purgeWaMsgIdsForThread(th);
+    delete threads[tel];
+    delete waPinnedTels[tel];
+    delete waTurnoPurgaTels[tel];
+    if (waActiveTel === tel) {
+      waActiveTel = null;
+      activeOrn = null;
+      hideWaAutoHint();
+      var input = $('wa-input');
+      if (input) input.value = '';
+      setWaView(false);
+    }
+  }
+
+  function deleteWaThreadRemote(tel) {
+    var adminToken = getAdminToken();
+    if (!adminToken) return Promise.resolve({ ok: false, error: 'no_token' });
+    return fetch(
+      '/api/whatsapp-inbox?token=' +
+        encodeURIComponent(adminToken) +
+        '&tel=' +
+        encodeURIComponent(tel),
+      { method: 'DELETE' }
+    ).then(function (r) {
+      return r.json().catch(function () {
+        return { ok: false, error: 'invalid_response' };
+      });
+    });
+  }
+
+  function updateWaDeleteChrome() {
+    var clearBtn = $('wa-clear-consultas');
+    var delBtn = $('wa-delete-chat');
+    var consultas = listConsultaDeletableTels();
+    if (clearBtn) {
+      clearBtn.classList.toggle('hidden', waInboxTab !== 'consultas' || !consultas.length);
+      clearBtn.disabled = !consultas.length;
+    }
+    if (delBtn) {
+      var canDel = waActiveTel && threadIsConsultaDeletable(waActiveTel);
+      delBtn.classList.toggle('hidden', !canDel);
+    }
+  }
+
+  function deleteWaThread(tel, opts) {
+    opts = opts || {};
+    if (!threadIsConsultaDeletable(tel)) return Promise.resolve(false);
+    var th = threads[tel];
+    var label = (th && th.name) || tel;
+    if (
+      !opts.skipConfirm &&
+      !confirm('¿Eliminar el chat con ' + label + '?\n\nSe borra del panel y de Supabase. Si escriben de nuevo, aparece chat nuevo.')
+    ) {
+      return Promise.resolve(false);
+    }
+    return deleteWaThreadRemote(tel).then(function (res) {
+      if (!res.ok) {
+        alert('No se pudo eliminar el chat: ' + (res.error || res.detail || 'error'));
+        return false;
+      }
+      removeThreadLocal(tel);
+      renderWaThreads();
+      highlightOrderCards();
+      updateWaDeleteChrome();
+      return true;
+    });
+  }
+
+  function clearConsultaChats() {
+    var tels = listConsultaDeletableTels();
+    if (!tels.length) return;
+    if (
+      !confirm(
+        '¿Vaciar ' +
+          tels.length +
+          ' consulta' +
+          (tels.length === 1 ? '' : 's') +
+          '?\n\nSe borran del panel y de Supabase. Los pedidos activos no se tocan.'
+      )
+    ) {
+      return;
+    }
+    var clearBtn = $('wa-clear-consultas');
+    if (clearBtn) clearBtn.disabled = true;
+    Promise.all(
+      tels.map(function (tel) {
+        return deleteWaThreadRemote(tel);
+      })
+    )
+      .then(function (results) {
+        var failed = 0;
+        tels.forEach(function (tel, i) {
+          if (results[i] && results[i].ok) removeThreadLocal(tel);
+          else failed++;
+        });
+        renderWaThreads();
+        highlightOrderCards();
+        updateWaDeleteChrome();
+        if (failed) alert('Algunos chats no se pudieron borrar (' + failed + '). Reintentá.');
+      })
+      .finally(function () {
+        if (clearBtn) clearBtn.disabled = false;
+      });
+  }
+
   function renderWaThreads() {
     var list = $('wa-thread-list');
     if (!list) return;
@@ -833,6 +968,7 @@
       list.appendChild(btn);
     });
     updateWaTabBadges();
+    updateWaDeleteChrome();
   }
 
   function escapeHtml(s) {
@@ -913,6 +1049,7 @@
     body.scrollTop = body.scrollHeight;
     highlightOrderCards();
     renderWaThreads();
+    updateWaDeleteChrome();
   }
 
   /** Al cerrar turno/caja: sacar chats de pedidos; quedan solo consultas del turno. */
@@ -933,6 +1070,7 @@
     setWaInboxTab('consultas');
     renderWaThreads();
     highlightOrderCards();
+    updateWaDeleteChrome();
   }
 
   /** Al abrir turno nuevo: permitir de nuevo chats de clientes que pidieron antes. */
@@ -952,6 +1090,7 @@
       if (input) input.value = '';
     }
     renderWaMessages();
+    updateWaDeleteChrome();
   }
 
   function closeChat() {
@@ -1290,6 +1429,14 @@
     bindWaImageAttach();
     checkWhatsappApiStatus();
     if ($('wa-back')) $('wa-back').addEventListener('click', closeChat);
+    if ($('wa-delete-chat')) {
+      $('wa-delete-chat').addEventListener('click', function () {
+        if (waActiveTel) deleteWaThread(waActiveTel);
+      });
+    }
+    if ($('wa-clear-consultas')) {
+      $('wa-clear-consultas').addEventListener('click', clearConsultaChats);
+    }
     document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
         setWaInboxTab(btn.getAttribute('data-wa-tab'));

@@ -1,6 +1,6 @@
 # WhatsApp — operación, panel admin y coexistencia
 
-Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Actualizado sep 2026.
+Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Última actualización: sep 2026 — v1 en producción; descartadas plantillas Meta y purge 24 h.
 
 ---
 
@@ -113,34 +113,38 @@ Panel + webhook; celu con **otro** número o sin WhatsApp Business en 7372-1945.
 
 | Tema | Decisión |
 |------|----------|
-| **Sonido al mensaje WA** | **No** por ahora — el panel de chats está a la vista; el zumbido de pedidos nuevos web sigue. |
-| **Audios entrantes** | **No** implementar por el momento (quedan sin reproducir). |
-| **Historial de chats** | **Purgar a las 24 h** — no acumular hilos viejos en el panel; alinear API `listWaMessages`, UI y (si aplica) limpieza en Supabase. Hoy la API filtra ~48 h; falta bajar a 24 h y purga coherente con pestañas Consultas / cierre turno. |
+| **Sonido al mensaje WA** | **No** — panel visible; zumbido solo para pedidos web nuevos. |
+| **Audios entrantes** | **No** por ahora. |
+| **Historial de chats** | **Eliminar manual:** 🗑 en chat o **Vaciar** en pestaña Consultas (borra panel + Supabase). Al **cerrar caja** se ocultan chats de pedidos del turno (solo UI). |
+| **Purge automático 24 h** | **Descartado** — no implementar. |
+| **Plantillas Meta** | **Descartado** — fuera de ventana 24 h: pedir al cliente que escriba al abrir turno o usar wa.me. |
 
 ---
 
-## Panel admin — qué falta (priorizado)
+## Panel admin — estado
 
-### Para abrir Brava (alta prioridad)
+### ✅ Hecho (v1 producción)
 
-1. ~~**Sonido al mensaje nuevo en Chats**~~ — **descartado** (panel WA visible; ver decisiones arriba).
-2. ~~**Imágenes**~~ ✅ — ver/enviar JPG/PNG/WebP (`GET /api/whatsapp-inbox?id=…` para proxy de media).
-3. ~~**Audios**~~ — **fuera de alcance por ahora** (no reproducir notas de voz).
-4. **Plantillas Meta** — si el cliente no escribió en 24 h, la API no deja texto libre; hace falta plantilla aprobada (rechazo ya usa flujo aparte vía modal).
+- Inbox `wa-panel.js`: pestañas Pedidos activos / Consultas, badges, ORN, imágenes, envío texto.
+- Webhook, Supabase `wa_messages`, Realtime, bienvenida 1× por teléfono.
+- Limpieza chats de pedido al **cerrar turno** (solo UI).
+- **Eliminar chat** (🗑) y **Vaciar consultas** en pestaña Consultas (borra Supabase + panel).
+- Borrador auto al aceptar / en camino; fallback wa.me.
+- **Pedido manual** desde toolbar admin (no desde chat) — ver [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md).
 
-### Mejora operativa (media)
+### No vamos a implementar
 
-5. **Purgar historial chats 24 h** — ventana de lectura + limpieza UI/Supabase (ver decisiones).
-6. **Estados de entrega** — webhook recibe `sent` / `delivered` / `read`; no se muestran en el hilo (✓✓).
-7. **Enviar auto al cambiar estado** — hoy es borrador + botón enviar (aceptado / en camino); definir si querés one-click real.
-8. **Rechazo integrado al inbox** — el modal de rechazo sigue siendo wa.me / plantilla aparte.
+- Plantillas Meta aprobadas para mensajes fuera de 24 h.
+- Purge automático de historial cada 24 h.
+- Reproducir audios / notas de voz.
 
-### Más adelante (baja)
+### Mejoras opcionales (baja prioridad)
 
-9. ~~**Realtime Supabase en `wa_messages`**~~ ✅ (sep 2026).
-10. Buscar chat por nombre / teléfono.
-11. Pedido manual desde chat (ver `PEDIDO_MANUAL.md`).
-12. Plantillas marketing / “¿repetís pedido?”.
+- Estados de entrega en hilo (✓✓ sent/delivered/read).
+- Enviar auto al cambiar estado (hoy borrador + botón).
+- Buscar chat por nombre/tel en inbox.
+- Cambio de número WA definitivo — ver [Cambio de número (pendiente)](#cambio-de-número-pendiente).
+- Coexistencia celu + API — sección coexistencia abajo.
 
 ---
 

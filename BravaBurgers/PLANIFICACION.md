@@ -10,9 +10,32 @@ Cuando quieras agregar algo, decilo en el chat y lo incorporamos acá.
 
 ---
 
+## Estado actual (sep 2026)
 
+Resumen de lo **operativo en producción** (https://brava-burgers.vercel.app/admin/). Docs detallados: [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md), [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md), [`ZONAS_ENTREGA.md`](ZONAS_ENTREGA.md).
 
-## Lo que queremos (resumen — ago 2026)
+| Área | Estado |
+|------|--------|
+| Tienda web + checkout Mapbox | ✅ |
+| Zonas delivery (Mapbox + `/api/delivery-zone` + GeoJSON) | ✅ |
+| Panel admin (órdenes, caja, stock, comanda) | ✅ |
+| Inbox WhatsApp (`wa-panel.js`) | ✅ |
+| Pedido manual WA/teléfono | ✅ |
+| Reclamos: gratificar (cupón) + reenvío $0 | ✅ (`compensaciones.js`) |
+| Filtros órdenes (tel + EF/MP) | ✅ |
+| Editar comanda en Aceptados | ✅ |
+| Caja: refresh manual, salidas por burger | ✅ |
+
+**Pendiente operativo (Sheet, no código):** columna **`Atajo`** en pestañas `productos` y `extras` para pedido manual rápido.
+
+**Descartado / no priorizar:**
+
+- Flujo “My Maps en vivo” como proyecto aparte (polígonos ya en `data/zonas-entrega.geojson`; Mapbox en checkout).
+- Plantillas Meta WhatsApp fuera de ventana 24 h.
+- Purge automático de chats cada 24 h (sí hay limpieza de chats de **pedido** al **cerrar turno**).
+- Retiro en local / `ORN-RET`, pasarela MP online.
+
+---
 
 
 
@@ -70,15 +93,15 @@ Pantalla **Órdenes** tipo deli (referencia capturada), adaptada a Brava:
 
 | **Pestañas** | **Pendientes** · **Aceptados** · **Rechazados** · **Entregados** · **Cancelados** |
 
-| **Filtros** | Fecha desde/hasta, **Pago** (EF / MP), APLICAR / RESTABLECER *(pago/buscar: pendiente en UI)* |
+| **Filtros** | Fecha desde/hasta, **Pago** (EF / MP / Todos), **tel/cliente** en pipeline |
 
 | **Columnas** | Fecha, Cliente, **Teléfono**, Método de pago, Total, ORN, Acciones |
 
-| **Buscar** | Operación diaria por **teléfono** / WhatsApp; ORN es **referencia** en comanda *(buscador: pendiente)* |
+| **Buscar** | Por **teléfono** / cliente en barra de órdenes; ORN en comanda |
 
 | **Pendientes** | Aviso sonoro · **Aceptar** / **Rechazar** · WA · ticket |
 
-| **Aceptados** | **Editar** *(pendiente prod.)* · ticket · WA · **✓ entregado** · **✕ cancelar** |
+| **Aceptados** | **Editar** · ticket · WA · **✓ entregado** · **✕ cancelar** |
 
 | **Rechazados** | WA consulta · solo lectura |
 
@@ -88,7 +111,7 @@ Pantalla **Órdenes** tipo deli (referencia capturada), adaptada a Brava:
 
 | **Rechazar** | Desde **Pendientes** → Rechazados (modal motivos + WA) |
 
-| **Editar** | Mismo ORN; reimprimir comanda; total final al entregar *(pendiente prod.)* |
+| **Editar** | Mismo ORN; reimprimir comanda; total al entregar |
 
 | **Caja del día** | EF + MP entregados; cancelados info; **− gastos**; estados intermedios no suman |
 | **Registro de ventas** | Por turno de caja: hamburguesas (simples/dobles) + **Acompañamientos** + **Extras** + **Bebidas** (catálogo completo del Sheet, cantidades del turno) |
@@ -135,21 +158,27 @@ Pantalla **Órdenes** tipo deli (referencia capturada), adaptada a Brava:
 
 
 
-### 7. Por construir (orden lógico)
+### 7. Por construir — histórico
 
 
 
 1. ~~Schema Supabase + Vercel env + `/api/pedido` + `/api/admin`~~ → hecho.
 
-2. ~~Admin: pestañas, caja, gastos, rechazo, sonido~~ → hecho (Supabase).
+2. ~~Admin: pestañas, caja, gastos, rechazo, sonido~~ → hecho.
 
-3. ~~Comanda **dinámica** desde pedido real~~ → hecho (`/admin/comanda.html`).
+3. ~~Comanda dinámica desde pedido real~~ → hecho.
 
-4. **Editar** comanda en admin producción (solo en demo HTML por ahora).
+4. ~~Editar comanda en admin producción~~ → hecho.
 
-5. Filtros **Pago** + **buscar por tel** + **RESTABLECER** en panel.
+5. ~~Filtros Pago + buscar por tel en panel~~ → hecho.
 
-6. Opcional: importar histórico Sheet operaciones → Supabase; dual-write a Sheet (backup).
+6. ~~Pedido manual + agenda clientes~~ → hecho (ver [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md)).
+
+7. ~~Zonas checkout con Mapbox + polígonos~~ → hecho (ver [`ZONAS_ENTREGA.md`](ZONAS_ENTREGA.md)).
+
+8. ~~Reclamos / gratificación (cupón + reenvío)~~ → hecho (`admin/compensaciones.js`).
+
+9. Opcional: importar histórico Sheet operaciones → Supabase.
 
 
 
@@ -161,17 +190,15 @@ Pantalla **Órdenes** tipo deli (referencia capturada), adaptada a Brava:
 
 
 
-1. Probar ciclo completo: pedido web → panel → aceptar → entregar → caja.
+1. **Columna `Atajo` en Google Sheet** (`productos`, `extras`) — acelerar pedido manual (código ya lo lee).
 
-2. Usuario **Supabase Auth** (`admin@brava.com`) para Realtime estable.
+2. Probar ciclo completo en operación real: web + manual → entregar → caja → cierre.
 
-3. Comanda dinámica + editar en Aceptados.
-
-4. Actualizar este doc al cerrar cada ítem.
+3. Actualizar docs al cerrar cada ítem (este archivo).
 
 
 
-Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supabaseServer.js`, `api/pedido.js`, `api/admin.js`, `admin/` (v20+).
+Implementado en repo: `supabase/`, `lib/bravaSupabase.js`, `api/`, `admin/` (pedido manual, compensaciones, wa-panel, caja v126+).
 
 
 
@@ -247,7 +274,7 @@ Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supaba
 
 
 
-**Estado:** backend en **Vercel + Supabase**; panel en **`/admin`**. Falta pulir ticket dinámico y editar comanda.
+**Estado:** backend en **Vercel + Supabase**; panel en **`/admin`** operativo (comanda, editar, caja, WA inbox, pedido manual, reclamos).
 
 
 
@@ -261,7 +288,7 @@ Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supaba
 
 | **Checkout → API** | ✅ Hecho |
 
-| **Pantalla `/admin`** | ✅ Hecho (mejoras UX pendientes) |
+| **Pantalla `/admin`** | ✅ Hecho |
 
 | **Mercado Pago** | Solo etiqueta + caja manual |
 
@@ -309,7 +336,7 @@ Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supaba
 
 | Sección | Fuente Sheet | Qué cuenta |
 |---------|--------------|------------|
-| **Hamburguesas** | `productos` (simples/dobles por nombre) | Unidades entregadas |
+| **Hamburguesas** | `productos` (simples/dobles por nombre) | Unidades entregadas; **detalle por producto** en Caja → Salidas |
 | **Acompañamientos** | `productos` (categoría acompañamiento / entrada / papas, etc.) | Ítems sueltos entregados |
 | **Extras** | pestaña `extras` + extras en `variedad` de hamburguesas | Bacon, cheddar, pepinillos… |
 | **Bebidas** | `productos` (categoría bebida) | Coca Cola, Zero, Sprite… |
@@ -321,11 +348,11 @@ Implementado en repo: `supabase/schema.sql`, `lib/bravaSupabase.js`, `lib/supaba
 
 
 
-**Referencia visual — pantalla “Órdenes”:** ver maqueta `panel-pedidos-ejemplo.html`. En producción: columnas similares; faltan filtro pago y buscar tel.
+**Referencia visual — pantalla “Órdenes”:** producción con filtros tel/EF/MP, badge MANUAL, acciones Gratificar/Reenvío en Entregados.
 
 
 
-**Editar comanda (pendiente producción):** mismo ORN, `modificado` + `modificado_at`, total al entregar. Catálogo para precios sigue leyendo **Sheet** en la tienda; el admin debería reutilizar precios (API o cache).
+**Editar comanda:** modal en Aceptados; mismo ORN, reimprimir comanda, total al entregar.
 
 
 
@@ -471,27 +498,27 @@ stateDiagram-v2
 
 1. Webhook + Supabase `wa_messages` + envío `/api/whatsapp-send`.
 
-2. Inbox: Pedidos activos / Consultas, badges no leídos, chip ORN, snippets, wa.me fallback.
+2. Inbox panel (`wa-panel.js`): Pedidos activos / Consultas, badges, chip ORN, imágenes, wa.me fallback.
 
-3. Bienvenida 1× por cliente; purge de chats de pedido al cerrar turno.
+3. Bienvenida 1× por cliente; **limpieza chats de pedido al cerrar turno** (no es purge 24 h automático).
 
-
-
-**Próximo sugerido (pre-apertura):**
-
-1. **Pedido manual** — ver [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md) (demo UI lista; falta Supabase + admin real).
-
-2. Plantillas Meta (rechazo / fuera de 24 h).
-
-3. **Purgar chats WA a 24 h** — no sonido WA (panel visible); sin audios por ahora. Detalle: [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md) → *Decisiones inbox*.
-
-4. **Cambio de número WhatsApp** (pendiente) — hoy **7372-1945**; migrar API, Vercel, tienda y materiales cuando se defina el número definitivo. Checklist en [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md) → *Cambio de número (pendiente)*.
-
-5. Coexistencia o chip prepago — [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md).
+4. Borrador auto al aceptar / en camino; Realtime inbox.
 
 
 
-**Referencia demo:** `demo-admin-whatsapp-inbox.html` (raíz workspace local).
+**No vamos a implementar (sep 2026):**
+
+- Plantillas Meta para mensajes fuera de ventana 24 h (operación: pedir al cliente que escriba al abrir turno, o wa.me).
+
+- Purge automático de historial cada 24 h.
+
+
+
+**Opcional a futuro:** cambio de número WA definitivo, coexistencia celu+API — ver [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md).
+
+
+
+**Referencia demo (solo local):** `demo-admin-whatsapp-inbox.html`.
 
 
 
@@ -499,9 +526,15 @@ stateDiagram-v2
 
 
 
-## Reclamos y gratificación (ideas — sep 2026)
+## Reclamos y gratificación (sep 2026) — ✅ integrado en admin
 
-**Demo interactivo (admin + tienda):** [`demo-reclamos-gratificacion.html`](demo-reclamos-gratificacion.html) — cupón automático, reenvío clonado, checkout con código. Solo local / Vercel, sin backend.
+
+
+**Producción:** [`admin/compensaciones.js`](admin/compensaciones.js) + tabla Supabase `compensaciones` + cupones en checkout (`/api/cupon`).
+
+En pedidos **Entregados**: botones **Gratificar** (cupón + mensaje WA) y **Reenvío** (clonar ítems seleccionados a $0 en Pendientes). Comanda muestra badge reenvío y línea de cupón.
+
+**Demo histórico (no usar como referencia operativa):** [`demo-reclamos-gratificacion.html`](demo-reclamos-gratificacion.html).
 
 
 
@@ -558,17 +591,13 @@ Cuando un cliente se queja (pedido frío, faltante, demora, error de cocina). Ob
 
 
 
-### Qué podría ser producto después (backlog)
+### Backlog reclamos (mejoras opcionales)
 
 
 
-- Botón **“Reclamo”** en tarjeta de pedido → modal motivo + acción + snippet WA prearmado.
+- Reporte de reclamos en ticket de cierre.
 
-- Tabla `reclamos` o campos en `orders` + reporte en cierre.
-
-- Cupones con código único por teléfono (1 uso) validados al crear pedido web/manual.
-
-- Límite automático: “máx. 1 gratificación por teléfono por turno” para ever abuso.
+- Límite automático: máx. 1 gratificación por teléfono por turno.
 
 
 
@@ -592,7 +621,17 @@ Cuando un cliente se queja (pedido frío, faltante, demora, error de cocina). Ob
 
 - Panel **`/admin`**: login, 5 pestañas, aceptar/rechazar, entregar/cancelar, caja, gastos, sonido, **ticket/comanda 80 mm**
 
-- **Registro de ventas** por turno: acompañamientos, extras y bebidas dinámicos desde Sheet (Resumen operativo + Cierre operativo + historial snapshot)
+- **Registro de ventas** por turno: hamburguesas **por producto** (simples/dobles) + acompañamientos, extras y bebidas desde Sheet
+
+- **Pedido manual** (modal, agenda, NO COBRADO, sin turno delivery)
+
+- **Reclamos:** gratificar + reenvío en Entregados
+
+- **Caja:** botón actualizar turno; filtros tel/EF/MP en órdenes
+
+- **Checkout zonas:** Mapbox + `/api/delivery-zone` + `data/zonas-entrega.geojson`
+
+- **Inbox WhatsApp** en panel (`wa-panel.js`)
 
 - Backend operaciones en **Supabase** + env en **Vercel**
 
@@ -630,25 +669,18 @@ Cuando un cliente se queja (pedido frío, faltante, demora, error de cocina). Ob
 
 
 
-## Pedido manual WhatsApp / teléfono (ago 2026)
+## Pedido manual WhatsApp / teléfono — ✅ producción
 
 
 
-Pedidos por WA o mostrador que no pasan por la web. **Plan detallado:** [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md).
+Ver [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md). Botón **Pedido manual** en toolbar admin (requiere caja abierta).
 
-
-
-| Estado | Ítem |
-
-|--------|------|
-
-| **Demo UI** | `demo-admin-estado-salon-pedido-manual.html` — modal emisión, comanda+cobro, extras/envío como líneas, agenda cliente unificada |
-
-| **Próximo** | Supabase `clientes` + columnas en `orders` + API + port al admin real |
-
-| **Agenda** | Web y manual comparten teléfono; upsert en cada pedido; editar dirección para próximos pedidos |
-
-| **Envío** | Líneas catálogo (601, 602…), no selector aparte |
+| Ítem | Estado |
+|------|--------|
+| UI + API + Supabase `clientes` | ✅ |
+| Sin validación turno delivery | ✅ |
+| Badge MANUAL, filtros panel | ✅ |
+| Columna **Atajo** en Sheet | Pendiente (operativo) |
 
 
 
@@ -656,29 +688,13 @@ Pedidos por WA o mostrador que no pasan por la web. **Plan detallado:** [`PEDIDO
 
 
 
-## Zonas de entrega — My Maps (sep 2026)
+## Zonas de entrega — ✅ Mapbox + GeoJSON
 
 
 
-Solo **checkout web**: al cargar dirección, detectar automáticamente si está **dentro o fuera** del área dibujada en **Google My Maps** (export KML → GeoJSON; validación point-in-polygon con lat/lng de Mapbox).
+Checkout web: **Mapbox** (dirección, mapa, lat/lng) + **`GET /api/delivery-zone`** contra `data/zonas-entrega.geojson`.
 
-
-
-**Plan detallado:** [`ZONAS_ENTREGA.md`](ZONAS_ENTREGA.md)
-
-
-
-| Estado | Ítem |
-
-|--------|------|
-
-| **Hoy** | Bbox aproximado en `address-suggest`; zonas/costo por Sheet + selector |
-
-| **Próximo** | Export My Maps → `data/zonas-entrega.kml` + API `/api/delivery-zone` + bloqueo checkout fuera de zona |
-
-| **Mapa** | [My Maps Brava Burgers](https://www.google.com/maps/d/viewer?mid=19CBdgAGGJnksChZYmVvWSzqaqTgZOuU) — 1 polígono cobertura |
-
-| **Demo** | [`demo-tienda-zona-entrega.html`](demo-tienda-zona-entrega.html) — checkout + mapa (`npx vercel dev`) |
+My Maps solo sirve opcionalmente para **redibujar** polígonos y reexportar GeoJSON — no hay flujo “My Maps en vivo”. Detalle: [`ZONAS_ENTREGA.md`](ZONAS_ENTREGA.md).
 
 
 
@@ -698,5 +714,5 @@ Solo **checkout web**: al cargar dirección, detectar automáticamente si está 
 
 
 
-_Última actualización: decisiones inbox WA (sin sonido, sin audios, purge 24 h); ideas reclamos/gratificación._
+_Última actualización: sep 2026 — pedido manual, caja/salidas, Mapbox zonas, WA inbox, reclamos integrados; descartadas plantillas WA y purge 24 h._
 

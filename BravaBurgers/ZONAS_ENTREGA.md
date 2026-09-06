@@ -1,208 +1,74 @@
-# Zonas de entrega — My Maps + checkout web
+# Zonas de entrega — Mapbox + GeoJSON (producción)
 
-Validar automáticamente si la dirección del cliente está **dentro o fuera** del área de delivery, usando los límites dibujados en **Google My Maps**.
+Validación automática en **checkout web**: ¿entregamos en esta dirección?
 
-**Alcance:** solo **tienda web** (checkout). Pedido manual sigue con líneas de envío 601/602… (ver `PEDIDO_MANUAL.md`).
+**Alcance:** tienda web. Pedido manual usa líneas de envío 601/602… (ver [`PEDIDO_MANUAL.md`](PEDIDO_MANUAL.md)).
 
 Última actualización: sep 2026.
 
 ---
 
-## Mapa operativo (Brava)
+## Estado en producción ✅
 
-| | URL |
-|---|-----|
-| **Editar** | https://www.google.com/maps/d/u/0/edit?mid=19CBdgAGGJnksChZYmVvWSzqaqTgZOuU |
-| **Ver** | https://www.google.com/maps/d/viewer?mid=19CBdgAGGJnksChZYmVvWSzqaqTgZOuU |
-| **Export KML** | https://www.google.com/maps/d/kml?mid=19CBdgAGGJnksChZYmVvWSzqaqTgZOuU&forcekml=1 |
-| **Map ID** | `19CBdgAGGJnksChZYmVvWSzqaqTgZOuU` |
+| Pieza | Archivo / ruta |
+|-------|----------------|
+| Mapa + autocompletado dirección | **Mapbox** — `brava-checkout-map.js`, `/api/mapbox-config` |
+| Sugerencias de calle | `brava-address.js`, `/api/address-suggest` |
+| Validación point-in-polygon | **`GET /api/delivery-zone?lat=&lng=`** — `api/delivery-zone.js` |
+| Polígonos (7 barrios) | `data/zonas-entrega.geojson` — `lib/deliveryZone.js` |
+| Cliente checkout | `brava-delivery-zone-client.js` (incluido en `index.html`) |
+| Costo / nombre zona | Sheet `configuracion` + match por nombre devuelto por API |
 
-Título del mapa: **Brava Burgers** — *Zona de Cobertura - BRAVA BURGERS*.
+**Barrios:** Olivos · La Lucila · Martinez · Acasusso · Munro · Carapachay · Villa Adelina.
 
-### Contenido actual (sep 2026)
-
-- **7 polígonos** en My Maps, uno por barrio:
-  Olivos · La Lucila · Martinez · Acasusso · Munro · Carapachay · Villa Adelina.
-- **Adentro de alguno** → se puede pedir + detectar zona y costo (Sheet).
-- **Afuera de los 7** → bloquear checkout.
-- El polígono amarillo legacy (`Polígono 5`) **no se usa** — ignorado al exportar.
-- Copia KML en repo: [`data/zonas-entrega.kml`](data/zonas-entrega.kml) (re-exportar al cambiar el mapa).
+**Fuera de los 7 polígonos** → checkout bloqueado.
 
 ---
 
-## Objetivo
+## My Maps — solo referencia opcional
 
-Cuando el cliente carga/selecciona su dirección en el checkout:
+**No usamos My Maps en runtime.** Los polígonos viven en **`data/zonas-entrega.geojson`** en el repo.
 
-1. Obtener **calle y altura** desde **Mapbox** (solo sugerencias con numeración verificada en `f.address`).
-2. Obtener **lat/lng** de esa sugerencia (mismo origen Mapbox).
-3. Comparar el punto contra los **7 polígonos** del mapa → **zona** y costo del Sheet.
-4. **Dentro del polígono + altura confirmada por Mapbox** → permitir pedido.
-5. **Calle en zona pero altura no confirmada** → avisar (*no confirmamos esa numeración*).
-6. **Fuera de los 7 polígonos** → bloquear pedido.
+My Maps puede servir para **redibujar** zonas si preferís la UI de Google:
 
-### División de responsabilidades
+1. Editar [mapa Brava](https://www.google.com/maps/d/edit?mid=19CBdgAGGJnksChZYmVvWSzqaqTgZOuU)
+2. Export KML → convertir a GeoJSON
+3. Reemplazar `data/zonas-entrega.geojson` → commit → deploy Vercel
+
+Map ID: `19CBdgAGGJnksChZYmVvWSzqaqTgZOuU`
+
+---
+
+## División de responsabilidades
 
 | Fuente | Qué define |
 |--------|------------|
-| **Polígonos My Maps** | ¿Entregamos acá? → barrio/zona + costo envío |
-| **Mapbox** | ¿Existe calle + altura? → dirección, coordenadas, autocompletado |
-
-No mezclar: el polígono **no inventa** calles ni numeración; Mapbox **no define** la zona de cobertura (solo geocodifica).
-
----
-
-## Contexto actual (código)
-
-| Pieza | Estado |
-|-------|--------|
-| Autocompletado dirección | `brava-address.js` + `/api/address-suggest` (Mapbox) |
-| Sugerencias con `lat`, `lng` | Ya parseado en `address-suggest.js` |
-| Filtro grosso | `DELIVERY_BBOX` (rectángulo aprox.) — **reemplazar por polígono real** |
-| Zona + costo checkout | Sheet `configuracion` (`Zona N - Nombre/Costo`) + selector en tienda |
-| Match localidad → zona | `bravaMatchZonaNombre()` (heurística texto) |
+| **GeoJSON en repo** | ¿Entregamos acá? → nombre de barrio/zona |
+| **Mapbox** | Dirección, lat/lng, mapa interactivo, altura verificada |
+| **Google Sheet** | Costo de envío por zona (`Zona N - Costo`) |
 
 ---
 
-## Limitación importante: My Maps
+## Mantenimiento
 
-**Google My Maps no tiene API en vivo** para leer polígonos desde la tienda en cada pedido.
+Al cambiar cobertura:
 
-Flujo operativo acordado:
-
-```
-My Maps (editar mapa Brava Burgers)
-    → Export KML (URL arriba o My Maps → ⋮ → Exportar KML)
-    → Actualizar `data/zonas-entrega.kml` en repo
-    → (Opcional) script → `data/zonas-entrega.geojson`
-    → Deploy Vercel
-    → Checkout valida contra GeoJSON/KML convertido
-```
-
-Cuando cambien el mapa en My Maps → **re-exportar + push** (documentar en `sheets/OPERACIONES.md`).
-
----
-
-## Modelo de datos GeoJSON
-
-El GeoJSON tiene **7 features** (solo zonas, sin polígono amarillo):
-
-| `properties.nombre` | Uso |
-|---------------------|-----|
-| Olivos, La Lucila, Martinez, Acasusso, Munro, Carapachay, Villa Adelina | ¿En qué barrio cae? → match con Sheet |
-
-Si un punto cae en más de una zona (solapamiento), regla: la de **menor área**.
-
----
-
-## Implementación técnica (propuesta)
-
-### 1. Archivo de zonas
-
-- Ruta: `BravaBurgers/data/zonas-entrega.geojson`
-- Script opcional: `scripts/kml-to-geojson.js` (input KML exportado de My Maps).
-- Versionar en git; cache bust con `?v=` o hash en nombre.
-
-### 2. API validación (recomendado servidor)
-
-`GET /api/delivery-zone?lat=…&lng=…`
-
-Respuesta:
-
-```json
-{
-  "ok": true,
-  "dentro": true,
-  "zona": "Olivos",
-  "envio": 800
-}
-```
-
-o `{ "ok": true, "dentro": false }`
-
-- Cargar GeoJSON en memoria (con cache en cold start).
-- **Point-in-polygon:** `@turf/boolean-point-in-polygon` o implementación ligera sin dependencia pesada.
-- Si varias zonas contienen el punto (solapamiento), regla: la más específica / menor área / orden en properties (definir).
-
-### 3. Checkout web (`brava-address.js` / `brava-shop.js`)
-
-Al **elegir sugerencia** de dirección (ya tiene lat/lng):
-
-1. Llamar `/api/delivery-zone`.
-2. Si `dentro === false` → mensaje + deshabilitar «Confirmar pedido».
-3. Si `dentro === true` y hay `zona` → pre-seleccionar dropdown de zona y costo.
-4. Si escriben dirección a mano sin elegir sugerencia → al blur o al confirmar, geocodificar una vez y validar.
-
-Estados UI sugeridos:
-
-- 🟢 «Entregamos en tu zona»
-- 🔴 «Fuera de zona de entrega» (+ link WA opcional)
-
-### 4. Seguridad / pedido
-
-- Validar **otra vez en servidor** al crear pedido (`/api/pedido` o `createOrderFromShop`) para no confiar solo en el cliente.
-- Rechazar con `409` + `error: 'fuera_de_zona'` si lat/lng fuera del polígono.
-
-### 5. Campos opcionales en `orders`
-
-- `lat`, `lng` en pedido (migración Supabase) — útil para reparto y auditoría.
-- O guardar en `items_json` / metadata si no queremos migración aún.
+1. Actualizar polígonos en GeoJSON (vía My Maps export o edición directa).
+2. Alinear nombres de zona con filas del Sheet `configuracion`.
+3. Push a `main` → Vercel redeploy.
+4. Probar checkout con dirección dentro y fuera de zona.
 
 ---
 
 ## Qué NO cambia
 
-- Admin / pedido manual: envío como línea 601…
-- Mapbox token y `address-suggest` (solo se afina el bbox o se deja como hint).
-- Hoja de ruta / reparto (`demo-hoja-ruta-mapbox.html`) — independiente.
+- Admin / pedido manual: envío como línea catálogo.
+- Inbox WhatsApp / wa-panel.
+- Hoja de ruta reparto (`demo-hoja-ruta-mapbox.html` — demo aparte).
 
 ---
 
-## Fases
+## Descartado
 
-| Fase | Tarea |
-|------|--------|
-| 1 | Exportar KML desde My Maps de Brava → primer GeoJSON |
-| 2 | Script conversión + `data/zonas-entrega.geojson` en repo |
-| 3 | API `delivery-zone` + point-in-polygon |
-| 4 | UI checkout: validar al pick + mensaje fuera de zona |
-| 5 | Validación server-side en `createOrderFromShop` |
-| 6 | Doc operativa: «cómo actualizar zonas» en OPERACIONES |
-| 7 | *(Opcional)* Auto-zona + costo si multi-polígono |
-
-Estimado: 1–2 sesiones después de tener el KML exportado.
-
----
-
-## Decisiones pendientes
-
-- [x] ¿Un polígono o varios? → **7 polígonos** nombrados; fuera de todos = no entregamos; costo por Sheet.
-- [ ] Mensaje exacto fuera de zona + CTA WhatsApp
-- [x] Acasusso en Sheet → **$1000** (ver `sheets/brava-configuracion.csv`; replicar en Google Sheet live)
-
----
-
-## Archivos
-
-| Archivo | Estado |
-|---------|--------|
-| `data/zonas-entrega.kml` | Export My Maps |
-| `data/zonas-entrega.geojson` | Generado (91 puntos) |
-| `lib/deliveryZone.js` | Hecho — point-in-polygon |
-| `api/delivery-zone.js` | Hecho — `GET ?lat=&lng=` |
-| `brava-delivery-zone-client.js` | Hecho — cliente demo |
-| `demo-tienda-zona-entrega.html` | **Demo checkout + mapa** |
-| `brava-address.js` | Hook `bravaOnAddressPicked` |
-| `brava-shop.js` | Hecho — checkout + banner + auto-zona |
-| `lib/bravaSupabase.js` | Hecho — validar lat/lng al crear pedido |
-| `api/address-suggest.js` | Hecho — filtro 7 zonas |
-| `sheets/OPERACIONES.md` | Pendiente — re-export My Maps |
-
----
-
-## Checklist cierre
-
-1. Probar direcciones dentro / fuera del polígono real.
-2. Pedido web fuera de zona no debe crearse en Supabase.
-3. Actualizar My Maps → re-export → verificar en prod con `?v=`.
-4. Mover ítems a **Hecho** en este doc.
+- Proyecto “integrar My Maps en vivo” en cada pedido (sin API pública).
+- Demo `demo-tienda-zona-entrega.html` como camino de implementación (ya integrado en tienda real).
