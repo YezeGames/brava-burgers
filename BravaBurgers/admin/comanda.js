@@ -1,5 +1,5 @@
 (function (global) {
-  var COMANDA_VER = 19;
+  var COMANDA_VER = 20;
 
   function $(id) {
     return document.getElementById(id);
@@ -256,7 +256,7 @@
         ' ***</div>';
     }
 
-    var envioLabel = envio > 0 ? 'Envío' + (order.zona ? ' (' + esc(order.zona) + ')' : '') : 'Envío';
+    var envioLabel = 'Envío';
     var notaPedido = orderNotaPedido(order);
     var ajuste = reenvio ? null : orderAjusteInfo(order, sub, envio, total);
 
