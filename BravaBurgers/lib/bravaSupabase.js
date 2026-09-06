@@ -1047,6 +1047,80 @@ async function listCompensacionOrigenes(limit) {
   return { ok: true, origenes: origenes };
 }
 
+function reenvioItemQty(it) {
+  const q = it && it.qty != null ? it.qty : it && it.cantidad;
+  const n = Number(q);
+  return isNaN(n) || n <= 0 ? 1 : n;
+}
+
+function reenvioItemLabel(it) {
+  const name = String((it && (it.nombre || it.name)) || 'Ítem').trim();
+  const parts = [];
+  if (it && it.variedad) parts.push(String(it.variedad).trim());
+  if (it && it.acl) parts.push(String(it.acl).trim());
+  const extra = parts.length ? ' · ' + parts.join(' · ') : '';
+  return name + extra;
+}
+
+function reenvioItemsSummary(items) {
+  return (items || [])
+    .map(function (it) {
+      return reenvioItemQty(it) + '× ' + reenvioItemLabel(it);
+    })
+    .join(', ');
+}
+
+function parseOrderItemsJson(raw) {
+  if (!raw) return [];
+  let items = raw;
+  if (typeof items === 'string') {
+    try {
+      items = JSON.parse(items);
+    } catch (e) {
+      items = [];
+    }
+  }
+  return JSON.parse(JSON.stringify(Array.isArray(items) ? items : []));
+}
+
+function buildReenvioItemsFromSelection(origItems, selection) {
+  const orig = Array.isArray(origItems) ? origItems : [];
+  if (!selection || !selection.length) {
+    return JSON.parse(JSON.stringify(orig));
+  }
+  const out = [];
+  selection.forEach(function (sel) {
+    const idx = Number(sel && sel.index);
+    if (isNaN(idx) || idx < 0 || idx >= orig.length) return;
+    const src = orig[idx];
+    const maxQty = reenvioItemQty(src);
+    let qty = sel.qty != null ? Number(sel.qty) : maxQty;
+    if (isNaN(qty) || qty <= 0) qty = maxQty;
+    qty = Math.min(qty, maxQty);
+    const copy = JSON.parse(JSON.stringify(src));
+    copy.qty = qty;
+    copy.cantidad = qty;
+    out.push(copy);
+  });
+  return out;
+}
+
+function reenvioIsPartial(origItems, selectedItems) {
+  const orig = Array.isArray(origItems) ? origItems : [];
+  const sel = Array.isArray(selectedItems) ? selectedItems : [];
+  if (!orig.length) return false;
+  if (sel.length !== orig.length) return true;
+  var origUnits = 0;
+  var selUnits = 0;
+  orig.forEach(function (it) {
+    origUnits += reenvioItemQty(it);
+  });
+  sel.forEach(function (it) {
+    selUnits += reenvioItemQty(it);
+  });
+  return selUnits < origUnits;
+}
+
 async function createReenvio(body) {
 
   const origOrn = String(body.orn || body.orn_origen || '').trim();
@@ -1087,86 +1161,47 @@ async function createReenvio(body) {
 
   const newOrn = ornRes.data;
 
-
-
-  let items = orig.items_json;
-
-  if (typeof items === 'string') {
-
-    try {
-
-      items = JSON.parse(items);
-
-    } catch (e) {
-
-      items = [];
-
-    }
-
+  const origItems = parseOrderItemsJson(orig.items_json);
+  let items = buildReenvioItemsFromSelection(origItems, body.itemsSelection);
+  if (!items.length) {
+    return { ok: false, error: 'items_requeridos' };
   }
 
-  items = JSON.parse(JSON.stringify(Array.isArray(items) ? items : []));
+  const partial = reenvioIsPartial(origItems, items);
+  const aclNote = (partial ? 'Reenvío parcial reclamo ' : 'Reenvío reclamo ') + origOrn;
 
   if (items.length) {
-
     items[0].acl = String(items[0].acl || '').trim();
-
-    items[0].acl = (items[0].acl ? items[0].acl + ' · ' : '') + 'Reenvío reclamo ' + origOrn;
-
+    items[0].acl = (items[0].acl ? items[0].acl + ' · ' : '') + aclNote;
   }
 
-
-
   const row = {
-
     orn: newOrn,
-
     estado: 'pendiente',
-
     cliente: orig.cliente || '',
-
     telefono: orig.telefono || '',
-
     direccion: orig.direccion || '',
-
     localidad: orig.localidad || '',
-
     piso: orig.piso || '',
-
     turno: orig.turno || '',
-
     zona: orig.zona || '',
-
     envio: 0,
-
     pago: orig.pago || '',
-
     items_json: items,
-
     subtotal: 0,
-
     total: 0,
-
     descuento: 0,
-
     reenvio_de: origOrn,
-
-    modificado: 'REENVIO',
-
+    modificado: partial ? 'REENVIO_PARCIAL' : 'REENVIO',
   };
-
-
 
   const ins = await restInsert('orders', row);
 
   if (!ins.ok) return supabaseFail(ins, 'insert_failed');
 
+  const waText = buildReenvioWaText(orig.cliente, newOrn, origOrn, partial ? reenvioItemsSummary(items) : '');
 
-
-  const waText = buildReenvioWaText(orig.cliente, newOrn, origOrn);
-
-  return { ok: true, orn: newOrn, reenvio_de: origOrn, waText: waText };
-
+  return { ok: true, orn: newOrn, reenvio_de: origOrn, partial: partial, waText: waText };
 }
 
 

@@ -163,6 +163,7 @@ async function handleSupabaseAdmin(body) {
     return createReenvio({
       orn: body.orn,
       orn_origen: body.orn,
+      itemsSelection: body.itemsSelection,
     });
   }
 

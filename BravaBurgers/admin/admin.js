@@ -3852,6 +3852,7 @@
         paymentTagHtml(o.pago) +
 
         (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '') +
+        (String(o.modificado || '').toUpperCase() === 'REENVIO_PARCIAL' ? ' <span class="badge-mod">reenvío parcial</span>' : '') +
         (Number(o.descuento) > 0 ? ' <span class="badge-mod">cupón</span>' : '') +
         (o.reenvio_de ? ' <span class="badge-mod">reenvío</span>' : '') +
         orderReclamoBadgeHtml(o);
@@ -4001,7 +4002,7 @@
             'btn-sm btn-x',
             'reenvio',
             o.orn,
-            'Clonar pedido $0 en Pendientes por reclamo'
+            'Clonar ítems seleccionados $0 en Pendientes por reclamo'
           );
 
         }

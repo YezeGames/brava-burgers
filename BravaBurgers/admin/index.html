@@ -564,6 +564,43 @@
 			max-height: 140px;
 			overflow-y: auto;
 		}
+		.modal.modal-reenvio { max-width: 520px; }
+		.reenvio-hint {
+			font-size: 0.78rem;
+			color: var(--text-muted);
+			margin: 0 0 10px;
+			line-height: 1.35;
+		}
+		.reenvio-toolbar {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 8px;
+			margin-bottom: 8px;
+		}
+		.reenvio-item {
+			grid-template-columns: auto 1fr auto;
+		}
+		.reenvio-item-label {
+			line-height: 1.35;
+		}
+		.reenvio-item-sub {
+			display: block;
+			font-size: 0.72rem;
+			color: var(--text-muted);
+			margin-top: 2px;
+		}
+		.reenvio-item-cb {
+			width: auto;
+			margin: 0;
+		}
+		.reenvio-item-qty {
+			min-width: 88px;
+			justify-content: center;
+		}
+		.reenvio-item-qty.is-disabled {
+			opacity: 0.45;
+			pointer-events: none;
+		}
 		.comanda-modal-chrome .comanda-auto-print-lbl {
 			display: inline-flex;
 			align-items: center;
@@ -2050,6 +2087,23 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="reenvio-modal" role="dialog" aria-labelledby="reenvio-modal-title">
+		<div class="modal modal-reenvio">
+			<h2 id="reenvio-modal-title">Reenvío por reclamo</h2>
+			<p class="sub" id="reenvio-orn-ref"></p>
+			<p class="reenvio-hint">Marcá qué ítems van en el reenvío $0. Si pediste 3 burgers y 2 salieron mal, tildá solo esas.</p>
+			<div class="reenvio-toolbar">
+				<button type="button" class="btn-sm" id="reenvio-select-all">Todo el pedido</button>
+				<button type="button" class="btn-sm" id="reenvio-select-none">Ninguno</button>
+			</div>
+			<div class="modal-items" id="reenvio-items"></div>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="reenvio-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="reenvio-confirm"><i class="fab fa-whatsapp"></i> Crear reenvío $0</button>
+			</div>
+		</div>
+	</div>
+
 	<div class="modal-backdrop hidden" id="comanda-modal" role="dialog" aria-labelledby="comanda-modal-title">
 		<div class="modal comanda-modal-box">
 			<h2 id="comanda-modal-title">Comanda</h2>
@@ -2074,7 +2128,7 @@
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=10"></script>
 	<script src="/admin/wa-panel.js?v=22"></script>
-	<script src="/admin/compensaciones.js?v=3"></script>
-	<script src="/admin/admin.js?v=119"></script>
+	<script src="/admin/compensaciones.js?v=4"></script>
+	<script src="/admin/admin.js?v=120"></script>
 </body>
 </html>

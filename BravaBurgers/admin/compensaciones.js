@@ -6,6 +6,9 @@
 
   var modalOrn = null;
   var modalOrder = null;
+  var reenvioOrn = null;
+  var reenvioOrder = null;
+  var reenvioItems = [];
 
   function $(id) {
     return document.getElementById(id);
@@ -211,7 +214,127 @@
 
   bindUi();
 
-  function confirmReenvio(orn) {
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function parseOrderItemsSimple(o) {
+    if (!o) return [];
+    if (Array.isArray(o.items) && o.items.length) return JSON.parse(JSON.stringify(o.items));
+    if (!o.items_json) return [];
+    try {
+      var j = typeof o.items_json === 'string' ? JSON.parse(o.items_json) : o.items_json;
+      return Array.isArray(j) ? JSON.parse(JSON.stringify(j)) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function reenvioItemQty(it) {
+    var q = it && it.qty != null ? it.qty : it && it.cantidad;
+    q = parseFloat(q);
+    return isNaN(q) || q <= 0 ? 1 : q;
+  }
+
+  function reenvioItemLabel(it) {
+    var name = String((it && (it.nombre || it.name)) || 'Ítem').trim();
+    var parts = [];
+    if (it && it.variedad) parts.push(String(it.variedad).trim());
+    if (it && it.acl) parts.push(String(it.acl).trim());
+    var extra = parts.length ? ' · ' + parts.join(' · ') : '';
+    return name + extra;
+  }
+
+  function closeReenvioModal() {
+    $('reenvio-modal').classList.add('hidden');
+    reenvioOrn = null;
+    reenvioOrder = null;
+    reenvioItems = [];
+    $('reenvio-items').innerHTML = '';
+  }
+
+  function setReenvioQty(idx, delta) {
+    var wrap = $('reenvio-items');
+    var row = wrap && wrap.querySelector('.reenvio-item[data-idx="' + idx + '"]');
+    if (!row) return;
+    var max = reenvioItemQty(reenvioItems[idx]);
+    var qtyEl = row.querySelector('[data-reenvio-qty]');
+    var cur = parseInt(qtyEl.textContent, 10) || 1;
+    cur = Math.max(1, Math.min(max, cur + delta));
+    qtyEl.textContent = String(cur);
+  }
+
+  function renderReenvioItems() {
+    var box = $('reenvio-items');
+    if (!box) return;
+    if (!reenvioItems.length) {
+      box.innerHTML = '<p class="reenvio-hint">Este pedido no tiene ítems cargados.</p>';
+      return;
+    }
+    box.innerHTML = reenvioItems
+      .map(function (it, idx) {
+        var maxQty = reenvioItemQty(it);
+        var label = reenvioItemLabel(it);
+        var qtyCtrl =
+          maxQty > 1
+            ? '<div class="modal-qty reenvio-item-qty">' +
+              '<button type="button" data-reenvio-minus="' +
+              idx +
+              '" aria-label="Menos">−</button>' +
+              '<span data-reenvio-qty>' +
+              maxQty +
+              '</span>' +
+              '<button type="button" data-reenvio-plus="' +
+              idx +
+              '" aria-label="Más">+</button>' +
+              '</div>'
+            : '<div class="modal-qty reenvio-item-qty is-disabled"><span data-reenvio-qty">1</span></div>';
+        return (
+          '<label class="modal-item reenvio-item" data-idx="' +
+          idx +
+          '">' +
+          '<input type="checkbox" class="reenvio-item-cb" data-reenvio-idx="' +
+          idx +
+          '" checked>' +
+          '<span class="reenvio-item-label">' +
+          escapeHtml(maxQty + '× ' + label) +
+          (maxQty > 1 ? '<small class="reenvio-item-sub">Cantidad a reenviar</small>' : '') +
+          '</span>' +
+          qtyCtrl +
+          '</label>'
+        );
+      })
+      .join('');
+  }
+
+  function setReenvioChecks(checked) {
+    var box = $('reenvio-items');
+    if (!box) return;
+    box.querySelectorAll('.reenvio-item-cb').forEach(function (cb) {
+      cb.checked = !!checked;
+    });
+  }
+
+  function collectReenvioSelection() {
+    var box = $('reenvio-items');
+    var out = [];
+    if (!box) return out;
+    box.querySelectorAll('.reenvio-item').forEach(function (row) {
+      var idx = parseInt(row.getAttribute('data-idx'), 10);
+      var cb = row.querySelector('.reenvio-item-cb');
+      if (!cb || !cb.checked || isNaN(idx)) return;
+      var qtyEl = row.querySelector('[data-reenvio-qty]');
+      var qty = parseInt(qtyEl && qtyEl.textContent, 10) || reenvioItemQty(reenvioItems[idx]);
+      out.push({ index: idx, qty: qty });
+    });
+    return out;
+  }
+
+  function openReenvioModal(orn) {
     if (!global.getAdminToken || !global.findOrderByOrn) return;
     var o = global.findOrderByOrn(orn);
     if (!o) return;
@@ -219,10 +342,30 @@
       alert('Este pedido ya es un reenvío.');
       return;
     }
-    if (!confirm('¿Generar reenvío $0 por reclamo de ' + orn + '?')) return;
-    adminApi({ action: 'createReenvio', orn: orn })
+    reenvioOrn = orn;
+    reenvioOrder = o;
+    reenvioItems = parseOrderItemsSimple(o);
+    $('reenvio-orn-ref').textContent = o.orn + ' · ' + (o.cliente || '') + ' · ' + (o.telefono || '');
+    renderReenvioItems();
+    $('reenvio-modal').classList.remove('hidden');
+  }
+
+  function submitReenvio() {
+    if (!reenvioOrder || !reenvioOrn) return;
+    var selection = collectReenvioSelection();
+    if (!selection.length) {
+      alert('Marcá al menos un ítem para el reenvío.');
+      return;
+    }
+    var btn = $('reenvio-confirm');
+    btn.disabled = true;
+    adminApi({ action: 'createReenvio', orn: reenvioOrn, itemsSelection: selection })
       .then(function (data) {
         if (!data.ok) {
+          if (data.error === 'items_requeridos') {
+            alert('Marcá al menos un ítem para el reenvío.');
+            return;
+          }
           if (data.error === 'reenvio_pendiente_existe' || data.error === 'reenvio_ya_existe') {
             alert('Ya hay un reenvío para este pedido: ' + (data.orn || ''));
             return;
@@ -241,7 +384,9 @@
           alert('No se pudo crear el reenvío: ' + (data.error || 'error'));
           return;
         }
-        var waTo = telWa(o.telefono);
+        var orderRef = reenvioOrder;
+        closeReenvioModal();
+        var waTo = telWa(orderRef.telefono);
         if (!waTo) {
           alert('Reenvío ' + data.orn + ' creado en Pendientes (sin teléfono para WA).');
           if (global.fetchOrdersFromServer) global.fetchOrdersFromServer(true);
@@ -249,12 +394,7 @@
         }
         return sendWa(waTo, data.waText).then(function (waRes) {
           if (!waRes.ok) {
-            alert(
-              'Reenvío ' +
-                data.orn +
-                ' en Pendientes, pero falló WhatsApp: ' +
-                (waRes.error || 'error')
-            );
+            alert('Reenvío ' + data.orn + ' en Pendientes, pero falló WhatsApp: ' + (waRes.error || 'error'));
           } else {
             alert('Reenvío ' + data.orn + ' creado y avisado por WhatsApp.');
           }
@@ -263,7 +403,46 @@
       })
       .catch(function () {
         alert('Error de red al crear reenvío.');
+      })
+      .finally(function () {
+        btn.disabled = false;
       });
+  }
+
+  function bindReenvioUi() {
+    var modal = $('reenvio-modal');
+    if (!modal) return;
+    $('reenvio-cancel').addEventListener('click', closeReenvioModal);
+    $('reenvio-confirm').addEventListener('click', submitReenvio);
+    $('reenvio-select-all').addEventListener('click', function () {
+      setReenvioChecks(true);
+    });
+    $('reenvio-select-none').addEventListener('click', function () {
+      setReenvioChecks(false);
+    });
+    $('reenvio-items').addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.getAttribute) return;
+      var minus = t.getAttribute('data-reenvio-minus');
+      var plus = t.getAttribute('data-reenvio-plus');
+      if (minus != null) {
+        e.preventDefault();
+        setReenvioQty(parseInt(minus, 10), -1);
+      }
+      if (plus != null) {
+        e.preventDefault();
+        setReenvioQty(parseInt(plus, 10), 1);
+      }
+    });
+    modal.addEventListener('click', function (e) {
+      if (e.target === modal) closeReenvioModal();
+    });
+  }
+
+  bindReenvioUi();
+
+  function confirmReenvio(orn) {
+    openReenvioModal(orn);
   }
 
   global.BravaCompensaciones = {
