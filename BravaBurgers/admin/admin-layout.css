@@ -1,4 +1,4 @@
-/* Admin layout v2 — app-shell grid (adapted from demo-admin-layout-v2.html) */
+/* Admin layout v2 — app-shell grid */
 
 :root {
 	--layout-brava-dim: rgba(255, 107, 53, 0.12);
@@ -1410,13 +1410,6 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	gap: 8px;
 }
 .wa-toolbar h2 i { color: #25d366; }
-.wa-demo-tag {
-	font-size: 0.6rem;
-	padding: 2px 7px;
-	border-radius: 999px;
-	background: rgba(255,255,255,.15);
-	color: rgba(255,255,255,.85);
-}
 .wa-toolbar-action,
 .wa-delete-chat {
 	border: none;

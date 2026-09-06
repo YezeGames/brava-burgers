@@ -64,11 +64,3 @@ Al cambiar cobertura:
 
 - Admin / pedido manual: envío como línea catálogo.
 - Inbox WhatsApp / wa-panel.
-- Hoja de ruta reparto (`demo-hoja-ruta-mapbox.html` — demo aparte).
-
----
-
-## Descartado
-
-- Proyecto “integrar My Maps en vivo” en cada pedido (sin API pública).
-- Demo `demo-tienda-zona-entrega.html` como camino de implementación (ya integrado en tienda real).

@@ -2,10 +2,6 @@
 
 Emisión de pedidos por WA o mostrador, integrada en **`/admin/`** (producción).
 
-**Demo referencia (local):** `demo-admin-estado-salon-pedido-manual.html`  
-**Comanda:** `admin/comanda.js`  
-**Lógica:** `admin/pedido-manual.js` + `lib/bravaSupabase.js`
-
 Última actualización: sep 2026.
 
 ---

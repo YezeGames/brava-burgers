@@ -16,7 +16,7 @@ Resumen de lo **operativo en producción** (https://brava-burgers.vercel.app/adm
 
 | Área | Estado |
 |------|--------|
-| Tienda web + checkout Mapbox | ✅ |
+| Tienda web (UI actual, checkout probado) | ✅ |
 | Zonas delivery (Mapbox + `/api/delivery-zone` + GeoJSON) | ✅ |
 | Panel admin (órdenes, caja, stock, comanda) | ✅ |
 | Inbox WhatsApp (`wa-panel.js`) | ✅ |
@@ -26,7 +26,11 @@ Resumen de lo **operativo en producción** (https://brava-burgers.vercel.app/adm
 | Editar comanda en Aceptados | ✅ |
 | Caja: refresh manual, salidas por burger | ✅ |
 
-**Pendiente operativo (Sheet, no código):** columna **`Atajo`** en pestañas `productos` y `extras` para pedido manual rápido.
+**Pendiente operativo (Sheet):** columna **`Atajo`** en pestañas `productos` y `extras`.
+
+**Tienda — lanzamiento público:** hoy tiene `noindex` (Google no indexa). Ver sección *noindex* abajo. Al abrir al público: quitar esa meta.
+
+**UI tienda:** se mantiene la **UI actual** en producción. Demos/redesigns HTML eliminados del repo (sep 2026).
 
 **Descartado / no priorizar:**
 
@@ -39,25 +43,23 @@ Resumen de lo **operativo en producción** (https://brava-burgers.vercel.app/adm
 
 
 
-Documento único de **alcance deseado**. Maquetas: `comanda-ejemplo.html`, `panel-pedidos-ejemplo.html`.
+Documento único de **alcance deseado** (histórico). Producción: `index.html` (tienda) + `/admin/`.
 
 
 
-### 1. Tienda (ya operativa, ajustes menores)
+### 1. Tienda (operativa — UI actual)
 
 
 
-- Catálogo y config desde **Google Sheet** (`productos`, `configuracion`) — **sin cambiar**.
+- Catálogo y config desde **Google Sheet** (`productos`, `configuracion`, `extras`, `ingredientes`).
 
-- Cliente arma carrito → checkout → **WhatsApp** con el pedido (sigue existiendo).
+- Cliente arma carrito → checkout **Mapbox + zonas** → **WhatsApp** + ORN en Supabase.
 
-- **Delivery solo** — **sin retiro en local** por ahora (alinear zonas en Sheet cuando toque).
+- **Checkout probado** (sep 2026): zonas, turnos, cupón, pedido a panel.
 
-- Checkout: **teléfono obligatorio** (hecho).
+- **Delivery solo** — sin retiro en local.
 
-- **Aclaraciones** (ej. “sin salsa”) en pedido guardado y comanda (revisar si falta algún caso).
-
-- Al confirmar pedido: **guardar en Supabase** (Vercel `/api/pedido`) además de abrir WA; incluir **ORN** en mensaje WA.
+- **`noindex`** en `index.html` hasta apertura pública (ver abajo).
 
 
 
@@ -518,7 +520,25 @@ stateDiagram-v2
 
 
 
-**Referencia demo (solo local):** `demo-admin-whatsapp-inbox.html`.
+---
+
+
+
+## ¿Qué es `noindex`? (tienda web)
+
+
+
+En `index.html` hay:
+
+```html
+<meta name="robots" content="noindex,nofollow">
+```
+
+Le dice a **Google y otros buscadores**: *no muestres esta página en resultados de búsqueda*. La tienda **sí funciona** para quien tiene el link (Linktree, QR, WhatsApp); simplemente **no aparece** si alguien busca “hamburguesas Olivos” en Google.
+
+**Cuándo quitarlo:** el día que quieran apertura pública / SEO. Borrar esa línea (o cambiar a `index, follow`) y redeploy.
+
+**Mientras tanto:** útil en pre-apertura para que no indexen una versión incompleta.
 
 
 
@@ -533,8 +553,6 @@ stateDiagram-v2
 **Producción:** [`admin/compensaciones.js`](admin/compensaciones.js) + tabla Supabase `compensaciones` + cupones en checkout (`/api/cupon`).
 
 En pedidos **Entregados**: botones **Gratificar** (cupón + mensaje WA) y **Reenvío** (clonar ítems seleccionados a $0 en Pendientes). Comanda muestra badge reenvío y línea de cupón.
-
-**Demo histórico (no usar como referencia operativa):** [`demo-reclamos-gratificacion.html`](demo-reclamos-gratificacion.html).
 
 
 
