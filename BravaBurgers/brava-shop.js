@@ -74,9 +74,24 @@
 
 	var bravaToastTimer = null;
 
-	function bravaShowToast(message, kind) {
+	function bravaEnsureToastHost() {
 		var host = document.getElementById('brava-toast-host');
-		if (!host || !message) return;
+		if (!host) {
+			host = document.createElement('div');
+			host.id = 'brava-toast-host';
+			host.className = 'brava-toast-host';
+			host.setAttribute('aria-live', 'polite');
+			host.setAttribute('aria-atomic', 'true');
+		}
+		if (host.parentNode !== document.body) {
+			document.body.appendChild(host);
+		}
+		return host;
+	}
+
+	function bravaShowToast(message, kind) {
+		if (!message) return;
+		var host = bravaEnsureToastHost();
 		if (bravaToastTimer) {
 			clearTimeout(bravaToastTimer);
 			bravaToastTimer = null;
@@ -154,6 +169,10 @@
 				}
 				bravaAppliedCoupon = data.coupon;
 				calcular_total();
+				bravaShowToast(
+					bravaCouponToastMessage(data.coupon, total, bravaPedidoEnvioCost()),
+					'success'
+				);
 			})
 			.catch(function () {
 				errEl.removeClass('hidden').text('Error de red al validar el código.');
