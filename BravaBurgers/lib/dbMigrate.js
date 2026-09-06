@@ -27,10 +27,17 @@ function postgresConnectionString() {
       poolerHost +
       ':' +
       poolerPort +
-      '/postgres?sslmode=require'
+      '/postgres'
     );
   }
   return '';
+}
+
+function createPgClient(conn) {
+  return new Client({
+    connectionString: conn,
+    ssl: { rejectUnauthorized: false },
+  });
 }
 
 async function migrateEnCaminoColumn() {
@@ -38,10 +45,7 @@ async function migrateEnCaminoColumn() {
   if (!conn) {
     return { ok: false, error: 'no_postgres_url', hint: 'Agregá POSTGRES_URL o SUPABASE_DB_PASSWORD en Vercel (password de Database en Supabase).' };
   }
-  const client = new Client({
-    connectionString: conn,
-    ssl: { rejectUnauthorized: false },
-  });
+  const client = createPgClient(conn);
   try {
     await client.connect();
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_camino_at timestamptz;');
@@ -65,10 +69,7 @@ async function migrateIngresosSchema() {
       hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL. La service key no alcanza para migrar.',
     };
   }
-  const client = new Client({
-    connectionString: conn,
-    ssl: { rejectUnauthorized: false },
-  });
+  const client = createPgClient(conn);
   try {
     await client.connect();
     await client.query(`
@@ -129,10 +130,7 @@ async function migratePendOrnDel() {
       hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL.',
     };
   }
-  const client = new Client({
-    connectionString: conn,
-    ssl: { rejectUnauthorized: false },
-  });
+  const client = createPgClient(conn);
   try {
     await client.connect();
     await client.query(
@@ -173,10 +171,7 @@ async function migrateWaMessages() {
       hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL.',
     };
   }
-  const client = new Client({
-    connectionString: conn,
-    ssl: { rejectUnauthorized: false },
-  });
+  const client = createPgClient(conn);
   try {
     await client.connect();
     await client.query(`
@@ -237,10 +232,7 @@ async function migrateCompensacionesSchema() {
       hint: 'En Vercel agregá SUPABASE_DB_PASSWORD o POSTGRES_URL.',
     };
   }
-  const client = new Client({
-    connectionString: conn,
-    ssl: { rejectUnauthorized: false },
-  });
+  const client = createPgClient(conn);
   try {
     await client.connect();
     await client.query(`
@@ -294,10 +286,7 @@ async function migrateManualOrderSchema() {
       hint: 'En Vercel agregá SUPABASE_DB_PASSWORD o POSTGRES_URL para migrar.',
     };
   }
-  const client = new Client({
-    connectionString: conn,
-    ssl: { rejectUnauthorized: false },
-  });
+  const client = createPgClient(conn);
   try {
     await client.connect();
     await client.query(`
