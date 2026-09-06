@@ -18,8 +18,12 @@ const {
   listCompensaciones,
   listCompensacionOrigenes,
   createReenvio,
+  searchClientes,
+  getCliente,
+  saveCliente,
+  createManualOrder,
 } = require('../lib/bravaSupabase');
-const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateCompensacionesSchema } = require('../lib/dbMigrate');
+const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateCompensacionesSchema, migrateManualOrderSchema } = require('../lib/dbMigrate');
 
 function parseRequestBody(req) {
   let body = req.body;
@@ -137,6 +141,26 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateCompensaciones') {
     return migrateCompensacionesSchema();
+  }
+
+  if (action === 'migrateManualOrderSchema') {
+    return migrateManualOrderSchema();
+  }
+
+  if (action === 'searchClientes') {
+    return searchClientes(body.q, body.limit);
+  }
+
+  if (action === 'getCliente') {
+    return getCliente(body.telefono);
+  }
+
+  if (action === 'saveCliente') {
+    return saveCliente(body);
+  }
+
+  if (action === 'createManualOrder') {
+    return createManualOrder(body);
   }
 
   if (action === 'createCompensacion') {

@@ -276,10 +276,85 @@ async function migrateCompensacionesSchema() {
   }
 }
 
+async function migrateManualOrderSchema() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'En Vercel agregá SUPABASE_DB_PASSWORD o POSTGRES_URL para migrar.',
+    };
+  }
+  const client = new Client({
+    connectionString: conn,
+    ssl: { rejectUnauthorized: false },
+  });
+  try {
+    await client.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS clientes (
+        telefono text PRIMARY KEY,
+        nombre text NOT NULL DEFAULT '',
+        direccion text NOT NULL DEFAULT '',
+        localidad text NOT NULL DEFAULT '',
+        piso text NOT NULL DEFAULT '',
+        ultimo_pedido_at timestamptz,
+        origen_ultimo text NOT NULL DEFAULT 'web',
+        creado_at timestamptz NOT NULL DEFAULT now(),
+        actualizado_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await client.query('CREATE INDEX IF NOT EXISTS clientes_nombre_idx ON clientes (nombre);');
+    await client.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS origen text NOT NULL DEFAULT 'web';");
+    await client.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS nota_pedido text NOT NULL DEFAULT '';");
+    await client.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS ajuste_label text NOT NULL DEFAULT '';");
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS ajuste_monto numeric NOT NULL DEFAULT 0;');
+    await client.query("ALTER TABLE orders ADD COLUMN IF NOT EXISTS ajuste_motivo text NOT NULL DEFAULT '';");
+    await client.query(`
+      INSERT INTO clientes (telefono, nombre, direccion, localidad, piso, ultimo_pedido_at, origen_ultimo, creado_at, actualizado_at)
+      SELECT DISTINCT ON (regexp_replace(telefono, '[^0-9]', '', 'g'))
+        regexp_replace(telefono, '[^0-9]', '', 'g'),
+        COALESCE(cliente, ''),
+        COALESCE(direccion, ''),
+        COALESCE(localidad, ''),
+        COALESCE(piso, ''),
+        fecha_creado,
+        COALESCE(origen, 'web'),
+        fecha_creado,
+        now()
+      FROM orders
+      WHERE telefono IS NOT NULL AND trim(telefono) <> ''
+        AND length(regexp_replace(telefono, '[^0-9]', '', 'g')) >= 8
+      ORDER BY regexp_replace(telefono, '[^0-9]', '', 'g'), fecha_creado DESC
+      ON CONFLICT (telefono) DO NOTHING;
+    `);
+    await client.query('ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;');
+    await client.query('DROP POLICY IF EXISTS "service_all_clientes" ON clientes;');
+    await client.query(`
+      CREATE POLICY "service_all_clientes" ON clientes
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
+    `);
+    await client.query('DROP POLICY IF EXISTS "admin_read_clientes" ON clientes;');
+    await client.query(`
+      CREATE POLICY "admin_read_clientes" ON clientes
+        FOR SELECT TO authenticated USING (true);
+    `);
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
 module.exports = {
   migrateEnCaminoColumn,
   migrateIngresosSchema,
   migratePendOrnDel,
   migrateWaMessages,
   migrateCompensacionesSchema,
+  migrateManualOrderSchema,
 };

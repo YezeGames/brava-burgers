@@ -94,8 +94,216 @@ function rowToOrder(row) {
 
     reenvio_de: row.reenvio_de || '',
 
+    origen: row.origen || 'web',
+
+    nota_pedido: row.nota_pedido || '',
+
+    ajuste_label: row.ajuste_label || '',
+
+    ajuste_monto: Number(row.ajuste_monto) || 0,
+
+    ajuste_motivo: row.ajuste_motivo || '',
+
   };
 
+}
+
+function rowToCliente(row) {
+  if (!row) return null;
+  return {
+    telefono: row.telefono,
+    nombre: row.nombre || '',
+    direccion: row.direccion || '',
+    localidad: row.localidad || '',
+    piso: row.piso || '',
+    ultimo_pedido_at: row.ultimo_pedido_at,
+    origen_ultimo: row.origen_ultimo || '',
+  };
+}
+
+async function upsertClienteFromOrder(order, origenUltimo) {
+  const tel = telNorm(order.telefono);
+  if (!tel || tel.length < 8) return { ok: true, skipped: true };
+  const now = new Date().toISOString();
+  const payload = {
+    telefono: tel,
+    nombre: String(order.cliente || '').trim(),
+    direccion: String(order.direccion || '').trim(),
+    localidad: String(order.localidad || '').trim(),
+    piso: String(order.piso || '').trim(),
+    ultimo_pedido_at: now,
+    origen_ultimo: origenUltimo || 'web',
+    actualizado_at: now,
+  };
+  const ex = await restSelect('clientes', 'select=telefono&telefono=eq.' + encodeURIComponent(tel) + '&limit=1');
+  if (ex.ok && ex.data && ex.data[0]) {
+    const r = await restPatch('clientes', 'telefono=eq.' + encodeURIComponent(tel), payload);
+    if (!r.ok) return supabaseFail(r, 'cliente_update_failed');
+    return { ok: true, telefono: tel, updated: true };
+  }
+  payload.creado_at = now;
+  const ins = await restInsert('clientes', payload);
+  if (!ins.ok) return supabaseFail(ins, 'cliente_insert_failed');
+  return { ok: true, telefono: tel, created: true };
+}
+
+async function searchClientes(q, limit) {
+  const lim = Math.min(Math.max(Number(limit) || 10, 1), 25);
+  const raw = String(q || '').replace(/[*%,()]/g, '').trim();
+  if (!raw) return { ok: true, clientes: [] };
+  const pat = '*' + raw + '*';
+  const query =
+    'select=*&or=(telefono.ilike.' +
+    encodeURIComponent(pat) +
+    ',nombre.ilike.' +
+    encodeURIComponent(pat) +
+    ')&order=ultimo_pedido_at.desc.nullslast&limit=' +
+    lim;
+  const r = await restSelect('clientes', query);
+  if (!r.ok) return supabaseFail(r, r.error || 'search_clientes_failed');
+  const rows = Array.isArray(r.data) ? r.data : [];
+  return { ok: true, clientes: rows.map(rowToCliente).filter(Boolean) };
+}
+
+async function getCliente(telefono) {
+  const tel = telNorm(telefono);
+  if (!tel) return { ok: false, error: 'missing_telefono' };
+  const r = await restSelect('clientes', 'select=*&telefono=eq.' + encodeURIComponent(tel) + '&limit=1');
+  if (!r.ok) return supabaseFail(r, r.error || 'get_cliente_failed');
+  const row = r.data && r.data[0];
+  if (!row) return { ok: true, cliente: null };
+  return { ok: true, cliente: rowToCliente(row) };
+}
+
+async function saveCliente(body) {
+  const tel = telNorm(body.telefono);
+  const nombre = String(body.nombre || '').trim();
+  if (!tel || tel.length < 8) return { ok: false, error: 'telefono_invalido' };
+  if (!nombre) return { ok: false, error: 'nombre_requerido' };
+  const now = new Date().toISOString();
+  const payload = {
+    telefono: tel,
+    nombre: nombre,
+    direccion: String(body.direccion || '').trim(),
+    localidad: String(body.localidad || '').trim(),
+    piso: String(body.piso || '').trim(),
+    actualizado_at: now,
+  };
+  const ex = await restSelect('clientes', 'select=telefono&telefono=eq.' + encodeURIComponent(tel) + '&limit=1');
+  if (ex.ok && ex.data && ex.data[0]) {
+    const r = await restPatch('clientes', 'telefono=eq.' + encodeURIComponent(tel), payload);
+    if (!r.ok) return supabaseFail(r, 'cliente_update_failed');
+    return { ok: true, cliente: Object.assign({}, payload, { origen_ultimo: body.origen_ultimo || 'manual' }) };
+  }
+  payload.creado_at = now;
+  payload.origen_ultimo = body.origen_ultimo || 'manual';
+  const ins = await restInsert('clientes', payload);
+  if (!ins.ok) return supabaseFail(ins, 'cliente_insert_failed');
+  return { ok: true, cliente: payload };
+}
+
+function manualItemsToJson(items) {
+  const list = Array.isArray(items) ? items : [];
+  return list.map(function (it) {
+    return {
+      cantidad: Math.max(1, Number(it.cantidad || it.qty) || 1),
+      nombre: String(it.nombre || '').trim(),
+      variedad: String(it.variedad || 'Sin extra').trim() || 'Sin extra',
+      acl: String(it.acl || '').trim(),
+      precio: String(it.precio != null ? it.precio : '0'),
+      adicionales: Number(it.adicionales) || 0,
+    };
+  }).filter(function (it) {
+    return it.nombre;
+  });
+}
+
+function turnoFromManualBody(body) {
+  let turno = String(body.turno || '').trim();
+  if (turno) return turno;
+  const nota = String(body.nota_pedido || body.nota || '').trim();
+  const m = nota.match(/turno\s*(\d+)/i);
+  if (m) return 'Turno ' + m[1];
+  return '';
+}
+
+function envioFromManualItems(items) {
+  let envio = 0;
+  let zona = '';
+  (items || []).forEach(function (it) {
+    const tipo = String(it.tipo || '').toLowerCase();
+    const nombre = String(it.nombre || '').toLowerCase();
+    if (tipo === 'envio' || nombre.indexOf('envío') >= 0 || nombre.indexOf('envio') >= 0) {
+      const qty = Math.max(1, Number(it.cantidad || it.qty) || 1);
+      const unit = Number(it.precio) || 0;
+      envio += qty * unit;
+      if (it.zona) zona = String(it.zona).trim();
+      else if (!zona && nombre.indexOf('env') >= 0) {
+        zona = String(it.nombre || '').replace(/^env[ií]o\s*/i, '').trim();
+      }
+    }
+  });
+  return { envio: envio, zona: zona };
+}
+
+async function createManualOrder(body) {
+  const pago = String(body.pago || '').trim();
+  if (!pago) return { ok: false, error: 'pago_requerido' };
+
+  const cliente = String(body.cliente || '').trim();
+  const telefono = String(body.telefono || '').trim();
+  if (!cliente || !telefono) return { ok: false, error: 'cliente_requerido' };
+
+  const items = manualItemsToJson(body.items);
+  if (!items.length) return { ok: false, error: 'items_requeridos' };
+
+  const subtotal = Number(body.subtotal);
+  const total = Number(body.total);
+  if (!Number.isFinite(subtotal) || !Number.isFinite(total) || total < 0) {
+    return { ok: false, error: 'totales_invalidos' };
+  }
+
+  const turno = turnoFromManualBody(body);
+  const { validateShopOrder } = require('./turnosDelivery');
+  const turnCheck = await validateShopOrder({ turno: turno, telefono: telefono });
+  if (!turnCheck.ok) return turnCheck;
+
+  const envMeta = envioFromManualItems(body.items || items);
+  const ornRes = await restRpc('next_pend_del');
+  if (!ornRes.ok || !ornRes.data) return supabaseFail(ornRes, 'orn_failed');
+
+  const row = {
+    orn: ornRes.data,
+    estado: 'pendiente',
+    cliente: cliente,
+    telefono: telefono,
+    direccion: String(body.direccion || '').trim(),
+    localidad: String(body.localidad || '').trim(),
+    piso: String(body.piso || '').trim(),
+    turno: turno,
+    zona: String(body.zona || envMeta.zona || '').trim(),
+    envio: Number(body.envio != null ? body.envio : envMeta.envio) || 0,
+    pago: pago,
+    items_json: items,
+    subtotal: subtotal,
+    total: total,
+    descuento: 0,
+    origen: 'manual',
+    nota_pedido: String(body.nota_pedido || body.nota || '').trim(),
+    ajuste_label: String(body.ajuste_label || '').trim(),
+    ajuste_monto: Number(body.ajuste_monto) || 0,
+    ajuste_motivo: String(body.ajuste_motivo || '').trim(),
+  };
+
+  const ins = await restInsert('orders', row);
+  if (!ins.ok) return supabaseFail(ins, 'insert_failed');
+
+  const up = await upsertClienteFromOrder(row, 'manual');
+  if (!up.ok) {
+    console.error('[createManualOrder] cliente no guardado', up.error);
+  }
+
+  return { ok: true, orn: row.orn, total: row.total };
 }
 
 
@@ -233,6 +441,10 @@ async function createOrderFromShop(order) {
     }
 
   }
+
+  upsertClienteFromOrder(row, 'web').catch(function (e) {
+    console.error('[createOrderFromShop] cliente no guardado', e);
+  });
 
   return { ok: true, orn: ornVal, total };
 
@@ -1266,6 +1478,16 @@ module.exports = {
   listCompensacionOrigenes,
 
   createReenvio,
+
+  upsertClienteFromOrder,
+
+  searchClientes,
+
+  getCliente,
+
+  saveCliente,
+
+  createManualOrder,
 
 };
 

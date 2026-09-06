@@ -1505,7 +1505,7 @@
 					<h1 class="top-title" id="view-title">Pedidos<small id="view-subtitle"></small></h1>
 				</div>
 				<div class="top-actions turno-toolbar">
-					<button type="button" class="btn-sm btn-accent" id="btn-pedido-manual" disabled title="Próximamente">
+					<button type="button" class="btn-sm btn-accent" id="btn-pedido-manual" disabled title="Abrí la caja para emitir pedidos manuales">
 						<i class="fas fa-plus" aria-hidden="true"></i> Pedido manual
 					</button>
 					<audio id="alert-sound-mp3" preload="auto" src="/admin/sounds/zumbido.mp3?v=1"></audio>
@@ -1538,7 +1538,18 @@
 							<button type="button" class="tab tab-muted" data-estado="entregada" data-label="Entregados" data-short="Entregados">Entregados <span class="n">0</span></button>
 							<button type="button" class="tab tab-muted" data-estado="cancelada" data-label="Cancelados" data-short="Cancelados">Cancelados <span class="n">0</span></button>
 							<button type="button" class="tab tab-muted" data-estado="rechazado" data-label="Rechazados" data-short="Rechazados">Rechazados <span class="n">0</span></button>
-							<button type="button" class="btn-sm btn-icon pipeline-search" id="btn-pipeline-search" title="Buscar comanda"><i class="fas fa-search" aria-hidden="true"></i></button>
+							<button type="button" class="btn-sm btn-icon pipeline-search" id="btn-pipeline-search" title="Buscar comanda / histórico"><i class="fas fa-folder-open" aria-hidden="true"></i></button>
+						</div>
+						<div class="pipeline-filters" id="pipeline-filters">
+							<label class="pipeline-filter-label" for="pipeline-tel-filter">Tel / cliente</label>
+							<input type="search" class="pipeline-tel-input" id="pipeline-tel-filter" placeholder="Ej. 1123…, Mario" autocomplete="off" inputmode="tel">
+							<button type="button" class="btn-sm btn-icon" id="pipeline-tel-clear" title="Limpiar búsqueda"><i class="fas fa-times" aria-hidden="true"></i></button>
+							<span class="pipe-sep" aria-hidden="true"></span>
+							<span class="pipeline-filter-label">Pago</span>
+							<button type="button" class="btn-sm pipeline-pago-btn active" data-pago-filter="all">Todos</button>
+							<button type="button" class="btn-sm pipeline-pago-btn" data-pago-filter="ef">EF</button>
+							<button type="button" class="btn-sm pipeline-pago-btn" data-pago-filter="mp">MP</button>
+							<button type="button" class="btn-sm btn-ghost pipeline-pago-clear" id="pipeline-pago-clear" title="Quitar filtro pago">Limpiar</button>
 						</div>
 						<div id="turno-pedidos-banner" class="turno-pedidos-banner hidden" role="alert"></div>
 						<div class="orders-list" id="orders-list"></div>
@@ -2145,6 +2156,178 @@
 		</div>
 	</div>
 
+	<div class="modal-backdrop hidden" id="modal-emision-manual">
+		<div class="modal modal-emision" role="dialog" aria-labelledby="pm-emision-modal-title">
+			<div class="emision-modal-header">
+				<div>
+					<h2 id="pm-emision-modal-title">Emisión de pedido · Delivery</h2>
+					<p class="sub">Productos, extras y envío en la misma búsqueda · WhatsApp / teléfono</p>
+				</div>
+				<button type="button" class="btn-sm btn-ghost" id="pm-btn-cerrar-emision" title="Cerrar">✕</button>
+			</div>
+			<div class="emision-modal-scroll">
+				<div class="emision-status warn" id="pm-emision-status" role="status"></div>
+				<div class="emision-panel">
+					<div class="emision-head">
+						<div class="field">
+							<label>Canal</label>
+							<select disabled><option>Delivery</option></select>
+						</div>
+						<div class="field">
+							<label>Cliente · teléfono</label>
+							<div class="cliente-field-wrap">
+								<input type="tel" id="pm-tel-buscar" placeholder="Ej: 1123973487" inputmode="tel">
+								<button type="button" id="pm-cliente-loaded" class="cliente-loaded-field hidden" title="Clic para editar cliente"></button>
+								<button type="button" class="btn-sm" id="pm-btn-buscar-cliente" title="Buscar u otro teléfono"><i class="fas fa-search"></i></button>
+							</div>
+						</div>
+					</div>
+					<div class="items-block">
+						<div class="items-table-wrap">
+							<table class="items-table">
+								<thead>
+									<tr>
+										<th>Cant.</th>
+										<th>Producto / extra</th>
+										<th>Aclaración</th>
+										<th>Subtotal</th>
+										<th></th>
+									</tr>
+								</thead>
+								<tbody id="pm-items-body"></tbody>
+							</table>
+						</div>
+						<div class="line-input-row">
+							<div class="field">
+								<label>Cantidad</label>
+								<div class="qty-ctrl">
+									<button type="button" id="pm-line-qty-minus">−</button>
+									<input type="number" id="pm-line-qty" value="1" min="1">
+									<button type="button" id="pm-line-qty-plus">+</button>
+								</div>
+							</div>
+							<div class="field producto-ac-wrap">
+								<label>Producto, extra o atajo</label>
+								<input type="text" id="pm-line-producto" autocomplete="off" placeholder="100, 501, envío olivos…">
+							</div>
+							<div class="field">
+								<label>Aclaración ítem</label>
+								<input type="text" id="pm-line-acl" placeholder="Ej. bien cocida">
+							</div>
+							<div class="field">
+								<label>&nbsp;</label>
+								<button type="button" class="btn-sm btn-accent" id="pm-btn-add-line">+ Agregar</button>
+							</div>
+						</div>
+					</div>
+					<div class="field">
+						<label>Nota del pedido (opcional)</label>
+						<input type="text" id="pm-nota-pedido" placeholder="Ej. TURNO 2 · Tocar timbre 2B">
+					</div>
+				</div>
+			</div>
+			<div class="emision-modal-footer">
+				<div class="emision-foot">
+					<div>
+						<label class="pm-print-lbl">
+							<input type="checkbox" id="pm-chk-imprimir" checked> Imprimir comanda al confirmar
+						</label>
+						<div class="emision-total" id="pm-emision-total">$ 0</div>
+					</div>
+					<div class="emision-actions">
+						<button type="button" class="btn-lg btn-cancel" id="pm-btn-cancel-emision">Cancelar</button>
+						<button type="button" class="btn-lg btn-ok" id="pm-btn-emitir" disabled>Emitir orden</button>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="modal-cliente-manual">
+		<div class="modal pm-modal-cliente" role="dialog">
+			<h2>Cliente</h2>
+			<p class="sub" id="pm-modal-cliente-sub">Completá o modificá los datos. Se guardan en la agenda por teléfono.</p>
+			<div class="form-grid">
+				<div class="field"><label>Teléfono *</label><input type="tel" id="pm-cli-tel"></div>
+				<div class="field"><label>Nombre *</label><input type="text" id="pm-cli-nombre"></div>
+				<div class="field full"><label>Dirección</label><input type="text" id="pm-cli-dir"></div>
+				<div class="field"><label>Localidad</label><input type="text" id="pm-cli-loc"></div>
+				<div class="field"><label>Piso / Dpto</label><input type="text" id="pm-cli-piso"></div>
+			</div>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="pm-cli-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="pm-cli-save">Guardar cliente</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="modal-backdrop hidden" id="modal-emision-confirm">
+		<div class="modal wide pm-modal-confirm" role="dialog">
+			<h2>Confirmar pedido manual</h2>
+			<p class="sub">Comanda 80 mm · cobro y envío a cocina en un paso.</p>
+			<div class="proforma-split">
+				<div class="comanda-preview-wrap">
+					<article class="ticket ticket-comanda" id="pm-comanda-ticket-inner" aria-label="Comanda térmica"></article>
+				</div>
+				<div class="proforma-opts">
+					<div class="radio-row">
+						<label><input type="radio" name="pm-cobrar" value="si" checked> Cobrar ahora</label>
+						<label><input type="radio" name="pm-cobrar" value="no"> No cobrar (NO COBRADO)</label>
+					</div>
+					<div class="pay-block" id="pm-pay-block">
+						<div class="pay-block-title">Medio de pago</div>
+						<div class="pay-row">
+							<select id="pm-pay1-medio"><option value="Efectivo">Efectivo</option><option value="Mercado Pago">Mercado Pago</option></select>
+							<input type="number" id="pm-pay1-monto" min="0" step="100" placeholder="Monto">
+						</div>
+						<div class="pay-row">
+							<select id="pm-pay2-medio">
+								<option value="">— Sin segundo medio —</option>
+								<option value="Efectivo">Efectivo</option>
+								<option value="Mercado Pago">Mercado Pago</option>
+							</select>
+							<input type="number" id="pm-pay2-monto" min="0" step="100" placeholder="0">
+						</div>
+						<p class="hint" id="pm-cobrar-pendiente" style="margin:8px 0 0"></p>
+					</div>
+					<label class="pm-field-label">Ajuste</label>
+					<div class="ajuste-row">
+						<select id="pm-ajuste-tipo">
+							<option value="pct-desc">Descuento %</option>
+							<option value="pesos-desc">Descuento $</option>
+							<option value="pct-rec">Recargo %</option>
+							<option value="pesos-rec">Recargo $</option>
+						</select>
+						<div class="stepper" id="pm-ajuste-stepper">
+							<button type="button" id="pm-ajuste-minus">−</button>
+							<input type="number" id="pm-ajuste-val" value="0" min="0" max="100">
+							<button type="button" id="pm-ajuste-plus">+</button>
+							<span id="pm-ajuste-suffix">%</span>
+						</div>
+					</div>
+					<div class="field">
+						<label>Motivo descuento / recargo</label>
+						<input type="text" id="pm-ajuste-motivo" placeholder="Opcional">
+					</div>
+					<div class="pay-summary">
+						<div>Total</div>
+						<div class="big" id="pm-proforma-total">$ 0</div>
+					</div>
+					<label class="pm-print-lbl">
+						<input type="checkbox" id="pm-chk-imprimir-modal" checked> Imprimir comanda al aceptar
+					</label>
+				</div>
+			</div>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm" id="pm-proforma-cancel">Cancelar</button>
+				<button type="button" class="btn-sm btn-accent" id="pm-proforma-ok">Aceptar y mandar a cocina</button>
+			</div>
+		</div>
+	</div>
+
+	<div class="toast hidden" id="pm-toast"></div>
+	<div id="pm-producto-suggest" class="producto-suggest hidden" role="listbox" aria-label="Sugerencias de producto"></div>
+
 	<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=20"></script>
@@ -2152,6 +2335,7 @@
 	<script src="/admin/reparto.js?v=12"></script>
 	<script src="/admin/wa-panel.js?v=27"></script>
 	<script src="/admin/compensaciones.js?v=4"></script>
-	<script src="/admin/admin.js?v=122"></script>
+	<script src="/admin/pedido-manual.js?v=1"></script>
+	<script src="/admin/admin.js?v=123"></script>
 </body>
 </html>

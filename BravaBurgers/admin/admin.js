@@ -6,6 +6,10 @@
 
   var currentEstado = 'pendiente';
 
+  var pipelineTelFilter = '';
+
+  var pipelinePagoFilter = 'all';
+
   var knownOrns = new Set();
 
   var newPendingOrns = new Set();
@@ -484,6 +488,58 @@
   function pagoEsEfectivo(pago) {
     var p = String(pago || '').toLowerCase();
     return p.indexOf('efectivo') >= 0;
+  }
+
+  function pagoEsNoCobrado(pago) {
+    return String(pago || '').toUpperCase().indexOf('NO COBRADO') >= 0;
+  }
+
+  function pagoEsMercadoPago(pago) {
+    var p = String(pago || '').toLowerCase();
+    return p.indexOf('mercado') >= 0 || p === 'mp';
+  }
+
+  function pipelineFilteredOrders(orders) {
+    var list = orders || [];
+    var q = String(pipelineTelFilter || '').trim();
+    if (q) {
+      var digits = q.replace(/\D/g, '');
+      var ql = q.toLowerCase();
+      list = list.filter(function (o) {
+        if (digits && String(o.telefono || '').replace(/\D/g, '').indexOf(digits) >= 0) return true;
+        if (String(o.cliente || '').toLowerCase().indexOf(ql) >= 0) return true;
+        if (String(o.orn || '').toLowerCase().indexOf(ql) >= 0) return true;
+        return false;
+      });
+    }
+    if (pipelinePagoFilter === 'ef') {
+      list = list.filter(function (o) {
+        return pagoEsEfectivo(o.pago);
+      });
+    } else if (pipelinePagoFilter === 'mp') {
+      list = list.filter(function (o) {
+        return pagoEsMercadoPago(o.pago);
+      });
+    }
+    return list;
+  }
+
+  function refreshPipelineFiltersUi() {
+    var telInp = $('pipeline-tel-filter');
+    if (telInp && telInp.value !== pipelineTelFilter) telInp.value = pipelineTelFilter;
+    document.querySelectorAll('[data-pago-filter]').forEach(function (btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-pago-filter') === pipelinePagoFilter);
+    });
+    var bar = $('pipeline-filters');
+    if (bar) {
+      bar.classList.toggle('is-active', !!pipelineTelFilter || pipelinePagoFilter !== 'all');
+    }
+  }
+
+  function applyPipelineFiltersAndRepaint() {
+    refreshPipelineFiltersUi();
+    rebuildAllPanelFrags();
+    paintCurrentTab();
   }
 
   function orderCajaDateIso(o) {
@@ -1231,6 +1287,7 @@
         if (!inDateRange(orderCajaDateIso(o))) return;
         var t = orderEntregadoAtMs(o);
         if (isNaN(t) || t < desdeMs || t > hastaMs) return;
+        if (pagoEsNoCobrado(o.pago)) return;
         if (pagoEsEfectivo(o.pago)) ef += total;
         else mp += total;
         parseOrderItems(o).forEach(function (it) {
@@ -1437,6 +1494,7 @@
       var total = Number(o.total) || 0;
       if (e === 'entregada') {
         if (!inDateRange(orderCajaDateIso(o))) return;
+        if (pagoEsNoCobrado(o.pago)) return;
         if (pagoEsEfectivo(o.pago)) ef += total;
         else mp += total;
         parseOrderItems(o).forEach(function (it) {
@@ -1539,6 +1597,11 @@
     }
     if (btnAbrir) btnAbrir.classList.toggle('hidden', abierta);
     if (btnCerrar) btnCerrar.classList.toggle('hidden', !abierta);
+    var btnManual = $('btn-pedido-manual');
+    if (btnManual) {
+      btnManual.disabled = !abierta;
+      btnManual.title = abierta ? 'Emitir pedido por WhatsApp o teléfono' : mensajeBloqueoOperarPedidos();
+    }
   }
 
   function initDefaultAlertSound() {
@@ -3498,7 +3561,7 @@
 
   function ordersForEstado(orders, estado) {
 
-    return orders.filter(function (o) {
+    return pipelineFilteredOrders(orders).filter(function (o) {
 
       if (!o.orn || String(o.orn).trim() === '') return false;
 
@@ -3544,7 +3607,10 @@
 
     var counts = { pendiente: 0, aceptado: 0, en_preparacion: 0, en_camino: 0, rechazado: 0, entregada: 0, cancelada: 0 };
 
-    orders.forEach(function (o) {
+    var source =
+      pipelineTelFilter || pipelinePagoFilter !== 'all' ? pipelineFilteredOrders(orders) : orders;
+
+    source.forEach(function (o) {
 
       var e = normalizeEstado(o.estado);
 
@@ -3874,6 +3940,8 @@
         formatOrderTurnCell(o) +
 
         paymentTagHtml(o.pago) +
+
+        (String(o.origen || '').toLowerCase() === 'manual' ? ' <span class="badge-mod">MANUAL</span>' : '') +
 
         (String(o.modificado || '').toUpperCase() === 'SI' ? ' <span class="badge-mod">editado</span>' : '') +
         (String(o.modificado || '').toUpperCase() === 'REENVIO_PARCIAL' ? ' <span class="badge-mod">reenvío parcial</span>' : '') +
@@ -6785,7 +6853,53 @@
   }
 
   if ($('btn-open-proformas')) $('btn-open-proformas').onclick = openProformasModal;
-  if ($('btn-pipeline-search')) $('btn-pipeline-search').onclick = openProformasModal;
+  if ($('btn-pipeline-search')) {
+    $('btn-pipeline-search').onclick = openProformasModal;
+    $('btn-pipeline-search').title = 'Buscar comanda / histórico (ORN, tel, cliente)';
+  }
+  if ($('pipeline-tel-filter')) {
+    var pipelineTelTimer = null;
+    $('pipeline-tel-filter').addEventListener('input', function () {
+      if (pipelineTelTimer) clearTimeout(pipelineTelTimer);
+      pipelineTelTimer = setTimeout(function () {
+        pipelineTelTimer = null;
+        pipelineTelFilter = $('pipeline-tel-filter').value.trim();
+        applyPipelineFiltersAndRepaint();
+      }, 180);
+    });
+    $('pipeline-tel-filter').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        pipelineTelFilter = $('pipeline-tel-filter').value.trim();
+        applyPipelineFiltersAndRepaint();
+      }
+      if (e.key === 'Escape') {
+        pipelineTelFilter = '';
+        $('pipeline-tel-filter').value = '';
+        applyPipelineFiltersAndRepaint();
+      }
+    });
+  }
+  if ($('pipeline-tel-clear')) {
+    $('pipeline-tel-clear').onclick = function () {
+      pipelineTelFilter = '';
+      if ($('pipeline-tel-filter')) $('pipeline-tel-filter').value = '';
+      applyPipelineFiltersAndRepaint();
+    };
+  }
+  document.querySelectorAll('[data-pago-filter]').forEach(function (btn) {
+    btn.onclick = function () {
+      pipelinePagoFilter = btn.getAttribute('data-pago-filter') || 'all';
+      applyPipelineFiltersAndRepaint();
+    };
+  });
+  if ($('pipeline-pago-clear')) {
+    $('pipeline-pago-clear').onclick = function () {
+      pipelinePagoFilter = 'all';
+      applyPipelineFiltersAndRepaint();
+    };
+  }
+  refreshPipelineFiltersUi();
   if ($('prof-close')) $('prof-close').onclick = closeProformasModal;
   if ($('prof-print')) $('prof-print').onclick = printProformaPreview;
   if ($('prof-load-more')) $('prof-load-more').onclick = function () { fetchProformas(false); };
@@ -7010,6 +7124,19 @@
   window.fetchOrdersFromServer = fetchOrdersFromServer;
   window.fetchCompensacionesOrigenes = fetchCompensacionesOrigenes;
   window.markCompensacionOrigen = markCompensacionOrigen;
+
+  if (window.BravaPedidoManual && typeof BravaPedidoManual.init === 'function') {
+    BravaPedidoManual.init({
+      api: api,
+      getToken: function () {
+        return token;
+      },
+      canEmit: function () {
+        return cierresReady && isCajaTurnoActivo();
+      },
+      blockedMessage: mensajeBloqueoOperarPedidos,
+    });
+  }
 
 })();
 
