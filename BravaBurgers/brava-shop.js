@@ -1312,13 +1312,19 @@
 		};
 	}
 
+	function bravaClienteFirstName(nombre) {
+		var n = String(nombre || '').trim().split(/\s+/)[0] || '';
+		if (!n) return '';
+		return n.charAt(0).toUpperCase() + n.slice(1).toLowerCase();
+	}
+
 	function buildBravaWhatsAppConfirmUrl(nombre) {
-		var n = String(nombre || '').trim();
-		var primera = n.split(/\s+/)[0] || '';
-		var saludo = primera
-			? 'Hola Brava! Soy ' + primera + ', pedido hecho desde la web. Gracias 🍔'
-			: 'Hola Brava! Pedido hecho desde la web. Gracias 🍔';
-		var msg = saludo + '\n\n¡Espero la confirmación de mi pedido!';
+		var primera = bravaClienteFirstName(nombre);
+		var msg = primera
+			? 'Hola Brava 👋\nSoy ' +
+				primera +
+				'. Acabo de pedir desde la web.\n¡Espero la confirmación! 🍔'
+			: 'Hola Brava 👋\nAcabo de pedir desde la web.\n¡Espero la confirmación! 🍔';
 		return 'https://wa.me/' + g_telefono + '?text=' + encodeURIComponent(msg);
 	}
 

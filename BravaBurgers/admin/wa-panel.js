@@ -306,9 +306,11 @@
   }
 
   function waFirstName(o) {
-    return String((o && o.cliente) || (o && o.name) || '')
+    var raw = String((o && o.cliente) || (o && o.name) || '')
       .trim()
-      .split(/\s+/)[0] || 'Hola';
+      .split(/\s+/)[0];
+    if (!raw) return 'Hola';
+    return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
   }
 
   function buildNotifyMessage(kind, o) {
@@ -342,7 +344,7 @@
 
   function buildConfirmadoNotifyMessage(o) {
     var n = waFirstName(o);
-    var lines = ['Hola, ' + n + ' ¿cómo va?', 'Tu pedido fue confirmado 🍔', ''];
+    var lines = ['Hola, ' + n + ' 👋', 'Tu pedido fue confirmado 🍔', ''];
     parseOrderItems(o).forEach(function (it) {
       lines.push('x' + orderItemQty(it) + ' ' + orderItemName(it));
     });
