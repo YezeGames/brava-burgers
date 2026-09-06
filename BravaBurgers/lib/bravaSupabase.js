@@ -128,13 +128,19 @@ function restErrorBlob(r) {
 function isClientesUnavailable(r) {
   if (!r || r.ok) return false;
   const blob = restErrorBlob(r);
-  return (
+  if (blob.indexOf('pgrst205') >= 0 || blob.indexOf('42p01') >= 0) return true;
+  if (
     blob.indexOf('clientes') >= 0 &&
     (blob.indexOf('does not exist') >= 0 ||
-      blob.indexOf('pgrst205') >= 0 ||
       blob.indexOf('could not find') >= 0 ||
-      blob.indexOf('schema cache') >= 0)
-  );
+      blob.indexOf('schema cache') >= 0 ||
+      blob.indexOf('relation') >= 0)
+  ) {
+    return true;
+  }
+  // PostgREST 404 sin cuerpo JSON (común cuando falta la tabla).
+  if (r.error === 'supabase_http_404') return true;
+  return false;
 }
 
 function isManualOrderColumnsMissing(r) {
@@ -235,7 +241,17 @@ async function searchClientes(q, limit) {
     ')&order=ultimo_pedido_at.desc.nullslast&limit=' +
     lim;
   const r = await restSelect('clientes', query);
-  if (!r.ok) return supabaseFail(r, r.error || 'search_clientes_failed');
+  if (!r.ok) {
+    if (!isClientesUnavailable(r)) return supabaseFail(r, r.error || 'search_clientes_failed');
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length >= 6) {
+      const fromOrders = await getClienteFromOrders(digits);
+      if (fromOrders.ok && fromOrders.cliente) {
+        return { ok: true, clientes: [fromOrders.cliente], agenda_fallback: true };
+      }
+    }
+    return { ok: true, clientes: [], agenda_fallback: true };
+  }
   const rows = Array.isArray(r.data) ? r.data : [];
   return { ok: true, clientes: rows.map(rowToCliente).filter(Boolean) };
 }
@@ -354,10 +370,8 @@ async function createManualOrder(body) {
     return { ok: false, error: 'totales_invalidos' };
   }
 
-  const turno = turnoFromManualBody(body);
-  const { validateShopOrder } = require('./turnosDelivery');
-  const turnCheck = await validateShopOrder({ turno: turno, telefono: telefono });
-  if (!turnCheck.ok) return turnCheck;
+  const turno = String(body.turno || '').trim();
+  // Manual (admin): no validar cupos/horarios de turnos delivery de la tienda web.
 
   const envMeta = envioFromManualItems(body.items || items);
   const ornRes = await restRpc('next_pend_del');

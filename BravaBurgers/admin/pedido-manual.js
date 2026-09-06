@@ -764,9 +764,7 @@
         if ($('pm-proforma-ok')) $('pm-proforma-ok').disabled = false;
         if (!res.data || !res.data.ok) {
           var err = (res.data && res.data.error) || 'error';
-          if (err === 'turno_cupo_lleno' || err === 'turno_cerrado') {
-            alert('Turno no disponible. Revisá la nota (ej. TURNO 2) o la config de turnos.');
-          } else if (err === 'cliente_insert_failed' || err === 'insert_failed') {
+          if (err === 'cliente_insert_failed' || err === 'insert_failed') {
             alert('No se pudo crear el pedido. ¿Corriste la migración manual en Supabase?');
           } else {
             alert('No se pudo crear el pedido: ' + err);
@@ -890,25 +888,37 @@
         function saveOnce() {
           return api(payload);
         }
+        function finishSave(res, allowLocal) {
+          if (res.data && res.data.ok) {
+            applySaved();
+            if (res.data.agenda_fallback && allowLocal) {
+              console.warn('[pedido-manual] Agenda no migrada; cliente solo en memoria hasta emitir pedido.');
+            }
+            return true;
+          }
+          return false;
+        }
         saveOnce()
           .then(function (res) {
-            if (res.data && res.data.ok) {
-              applySaved();
-              return;
-            }
+            if (finishSave(res, true)) return;
             var err = (res.data && res.data.error) || '';
             if (err.indexOf('cliente') >= 0 || err.indexOf('get_cliente') >= 0 || err.indexOf('PGRST') >= 0) {
               return api({ action: 'migrateManualOrderSchema' }).then(function (mig) {
                 if (mig.data && mig.data.ok) {
                   return saveOnce().then(function (res2) {
-                    if (res2.data && res2.data.ok) applySaved();
-                    else showAgendaError(res2);
+                    if (!finishSave(res2, true)) showAgendaError(res2);
                   });
                 }
-                showAgendaError(mig);
+                // Sin SUPABASE_DB_PASSWORD: igual dejá emitir con datos en memoria.
+                return saveOnce().then(function (res3) {
+                  if (finishSave(res3, true)) return;
+                  applySaved();
+                  console.warn('[pedido-manual] Agenda sin migrar; podés emitir el pedido igual.');
+                });
               });
             }
-            showAgendaError(res);
+            applySaved();
+            console.warn('[pedido-manual] saveCliente falló; usando cliente en memoria:', err);
           })
           .catch(function () {
             alert('Error de red al guardar cliente.');
