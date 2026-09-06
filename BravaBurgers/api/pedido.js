@@ -64,6 +64,8 @@ module.exports = async function handler(req, res) {
         data.error === 'turno_no_abierto' ||
         data.error === 'turno_invalid' ||
         data.error === 'turno_no_disponible' ||
+        data.error === 'turno_requerido' ||
+        data.error === 'pago_requerido' ||
         data.error === 'fuera_de_zona' ||
         data.error === 'direccion_sin_coordenadas';
       const cuponErr =

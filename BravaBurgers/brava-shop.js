@@ -927,9 +927,26 @@
 		el.textContent = text;
 	}
 
-	function bravaSetCheckoutSubmitEnabled(on) {
-		$('.brava-btn-submit').prop('disabled', !on);
+	function bravaCheckoutRequiredFieldsOk() {
+		var nombre = ($('#pregunta_1_respuesta').val() || '').trim();
+		var tel = ($('#brava_telefono').val() || '').trim();
+		var dir = ($('#pregunta_2_respuesta').val() || '').trim();
+		var pago = ($('#pregunta_5_respuesta').val() || '').trim();
+		var turno = ($('#pregunta_6_respuesta').val() || '').trim();
+		return !!(nombre && tel && dir && pago && turno);
 	}
+
+	function bravaRefreshCheckoutSubmit() {
+		var zoneOk = !bravaZoneDeliveryRequired() || bravaZoneDeliveryOk;
+		$('.brava-btn-submit').prop('disabled', !(zoneOk && bravaCheckoutRequiredFieldsOk()));
+	}
+
+	function bravaSetCheckoutSubmitEnabled(on) {
+		if (arguments.length) bravaZoneDeliveryOk = !!on;
+		bravaRefreshCheckoutSubmit();
+	}
+
+	window.bravaRefreshCheckoutSubmit = bravaRefreshCheckoutSubmit;
 
 	window.bravaMensajeErrorZona = function (code) {
 		if (code === 'fuera_de_zona') {
@@ -1319,8 +1336,8 @@
 	}
 
 	function buildBravaWhatsAppConfirmUrl(nombre) {
-		var wave = '\uD83D\uDC4B';
-		var burger = '\uD83C\uDF54';
+		var wave = '\u{1F44B}';
+		var burger = '\u{1F354}';
 		var primera = bravaClienteFirstName(nombre);
 		var cierre = '\u00A1Espero la confirmaci\u00F3n! ' + burger;
 		var msg = primera
@@ -1330,8 +1347,25 @@
 	}
 
 	window.finalizar_pedido = function () {
+		var form = document.getElementById('brava-checkout-form');
+		if (form && typeof form.reportValidity === 'function' && !form.reportValidity()) {
+			bravaRefreshCheckoutSubmit();
+			return false;
+		}
 		if (bravaZoneDeliveryRequired() && !bravaZoneDeliveryOk) {
 			alert('Mové el pin dentro de la zona naranja del mapa para confirmar que entregamos ahí.');
+			return false;
+		}
+		var pagoVal = ($('#pregunta_5_respuesta').val() || '').trim();
+		if (!pagoVal) {
+			alert('Elegí cómo vas a pagar.');
+			$('#pregunta_5_respuesta').focus();
+			return false;
+		}
+		var turnoVal = ($('#pregunta_6_respuesta').val() || '').trim();
+		if (!turnoVal) {
+			alert('Elegí un turno de entrega.');
+			$('#pregunta_6_respuesta').focus();
 			return false;
 		}
 		if ($('#brava-coupon-code').val().trim() && !bravaAppliedCoupon) {
@@ -1409,6 +1443,16 @@
 					if (msgTurno) {
 						falloGuardarPedido(msgTurno);
 						if (window.bravaRefreshTurnosCheckout) window.bravaRefreshTurnosCheckout();
+						bravaRefreshCheckoutSubmit();
+						return;
+					}
+					var msgPago =
+						data &&
+						window.bravaMensajeErrorPago &&
+						window.bravaMensajeErrorPago(data.error);
+					if (msgPago) {
+						falloGuardarPedido(msgPago);
+						bravaRefreshCheckoutSubmit();
 						return;
 					}
 					var msgZona =
@@ -1682,6 +1726,7 @@
 			$('#zone-banner').show();
 		}
 		if (window.bravaResetTurnoCupoNotice) window.bravaResetTurnoCupoNotice();
+		bravaRefreshCheckoutSubmit();
 	}
 
 	function syncTurnosDeliveryBodyClass() {
@@ -1752,5 +1797,12 @@
 		$('#brava-coupon-apply').on('click', function () {
 			window.bravaApplyCoupon();
 		});
+		$(document).on(
+			'input change',
+			'#pregunta_1_respuesta, #brava_telefono, #pregunta_2_respuesta, #pregunta_5_respuesta, #pregunta_6_respuesta',
+			function () {
+				bravaRefreshCheckoutSubmit();
+			}
+		);
 	});
 })();

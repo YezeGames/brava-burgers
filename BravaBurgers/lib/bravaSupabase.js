@@ -134,6 +134,12 @@ async function createOrderFromShop(order) {
 
 
 
+  const pago = String(order.pago || '').trim();
+  if (!pago) return { ok: false, error: 'pago_requerido' };
+
+  const turno = String(order.turno || '').trim();
+  if (!turno) return { ok: false, error: 'turno_requerido' };
+
   const subtotal = Number(order.subtotal) || 0;
 
   const envioOriginal = Number(order.envio) || 0;

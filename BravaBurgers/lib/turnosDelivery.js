@@ -250,9 +250,10 @@ function findTurnByCustomerLabel(config, label) {
 
 async function validateShopOrder(order) {
 	const turno = String(order.turno || '').trim();
-	if (!turno) return { ok: true };
-
 	const config = await getDeliveryConfig(3);
+	if (!turno) {
+		return config.enabled ? { ok: false, error: 'turno_requerido' } : { ok: true };
+	}
 	if (!config.enabled) return { ok: true };
 
 	const countsRes = await fetchTodayOrderCounts(config);

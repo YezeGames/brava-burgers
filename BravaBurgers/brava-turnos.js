@@ -120,10 +120,13 @@
 			});
 	}
 
+	function refreshCheckoutSubmit() {
+		if (window.bravaRefreshCheckoutSubmit) window.bravaRefreshCheckoutSubmit();
+	}
+
 	function applyTurnosUI(results, pedidosDesdeMin, nowMin) {
 		var sel = document.getElementById('pregunta_6_respuesta');
 		var notice = document.getElementById('brava-turno-cupo-notice');
-		var submit = document.querySelector('.brava-btn-submit');
 		if (!sel) return;
 
 		var available = results.filter(function (r) {
@@ -141,14 +144,13 @@
 					formatMinutes(pedidosDesdeMin) +
 					' para elegir turno.';
 			}
-			if (submit) submit.disabled = true;
+			refreshCheckoutSubmit();
 			return;
 		}
 
 		if (!available.length) {
 			sel.appendChild(new Option('— Sin turnos disponibles —', ''));
 			sel.disabled = true;
-			if (submit) submit.disabled = true;
 		} else {
 			sel.disabled = false;
 			sel.appendChild(new Option('-- Selecciona --', ''));
@@ -158,8 +160,8 @@
 			if (available.length === 1) {
 				sel.value = available[0].customerLabel;
 			}
-			if (submit) submit.disabled = false;
 		}
+		refreshCheckoutSubmit();
 
 		if (!notice) return;
 		var lines = results
@@ -199,6 +201,7 @@
 		(p.opcionesTurno || []).forEach(function (o) {
 			turno.append($('<option></option>').val(o).text(o));
 		});
+		refreshCheckoutSubmit();
 	}
 
 	window.bravaResetTurnoCupoNotice = function () {
@@ -235,6 +238,9 @@
 	};
 
 	window.bravaMensajeErrorTurno = function (code) {
+		if (code === 'turno_requerido') {
+			return 'Elegí un turno de entrega.';
+		}
 		if (code === 'turno_cupo_lleno') {
 			return 'El cupo de ese turno se completó. Elegí otro turno o actualizá la página.';
 		}
@@ -246,6 +252,13 @@
 		}
 		if (code === 'turno_invalid' || code === 'turno_no_disponible') {
 			return 'El turno elegido no está disponible. Actualizá y probá de nuevo.';
+		}
+		return '';
+	};
+
+	window.bravaMensajeErrorPago = function (code) {
+		if (code === 'pago_requerido') {
+			return 'Elegí cómo vas a pagar.';
 		}
 		return '';
 	};
