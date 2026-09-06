@@ -501,6 +501,8 @@ stateDiagram-v2
 
 ## Reclamos y gratificación (ideas — sep 2026)
 
+**Demo interactivo (admin + tienda):** [`demo-reclamos-gratificacion.html`](demo-reclamos-gratificacion.html) — cupón automático, reenvío clonado, checkout con código. Solo local / Vercel, sin backend.
+
 
 
 Cuando un cliente se queja (pedido frío, faltante, demora, error de cocina). Objetivo: **resolver rápido**, **costo acotado**, **que vuelva el sábado**.

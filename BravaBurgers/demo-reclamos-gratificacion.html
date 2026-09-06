@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — Reclamos · cupón + reenvío (admin + tienda)</title>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--brava: #ff6b35;
+			--brava-dim: rgba(255, 107, 53, 0.15);
+			--ok: #2e7d32;
+			--ok-bg: rgba(46, 125, 50, 0.12);
+			--danger: #c62828;
+			--danger-bg: rgba(198, 40, 40, 0.1);
+			--admin-bg: #f5f5f5;
+			--admin-surface: #fff;
+			--admin-text: #333;
+			--admin-muted: #666;
+			--admin-border: #e8e8e8;
+			--shop-bg: #121212;
+			--shop-panel: #1a1a1a;
+			--shop-text: #eee;
+			--shop-muted: #888;
+			--shop-border: #333;
+			--shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			font-size: 14px;
+			background: var(--admin-bg);
+			color: var(--admin-text);
+		}
+		.demo-top {
+			background: linear-gradient(135deg, #1a1a1a 0%, #2a1810 100%);
+			color: #ccc;
+			padding: 14px 18px;
+			font-size: 0.82rem;
+			line-height: 1.5;
+			border-bottom: 3px solid var(--brava);
+		}
+		.demo-top strong { color: var(--brava); }
+		.demo-top code { background: #252525; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+		.view-tabs {
+			display: flex;
+			gap: 0;
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 12px 16px 0;
+		}
+		.view-tabs button {
+			flex: 1;
+			max-width: 220px;
+			border: 1px solid var(--admin-border);
+			background: var(--admin-surface);
+			padding: 10px 16px;
+			font-weight: 700;
+			font-size: 0.85rem;
+			cursor: pointer;
+			border-radius: 8px 8px 0 0;
+			color: var(--admin-muted);
+		}
+		.view-tabs button.is-active {
+			background: var(--brava);
+			border-color: var(--brava);
+			color: #fff;
+		}
+		.shell {
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 0 16px 48px;
+		}
+		.view-panel { display: none; }
+		.view-panel.is-active { display: block; }
+		.grid-2 {
+			display: grid;
+			grid-template-columns: 1fr 300px;
+			gap: 16px;
+			align-items: start;
+		}
+		@media (max-width: 900px) {
+			.grid-2 { grid-template-columns: 1fr; }
+		}
+		.card {
+			background: var(--admin-surface);
+			border-radius: 0 8px 8px 8px;
+			box-shadow: var(--shadow);
+			padding: 16px;
+			margin-bottom: 16px;
+		}
+		.card h2 {
+			margin: 0 0 12px;
+			font-size: 1rem;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+		}
+		.card h2 i { color: var(--brava); }
+		.order-card {
+			border: 1px solid var(--admin-border);
+			border-radius: 8px;
+			padding: 14px;
+			margin-bottom: 10px;
+		}
+		.order-card.is-delivered { border-left: 4px solid var(--ok); }
+		.order-card.is-reenvio { border-left: 4px solid var(--brava); background: var(--brava-dim); }
+		.order-head {
+			display: flex;
+			justify-content: space-between;
+			align-items: flex-start;
+			gap: 8px;
+			flex-wrap: wrap;
+		}
+		.order-orn { font-weight: 800; color: var(--brava); font-size: 0.95rem; }
+		.badge {
+			font-size: 0.68rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			padding: 3px 8px;
+			border-radius: 999px;
+			background: #eee;
+			color: #555;
+		}
+		.badge.ok { background: var(--ok-bg); color: var(--ok); }
+		.badge.reclamo { background: var(--brava-dim); color: var(--brava); }
+		.order-meta { font-size: 0.8rem; color: var(--admin-muted); margin: 6px 0 10px; line-height: 1.45; }
+		.order-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+		.btn {
+			border: 1px solid var(--admin-border);
+			background: #fff;
+			border-radius: 6px;
+			padding: 7px 12px;
+			font-size: 0.78rem;
+			font-weight: 600;
+			cursor: pointer;
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+		}
+		.btn:hover { border-color: var(--brava); color: var(--brava); }
+		.btn-primary { background: var(--brava); border-color: var(--brava); color: #fff; }
+		.btn-primary:hover { filter: brightness(1.05); color: #fff; }
+		.btn-danger { border-color: #e57373; color: var(--danger); }
+		.sidebar-box {
+			background: var(--admin-surface);
+			border-radius: 8px;
+			box-shadow: var(--shadow);
+			padding: 14px;
+			font-size: 0.8rem;
+		}
+		.sidebar-box h3 { margin: 0 0 10px; font-size: 0.85rem; color: var(--admin-muted); }
+		.coupon-item, .log-item {
+			border: 1px solid var(--admin-border);
+			border-radius: 6px;
+			padding: 8px 10px;
+			margin-bottom: 6px;
+			font-size: 0.76rem;
+			line-height: 1.4;
+		}
+		.coupon-item code { color: var(--brava); font-weight: 700; }
+		.coupon-item.used { opacity: 0.55; text-decoration: line-through; }
+		.empty { color: var(--admin-muted); font-style: italic; font-size: 0.78rem; }
+		.modal-backdrop {
+			position: fixed;
+			inset: 0;
+			background: rgba(0, 0, 0, 0.5);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 16px;
+			z-index: 100;
+		}
+		.modal-backdrop.hidden { display: none; }
+		.modal {
+			background: #fff;
+			border-radius: 12px;
+			max-width: 480px;
+			width: 100%;
+			max-height: 90vh;
+			overflow: auto;
+			box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+		}
+		.modal-head {
+			padding: 16px 18px;
+			border-bottom: 1px solid var(--admin-border);
+			font-weight: 700;
+			font-size: 1rem;
+		}
+		.modal-body { padding: 16px 18px; }
+		.modal-foot {
+			padding: 12px 18px 16px;
+			display: flex;
+			gap: 8px;
+			justify-content: flex-end;
+			border-top: 1px solid var(--admin-border);
+		}
+		.field { margin-bottom: 12px; }
+		.field label { display: block; font-size: 0.75rem; font-weight: 600; color: var(--admin-muted); margin-bottom: 4px; }
+		.field select, .field input, .field textarea {
+			width: 100%;
+			padding: 8px 10px;
+			border: 1px solid #ccc;
+			border-radius: 6px;
+			font: inherit;
+		}
+		.field textarea { min-height: 72px; resize: vertical; }
+		.wa-preview {
+			background: #0b141a;
+			color: #e9edef;
+			border-radius: 8px;
+			padding: 12px;
+			font-size: 0.78rem;
+			line-height: 1.45;
+			white-space: pre-wrap;
+		}
+		.wa-preview .bubble {
+			background: #005c4b;
+			border-radius: 8px 8px 2px 8px;
+			padding: 8px 10px;
+			margin-top: 8px;
+			max-width: 92%;
+			margin-left: auto;
+		}
+		.toast {
+			position: fixed;
+			bottom: 20px;
+			left: 50%;
+			transform: translateX(-50%);
+			background: #1a1a1a;
+			color: #fff;
+			padding: 10px 18px;
+			border-radius: 999px;
+			font-size: 0.82rem;
+			font-weight: 600;
+			z-index: 200;
+			box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+			animation: toast-in 0.25s ease;
+		}
+		@keyframes toast-in {
+			from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+		}
+		/* —— Tienda —— */
+		#view-shop.view-panel.is-active .card {
+			background: var(--shop-panel);
+			color: var(--shop-text);
+			border: 1px solid var(--shop-border);
+		}
+		.shop-wrap {
+			max-width: 420px;
+			margin: 0 auto;
+		}
+		.shop-hero {
+			text-align: center;
+			padding: 20px 0 8px;
+		}
+		.shop-hero h1 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 2.4rem;
+			color: var(--brava);
+			margin: 0;
+			letter-spacing: 0.06em;
+		}
+		.shop-hero p { margin: 4px 0 0; color: var(--shop-muted); font-size: 0.82rem; }
+		.cart-line {
+			display: flex;
+			justify-content: space-between;
+			padding: 8px 0;
+			border-bottom: 1px solid var(--shop-border);
+			font-size: 0.85rem;
+		}
+		.checkout-field label { color: var(--shop-muted); }
+		.checkout-field input {
+			width: 100%;
+			padding: 10px 12px;
+			border: 1px solid var(--shop-border);
+			border-radius: 8px;
+			background: #252525;
+			color: var(--shop-text);
+			font: inherit;
+		}
+		.coupon-row {
+			display: flex;
+			gap: 8px;
+			align-items: stretch;
+		}
+		.coupon-row input { flex: 1; }
+		.coupon-applied {
+			background: var(--ok-bg);
+			border: 1px solid rgba(46, 125, 50, 0.35);
+			color: #81c784;
+			border-radius: 8px;
+			padding: 10px 12px;
+			font-size: 0.8rem;
+			margin-top: 8px;
+			display: none;
+		}
+		.coupon-applied.visible { display: block; }
+		.coupon-error {
+			color: #e57373;
+			font-size: 0.75rem;
+			margin-top: 6px;
+			display: none;
+		}
+		.coupon-error.visible { display: block; }
+		.totals { margin-top: 14px; font-size: 0.88rem; }
+		.totals .row { display: flex; justify-content: space-between; padding: 4px 0; color: var(--shop-muted); }
+		.totals .row.disc { color: #81c784; }
+		.totals .row.grand { font-weight: 800; font-size: 1.05rem; color: var(--shop-text); border-top: 1px solid var(--shop-border); margin-top: 6px; padding-top: 10px; }
+		.btn-shop {
+			width: 100%;
+			margin-top: 14px;
+			padding: 14px;
+			border: none;
+			border-radius: 10px;
+			background: var(--brava);
+			color: #fff;
+			font-weight: 700;
+			font-size: 0.95rem;
+			cursor: pointer;
+		}
+		.btn-shop:disabled { opacity: 0.5; cursor: not-allowed; }
+		.success-box {
+			display: none;
+			text-align: center;
+			padding: 24px 16px;
+		}
+		.success-box.visible { display: block; }
+		.success-box .orn { font-size: 1.4rem; font-weight: 800; color: var(--brava); margin: 8px 0; }
+		.flow-hint {
+			background: var(--brava-dim);
+			border: 1px dashed var(--brava);
+			border-radius: 8px;
+			padding: 10px 12px;
+			font-size: 0.78rem;
+			color: var(--admin-muted);
+			margin-bottom: 14px;
+			line-height: 1.45;
+		}
+		.hidden { display: none !important; }
+	</style>
+</head>
+<body>
+
+<div class="demo-top">
+	<strong>Demo · no producción</strong> — Flujo automatizado de reclamos: desde el <strong>panel admin</strong> generás cupón o reenvío;
+	el cliente usa el código en la <strong>tienda web</strong> (sin pedido manual). Datos en memoria del navegador.
+	Abrí: <code>/demo-reclamos-gratificacion.html</code>
+</div>
+
+<div class="view-tabs">
+	<button type="button" class="is-active" data-view="admin"><i class="fas fa-table-columns"></i> Panel admin</button>
+	<button type="button" data-view="shop"><i class="fas fa-burger"></i> Tienda web</button>
+</div>
+
+<div class="shell">
+	<div id="view-admin" class="view-panel is-active">
+		<div class="flow-hint">
+			<strong>Probá el flujo:</strong> 1) Elegí un pedido entregado → <em>Gratificar</em> → confirmá (se “envía” WA y crea cupón).
+			2) Cambiá a pestaña <em>Tienda web</em> → mismo teléfono + código → checkout con descuento.
+		</div>
+		<div class="grid-2">
+			<div>
+				<div class="card">
+					<h2><i class="fas fa-receipt"></i> Pedidos del turno</h2>
+					<div id="orders-list"></div>
+				</div>
+				<div class="card">
+					<h2><i class="fab fa-whatsapp"></i> Último mensaje enviado (simulado)</h2>
+					<div class="wa-preview" id="wa-last">
+						<span style="color:#8696a0;">Todavía no enviaste una gratificación.</span>
+					</div>
+				</div>
+			</div>
+			<div>
+				<div class="sidebar-box">
+					<h3>Cupones activos</h3>
+					<div id="coupons-list"><p class="empty">Ninguno</p></div>
+				</div>
+				<div class="sidebar-box" style="margin-top:12px;">
+					<h3>Eventos demo</h3>
+					<div id="event-log"><p class="empty">—</p></div>
+					<button type="button" class="btn" style="width:100%;margin-top:8px;" id="btn-reset">Reiniciar demo</button>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="view-shop" class="view-panel">
+		<div class="shop-wrap">
+			<div class="shop-hero">
+				<h1>BRAVA BURGERS</h1>
+				<p>Checkout · cupón de compensación</p>
+			</div>
+			<div class="card">
+				<div id="shop-form-wrap">
+					<h2 style="font-size:0.9rem;color:var(--shop-muted);margin:0 0 12px;">Tu carrito</h2>
+					<div class="cart-line"><span>1× Brava Simple</span><span>$8.500</span></div>
+					<div class="cart-line"><span>1× Papas Brava</span><span>$4.500</span></div>
+					<div class="checkout-field" style="margin-top:14px;">
+						<label>Teléfono WhatsApp</label>
+						<input type="tel" id="shop-tel" placeholder="11 2397 3487" value="1123973487">
+					</div>
+					<div class="checkout-field" style="margin-top:10px;">
+						<label>Código de compensación (opcional)</label>
+						<div class="coupon-row">
+							<input type="text" id="shop-coupon" placeholder="BRAVA-XXXX" autocomplete="off">
+							<button type="button" class="btn btn-primary" id="btn-apply-coupon">Aplicar</button>
+						</div>
+						<div class="coupon-error" id="coupon-error"></div>
+						<div class="coupon-applied" id="coupon-applied"></div>
+					</div>
+					<div class="totals" id="shop-totals">
+						<div class="row"><span>Subtotal</span><span id="t-sub">$13.000</span></div>
+						<div class="row"><span>Envío Olivos</span><span id="t-env">$2.800</span></div>
+						<div class="row disc hidden" id="t-disc-row"><span id="t-disc-label">Descuento</span><span id="t-disc">−$0</span></div>
+						<div class="row grand"><span>Total</span><span id="t-grand">$15.800</span></div>
+					</div>
+					<button type="button" class="btn-shop" id="btn-checkout">Confirmar pedido</button>
+				</div>
+				<div class="success-box" id="shop-success">
+					<div style="font-size:2rem;">✅</div>
+					<p>Pedido enviado a cocina</p>
+					<div class="orn" id="success-orn">ORN-DEL-0040</div>
+					<p style="color:var(--shop-muted);font-size:0.82rem;" id="success-detail"></p>
+					<button type="button" class="btn-shop" id="btn-new-order">Nuevo pedido</button>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+<div class="modal-backdrop hidden" id="modal-gratificar">
+	<div class="modal" role="dialog" aria-labelledby="modal-title">
+		<div class="modal-head" id="modal-title">Gratificar cliente</div>
+		<div class="modal-body">
+			<p style="margin:0 0 12px;font-size:0.82rem;color:var(--admin-muted);" id="modal-orn-ref"></p>
+			<div class="field">
+				<label>Motivo del reclamo</label>
+				<select id="f-motivo">
+					<option value="faltante">Faltante / olvidaron algo</option>
+					<option value="demora">Demora en delivery</option>
+					<option value="frio">Pedido frío</option>
+					<option value="item_mal">Ítem equivocado / incompleto</option>
+					<option value="otro">Otro</option>
+				</select>
+			</div>
+			<div class="field">
+				<label>Tipo de compensación</label>
+				<select id="f-tipo">
+					<option value="pct">Porcentaje off próximo pedido</option>
+					<option value="monto">Monto fijo off ($)</option>
+					<option value="envio">Envío gratis</option>
+					<option value="item">Extra gratis (papas)</option>
+				</select>
+			</div>
+			<div class="field" id="f-valor-wrap">
+				<label id="f-valor-label">Porcentaje (%)</label>
+				<input type="number" id="f-valor" value="15" min="1" max="100">
+			</div>
+			<div class="field">
+				<label>Vista previa WhatsApp</label>
+				<div class="wa-preview"><div class="bubble" id="wa-preview-text"></div></div>
+			</div>
+		</div>
+		<div class="modal-foot">
+			<button type="button" class="btn" id="btn-modal-cancel">Cancelar</button>
+			<button type="button" class="btn btn-primary" id="btn-modal-confirm"><i class="fab fa-whatsapp"></i> Enviar y crear cupón</button>
+		</div>
+	</div>
+</div>
+
+<script>
+(function () {
+	'use strict';
+
+	var SUBTOTAL = 13000;
+	var ENVIO = 2800;
+	var appliedCoupon = null;
+	var modalOrn = null;
+	var nextOrn = 40;
+
+	var orders = [
+		{
+			orn: 'ORN-DEL-0039',
+			cliente: 'Ezequiel',
+			tel: '1123973487',
+			estado: 'entregada',
+			total: 15800,
+			items: '1× Brava Simple, 1× Papas',
+			reclamo: false,
+			reenvioDe: null,
+		},
+		{
+			orn: 'ORN-DEL-0038',
+			cliente: 'María',
+			tel: '1155443322',
+			estado: 'entregada',
+			total: 22400,
+			items: '2× Brava Doble',
+			reclamo: false,
+			reenvioDe: null,
+		},
+	];
+
+	var coupons = [];
+	var events = [];
+
+	function telNorm(t) {
+		return String(t || '').replace(/\D/g, '').slice(-10);
+	}
+
+	function fmt(n) {
+		return '$' + Number(n || 0).toLocaleString('es-AR');
+	}
+
+	function genCode() {
+		var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+		var s = 'BRAVA-';
+		for (var i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
+		return s;
+	}
+
+	function suggestComp(motivo) {
+		if (motivo === 'faltante' || motivo === 'demora') return { tipo: 'pct', valor: 15 };
+		if (motivo === 'frio') return { tipo: 'item', valor: 0 };
+		if (motivo === 'item_mal') return { tipo: 'pct', valor: 20 };
+		return { tipo: 'pct', valor: 10 };
+	}
+
+	function couponLabel(c) {
+		if (c.tipo === 'pct') return c.valor + '% off';
+		if (c.tipo === 'monto') return fmt(c.valor) + ' off';
+		if (c.tipo === 'envio') return 'Envío gratis';
+		if (c.tipo === 'item') return 'Papas Brava gratis';
+		return c.tipo;
+	}
+
+	function calcDiscount(c, subtotal, envio) {
+		if (!c || c.used) return 0;
+		if (c.tipo === 'pct') return Math.round(subtotal * (c.valor / 100));
+		if (c.tipo === 'monto') return Math.min(c.valor, subtotal + envio);
+		if (c.tipo === 'envio') return envio;
+		if (c.tipo === 'item') return 4500;
+		return 0;
+	}
+
+	function buildWaMsg(order, code, c) {
+		var nombre = (order.cliente || 'Hola').split(/\s+/)[0];
+		var beneficio = couponLabel(c);
+		return (
+			'¡' + nombre + '! Lamentamos lo de tu pedido ' + order.orn + '.\n\n' +
+			'Te dejamos **' + beneficio + '** en tu próximo pedido.\n' +
+			'Código: **' + code + '**\n' +
+			'Pedí acá: https://linktr.ee/bravaburgers\n\n' +
+			'Válido 1 uso · próximo sábado. 🍔'
+		);
+	}
+
+	function log(msg) {
+		events.unshift({ t: new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }), msg: msg });
+		if (events.length > 8) events.pop();
+		renderEvents();
+	}
+
+	function toast(msg) {
+		var el = document.createElement('div');
+		el.className = 'toast';
+		el.textContent = msg;
+		document.body.appendChild(el);
+		setTimeout(function () { el.remove(); }, 2800);
+	}
+
+	function renderOrders() {
+		var list = document.getElementById('orders-list');
+		list.innerHTML = orders
+			.map(function (o) {
+				var cls = o.estado === 'entregada' ? 'is-delivered' : '';
+				if (o.reenvioDe) cls = 'is-reenvio';
+				var badges =
+					'<span class="badge ok">' + o.estado + '</span>' +
+					(o.reclamo ? ' <span class="badge reclamo">reclamo</span>' : '') +
+					(o.reenvioDe ? ' <span class="badge reclamo">reenvío</span>' : '');
+				var actions = '';
+				if (o.estado === 'entregada' && !o.reenvioDe) {
+					actions =
+						'<button type="button" class="btn btn-primary btn-gratificar" data-orn="' + o.orn + '">' +
+						'<i class="fas fa-gift"></i> Gratificar</button>' +
+						'<button type="button" class="btn btn-danger btn-reenvio" data-orn="' + o.orn + '">' +
+						'<i class="fas fa-truck"></i> Reenvío reclamo</button>';
+				}
+				if (o.estado === 'pendiente') {
+					actions = '<span style="font-size:0.75rem;color:var(--admin-muted);">En cola cocina (generado auto)</span>';
+				}
+				return (
+					'<div class="order-card ' + cls + '">' +
+					'<div class="order-head"><span class="order-orn">' + o.orn + '</span>' + badges + '</div>' +
+					'<div class="order-meta"><strong>' + o.cliente + '</strong> · ' + o.tel + '<br>' +
+					o.items + ' · ' + fmt(o.total) +
+					(o.reenvioDe ? '<br><em>Reclamo de ' + o.reenvioDe + ' · $0 producto</em>' : '') +
+					'</div><div class="order-actions">' + actions + '</div></div>'
+				);
+			})
+			.join('');
+		list.querySelectorAll('.btn-gratificar').forEach(function (btn) {
+			btn.addEventListener('click', function () { openGratificar(btn.getAttribute('data-orn')); });
+		});
+		list.querySelectorAll('.btn-reenvio').forEach(function (btn) {
+			btn.addEventListener('click', function () { doReenvio(btn.getAttribute('data-orn')); });
+		});
+	}
+
+	function renderCoupons() {
+		var box = document.getElementById('coupons-list');
+		if (!coupons.length) {
+			box.innerHTML = '<p class="empty">Ninguno</p>';
+			return;
+		}
+		box.innerHTML = coupons
+			.map(function (c) {
+				return (
+					'<div class="coupon-item' + (c.used ? ' used' : '') + '">' +
+					'<code>' + c.codigo + '</code> · ' + couponLabel(c) + '<br>' +
+					'Tel …' + telNorm(c.tel).slice(-4) + ' · ORN ' + c.orn_origen +
+					(c.used ? '<br>Usado en ' + c.used_orn : '') +
+					'</div>'
+				);
+			})
+			.join('');
+	}
+
+	function renderEvents() {
+		var box = document.getElementById('event-log');
+		if (!events.length) {
+			box.innerHTML = '<p class="empty">—</p>';
+			return;
+		}
+		box.innerHTML = events.map(function (e) {
+			return '<div class="log-item"><strong>' + e.t + '</strong> ' + e.msg + '</div>';
+		}).join('');
+	}
+
+	function openGratificar(orn) {
+		var o = orders.find(function (x) { return x.orn === orn; });
+		if (!o) return;
+		modalOrn = orn;
+		document.getElementById('modal-orn-ref').textContent = o.cliente + ' · ' + o.tel + ' · ' + orn;
+		var sug = suggestComp(document.getElementById('f-motivo').value);
+		document.getElementById('f-tipo').value = sug.tipo;
+		document.getElementById('f-valor').value = sug.valor || 15;
+		updateModalPreview();
+		document.getElementById('modal-gratificar').classList.remove('hidden');
+	}
+
+	function updateModalPreview() {
+		var o = orders.find(function (x) { return x.orn === modalOrn; });
+		if (!o) return;
+		var tipo = document.getElementById('f-tipo').value;
+		var valor = Number(document.getElementById('f-valor').value) || 0;
+		var wrap = document.getElementById('f-valor-wrap');
+		var vlabel = document.getElementById('f-valor-label');
+		if (tipo === 'pct') {
+			wrap.classList.remove('hidden');
+			vlabel.textContent = 'Porcentaje (%)';
+		} else if (tipo === 'monto') {
+			wrap.classList.remove('hidden');
+			vlabel.textContent = 'Monto ($)';
+			if (valor > 5000) document.getElementById('f-valor').value = 2000;
+		} else {
+			wrap.classList.add('hidden');
+		}
+		var fake = { tipo: tipo, valor: valor };
+		var code = 'BRAVA-XXXX';
+		document.getElementById('wa-preview-text').textContent = buildWaMsg(o, code, fake);
+	}
+
+	function confirmGratificar() {
+		var o = orders.find(function (x) { return x.orn === modalOrn; });
+		if (!o) return;
+		var existing = coupons.find(function (c) {
+			return !c.used && telNorm(c.tel) === telNorm(o.tel);
+		});
+		if (existing) {
+			alert('Demo: ya hay un cupón activo para este teléfono (' + existing.codigo + ').');
+			return;
+		}
+		var code = genCode();
+		var c = {
+			codigo: code,
+			tel: o.tel,
+			tipo: document.getElementById('f-tipo').value,
+			valor: Number(document.getElementById('f-valor').value) || 0,
+			motivo: document.getElementById('f-motivo').value,
+			orn_origen: o.orn,
+			used: false,
+			used_orn: null,
+		};
+		coupons.push(c);
+		o.reclamo = true;
+		document.getElementById('wa-last').innerHTML =
+			'<div style="color:#8696a0;font-size:0.72rem;">Enviado a ' + o.cliente + ' · 23:41</div>' +
+			'<div class="bubble">' + buildWaMsg(o, code, c).replace(/\*\*/g, '') + '</div>';
+		document.getElementById('modal-gratificar').classList.add('hidden');
+		log('Cupón ' + code + ' creado (' + couponLabel(c) + ')');
+		toast('Cupón ' + code + ' enviado por WA (simulado)');
+		renderOrders();
+		renderCoupons();
+	}
+
+	function doReenvio(orn) {
+		var orig = orders.find(function (x) { return x.orn === orn; });
+		if (!orig || !confirm('¿Generar reenvío $0 por reclamo de ' + orn + '?')) return;
+		var newOrn = 'ORN-DEL-' + String(nextOrn++).padStart(4, '0');
+		orders.unshift({
+			orn: newOrn,
+			cliente: orig.cliente,
+			tel: orig.tel,
+			estado: 'pendiente',
+			total: 0,
+			items: orig.items + ' (reenvío)',
+			reclamo: true,
+			reenvioDe: orn,
+		});
+		orig.reclamo = true;
+		document.getElementById('wa-last').innerHTML =
+			'<div style="color:#8696a0;font-size:0.72rem;">Enviado a ' + orig.cliente + ' · 23:42</div>' +
+			'<div class="bubble">¡' + orig.cliente.split(/\s+/)[0] + '! Armamos tu reenvío ' + newOrn + ' sin cargo. Misma dirección. 🍔</div>';
+		log('Reenvío ' + newOrn + ' clonado desde ' + orn);
+		toast('Reenvío ' + newOrn + ' en Pendientes');
+		renderOrders();
+	}
+
+	function applyShopCoupon() {
+		var tel = telNorm(document.getElementById('shop-tel').value);
+		var code = String(document.getElementById('shop-coupon').value || '').trim().toUpperCase();
+		var err = document.getElementById('coupon-error');
+		var ok = document.getElementById('coupon-applied');
+		err.classList.remove('visible');
+		ok.classList.remove('visible');
+		appliedCoupon = null;
+		if (!code) {
+			updateShopTotals();
+			return;
+		}
+		var c = coupons.find(function (x) {
+			return x.codigo === code && !x.used;
+		});
+		if (!c) {
+			err.textContent = 'Código inválido o ya usado.';
+			err.classList.add('visible');
+			updateShopTotals();
+			return;
+		}
+		if (telNorm(c.tel) !== tel) {
+			err.textContent = 'Este código es para otro teléfono (…' + telNorm(c.tel).slice(-4) + ').';
+			err.classList.add('visible');
+			updateShopTotals();
+			return;
+		}
+		appliedCoupon = c;
+		ok.innerHTML = '✓ <strong>' + code + '</strong> aplicado · ' + couponLabel(c);
+		ok.classList.add('visible');
+		updateShopTotals();
+		log('Tienda: cupón ' + code + ' aplicado en checkout');
+	}
+
+	function updateShopTotals() {
+		var disc = appliedCoupon ? calcDiscount(appliedCoupon, SUBTOTAL, ENVIO) : 0;
+		var env = ENVIO;
+		if (appliedCoupon && appliedCoupon.tipo === 'envio') env = 0;
+		var grand = Math.max(0, SUBTOTAL + env - disc);
+		document.getElementById('t-sub').textContent = fmt(SUBTOTAL);
+		document.getElementById('t-env').textContent = fmt(env);
+		var dr = document.getElementById('t-disc-row');
+		if (disc > 0) {
+			dr.classList.remove('hidden');
+			document.getElementById('t-disc-label').textContent =
+				appliedCoupon.tipo === 'item' ? 'Papas regalo (−)' : 'Compensación';
+			document.getElementById('t-disc').textContent = '−' + fmt(disc);
+		} else {
+			dr.classList.add('hidden');
+		}
+		document.getElementById('t-grand').textContent = fmt(grand);
+	}
+
+	function shopCheckout() {
+		var tel = document.getElementById('shop-tel').value.trim();
+		if (!telNorm(tel)) {
+			alert('Ingresá teléfono');
+			return;
+		}
+		if (document.getElementById('shop-coupon').value.trim() && !appliedCoupon) {
+			alert('Aplicá el cupón o borrá el código.');
+			return;
+		}
+		var newOrn = 'ORN-DEL-' + String(nextOrn++).padStart(4, '0');
+		if (appliedCoupon) {
+			appliedCoupon.used = true;
+			appliedCoupon.used_orn = newOrn;
+			renderCoupons();
+		}
+		orders.unshift({
+			orn: newOrn,
+			cliente: 'Cliente web',
+			tel: tel,
+			estado: 'pendiente',
+			total: appliedCoupon ? calcDiscount(appliedCoupon, SUBTOTAL, ENVIO) : SUBTOTAL + ENVIO,
+			items: '1× Brava Simple, 1× Papas' + (appliedCoupon ? ' + cupón' : ''),
+			reclamo: false,
+			reenvioDe: null,
+		});
+		document.getElementById('shop-form-wrap').classList.add('hidden');
+		document.getElementById('shop-success').classList.add('visible');
+		document.getElementById('success-orn').textContent = newOrn;
+		document.getElementById('success-detail').textContent = appliedCoupon
+			? 'Con cupón ' + appliedCoupon.codigo + ' · aparece en admin → Pendientes'
+			: 'Sin cupón · aparece en admin → Pendientes';
+		log('Pedido web ' + newOrn + (appliedCoupon ? ' con cupón' : ''));
+		renderOrders();
+	}
+
+	function resetDemo() {
+		if (!confirm('¿Reiniciar cupones, pedidos extra y eventos?')) return;
+		coupons = [];
+		appliedCoupon = null;
+		events = [];
+		nextOrn = 40;
+		orders = [
+			{
+				orn: 'ORN-DEL-0039',
+				cliente: 'Ezequiel',
+				tel: '1123973487',
+				estado: 'entregada',
+				total: 15800,
+				items: '1× Brava Simple, 1× Papas',
+				reclamo: false,
+				reenvioDe: null,
+			},
+			{
+				orn: 'ORN-DEL-0038',
+				cliente: 'María',
+				tel: '1155443322',
+				estado: 'entregada',
+				total: 22400,
+				items: '2× Brava Doble',
+				reclamo: false,
+				reenvioDe: null,
+			},
+		];
+		document.getElementById('wa-last').innerHTML = '<span style="color:#8696a0;">Todavía no enviaste una gratificación.</span>';
+		document.getElementById('shop-coupon').value = '';
+		document.getElementById('coupon-error').classList.remove('visible');
+		document.getElementById('coupon-applied').classList.remove('visible');
+		document.getElementById('shop-form-wrap').classList.remove('hidden');
+		document.getElementById('shop-success').classList.remove('visible');
+		updateShopTotals();
+		renderOrders();
+		renderCoupons();
+		renderEvents();
+		toast('Demo reiniciada');
+	}
+
+	document.querySelectorAll('.view-tabs button').forEach(function (btn) {
+		btn.addEventListener('click', function () {
+			document.querySelectorAll('.view-tabs button').forEach(function (b) { b.classList.remove('is-active'); });
+			document.querySelectorAll('.view-panel').forEach(function (p) { p.classList.remove('is-active'); });
+			btn.classList.add('is-active');
+			document.getElementById('view-' + btn.getAttribute('data-view')).classList.add('is-active');
+		});
+	});
+
+	document.getElementById('f-motivo').addEventListener('change', function () {
+		var sug = suggestComp(this.value);
+		document.getElementById('f-tipo').value = sug.tipo;
+		document.getElementById('f-valor').value = sug.valor || 15;
+		updateModalPreview();
+	});
+	document.getElementById('f-tipo').addEventListener('change', updateModalPreview);
+	document.getElementById('f-valor').addEventListener('input', updateModalPreview);
+	document.getElementById('btn-modal-cancel').addEventListener('click', function () {
+		document.getElementById('modal-gratificar').classList.add('hidden');
+	});
+	document.getElementById('btn-modal-confirm').addEventListener('click', confirmGratificar);
+	document.getElementById('btn-apply-coupon').addEventListener('click', applyShopCoupon);
+	document.getElementById('btn-checkout').addEventListener('click', shopCheckout);
+	document.getElementById('btn-new-order').addEventListener('click', function () {
+		appliedCoupon = null;
+		document.getElementById('shop-coupon').value = '';
+		document.getElementById('coupon-error').classList.remove('visible');
+		document.getElementById('coupon-applied').classList.remove('visible');
+		document.getElementById('shop-form-wrap').classList.remove('hidden');
+		document.getElementById('shop-success').classList.remove('visible');
+		updateShopTotals();
+	});
+	document.getElementById('btn-reset').addEventListener('click', resetDemo);
+
+	renderOrders();
+	renderCoupons();
+	updateShopTotals();
+})();
+</script>
+</body>
+</html>
