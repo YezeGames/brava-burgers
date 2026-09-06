@@ -241,4 +241,83 @@
 	body.brava-shop-b .brava-hero-footer {
 		padding-bottom: calc(96px + env(safe-area-inset-bottom));
 	}
+
+	/* Checkout modal — compacto en móvil: menos alto, mapa chico, botones siempre visibles */
+	#preguntas_pedido.fancybox-content {
+		padding: 10px 10px 0 !important;
+		max-height: min(92vh, 100dvh) !important;
+	}
+
+	#preguntas_pedido .brava-checkout-inner {
+		max-height: calc(min(92vh, 100dvh) - 20px);
+	}
+
+	#preguntas_pedido .brava-checkout-head {
+		margin-bottom: 6px;
+		padding-right: 22px;
+	}
+
+	#preguntas_pedido_encabezado {
+		font-size: 0.95rem !important;
+	}
+
+	#preguntas_pedido .brava-checkout-section {
+		margin-bottom: 6px;
+		padding: 6px 8px;
+		border-radius: 6px;
+	}
+
+	#preguntas_pedido .brava-checkout-section-title {
+		margin-bottom: 5px;
+		font-size: 9px;
+	}
+
+	#preguntas_pedido .brava-field {
+		margin-bottom: 4px;
+	}
+
+	#preguntas_pedido .brava-input.form-control {
+		height: 34px;
+		min-height: 34px;
+		font-size: 12px;
+		padding: 4px 8px;
+	}
+
+	#preguntas_pedido select.brava-input.form-control {
+		height: 34px;
+	}
+
+	#preguntas_pedido .brava-checkout-grid-2 {
+		gap: 6px;
+	}
+
+	.brava-checkout-map-wrap {
+		margin: 4px 0 2px;
+	}
+
+	.brava-map-label {
+		margin-bottom: 3px;
+		font-size: 0.65rem;
+		line-height: 1.25;
+	}
+
+	.brava-checkout-map {
+		height: 108px;
+		border-radius: 6px;
+	}
+
+	.zone-banner {
+		margin-top: 4px;
+		padding: 6px 8px;
+		font-size: 0.72rem;
+	}
+
+	#preguntas_pedido .brava-checkout-foot {
+		padding: 8px 0 calc(10px + env(safe-area-inset-bottom, 0px));
+	}
+
+	.brava-checkout-actions .btn {
+		font-size: 0.82rem;
+		padding: 8px 10px;
+	}
 }

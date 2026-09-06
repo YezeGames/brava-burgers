@@ -8,8 +8,8 @@
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.0/dist/css/bootstrap.min.css" rel="stylesheet">
-	<link href="brava-brand.css?v=96" rel="stylesheet">
-	<link href="brava-mobile.css?v=4" rel="stylesheet" media="screen and (max-width: 768px)">
+	<link href="brava-brand.css?v=97" rel="stylesheet">
+	<link href="brava-mobile.css?v=5" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		:root {
 			--brava: #ff6b35;
@@ -294,16 +294,37 @@
 			pointer-events: none;
 		}
 		#view-shop #preguntas_pedido.checkout-frame {
-			display: block !important;
+			display: flex !important;
+			flex-direction: column;
 			width: 100%;
 			max-width: 390px;
 			margin: 0 auto;
-			padding: 44px 36px;
+			padding: 12px 12px 0;
 			box-sizing: border-box;
 			background-color: var(--brava-bg, #1a1a1a);
 			border-radius: 8px;
 			box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
 			border: 1px solid #333;
+			max-height: min(92vh, 680px);
+			overflow: hidden;
+		}
+		#view-shop .brava-checkout-inner {
+			display: flex;
+			flex-direction: column;
+			flex: 1;
+			min-height: 0;
+			max-height: 100%;
+		}
+		#view-shop .brava-checkout-body {
+			flex: 1;
+			min-height: 0;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			-webkit-overflow-scrolling: touch;
+		}
+		#view-shop .brava-checkout-foot {
+			flex-shrink: 0;
+			box-shadow: 0 -8px 16px rgba(0, 0, 0, 0.22);
 		}
 		.checkout-frame-caption {
 			text-align: center;
@@ -324,9 +345,14 @@
 			padding: 8px 12px;
 			align-self: stretch;
 		}
+		.brava-demo-comp-section .brava-field-hint {
+			font-size: 0.68rem;
+			line-height: 1.3;
+			margin-top: 4px;
+		}
 		.brava-demo-checkout-totals {
-			margin-top: 10px;
-			padding: 10px 12px;
+			margin-top: 6px;
+			padding: 8px 10px;
 			border-radius: 6px;
 			background: rgba(255, 255, 255, 0.04);
 			border: 1px solid rgba(255, 255, 255, 0.08);
@@ -366,7 +392,7 @@
 		}
 		#view-shop .coupon-applied.visible { display: block; }
 		.brava-demo-map-placeholder {
-			height: 180px;
+			height: 108px;
 			display: flex;
 			align-items: center;
 			justify-content: center;
@@ -529,13 +555,13 @@
 									</div>
 								</fieldset>
 
-								<div class="brava-checkout-foot">
-									<div class="brava-checkout-actions">
-										<button type="button" class="btn btn-outline-brava" id="btn-checkout-cancel">Cancelar</button>
-										<button type="submit" class="btn btn-primary my-btn-primary brava-btn-submit" id="btn-checkout">Enviar Pedido</button>
-									</div>
-								</div>
 							</form>
+							<div class="brava-checkout-foot">
+								<div class="brava-checkout-actions">
+									<button type="button" class="btn btn-outline-brava" id="btn-checkout-cancel">Cancelar</button>
+									<button type="submit" form="demo-checkout-form" class="btn btn-primary my-btn-primary brava-btn-submit" id="btn-checkout">Enviar Pedido</button>
+								</div>
+							</div>
 						</div>
 					</div>
 					<div class="success-box hidden" id="shop-success">
