@@ -31,8 +31,9 @@
 		return escapeHtml(s).replace(/'/g, '&#39;');
 	}
 
-	/** Modal checkout (~350px, padding 44px). Fancybox pisa width por JS. */
+	/** Modal checkout (~350px). Estilos finos en brava-brand.css (no pisar padding acá). */
 	function bravaModalCheckoutOpts(src) {
+		var isCheckout = src === '#preguntas_pedido';
 		return {
 			src: src,
 			type: 'inline',
@@ -40,14 +41,25 @@
 			smallBtn: true,
 			autoSize: false,
 			baseClass: 'brava-fancybox-modal',
+			beforeShow: function () {
+				window.scrollTo(0, 0);
+			},
 			afterShow: function (_instance, current) {
 				if (!current || !current.$content) return;
-				current.$content.css({
+				var css = {
 					width: '350px',
-					maxWidth: 'calc(100vw - 24px)',
-					padding: '44px',
+					maxWidth: 'calc(100vw - 16px)',
 					boxSizing: 'border-box',
-				});
+				};
+				if (isCheckout) {
+					css.padding = '0';
+					css.maxHeight = '92vh';
+					css.height = '92vh';
+					css.overflow = 'hidden';
+					css.display = 'flex';
+					css.flexDirection = 'column';
+				}
+				current.$content.css(css);
 			},
 		};
 	}
