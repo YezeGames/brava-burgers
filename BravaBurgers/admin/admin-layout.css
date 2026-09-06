@@ -1044,6 +1044,68 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	background: var(--layout-bg-elevated, var(--bg-surface-muted));
 }
 
+#view-reparto .reparto-route-list li {
+	display: grid;
+	grid-template-columns: 22px 20px 1fr;
+	gap: 8px;
+	align-items: start;
+	padding: 6px 0;
+	border-bottom: 1px dashed var(--border);
+	font-size: 0.74rem;
+	line-height: 1.35;
+}
+
+#view-reparto .reparto-route-list li:last-child {
+	border-bottom: none;
+}
+
+#view-reparto .reparto-route-list li.is-dragging {
+	opacity: 0.55;
+}
+
+#view-reparto .reparto-route-list li.is-drag-over {
+	border-top: 2px solid var(--brava);
+	margin-top: -1px;
+	padding-top: 4px;
+}
+
+#view-reparto .reparto-route-list .reparto-drag-handle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 22px;
+	height: 22px;
+	margin-top: 1px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-subtle);
+	cursor: grab;
+	touch-action: none;
+	user-select: none;
+}
+
+#view-reparto .reparto-route-list .reparto-drag-handle:active {
+	cursor: grabbing;
+	color: var(--brava);
+}
+
+#view-reparto .reparto-route-list .reparto-drag-handle:focus-visible {
+	outline: 2px solid var(--brava);
+	outline-offset: 1px;
+}
+
+#view-reparto .reparto-route-list .num {
+	font-weight: 700;
+	color: var(--brava);
+}
+
+#view-reparto .reparto-route-list .reparto-stop-pay {
+	color: var(--text-subtle);
+	font-size: 0.68rem;
+}
+
 #view-reparto .reparto-hoja {
 	width: 100%;
 	box-sizing: border-box;

@@ -79,6 +79,7 @@
   var fetchInFlight = null;
 
   var cacheSignature = '';
+  var lastPaintedTabSig = '';
 
   var TAB_ESTADOS = ['pendiente', 'aceptado', 'en_preparacion', 'en_camino', 'entregada', 'cancelada', 'rechazado'];
 
@@ -3523,6 +3524,20 @@
 
   }
 
+  function buildTabSignature(orders, estado) {
+
+    return ordersForEstado(orders, estado)
+
+      .map(function (o) {
+
+        return (o.orn || '') + ':' + normalizeEstado(o.estado);
+
+      })
+
+      .join('|');
+
+  }
+
 
 
   function renderTabCounts(orders) {
@@ -4039,6 +4054,10 @@
 
   function paintCurrentTab() {
 
+    var scrollEl = document.querySelector('.main-content');
+
+    var scrollTop = scrollEl ? scrollEl.scrollTop : 0;
+
     updateOrdersTableHead(currentEstado);
 
     var list = $('orders-list');
@@ -4054,6 +4073,20 @@
     else appendEmptyRow(list, currentEstado);
 
     syncWaPanelOrders();
+
+    if (scrollEl) scrollEl.scrollTop = scrollTop;
+
+    lastPaintedTabSig = buildTabSignature(allOrdersCache, currentEstado);
+
+  }
+
+  function paintCurrentTabIfNeeded() {
+
+    var sig = buildTabSignature(allOrdersCache, currentEstado);
+
+    if (sig === lastPaintedTabSig) return;
+
+    paintCurrentTab();
 
   }
 
@@ -4173,7 +4206,7 @@
 
       rebuildAllPanelFrags();
 
-      paintCurrentTab();
+      paintCurrentTabIfNeeded();
 
     }
 
@@ -5944,6 +5977,8 @@
   function switchTab(estado) {
 
     currentEstado = estado;
+
+    lastPaintedTabSig = '';
 
     paintCurrentTab();
 

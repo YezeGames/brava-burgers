@@ -14,6 +14,9 @@
   var accessToken = '';
   var mapInitStarted = false;
   var refreshTimer = null;
+  var lastRouteStopsSig = '';
+  var mapViewInitialized = false;
+  var prevStopCount = 0;
 
   function $(id) {
     return document.getElementById(id);
@@ -56,6 +59,19 @@
         });
       })
       .filter(Boolean);
+  }
+
+  function routeStopsSignature() {
+    return routeOrder
+      .map(function (orn) {
+        var o = candidates.find(function (c) {
+          return c.orn === orn;
+        });
+        if (!o) return '';
+        return orn + '|' + fullAddr(o);
+      })
+      .filter(Boolean)
+      .join(';;');
   }
 
   function buildHoja(list) {
@@ -221,7 +237,13 @@
         route.geometry.coordinates.forEach(function (c) {
           bounds.extend(c);
         });
-        map.fitBounds(bounds, { padding: 36, maxZoom: 15 });
+        var stopCount = list.length;
+        var shouldFit = !mapViewInitialized || stopCount !== prevStopCount;
+        prevStopCount = stopCount;
+        if (shouldFit) {
+          map.fitBounds(bounds, { padding: 36, maxZoom: 15 });
+          mapViewInitialized = true;
+        }
         var km = (route.distance / 1000).toFixed(1);
         var min = Math.round(route.duration / 60);
         setStatus('Ruta ~' + km + ' km · ~' + min + ' min (Mapbox)');
@@ -231,35 +253,98 @@
       });
   }
 
-  function renderRouteList() {
+  function reorderRoute(fromOrn, toOrn, insertAfter) {
+    if (!fromOrn || !toOrn || fromOrn === toOrn) return;
+    var fromIdx = routeOrder.indexOf(fromOrn);
+    var toIdx = routeOrder.indexOf(toOrn);
+    if (fromIdx < 0 || toIdx < 0) return;
+    routeOrder.splice(fromIdx, 1);
+    var newToIdx = routeOrder.indexOf(toOrn);
+    if (newToIdx < 0) return;
+    if (insertAfter) newToIdx += 1;
+    routeOrder.splice(newToIdx, 0, fromOrn);
+    renderRouteList({ refreshMap: true });
+  }
+
+  function bindRouteListDragDrop() {
+    var ul = $('reparto-route-list');
+    if (!ul || ul._routeDragBound) return;
+    ul._routeDragBound = true;
+
+    var routeDrag = null;
+
+    function clearDragUi() {
+      ul.querySelectorAll('.is-drag-over, .is-dragging').forEach(function (el) {
+        el.classList.remove('is-drag-over', 'is-dragging');
+      });
+      routeDrag = null;
+    }
+
+    function onPointerMove(e) {
+      if (!routeDrag) return;
+      var el = document.elementFromPoint(e.clientX, e.clientY);
+      var targetLi = el && el.closest ? el.closest('#reparto-route-list li[data-orn]') : null;
+      ul.querySelectorAll('.is-drag-over').forEach(function (node) {
+        if (node !== targetLi) node.classList.remove('is-drag-over');
+      });
+      if (targetLi && targetLi.getAttribute('data-orn') !== routeDrag.orn) {
+        targetLi.classList.add('is-drag-over');
+        routeDrag.overOrn = targetLi.getAttribute('data-orn');
+        routeDrag.overLi = targetLi;
+      } else {
+        routeDrag.overOrn = null;
+        routeDrag.overLi = null;
+      }
+    }
+
+    function onPointerUp(e) {
+      if (!routeDrag) return;
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerUp);
+      document.removeEventListener('pointercancel', onPointerUp);
+      if (routeDrag.overLi && routeDrag.overOrn) {
+        var rect = routeDrag.overLi.getBoundingClientRect();
+        var insertAfter = e.clientY > rect.top + rect.height / 2;
+        reorderRoute(routeDrag.orn, routeDrag.overOrn, insertAfter);
+      }
+      clearDragUi();
+    }
+
+    ul.addEventListener('pointerdown', function (e) {
+      var handle = e.target.closest('.reparto-drag-handle');
+      if (!handle) return;
+      var li = handle.closest('li[data-orn]');
+      if (!li) return;
+      e.preventDefault();
+      routeDrag = { orn: li.getAttribute('data-orn'), li: li, overOrn: null, overLi: null };
+      li.classList.add('is-dragging');
+      document.addEventListener('pointermove', onPointerMove);
+      document.addEventListener('pointerup', onPointerUp);
+      document.addEventListener('pointercancel', onPointerUp);
+    });
+  }
+
+  function renderRouteList(opts) {
+    opts = opts || {};
+    var refreshMap = opts.refreshMap !== false;
     var ul = $('reparto-route-list');
     if (!ul) return;
     ul.innerHTML = '';
     stops().forEach(function (o, idx) {
       var li = document.createElement('li');
+      li.setAttribute('data-orn', o.orn);
       li.innerHTML =
+        '<span class="reparto-drag-handle" role="button" tabindex="0" aria-label="Arrastrar parada ' +
+        (idx + 1) +
+        '" title="Arrastrar para reordenar"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>' +
         '<span class="num">' +
         (idx + 1) +
-        '</span><span>' +
+        '</span><span class="reparto-stop-body">' +
         escapeHtml(o.direccion) +
-        '<br><span style="color:var(--text-subtle)">' +
+        '<br><span class="reparto-stop-pay">' +
         escapeHtml(payLine(o)) +
-        '</span></span><span><button type="button" data-u="' +
-        escapeAttr(o.orn) +
-        '">↑</button> <button type="button" data-d="' +
-        escapeAttr(o.orn) +
-        '">↓</button></span>';
+        '</span></span>';
       ul.appendChild(li);
-    });
-    ul.querySelectorAll('[data-u]').forEach(function (b) {
-      b.onclick = function () {
-        move(b.getAttribute('data-u'), -1);
-      };
-    });
-    ul.querySelectorAll('[data-d]').forEach(function (b) {
-      b.onclick = function () {
-        move(b.getAttribute('data-d'), 1);
-      };
     });
 
     var list = stops();
@@ -277,7 +362,13 @@
     $('reparto-btn-wa').disabled = !has;
     $('reparto-btn-copy').disabled = !has;
     updateDispatchButton();
-    scheduleRefreshRoute();
+    if (refreshMap) {
+      var sig = routeStopsSignature();
+      if (sig !== lastRouteStopsSig) {
+        lastRouteStopsSig = sig;
+        scheduleRefreshRoute();
+      }
+    }
   }
 
   function selectedOrnsInPreparacion() {
@@ -303,21 +394,6 @@
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;');
-  }
-
-  function escapeAttr(s) {
-    return escapeHtml(s).replace(/'/g, '&#39;');
-  }
-
-  function move(orn, dir) {
-    var i = routeOrder.indexOf(orn);
-    if (i < 0) return;
-    var j = i + dir;
-    if (j < 0 || j >= routeOrder.length) return;
-    var t = routeOrder[j];
-    routeOrder[j] = routeOrder[i];
-    routeOrder[i] = t;
-    renderRouteList();
   }
 
   function isOrnSelected(orn) {
@@ -347,16 +423,25 @@
     if (!on && ix !== -1) selected.splice(ix, 1);
     syncRouteFromSelection();
     syncMainTableRepartoUi();
+    renderRouteList({ refreshMap: true });
   }
 
   function syncRouteFromSelection() {
-    routeOrder = selected.filter(function (orn) {
-      return candidates.some(function (c) {
-        return c.orn === orn;
-      });
+    var valid = Object.create(null);
+    candidates.forEach(function (c) {
+      valid[c.orn] = true;
     });
+    var sel = selected.filter(function (orn) {
+      return valid[orn];
+    });
+    var next = routeOrder.filter(function (orn) {
+      return sel.indexOf(orn) !== -1;
+    });
+    sel.forEach(function (orn) {
+      if (next.indexOf(orn) === -1) next.push(orn);
+    });
+    routeOrder = next;
     updateRepartoMeta();
-    renderRouteList();
   }
 
   function updateRepartoMeta() {
@@ -456,10 +541,12 @@
   }
 
   function onOrdersUpdated(orders) {
+    var prevSig = routeStopsSignature();
     candidates = pickCandidatesFromOrders(orders);
     pruneSelection();
     syncRouteFromSelection();
     syncMainTableRepartoUi();
+    renderRouteList({ refreshMap: routeStopsSignature() !== prevSig });
     if (!$('view-reparto') || $('view-reparto').hidden) return;
     ensureMapInit();
   }
@@ -587,6 +674,7 @@
 
   function init() {
     if (!$('reparto-route-list')) return;
+    bindRouteListDragDrop();
     bindUi();
     onOrdersUpdated([]);
   }
