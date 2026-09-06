@@ -249,7 +249,7 @@
     var el = $('pm-emision-status');
     if (!el) return;
     var missing = [];
-    if (!state.cliente) missing.push('cliente (tel + Enter o 🔍)');
+    if (!state.cliente) missing.push('cliente (tel + Enter o 🔍 — si no está, se abre el alta)');
     if (!state.items.length) missing.push('al menos un producto (+ Agregar)');
     if (!missing.length) {
       el.className = 'emision-status ok';
@@ -537,25 +537,68 @@
           : 'Pendiente: ' + fmt(pend);
   }
 
-  function buscarClienteClick() {
-    var tel = normTel($('pm-tel-buscar').value);
+  function buscarClienteAsync(opts) {
+    opts = opts || {};
+    var tel = normTel($('pm-tel-buscar') && $('pm-tel-buscar').value);
     if (!tel || tel.length < 8) {
-      alert('Ingresá un teléfono válido (mín. 8 dígitos).');
-      return;
+      if (!opts.silent) alert('Ingresá un teléfono válido (mín. 8 dígitos).');
+      return Promise.resolve(false);
     }
-    api({ action: 'getCliente', telefono: tel }).then(function (res) {
+    return api({ action: 'getCliente', telefono: tel }).then(function (res) {
       if (!res.data || !res.data.ok) {
-        alert('Error al buscar cliente.');
-        return;
+        state.cliente = null;
+        syncClienteField();
+        if (!opts.silent) {
+          if (
+            confirm(
+              'No se pudo consultar la agenda (¿corriste la migración al entrar al admin?). ¿Cargar cliente manualmente?'
+            )
+          ) {
+            openClienteModal(null);
+          }
+        } else if (opts.autoModal) {
+          openClienteModal(null);
+        }
+        return false;
       }
       if (res.data.cliente) {
         state.cliente = clienteFromApi(res.data.cliente);
         syncClienteField();
-        return;
+        return true;
       }
       state.cliente = null;
       syncClienteField();
-      if (confirm('No está en agenda. ¿Cargar cliente nuevo?')) openClienteModal(null);
+      if (opts.autoModal) {
+        openClienteModal(null);
+      } else if (!opts.silent && opts.promptNew !== false) {
+        if (confirm('No está en agenda. ¿Cargar cliente nuevo con dirección?')) openClienteModal(null);
+      }
+      return false;
+    });
+  }
+
+  function buscarClienteClick() {
+    return buscarClienteAsync({ silent: false, autoModal: false, promptNew: true });
+  }
+
+  function ensureClienteBeforeEmit(done) {
+    if (state.cliente) {
+      done(true);
+      return;
+    }
+    var tel = normTel($('pm-tel-buscar') && $('pm-tel-buscar').value);
+    if (tel.length < 8) {
+      alert('Ingresá el teléfono del cliente (mín. 8 dígitos) y completá nombre + dirección.');
+      if ($('pm-tel-buscar')) $('pm-tel-buscar').focus();
+      done(false);
+      return;
+    }
+    buscarClienteAsync({ silent: true, autoModal: true, promptNew: true }).then(function (found) {
+      if (found || state.cliente) done(true);
+      else {
+        alert('Completá nombre y dirección del cliente en el formulario que se abrió.');
+        done(false);
+      }
     });
   }
 
@@ -804,6 +847,12 @@
           buscarClienteClick();
         }
       });
+      $('pm-tel-buscar').addEventListener('blur', function () {
+        if (state.cliente) return;
+        if (normTel($('pm-tel-buscar').value).length >= 8) {
+          buscarClienteAsync({ silent: true, autoModal: true, promptNew: true });
+        }
+      });
     }
     if ($('pm-cli-cancel')) {
       $('pm-cli-cancel').onclick = function () {
@@ -827,7 +876,14 @@
           piso: $('pm-cli-piso').value.trim(),
         }).then(function (res) {
           if (!res.data || !res.data.ok) {
-            alert('No se pudo guardar el cliente.');
+            var err = (res.data && res.data.error) || '';
+            if (err.indexOf('cliente') >= 0 || err.indexOf('insert') >= 0) {
+              alert(
+                'No se pudo guardar en agenda. Entrá de nuevo al admin para correr la migración, o revisá SUPABASE_DB_PASSWORD en Vercel.'
+              );
+            } else {
+              alert('No se pudo guardar el cliente.');
+            }
             return;
           }
           state.cliente = {
@@ -857,25 +913,24 @@
     if ($('pm-btn-add-line')) $('pm-btn-add-line').onclick = addLineFromForm;
     if ($('pm-btn-emitir')) {
       $('pm-btn-emitir').onclick = function () {
-        if (!state.cliente) {
-          alert('Primero buscá el teléfono con 🔍.');
-          return;
-        }
-        if (!state.items.length) {
-          alert('Agregá líneas con + Agregar.');
-          return;
-        }
-        if ($('pm-ajuste-val')) $('pm-ajuste-val').value = '0';
-        if ($('pm-ajuste-motivo')) $('pm-ajuste-motivo').value = '';
-        var si = document.querySelector('input[name=pm-cobrar][value=si]');
-        if (si) si.checked = true;
-        togglePayBlock();
-        var calc = calcTotalConAjuste();
-        if ($('pm-pay1-monto')) $('pm-pay1-monto').value = calc.total;
-        if ($('pm-pay2-monto')) $('pm-pay2-monto').value = '';
-        if ($('pm-pay2-medio')) $('pm-pay2-medio').value = '';
-        refreshProformaPreview();
-        show($('modal-emision-confirm'));
+        ensureClienteBeforeEmit(function (ok) {
+          if (!ok) return;
+          if (!state.items.length) {
+            alert('Agregá líneas con + Agregar.');
+            return;
+          }
+          if ($('pm-ajuste-val')) $('pm-ajuste-val').value = '0';
+          if ($('pm-ajuste-motivo')) $('pm-ajuste-motivo').value = '';
+          var si = document.querySelector('input[name=pm-cobrar][value=si]');
+          if (si) si.checked = true;
+          togglePayBlock();
+          var calc = calcTotalConAjuste();
+          if ($('pm-pay1-monto')) $('pm-pay1-monto').value = calc.total;
+          if ($('pm-pay2-monto')) $('pm-pay2-monto').value = '';
+          if ($('pm-pay2-medio')) $('pm-pay2-medio').value = '';
+          refreshProformaPreview();
+          show($('modal-emision-confirm'));
+        });
       };
     }
     ['pm-ajuste-tipo', 'pm-ajuste-val', 'pm-ajuste-motivo'].forEach(function (id) {
