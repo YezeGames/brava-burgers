@@ -111,6 +111,14 @@
 
     {
 
+      "source": "/api/cupon",
+
+      "destination": "/api/pedido"
+
+    },
+
+    {
+
       "source": "/admin/",
 
       "destination": "/admin/index.html"

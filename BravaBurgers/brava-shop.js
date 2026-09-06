@@ -93,10 +93,10 @@
 			return;
 		}
 		$('#brava-coupon-apply').prop('disabled', true);
-		fetch('/api/cupon', {
+		fetch('/api/pedido', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ codigo: codigo, telefono: telefono }),
+			body: JSON.stringify({ action: 'validateCupon', codigo: codigo, telefono: telefono }),
 		})
 			.then(function (r) {
 				return r.json().then(function (data) {
