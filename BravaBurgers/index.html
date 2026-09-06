@@ -34,23 +34,35 @@
 		var g_telefono = '';
 	</script>
 	<script src="brava-catalog.js?v=13"></script>
-	<link href="brava-brand.css?v=100" rel="stylesheet">
+	<link href="brava-brand.css?v=101" rel="stylesheet">
 	<link href="brava-mobile.css?v=5" rel="stylesheet" media="screen and (max-width: 768px)">
 	<style>
 		#preguntas_pedido.fancybox-content,
 		#pregunta_variedades.fancybox-content,
 		#pregunta_personalizacion.fancybox-content {
-			width: 350px !important;
 			max-width: calc(100vw - 16px) !important;
 			padding: 12px 12px 0 !important;
 			box-sizing: border-box !important;
 			overflow-x: hidden !important;
 			overflow-y: hidden !important;
+		}
+		#preguntas_pedido.fancybox-content {
+			width: 350px !important;
 			height: min(92vh, 100dvh) !important;
 			max-height: min(92vh, 100dvh) !important;
 		}
+		@media (min-width: 769px) {
+			#preguntas_pedido.fancybox-content {
+				width: min(720px, calc(100vw - 32px)) !important;
+				height: auto !important;
+				max-height: min(90vh, 100dvh) !important;
+			}
+		}
 		#pregunta_variedades.fancybox-content,
 		#pregunta_personalizacion.fancybox-content {
+			width: 350px !important;
+			height: min(92vh, 100dvh) !important;
+			max-height: min(92vh, 100dvh) !important;
 			padding: 16px 14px !important;
 			overflow-y: auto !important;
 		}
@@ -264,7 +276,7 @@
 	<script src="brava-turnos.js?v=1"></script>
 	<script src="brava-delivery-zone-client.js?v=2"></script>
 	<script src="brava-checkout-map.js?v=1"></script>
-	<script src="brava-shop.js?v=26"></script>
+	<script src="brava-shop.js?v=27"></script>
 	<script src="brava-address.js?v=14"></script>
 </body>
 </html>

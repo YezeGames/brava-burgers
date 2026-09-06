@@ -723,6 +723,64 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	color: #ffffff !important;
 }
 
+/* Checkout desktop: 2 columnas → menos scroll en 1920×1080 */
+@media (min-width: 769px) {
+	#preguntas_pedido.fancybox-content,
+	.fancybox-container.brava-fancybox-modal #preguntas_pedido.fancybox-content {
+		width: min(720px, calc(100vw - 32px)) !important;
+		height: auto !important;
+		max-height: min(90vh, 100dvh) !important;
+	}
+
+	#preguntas_pedido .brava-checkout-body {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 10px;
+		align-content: start;
+	}
+
+	#preguntas_pedido .brava-checkout-section {
+		margin-bottom: 0;
+		padding: 7px 9px 8px;
+	}
+
+	#preguntas_pedido .brava-checkout-section-title {
+		margin-bottom: 6px;
+		font-size: 9px;
+	}
+
+	#preguntas_pedido .brava-checkout-map {
+		height: 96px;
+	}
+
+	#preguntas_pedido .brava-map-label {
+		margin-bottom: 4px;
+		font-size: 0.68rem;
+	}
+
+	#preguntas_pedido_encabezado {
+		font-size: 0.95rem;
+		line-height: 1.2;
+	}
+
+	.brava-checkout-head {
+		margin-bottom: 8px;
+	}
+
+	#preguntas_pedido .brava-field {
+		margin-bottom: 5px;
+	}
+
+	.brava-checkout-map-wrap {
+		margin-top: 6px;
+		margin-bottom: 2px;
+	}
+
+	.brava-field-piso {
+		margin-top: 4px !important;
+	}
+}
+
 #pregunta_variedades_titulo {
 	color: var(--brava-accent) !important;
 	font-weight: bold;
