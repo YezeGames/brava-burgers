@@ -313,8 +313,49 @@
 
   function buildNotifyMessage(kind, o) {
     var n = waFirstName(o);
+    if (kind === 'confirmado') return buildConfirmadoNotifyMessage(o);
     if (kind === 'camino') return '¡' + n + ', tu pedido ya está en camino!';
     return 'Hola ' + n + ', pedido confirmado!';
+  }
+
+  function parseOrderItems(o) {
+    var items = o && o.items;
+    if (Array.isArray(items) && items.length) return items;
+    if (o && o.items_json) {
+      try {
+        var j = typeof o.items_json === 'string' ? JSON.parse(o.items_json) : o.items_json;
+        if (Array.isArray(j)) return j;
+      } catch (e) {}
+    }
+    return [];
+  }
+
+  function orderItemQty(it) {
+    var q = it.qty != null ? it.qty : it.cantidad;
+    q = parseFloat(q);
+    return isNaN(q) || q <= 0 ? 1 : q;
+  }
+
+  function orderItemName(it) {
+    return String(it.nombre || it.name || 'Ítem').trim();
+  }
+
+  function buildConfirmadoNotifyMessage(o) {
+    var n = waFirstName(o);
+    var lines = ['¡' + n + '! Tu pedido fue confirmado 🍔', ''];
+    parseOrderItems(o).forEach(function (it) {
+      lines.push('x' + orderItemQty(it) + ' ' + orderItemName(it));
+    });
+    var envio = Number(o.envio) || 0;
+    if (envio > 0) lines.push('x1 Envío');
+    var descuento = Number(o.descuento) || 0;
+    if (descuento > 0) {
+      var discLabel = String(o.cupon_label || '').trim() || 'Descuento';
+      lines.push('− ' + discLabel + ': $' + fmtMoney(descuento));
+    }
+    lines.push('');
+    lines.push('Total a pagar: $' + fmtMoney(o.total));
+    return lines.join('\n');
   }
 
   function fmtMoney(n) {
