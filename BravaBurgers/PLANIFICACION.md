@@ -483,7 +483,9 @@ stateDiagram-v2
 
 2. Plantillas Meta (rechazo / fuera de 24 h).
 
-3. Coexistencia o chip prepago — [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md).
+3. **Cambio de número WhatsApp** (pendiente) — hoy **7372-1945**; migrar API, Vercel, tienda y materiales cuando se defina el número definitivo. Checklist en [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md) → *Cambio de número (pendiente)*.
+
+4. Coexistencia o chip prepago — [`WHATSAPP_OPERACION.md`](WHATSAPP_OPERACION.md).
 
 
 
@@ -613,5 +615,5 @@ Solo **checkout web**: al cargar dirección, detectar automáticamente si está 
 
 
 
-_Última actualización: registro de ventas (acompañamientos / extras / bebidas) dinámico desde Sheet en admin; horarios tienda desde Sheet; scripts tienda renombrados `brava-*`._
+_Última actualización: WhatsApp inbox realtime + doc cambio de número pendiente; pedido manual sigue en demo._
 

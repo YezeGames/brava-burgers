@@ -19,10 +19,36 @@ Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Actualizado 
 | Limpieza chats de pedido al **cerrar turno** | ✅ |
 | Borrador auto al aceptar / en camino (envío manual) | ✅ |
 | Fallback `wa.me` si falla API | ✅ |
+| Realtime inbox (entrantes ~instantáneos) | ✅ |
+| Dedup mensajes al enviar | ✅ |
 
 Variables: ver `WHATSAPP_VERCEL_ENV.txt` y `.env.example` (`WHATSAPP_WELCOME_MESSAGE` opcional).
 
 Número producción: **+54 9 11 7372-1945** (Phone ID `1335204069669693`, WABA `1062857739856943`, app **BRAVADELI**).
+
+> **Pendiente planificado:** más adelante se **cambiará el número de WhatsApp** público de Brava. Hoy todo (API, webhook, inbox, tienda) opera con **7372-1945** hasta ese cambio. Ver sección [Cambio de número (pendiente)](#cambio-de-número-pendiente).
+
+---
+
+## Cambio de número (pendiente)
+
+**Decisión acordada:** en algún momento futuro se reemplazará el número actual **+54 9 11 7372-1945** por otro (definitivo de marca, chip prepago de transición, coexistencia con celu, etc.). **No está hecho todavía**; documentado para no olvidarlo al migrar.
+
+### Qué habrá que actualizar cuando cambie
+
+| Dónde | Qué |
+|-------|-----|
+| **Vercel** | `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_WABA_ID`, `WHATSAPP_ACCESS_TOKEN` (si aplica), redeploy |
+| **Meta** | Webhook (misma URL `/api/whatsapp-webhook`), suscripción `messages`, app **BRAVADELI** o la que use el número nuevo |
+| **Tienda / Sheet** | Teléfono en `configuracion`, mensajes de checkout, Linktree |
+| **Materiales** | Cartelería, QR, redes — cualquier `wa.me/` o número impreso |
+| **Admin** | Inbox: el histórico en Supabase (`wa_messages`) queda ligado al tel anterior; definir si se conserva solo lectura o se arranca limpio en el número nuevo |
+
+### Consideraciones operativas
+
+- Los clientes que escribieron al **número viejo** no tendrán ventana de 24 h en el **nuevo** hasta que manden un mensaje al número nuevo (texto libre desde el panel).
+- Si el cambio implica **desregistrar** el número actual de la API o pasar a **coexistencia**, seguir la sección [Coexistencia](#coexistencia-celu--api-mismo-número) y el checklist al final de este doc.
+- Anotar acá el número destino cuando esté definido: **`_________________`** (completar antes del cambio).
 
 ---
 
@@ -100,7 +126,7 @@ Panel + webhook; celu con **otro** número o sin WhatsApp Business en 7372-1945.
 
 ### Más adelante (baja)
 
-8. Realtime Supabase en `wa_messages` (hoy poll 5 s).
+8. ~~Realtime Supabase en `wa_messages`~~ ✅ (sep 2026).
 9. Buscar chat por nombre / teléfono.
 10. Pedido manual desde chat (ver `PEDIDO_MANUAL.md`).
 11. Plantillas marketing / “¿repetís pedido?”.
