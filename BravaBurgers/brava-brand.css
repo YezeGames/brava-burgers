@@ -650,20 +650,48 @@ body.brava-turnos-delivery-off .brava-turno-cupo-notice {
 	margin-top: 6px;
 }
 
-.brava-coupon-applied {
-	background: rgba(46, 125, 50, 0.15);
-	border: 1px solid rgba(129, 199, 132, 0.35);
-	color: #a5d6a7;
-	border-radius: 6px;
-	padding: 10px 12px;
-	font-size: 0.8rem;
-	line-height: 1.35;
-	margin-top: 8px;
-	text-align: center;
+.brava-toast-host {
+	position: fixed;
+	top: max(12px, env(safe-area-inset-top, 0px));
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 999999;
+	pointer-events: none;
+	width: min(92vw, 420px);
 }
 
-.brava-coupon-applied strong {
-	color: #c8e6c9;
+.brava-toast {
+	padding: 10px 16px;
+	border-radius: 999px;
+	font-size: 0.82rem;
+	font-weight: 600;
+	line-height: 1.35;
+	text-align: center;
+	box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+	animation: brava-toast-in 0.25s ease;
+}
+
+.brava-toast--success {
+	background: rgba(46, 125, 50, 0.96);
+	color: #e8f5e9;
+	border: 1px solid rgba(165, 214, 167, 0.55);
+}
+
+.brava-toast--error {
+	background: rgba(198, 40, 40, 0.96);
+	color: #ffebee;
+	border: 1px solid rgba(239, 154, 154, 0.5);
+}
+
+@keyframes brava-toast-in {
+	from {
+		opacity: 0;
+		transform: translateY(-8px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 .brava-checkout-coupon-totals {

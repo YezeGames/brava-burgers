@@ -42,28 +42,61 @@
 		return 0;
 	}
 
-	function bravaCouponAppliedMessage(coupon, grand) {
+	function bravaPedidoEnvioCost() {
+		if (!g_zonas_envios.length) return 0;
+		var costo = $('#pregunta_10_respuesta').find(':selected').data('costo');
+		if (costo === undefined || isNaN(parseFloat(costo))) return 0;
+		return parseFloat(costo);
+	}
+
+	function bravaCouponLabel(coupon) {
 		var label = String((coupon && coupon.label) || '').trim();
-		if (!label && coupon) {
-			if (coupon.tipo === 'pct') label = coupon.valor + '% off';
-			else if (coupon.tipo === 'monto') label = '$' + formatear_moneda(coupon.valor) + ' off';
-			else if (coupon.tipo === 'envio') label = 'Envío gratis';
-			else if (coupon.tipo === 'item') label = 'Papas Brava gratis';
-		}
+		if (label) return label;
+		if (!coupon) return 'Descuento';
+		if (coupon.tipo === 'pct') return coupon.valor + '% off';
+		if (coupon.tipo === 'monto') return '$' + formatear_moneda(coupon.valor) + ' off';
+		if (coupon.tipo === 'envio') return 'Envío gratis';
+		if (coupon.tipo === 'item') return 'Papas Brava gratis';
+		return 'Descuento';
+	}
+
+	function bravaCouponToastMessage(coupon, sub, envOrig) {
+		var disc = bravaCouponCalcDiscount(coupon, sub, envOrig);
+		var env = coupon && coupon.tipo === 'envio' ? 0 : envOrig;
+		var grand = Math.max(0, sub + env - disc);
 		return (
-			'¡Cupón aplicado! · <strong>' +
-			escapeHtml(label || 'Descuento') +
-			'</strong> · Total <strong>$' +
-			formatear_moneda(grand) +
-			'</strong>'
+			'¡Cupón aplicado! · ' +
+			bravaCouponLabel(coupon) +
+			' · Total $' +
+			formatear_moneda(grand)
 		);
+	}
+
+	var bravaToastTimer = null;
+
+	function bravaShowToast(message, kind) {
+		var host = document.getElementById('brava-toast-host');
+		if (!host || !message) return;
+		if (bravaToastTimer) {
+			clearTimeout(bravaToastTimer);
+			bravaToastTimer = null;
+		}
+		host.innerHTML =
+			'<div class="brava-toast brava-toast--' +
+			(kind || 'success') +
+			'">' +
+			escapeHtml(message) +
+			'</div>';
+		bravaToastTimer = setTimeout(function () {
+			host.innerHTML = '';
+			bravaToastTimer = null;
+		}, 3200);
 	}
 
 	function bravaResetCouponUi() {
 		bravaAppliedCoupon = null;
 		$('#brava-coupon-code').val('');
 		$('#brava-coupon-error').addClass('hidden').text('');
-		$('#brava-coupon-applied').addClass('hidden').html('');
 	}
 
 	function bravaUpdateCouponTotals(sub, envOrig) {
@@ -71,13 +104,6 @@
 		var env = envOrig;
 		if (bravaAppliedCoupon && bravaAppliedCoupon.tipo === 'envio') env = 0;
 		var grand = Math.max(0, sub + env - disc);
-		if (bravaAppliedCoupon) {
-			$('#brava-coupon-applied')
-				.removeClass('hidden')
-				.html(bravaCouponAppliedMessage(bravaAppliedCoupon, grand));
-		} else {
-			$('#brava-coupon-applied').addClass('hidden').html('');
-		}
 		return { envio: env, descuento: disc, total: grand };
 	}
 
@@ -85,9 +111,7 @@
 		var codigo = String($('#brava-coupon-code').val() || '').trim().toUpperCase();
 		var telefono = String($('#brava_telefono').val() || '').trim();
 		var errEl = $('#brava-coupon-error');
-		var okEl = $('#brava-coupon-applied');
 		errEl.addClass('hidden').text('');
-		okEl.addClass('hidden').html('');
 		bravaAppliedCoupon = null;
 		if (!codigo) {
 			calcular_total();
