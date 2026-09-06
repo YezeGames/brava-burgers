@@ -1319,12 +1319,13 @@
 	}
 
 	function buildBravaWhatsAppConfirmUrl(nombre) {
+		var wave = '\uD83D\uDC4B';
+		var burger = '\uD83C\uDF54';
 		var primera = bravaClienteFirstName(nombre);
+		var cierre = '\u00A1Espero la confirmaci\u00F3n! ' + burger;
 		var msg = primera
-			? 'Hola Brava 👋\nSoy ' +
-				primera +
-				'. Acabo de pedir desde la web.\n¡Espero la confirmación! 🍔'
-			: 'Hola Brava 👋\nAcabo de pedir desde la web.\n¡Espero la confirmación! 🍔';
+			? 'Hola Brava ' + wave + '\nSoy ' + primera + '. Acabo de pedir desde la web.\n' + cierre
+			: 'Hola Brava ' + wave + '\nAcabo de pedir desde la web.\n' + cierre;
 		return 'https://wa.me/' + g_telefono + '?text=' + encodeURIComponent(msg);
 	}
 
