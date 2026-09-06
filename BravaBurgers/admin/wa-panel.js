@@ -23,6 +23,7 @@
   var WA_POLL_CHAT_MS = 600;
   var WA_AUTO_WELCOME = '__auto_welcome__';
   var WA_AUTO_CONSULTA = '__auto_consulta__';
+  var BRAVA_MP_ALIAS = 'bravaburgers.mp';
   var waInboxTab = 'pedidos';
   /** Teléfono del repartidor (uno solo); mismo storage que pantalla Reparto. */
   var waRepartidorTel = '';
@@ -342,6 +343,11 @@
     return String(it.nombre || it.name || 'Ítem').trim();
   }
 
+  function pagoEsMercadoPago(pago) {
+    var p = String(pago || '').toLowerCase();
+    return p.indexOf('mercado') >= 0 || p === 'mp' || p.indexOf('transferencia') >= 0;
+  }
+
   function buildConfirmadoNotifyMessage(o) {
     var n = waFirstName(o);
     var lines = ['Hola, ' + n + ' ¿cómo va?', 'Tu pedido fue confirmado 🍔', ''];
@@ -357,6 +363,13 @@
     }
     lines.push('');
     lines.push('Total a pagar: $' + fmtMoney(o.total));
+    if (pagoEsMercadoPago(o.pago)) {
+      lines.push('');
+      lines.push('Pagás con Mercado Pago 💳');
+      lines.push('Alias: ' + BRAVA_MP_ALIAS);
+      lines.push('');
+      lines.push('Cuando hagas la transferencia, envianos el comprobante por acá 🙏');
+    }
     return lines.join('\n');
   }
 
