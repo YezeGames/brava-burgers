@@ -41,6 +41,7 @@
   var pollTick = 0;
 
   var gastosPollEvery = 3;
+  var cajaRefreshInFlight = null;
 
   var gastosFetchInFlight = null;
 
@@ -1745,6 +1746,33 @@
         renderMovimientosList();
       });
     return cierresFetchInFlight;
+  }
+
+  function refreshCajaTurno() {
+    if (cajaRefreshInFlight) return cajaRefreshInFlight;
+    var btn = $('btn-refresh-caja');
+    if (btn) {
+      btn.disabled = true;
+      btn.classList.add('is-spinning');
+    }
+    readDateFiltersFromUi();
+    cajaRefreshInFlight = Promise.all([
+      fetchOrdersFromServer(true),
+      loadCierres(true),
+      loadGastos(true),
+      loadIngresos(true),
+    ])
+      .then(function () {
+        updateCajaUI();
+      })
+      .finally(function () {
+        cajaRefreshInFlight = null;
+        if (btn) {
+          btn.disabled = false;
+          btn.classList.remove('is-spinning');
+        }
+      });
+    return cajaRefreshInFlight;
   }
 
   function performAbrirCaja() {
@@ -6686,6 +6714,7 @@
 
   if ($('btn-turno-abrir')) $('btn-turno-abrir').onclick = performAbrirCaja;
   if ($('btn-turno-cerrar')) $('btn-turno-cerrar').onclick = performCierreCaja;
+  if ($('btn-refresh-caja')) $('btn-refresh-caja').onclick = refreshCajaTurno;
 
   if ($('comanda-close')) $('comanda-close').onclick = closeComandaModal;
 

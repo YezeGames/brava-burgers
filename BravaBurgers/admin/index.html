@@ -1461,7 +1461,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=19" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=20" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1601,7 +1601,12 @@
 						<div class="caja-tab-panel is-active" data-caja-panel="resumen" role="tabpanel">
 							<div class="caja-panel-grid caja-panel-grid--1 caja-panel-grid--turno">
 						<aside class="sidebar-block sidebar-turno-panel">
-							<h2>Turno en curso</h2>
+							<div class="caja-panel-head">
+								<h2>Turno en curso</h2>
+								<button type="button" class="btn-sm btn-icon btn-refresh-caja" id="btn-refresh-caja" title="Actualizar caja y turno" aria-label="Actualizar caja y turno">
+									<i class="fas fa-rotate" aria-hidden="true"></i>
+								</button>
+							</div>
 							<p class="range-label" id="caja-range">—</p>
 							<div class="aside-stat-grid">
 								<div class="aside-stat-cell">
@@ -2336,6 +2341,6 @@
 	<script src="/admin/wa-panel.js?v=27"></script>
 	<script src="/admin/compensaciones.js?v=4"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
-	<script src="/admin/admin.js?v=124"></script>
+	<script src="/admin/admin.js?v=125"></script>
 </body>
 </html>

@@ -1230,8 +1230,46 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 }
 
 #view-caja .sidebar-block h2 {
-	margin: 0 0 8px;
+	margin: 0;
 	font-size: 0.9rem;
+}
+
+.caja-panel-head {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+
+.btn-refresh-caja {
+	width: 32px;
+	height: 32px;
+	min-width: 32px;
+	padding: 0;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: var(--layout-bg-elevated, var(--bg-surface-muted));
+	color: var(--text-muted);
+}
+
+.btn-refresh-caja:hover:not(:disabled) {
+	border-color: var(--accent, #ff6b35);
+	color: var(--accent, #ff6b35);
+}
+
+.btn-refresh-caja:disabled {
+	opacity: 0.55;
+	cursor: wait;
+}
+
+.btn-refresh-caja.is-spinning i {
+	animation: caja-refresh-spin 0.75s linear infinite;
+}
+
+@keyframes caja-refresh-spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
 }
 
 #view-caja .caja-hint,
