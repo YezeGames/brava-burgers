@@ -131,6 +131,14 @@
 
     {
 
+      "source": "/api/catalog",
+
+      "destination": "/api/turno-cupos?mode=catalog"
+
+    },
+
+    {
+
       "source": "/admin/",
 
       "destination": "/admin/index.html"
