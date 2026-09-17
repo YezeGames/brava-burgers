@@ -183,6 +183,7 @@ module.exports = {
   isSupabaseConfigured,
   getServiceClient,
   createAdminSupabaseSession,
+  restFetch,
   restSelect,
   restInsert,
   restPatch,
