@@ -6685,13 +6685,26 @@
     return Object.prototype.hasOwnProperty.call(tiendaViews, view);
   }
 
+  function applyTiendaFrameHeight(height) {
+    var frame = $('tienda-config-frame');
+    if (!frame || !height) return;
+    frame.style.height = Math.max(520, Math.ceil(height) + 4) + 'px';
+  }
+
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== location.origin) return;
+    if (ev.data && ev.data.type === 'brava-tienda-height') {
+      applyTiendaFrameHeight(ev.data.height);
+    }
+  });
+
   function showTiendaSection(section) {
     var frame = $('tienda-config-frame');
     if (!frame) return;
     var next =
       '/admin/demo-tienda-config.html?embed=1&section=' +
       encodeURIComponent(section || 'menu') +
-      '&v=4';
+      '&v=5';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;

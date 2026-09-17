@@ -39,29 +39,31 @@
 			--modal-backdrop: rgba(0,0,0,0.72); --input-bg: #2a2a2a;
 		}
 		body { margin: 0; background: var(--bg-page); color: var(--text); }
-		html.embed-mode { height: 100%; }
-		html.embed-mode body { background: transparent; height: 100%; margin: 0; overflow: hidden; }
+		/* En iframe: contenido a altura natural; el scroll lo hace el admin padre */
+		html.embed-mode body,
+		html.embed-mode body:has(#app-view:not(.hidden)) {
+			background: transparent;
+			height: auto !important;
+			min-height: 100%;
+			margin: 0;
+			overflow: visible !important;
+		}
 		html.embed-mode .app-nav { display: none !important; }
 		html.embed-mode .app-top { display: none !important; }
-		html.embed-mode #app-view .app-shell {
-			display: grid;
-			grid-template-columns: 1fr;
-			grid-template-rows: 1fr;
-			grid-template-areas: "main";
-			height: 100%;
-			max-height: 100%;
-			min-height: 0;
-			overflow: hidden;
+		html.embed-mode #app-view { height: auto; overflow: visible; }
+		html.embed-mode #app-view:not(.hidden) .app-shell {
+			display: block;
+			height: auto !important;
+			max-height: none !important;
+			min-height: 0 !important;
+			overflow: visible !important;
 		}
-		html.embed-mode #app-view .app-main { padding: 0; min-height: 0; overflow: hidden; }
+		html.embed-mode #app-view .app-main { padding: 0; overflow: visible !important; }
 		html.embed-mode #app-view .main-content {
 			max-width: none;
-			height: 100%;
-			overflow-x: hidden;
-			overflow-y: auto;
-			overscroll-behavior: contain;
-			-webkit-overflow-scrolling: touch;
-			padding: 14px 16px 24px;
+			height: auto !important;
+			overflow: visible !important;
+			padding: 14px 16px 32px;
 		}
 		.demo-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.45); color: var(--brava); }
 		.config-banner { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; margin-bottom: 16px; border-radius: 10px; background: var(--banner-bg); border: 1px solid var(--banner-border); color: var(--banner-text); font-size: 0.82rem; line-height: 1.45; }
@@ -1539,6 +1541,7 @@
 			var embed = document.documentElement.classList.contains('embed-mode');
 			var importBar = $('#tienda-import-bar');
 			if (importBar) importBar.hidden = embed && name !== 'menu';
+			notifyEmbedHeight();
 		}
 
 		function initialSection() {
@@ -1838,6 +1841,7 @@
 			renderPromos();
 			updatePreview();
 			updateDraftChrome();
+			notifyEmbedHeight();
 		}
 
 		function importFromSheet(publish) {
@@ -1868,10 +1872,35 @@
 			}
 		});
 
+		function notifyEmbedHeight() {
+			if (!document.documentElement.classList.contains('embed-mode')) return;
+			var h = Math.max(
+				document.documentElement.scrollHeight || 0,
+				document.body ? document.body.scrollHeight : 0,
+				document.documentElement.offsetHeight || 0
+			);
+			try {
+				parent.postMessage({ type: 'brava-tienda-height', height: h }, location.origin);
+			} catch (e) {}
+		}
+
+		function setupEmbedResize() {
+			if (!document.documentElement.classList.contains('embed-mode')) return;
+			notifyEmbedHeight();
+			window.addEventListener('load', notifyEmbedHeight);
+			window.addEventListener('resize', notifyEmbedHeight);
+			if (window.ResizeObserver && document.body) {
+				new ResizeObserver(notifyEmbedHeight).observe(document.body);
+			}
+			setTimeout(notifyEmbedHeight, 120);
+			setTimeout(notifyEmbedHeight, 600);
+		}
+
 		function bootPage() {
 			bootUi();
 			if (document.documentElement.classList.contains('embed-mode')) {
 				setView(initialSection());
+				setupEmbedResize();
 			}
 		}
 
