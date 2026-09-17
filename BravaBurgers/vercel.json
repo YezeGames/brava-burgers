@@ -83,7 +83,7 @@
 
     {
 
-      "source": "/(index.html|brava-catalog.js|brava-shop.js|brava-turnos.js|brava-address.js|brava-delivery-zone-client.js|brava-brand.css|api/catalog)",
+      "source": "/(index.html|brava-catalog.js|brava-shop.js|brava-turnos.js|brava-address.js|brava-delivery-zone-client.js|brava-brand.css)",
 
       "headers": [
 
@@ -96,6 +96,18 @@
     {
 
       "source": "/admin/(.*)",
+
+      "headers": [
+
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+
+      ]
+
+    },
+
+    {
+
+      "source": "/api/catalog",
 
       "headers": [
 
