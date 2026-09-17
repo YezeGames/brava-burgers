@@ -6685,10 +6685,15 @@
     return Object.prototype.hasOwnProperty.call(tiendaViews, view);
   }
 
+  var lastTiendaFrameHeight = 0;
+
   function applyTiendaFrameHeight(height) {
     var frame = $('tienda-config-frame');
     if (!frame || !height) return;
-    frame.style.height = Math.max(520, Math.ceil(height) + 4) + 'px';
+    var h = Math.max(520, Math.ceil(height) + 4);
+    if (Math.abs(h - lastTiendaFrameHeight) < 4) return;
+    lastTiendaFrameHeight = h;
+    frame.style.height = h + 'px';
   }
 
   window.addEventListener('message', function (ev) {
@@ -6704,7 +6709,7 @@
     var next =
       '/admin/demo-tienda-config.html?embed=1&section=' +
       encodeURIComponent(section || 'menu') +
-      '&v=5';
+      '&v=6';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;
