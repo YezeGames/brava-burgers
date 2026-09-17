@@ -3385,11 +3385,23 @@
     });
   }
 
+  function refreshTiendaIframe() {
+    syncTiendaIframeToken();
+    var tiendaFrame = $('tienda-config-frame');
+    if (tiendaFrame && tiendaFrame.contentWindow) {
+      try {
+        tiendaFrame.contentWindow.postMessage({ type: 'brava-tienda-focus', token: token }, location.origin);
+      } catch (eFrame) {}
+    }
+  }
+
   /** Una vez por sesión: tablas catálogo tienda (store_catalog.sql). */
   function ensureStoreCatalogOnce() {
     if (!token) return;
+    var alreadyOk = false;
     try {
-      if (sessionStorage.getItem('brava_store_catalog_try_v1') === '1') return;
+      alreadyOk = sessionStorage.getItem('brava_store_catalog_ok_v1') === '1';
+      if (sessionStorage.getItem('brava_store_catalog_try_v1') === '1' && alreadyOk) return;
       sessionStorage.setItem('brava_store_catalog_try_v1', '1');
     } catch (e) {
       return;
@@ -3412,13 +3424,8 @@
         try {
           sessionStorage.setItem('brava_store_catalog_ok_v1', '1');
         } catch (e2) {}
-        var tiendaFrame = $('tienda-config-frame');
-        if (tiendaFrame && tiendaFrame.contentWindow) {
-          try {
-            tiendaFrame.contentWindow.postMessage({ type: 'brava-tienda-focus' }, location.origin);
-          } catch (eFrame) {}
-        }
       }
+      refreshTiendaIframe();
     });
   }
 
@@ -6687,6 +6694,14 @@
 
   var lastTiendaFrameHeight = 0;
 
+  function syncTiendaIframeToken() {
+    var frame = $('tienda-config-frame');
+    if (!frame || !frame.contentWindow || !token) return;
+    try {
+      frame.contentWindow.postMessage({ type: 'brava-admin-token', token: token }, location.origin);
+    } catch (eToken) {}
+  }
+
   function applyTiendaFrameHeight(height) {
     var frame = $('tienda-config-frame');
     if (!frame || !height) return;
@@ -6709,7 +6724,7 @@
     var next =
       '/admin/demo-tienda-config.html?embed=1&section=' +
       encodeURIComponent(section || 'menu') +
-      '&v=7';
+      '&v=8';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;
@@ -6781,12 +6796,7 @@
         }
         if (isTiendaView(view)) {
           showTiendaSection(tiendaViews[view].section);
-          var tiendaFrame = $('tienda-config-frame');
-          if (tiendaFrame && tiendaFrame.contentWindow) {
-            try {
-              tiendaFrame.contentWindow.postMessage({ type: 'brava-tienda-focus' }, location.origin);
-            } catch (eFocus) {}
-          }
+          refreshTiendaIframe();
         }
       });
     });

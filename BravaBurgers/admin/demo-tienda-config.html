@@ -328,7 +328,10 @@
 					</div>
 					<div class="config-banner hidden" id="backend-banner" role="alert" style="border-color:#ef5350;background:rgba(198,40,40,0.08)">
 						<i class="fas fa-database"></i>
-						<div id="backend-banner-text">Backend no listo.</div>
+						<div style="flex:1">
+							<div id="backend-banner-text">Conectando con Supabase…</div>
+							<button type="button" class="btn-sm btn-accent hidden" id="btn-backend-setup" style="margin-top:10px"><i class="fas fa-plug"></i> Conectar Supabase</button>
+						</div>
 					</div>
 					<div class="menu-toolbar" id="tienda-import-bar" style="margin-bottom:14px">
 						<p style="margin:0;font-size:0.82rem;color:var(--text-subtle);flex:1">Importá el menú actual desde Google Sheets (productos + extras + horarios).</p>
@@ -672,6 +675,8 @@
 		var backendOnline = false;
 		var backendNeedsMigrate = false;
 		var backendUnauthorized = false;
+		var backendLastError = '';
+		var cachedAdminToken = '';
 		var saveDraftTimer = null;
 		var suppressDirtySave = false;
 
@@ -688,7 +693,15 @@
 		}
 
 		function adminToken() {
-			try { return sessionStorage.getItem('brava_admin_token') || ''; } catch (e) { return ''; }
+			try {
+				return cachedAdminToken || sessionStorage.getItem('brava_admin_token') || '';
+			} catch (e) {
+				return cachedAdminToken || '';
+			}
+		}
+
+		function setAdminToken(tok) {
+			cachedAdminToken = tok || '';
 		}
 
 		function apiAdmin(payload) {
@@ -755,20 +768,63 @@
 			var badge = $('#backend-badge');
 			var banner = $('#backend-banner');
 			var text = $('#backend-banner-text');
+			var setupBtn = $('#btn-backend-setup');
 			if (backendOnline) {
 				badge.innerHTML = '<i class="fas fa-cloud"></i> Supabase';
 				banner.classList.add('hidden');
+				if (setupBtn) setupBtn.classList.add('hidden');
 				return;
 			}
 			badge.innerHTML = '<i class="fas fa-unlink"></i> Sin backend';
 			banner.classList.remove('hidden');
+			if (setupBtn) setupBtn.classList.toggle('hidden', !adminToken() || backendUnauthorized);
 			if (backendUnauthorized) {
 				text.innerHTML = 'Sesión expirada — recargá el admin o volvé a entrar en <a href="/admin/" target="_top">/admin/</a>.';
 			} else if (backendNeedsMigrate) {
-				text.innerHTML = 'Falta migrar tablas de tienda. Desde <a href="/admin/">admin</a> (logueado) o consola: action <code>migrateStoreCatalogSchema</code>. También podés ejecutar <code>supabase/store_catalog.sql</code> en Supabase SQL.';
+				text.innerHTML = 'Faltan las tablas del catálogo en Supabase. Tocá <strong>Conectar Supabase</strong> (con sesión de admin) o ejecutá <code>supabase/store_catalog.sql</code> en Supabase SQL.';
+			} else if (!adminToken()) {
+				text.innerHTML = 'No hay sesión de admin en esta vista. Volvé a <a href="/admin/" target="_top">/admin/</a> e iniciá sesión, luego abrí Catálogo de nuevo.';
+			} else if (backendLastError) {
+				text.textContent = 'Error de backend: ' + backendLastError + '. Probá Conectar Supabase.';
 			} else {
-				text.textContent = 'Modo local — los cambios no se guardan hasta conectar Supabase.';
+				text.textContent = 'No se pudo conectar con Supabase. Probá Conectar Supabase.';
 			}
+		}
+
+		function runBackendSetup() {
+			if (!adminToken()) {
+				toast('Iniciá sesión en /admin/ primero');
+				updateBackendBanner();
+				return;
+			}
+			var setupBtn = $('#btn-backend-setup');
+			if (setupBtn) setupBtn.disabled = true;
+			toast('Conectando Supabase…');
+			apiAdmin({ action: 'migrateStoreCatalogSchema' }).then(function (migrateR) {
+				if (!migrateR.ok && migrateR.error !== 'migration_failed') {
+					throw new Error(migrateR.hint || migrateR.detail || migrateR.error || 'migrate_failed');
+				}
+				if (migrateR.ok && migrateR.migrated) {
+					toast('Tablas creadas — importando menú…');
+				}
+				return apiAdmin({ action: 'importStoreMenuFromSheetIfEmpty' });
+			}).then(function (importR) {
+				if (importR && !importR.ok && !importR.skipped) {
+					throw new Error(importR.detail || importR.error || importR.hint || 'import_failed');
+				}
+				backendNeedsMigrate = false;
+				backendLastError = '';
+				return loadFromBackend();
+			}).then(function () {
+				bootUi();
+				toast(backendOnline ? 'Supabase conectado' : 'Revisá el mensaje en rojo');
+			}).catch(function (e) {
+				backendLastError = String(e.message || e);
+				updateBackendBanner();
+				toast('Error: ' + backendLastError);
+			}).finally(function () {
+				if (setupBtn) setupBtn.disabled = false;
+			});
 		}
 
 		function scheduleSaveDraft() {
@@ -782,45 +838,66 @@
 		}
 
 		function loadFromBackend() {
-			if (!adminToken()) {
-				backendUnauthorized = true;
-				updateBackendBanner();
-				return Promise.resolve();
-			}
-			return apiAdmin({ action: 'storeCatalogHealth' }).then(function (health) {
-				if (!health.ok) {
-					if (health.error === 'not_migrated') backendNeedsMigrate = true;
-					else if (health.error === 'unauthorized') backendUnauthorized = true;
+			backendOnline = false;
+			backendNeedsMigrate = false;
+			backendUnauthorized = false;
+			backendLastError = '';
+			return fetch('/api/catalog?health=1&t=' + Date.now())
+				.then(function (r) { return r.json(); })
+				.then(function (health) {
+					if (!health.ok) {
+						if (health.error === 'not_migrated') backendNeedsMigrate = true;
+						else backendLastError = health.error || health.hint || 'health_failed';
+						if (!adminToken()) {
+							updateBackendBanner();
+							return null;
+						}
+					}
+					if (!adminToken()) {
+						updateBackendBanner();
+						return null;
+					}
+					return apiAdmin({ action: 'getStoreMenuDraft' });
+				})
+				.catch(function () {
+					if (!adminToken()) {
+						updateBackendBanner();
+						return null;
+					}
+					return apiAdmin({ action: 'getStoreMenuDraft' });
+				})
+				.then(function (r) {
+					if (!r) return;
+					if (!r.ok) {
+						if (r.error === 'store_catalog_not_migrated' || r.error === 'not_migrated') {
+							backendNeedsMigrate = true;
+						} else if (r.error === 'unauthorized') {
+							backendUnauthorized = true;
+						} else {
+							backendLastError = r.detail || r.error || 'load_failed';
+						}
+						updateBackendBanner();
+						return;
+					}
+					backendOnline = true;
+					suppressDirtySave = true;
+					var hasData = r.draft && ((r.draft.categorias && r.draft.categorias.length) || (r.draft.productos && r.draft.productos.length));
+					if (hasData && (r.hasDraft || r.source === 'published' || r.source === 'draft')) {
+						applyDraft(r.draft);
+					} else if (r.source === 'empty') {
+						draftChanges = 1;
+					}
+					if (r.publishedAt) {
+						publishedAt = new Date(r.publishedAt);
+						$('#published-at').textContent = publishedAt.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
+					} else {
+						$('#published-at').textContent = 'sin publicar aún';
+					}
+					if (r.hasDraft && hasData) draftChanges = Math.max(draftChanges, 1);
+					suppressDirtySave = false;
 					updateBackendBanner();
-					return null;
-				}
-				return apiAdmin({ action: 'getStoreMenuDraft' });
-			}).then(function (r) {
-				if (!r || !r.ok) {
-					if (r && r.error === 'store_catalog_not_migrated') backendNeedsMigrate = true;
-					if (r && r.error === 'unauthorized') backendUnauthorized = true;
-					updateBackendBanner();
-					return;
-				}
-				backendOnline = true;
-				suppressDirtySave = true;
-				var hasData = r.draft && ((r.draft.categorias && r.draft.categorias.length) || (r.draft.productos && r.draft.productos.length));
-				if (hasData && (r.hasDraft || r.source === 'published' || r.source === 'draft')) {
-					applyDraft(r.draft);
-				} else if (r.source === 'empty') {
-					draftChanges = 1;
-				}
-				if (r.publishedAt) {
-					publishedAt = new Date(r.publishedAt);
-					$('#published-at').textContent = publishedAt.toLocaleString('es-AR', { dateStyle: 'short', timeStyle: 'short' });
-				} else {
-					$('#published-at').textContent = 'sin publicar aún';
-				}
-				if (r.hasDraft && hasData) draftChanges = Math.max(draftChanges, 1);
-				suppressDirtySave = false;
-				updateBackendBanner();
-				updateDraftChrome();
-			});
+					updateDraftChrome();
+				});
 		}
 
 		function markDirty(n) {
@@ -1878,10 +1955,16 @@
 
 		$('#btn-import-sheet-draft').addEventListener('click', function () { importFromSheet(false); });
 		$('#btn-import-sheet-publish').addEventListener('click', function () { importFromSheet(true); });
+		$('#btn-backend-setup').addEventListener('click', runBackendSetup);
 
 		window.addEventListener('message', function (ev) {
 			if (ev.origin !== location.origin) return;
 			if (ev.data && ev.data.type === 'brava-tienda-focus') {
+				if (ev.data.token) setAdminToken(ev.data.token);
+				loadFromBackend().then(bootUi).catch(function () { bootUi(); });
+			}
+			if (ev.data && ev.data.type === 'brava-admin-token') {
+				setAdminToken(ev.data.token || '');
 				loadFromBackend().then(bootUi).catch(function () { bootUi(); });
 			}
 			if (ev.data && ev.data.type === 'brava-tienda-section') {

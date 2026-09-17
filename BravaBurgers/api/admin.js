@@ -66,6 +66,10 @@ async function handleSupabaseAdmin(body) {
     };
   }
 
+  if (action === 'storeCatalogHealth') {
+    return storeCatalogHealth();
+  }
+
   if (!validateAdminToken(token)) {
     return { ok: false, error: 'unauthorized' };
   }
@@ -157,10 +161,6 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateStoreCatalogSchema') {
     return migrateStoreCatalogSchema();
-  }
-
-  if (action === 'storeCatalogHealth') {
-    return storeCatalogHealth();
   }
 
   if (action === 'getStoreMenuDraft') {
