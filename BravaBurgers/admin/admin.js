@@ -6674,17 +6674,48 @@
     setAdminTheme(isDarkTheme() ? 'light' : 'dark');
   }
 
+  var tiendaViews = {
+    'tienda-menu': { title: 'Catálogo', subtitle: 'Categorías, productos y extras', section: 'menu' },
+    'tienda-horarios': { title: 'Horarios', subtitle: 'Días y franjas de apertura', section: 'horarios' },
+    'tienda-turnos': { title: 'Turnos', subtitle: 'Delivery y cupos por hora', section: 'turnos' },
+    'tienda-promos': { title: 'Promociones', subtitle: 'Descuentos y excepciones', section: 'promos' },
+  };
+
+  function isTiendaView(view) {
+    return Object.prototype.hasOwnProperty.call(tiendaViews, view);
+  }
+
+  function showTiendaSection(section) {
+    var frame = $('tienda-config-frame');
+    if (!frame) return;
+    var next =
+      '/admin/demo-tienda-config.html?embed=1&section=' +
+      encodeURIComponent(section || 'menu') +
+      '&v=4';
+    var current = frame.getAttribute('src') || '';
+    if (current.split('#')[0] !== next) {
+      frame.src = next;
+      return;
+    }
+    if (frame.contentWindow) {
+      try {
+        frame.contentWindow.postMessage({ type: 'brava-tienda-section', section: section || 'menu' }, location.origin);
+      } catch (eSection) {}
+    }
+  }
+
   function initAdminShell() {
     var titles = {
       pedidos: 'Pedidos',
       reparto: 'Reparto',
       caja: 'Caja y turno',
       historial: 'Historial',
-      tienda: 'Tienda',
     };
-    var subtitles = {
-      tienda: 'Menú, horarios, turnos y promociones',
-    };
+    var subtitles = {};
+    Object.keys(tiendaViews).forEach(function (key) {
+      titles[key] = tiendaViews[key].title;
+      subtitles[key] = tiendaViews[key].subtitle;
+    });
     document.querySelectorAll('.caja-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var tab = btn.getAttribute('data-caja-tab');
@@ -6706,7 +6737,7 @@
           b.classList.toggle('is-active', b === btn);
         });
         document.querySelectorAll('.admin-view').forEach(function (v) {
-          v.hidden = v.id !== 'view-' + view;
+          v.hidden = isTiendaView(view) ? v.id !== 'view-tienda' : v.id !== 'view-' + view;
         });
         if ($('view-title')) {
           $('view-title').childNodes[0].textContent = titles[view] || 'Admin';
@@ -6719,14 +6750,19 @@
         if (aside) aside.hidden = !showAside;
         var appMain = document.querySelector('.app-main');
         if (appMain) {
-          appMain.classList.toggle('app-main--full', view === 'caja' || view === 'historial' || view === 'tienda');
+          appMain.classList.toggle('app-main--full', view === 'caja' || view === 'historial' || isTiendaView(view));
+        }
+        var mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+          mainContent.classList.toggle('main-content--tienda', isTiendaView(view));
         }
         var topActions = document.querySelector('.top-actions.turno-toolbar');
-        if (topActions) topActions.classList.toggle('hidden', view === 'tienda');
+        if (topActions) topActions.classList.toggle('hidden', isTiendaView(view));
         if (view === 'reparto' && window.BravaReparto && typeof window.BravaReparto.onViewShow === 'function') {
           window.BravaReparto.onViewShow();
         }
-        if (view === 'tienda') {
+        if (isTiendaView(view)) {
+          showTiendaSection(tiendaViews[view].section);
           var tiendaFrame = $('tienda-config-frame');
           if (tiendaFrame && tiendaFrame.contentWindow) {
             try {

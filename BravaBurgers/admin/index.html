@@ -1461,7 +1461,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=22" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=23" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1494,8 +1494,17 @@
 				<button type="button" class="nav-btn" data-view="historial" title="Historial">
 					<i class="fas fa-folder-open" aria-hidden="true"></i>
 				</button>
-				<button type="button" class="nav-btn" data-view="tienda" title="Tienda — menú y promos">
-					<i class="fas fa-store" aria-hidden="true"></i>
+				<button type="button" class="nav-btn" data-view="tienda-menu" title="Catálogo — productos y extras">
+					<i class="fas fa-burger" aria-hidden="true"></i>
+				</button>
+				<button type="button" class="nav-btn" data-view="tienda-horarios" title="Horarios de apertura">
+					<i class="fas fa-clock" aria-hidden="true"></i>
+				</button>
+				<button type="button" class="nav-btn" data-view="tienda-turnos" title="Turnos de delivery">
+					<i class="fas fa-truck" aria-hidden="true"></i>
+				</button>
+				<button type="button" class="nav-btn" data-view="tienda-promos" title="Promociones">
+					<i class="fas fa-tags" aria-hidden="true"></i>
 				</button>
 				<span class="nav-spacer" aria-hidden="true"></span>
 				<button type="button" class="nav-btn theme-toggle-btn" id="theme-toggle-nav" aria-pressed="false" title="Modo noche / claro">
@@ -1741,7 +1750,7 @@
 							id="tienda-config-frame"
 							class="tienda-config-frame"
 							title="Configuración de tienda"
-							src="/admin/demo-tienda-config.html?embed=1&v=3"
+							src="/admin/demo-tienda-config.html?embed=1&section=menu&v=4"
 							loading="lazy"></iframe>
 					</section>
 				</div>
@@ -2362,6 +2371,6 @@
 	<script src="/admin/wa-panel.js?v=28"></script>
 	<script src="/admin/compensaciones.js?v=4"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
-	<script src="/admin/admin.js?v=128"></script>
+	<script src="/admin/admin.js?v=129"></script>
 </body>
 </html>

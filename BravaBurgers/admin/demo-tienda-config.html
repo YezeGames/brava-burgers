@@ -39,12 +39,30 @@
 			--modal-backdrop: rgba(0,0,0,0.72); --input-bg: #2a2a2a;
 		}
 		body { margin: 0; background: var(--bg-page); color: var(--text); }
-		html.embed-mode body { background: transparent; }
+		html.embed-mode { height: 100%; }
+		html.embed-mode body { background: transparent; height: 100%; margin: 0; overflow: hidden; }
 		html.embed-mode .app-nav { display: none !important; }
 		html.embed-mode .app-top { display: none !important; }
-		html.embed-mode .app-shell { display: block; }
-		html.embed-mode .app-main { padding: 0; }
-		html.embed-mode .main-content { max-width: none; }
+		html.embed-mode #app-view .app-shell {
+			display: grid;
+			grid-template-columns: 1fr;
+			grid-template-rows: 1fr;
+			grid-template-areas: "main";
+			height: 100%;
+			max-height: 100%;
+			min-height: 0;
+			overflow: hidden;
+		}
+		html.embed-mode #app-view .app-main { padding: 0; min-height: 0; overflow: hidden; }
+		html.embed-mode #app-view .main-content {
+			max-width: none;
+			height: 100%;
+			overflow-x: hidden;
+			overflow-y: auto;
+			overscroll-behavior: contain;
+			-webkit-overflow-scrolling: touch;
+			padding: 14px 16px 24px;
+		}
 		.demo-badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: rgba(255,107,53,0.15); border: 1px solid rgba(255,107,53,0.45); color: var(--brava); }
 		.config-banner { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; margin-bottom: 16px; border-radius: 10px; background: var(--banner-bg); border: 1px solid var(--banner-border); color: var(--banner-text); font-size: 0.82rem; line-height: 1.45; }
 		.config-banner i { margin-top: 2px; color: var(--banner-strong); }
@@ -273,8 +291,9 @@
 			<nav class="app-nav" aria-label="Secciones admin">
 				<div class="app-nav-logo" title="Brava Burgers">BRAVA</div>
 				<button type="button" class="nav-btn" disabled style="opacity:0.35;cursor:not-allowed" title="Pedidos (producción)"><i class="fas fa-clipboard-list"></i></button>
-				<button type="button" class="nav-btn is-active nav-demo-mark" data-view="horarios" title="Horarios"><i class="fas fa-clock"></i></button>
-				<button type="button" class="nav-btn nav-demo-mark" data-view="menu" title="Menú"><i class="fas fa-burger"></i></button>
+				<button type="button" class="nav-btn nav-demo-mark" data-view="horarios" title="Horarios"><i class="fas fa-clock"></i></button>
+				<button type="button" class="nav-btn nav-demo-mark" data-view="turnos" title="Turnos"><i class="fas fa-truck"></i></button>
+				<button type="button" class="nav-btn is-active nav-demo-mark" data-view="menu" title="Catálogo"><i class="fas fa-burger"></i></button>
 				<button type="button" class="nav-btn nav-demo-mark" data-view="promos" title="Promociones"><i class="fas fa-tags"></i></button>
 				<span class="nav-spacer"></span>
 				<button type="button" class="nav-btn" id="theme-toggle" title="Modo noche / claro"><i class="fas fa-moon"></i></button>
@@ -315,7 +334,7 @@
 					</div>
 					<p class="published-meta" id="published-meta">Última publicación: <strong id="published-at">hace un momento (demo)</strong></p>
 
-					<section class="admin-view" id="view-horarios">
+					<section class="admin-view" id="view-horarios" hidden>
 						<div class="config-grid">
 							<div>
 								<div class="config-panel">
@@ -331,6 +350,29 @@
 									<h2>Días de apertura</h2>
 									<div id="days-grid"></div>
 								</div>
+							</div>
+							<aside class="config-preview">
+								<div class="preview-card">
+									<div class="preview-card-head">
+										<div class="preview-logo">BRAVA BURGERS</div>
+										<div class="preview-status open" id="preview-status">🟢 Abierto</div>
+									</div>
+									<div class="preview-card-body">
+										<div id="preview-days"></div>
+										<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Turnos en checkout:</p>
+										<div id="preview-turnos"></div>
+										<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Menú (categorías admin):</p>
+										<div id="preview-cats"></div>
+									</div>
+								</div>
+								<p class="preview-note">Logo y colores vienen del Sheet. Estructura del menú y turnos, de acá.</p>
+							</aside>
+						</div>
+					</section>
+
+					<section class="admin-view" id="view-turnos" hidden>
+						<div class="config-grid">
+							<div>
 								<div class="config-panel">
 									<h2>Turnos de delivery</h2>
 									<p class="panel-hint">Creá los turnos que necesites. Nombre libre (ej. «Noche 1», «Turno tarde»).</p>
@@ -356,22 +398,19 @@
 								<div class="preview-card">
 									<div class="preview-card-head">
 										<div class="preview-logo">BRAVA BURGERS</div>
-										<div class="preview-status open" id="preview-status">🟢 Abierto</div>
+										<div class="preview-status open" id="preview-status-turnos">🟢 Abierto</div>
 									</div>
 									<div class="preview-card-body">
-										<div id="preview-days"></div>
-										<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Turnos en checkout:</p>
-										<div id="preview-turnos"></div>
-										<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Menú (categorías admin):</p>
-										<div id="preview-cats"></div>
+										<p style="margin:0 0 8px;font-size:0.72rem;color:#888">Turnos en checkout:</p>
+										<div id="preview-turnos-only"></div>
 									</div>
 								</div>
-								<p class="preview-note">Logo y colores vienen del Sheet. Estructura del menú y turnos, de acá.</p>
+								<p class="preview-note">Los turnos se eligen al finalizar el pedido en la tienda.</p>
 							</aside>
 						</div>
 					</section>
 
-					<section class="admin-view" id="view-menu" hidden>
+					<section class="admin-view" id="view-menu">
 						<div class="menu-toolbar">
 							<button type="button" class="btn-sm tab-menu active" data-menu-tab="categorias">Categorías</button>
 							<button type="button" class="btn-sm tab-menu" data-menu-tab="productos">Productos</button>
@@ -1221,23 +1260,45 @@
 
 		function updatePreview() {
 			var openDays = days.filter(function (d) { return d.on; });
+			var isOpen = openDays.length && $('#ctrl-horario').checked;
 			var st = $('#preview-status');
-			if (!openDays.length || !$('#ctrl-horario').checked) {
-				st.textContent = '🔴 Cerrado'; st.className = 'preview-status closed';
-			} else {
-				st.textContent = '🟢 Abierto — ' + openDays.length + ' día(s)/sem';
-				st.className = 'preview-status open';
+			if (st) {
+				if (!isOpen) {
+					st.textContent = '🔴 Cerrado'; st.className = 'preview-status closed';
+				} else {
+					st.textContent = '🟢 Abierto — ' + openDays.length + ' día(s)/sem';
+					st.className = 'preview-status open';
+				}
 			}
-			$('#preview-days').innerHTML = openDays.length
-				? openDays.map(function (d) { return '<span class="chip">' + d.name + ' ' + d.from + '–' + d.to + '</span>'; }).join('')
-				: '<span style="color:#ef9a9a">Sin días</span>';
-			$('#preview-turnos').innerHTML = $('#ctrl-turnos').checked
+			var stTurnos = $('#preview-status-turnos');
+			if (stTurnos) {
+				if (!isOpen) {
+					stTurnos.textContent = '🔴 Cerrado'; stTurnos.className = 'preview-status closed';
+				} else {
+					stTurnos.textContent = '🟢 Abierto — ' + openDays.length + ' día(s)/sem';
+					stTurnos.className = 'preview-status open';
+				}
+			}
+			var daysEl = $('#preview-days');
+			if (daysEl) {
+				daysEl.innerHTML = openDays.length
+					? openDays.map(function (d) { return '<span class="chip">' + d.name + ' ' + d.from + '–' + d.to + '</span>'; }).join('')
+					: '<span style="color:#ef9a9a">Sin días</span>';
+			}
+			var turnosHtml = $('#ctrl-turnos').checked
 				? turnos.map(function (t) { return '<span class="chip">' + esc(t.nombre) + ': ' + t.from + '–' + t.to + '</span>'; }).join('')
 				: '<span style="color:#888">Off</span>';
-			$('#preview-cats').innerHTML = categorias.filter(function (c) { return c.visible; }).map(function (c) {
-				var subs = c.subs.length ? ' (' + c.subs.map(function (s) { return s.nombre; }).join(', ') + ')' : '';
-				return '<span class="chip">' + esc(c.nombre) + subs + '</span>';
-			}).join('');
+			var turnosEl = $('#preview-turnos');
+			if (turnosEl) turnosEl.innerHTML = turnosHtml;
+			var turnosOnlyEl = $('#preview-turnos-only');
+			if (turnosOnlyEl) turnosOnlyEl.innerHTML = turnosHtml;
+			var catsEl = $('#preview-cats');
+			if (catsEl) {
+				catsEl.innerHTML = categorias.filter(function (c) { return c.visible; }).map(function (c) {
+					var subs = c.subs.length ? ' (' + c.subs.map(function (s) { return s.nombre; }).join(', ') + ')' : '';
+					return '<span class="chip">' + esc(c.nombre) + subs + '</span>';
+				}).join('');
+			}
 		}
 
 		function renderCategorias() {
@@ -1463,17 +1524,28 @@
 				btn.classList.toggle('is-active', btn.getAttribute('data-view') === name);
 			});
 			var titles = {
-				horarios: ['Horarios', 'Días, franjas y turnos de delivery'],
-				menu: ['Menú', 'Categorías · productos · extras'],
+				horarios: ['Horarios', 'Días y franjas de apertura'],
+				turnos: ['Turnos', 'Delivery y cupos por hora'],
+				menu: ['Catálogo', 'Categorías · productos · extras'],
 				promos: ['Promociones', 'Descuentos y cupones'],
 			};
 			var t = titles[name] || ['Demo', ''];
 			$('#view-title').childNodes[0].textContent = t[0];
 			$('#view-subtitle').textContent = t[1];
-			['horarios', 'menu', 'promos'].forEach(function (v) {
+			['horarios', 'turnos', 'menu', 'promos'].forEach(function (v) {
 				var el = $('#view-' + v);
 				if (el) el.hidden = v !== name;
 			});
+			var embed = document.documentElement.classList.contains('embed-mode');
+			var importBar = $('#tienda-import-bar');
+			if (importBar) importBar.hidden = embed && name !== 'menu';
+		}
+
+		function initialSection() {
+			var section = new URLSearchParams(location.search).get('section') || 'menu';
+			if (section === 'catalogo') section = 'menu';
+			if (['horarios', 'turnos', 'menu', 'promos'].indexOf(section) < 0) section = 'menu';
+			return section;
 		}
 
 		function openCatModal(mode, parentId, cat) {
@@ -1791,9 +1863,19 @@
 			if (ev.data && ev.data.type === 'brava-tienda-focus') {
 				loadFromBackend().then(bootUi).catch(function () { bootUi(); });
 			}
+			if (ev.data && ev.data.type === 'brava-tienda-section') {
+				setView(ev.data.section || 'menu');
+			}
 		});
 
-		loadFromBackend().then(bootUi).catch(function () { bootUi(); });
+		function bootPage() {
+			bootUi();
+			if (document.documentElement.classList.contains('embed-mode')) {
+				setView(initialSection());
+			}
+		}
+
+		loadFromBackend().then(bootPage).catch(function () { bootPage(); });
 	})();
 	</script>
 </body>
