@@ -1,4 +1,5 @@
 -- Brava Burgers — panel admin (pedidos + caja)
+-- Catálogo tienda (menú, horarios, promos): ver supabase/store_catalog.sql
 -- Ejecutá todo este archivo en Supabase → SQL → New query → Run
 
 -- Contador ORN (mismo formato que antes: ORN-DEL-0001)

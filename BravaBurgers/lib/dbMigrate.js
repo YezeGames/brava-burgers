@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { Client } = require('pg');
 
 function postgresConnectionString() {
@@ -348,6 +350,37 @@ async function migrateManualOrderSchema() {
   }
 }
 
+async function migrateStoreCatalogSchema() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'Agregá SUPABASE_DB_PASSWORD o POSTGRES_URL en Vercel.',
+    };
+  }
+  const sqlPath = path.join(__dirname, '..', 'supabase', 'store_catalog.sql');
+  let sql;
+  try {
+    sql = fs.readFileSync(sqlPath, 'utf8');
+  } catch (e) {
+    return { ok: false, error: 'sql_file_missing', detail: String(e.message || e) };
+  }
+  const client = createPgClient(conn);
+  try {
+    await client.connect();
+    await client.query(sql);
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
 module.exports = {
   migrateEnCaminoColumn,
   migrateIngresosSchema,
@@ -355,4 +388,5 @@ module.exports = {
   migrateWaMessages,
   migrateCompensacionesSchema,
   migrateManualOrderSchema,
+  migrateStoreCatalogSchema,
 };

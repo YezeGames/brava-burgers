@@ -23,7 +23,15 @@ const {
   saveCliente,
   createManualOrder,
 } = require('../lib/bravaSupabase');
-const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateCompensacionesSchema, migrateManualOrderSchema } = require('../lib/dbMigrate');
+const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateCompensacionesSchema, migrateManualOrderSchema, migrateStoreCatalogSchema } = require('../lib/dbMigrate');
+const {
+  getStoreMenuDraft,
+  saveStoreMenuDraft,
+  publishStoreMenu,
+  setProductAgotado,
+  storeCatalogHealth,
+} = require('../lib/storeCatalog');
+const { importStoreMenuFromSheet, importStoreMenuFromSheetIfEmpty } = require('../lib/sheetImport');
 
 function parseRequestBody(req) {
   let body = req.body;
@@ -145,6 +153,38 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateManualOrderSchema') {
     return migrateManualOrderSchema();
+  }
+
+  if (action === 'migrateStoreCatalogSchema') {
+    return migrateStoreCatalogSchema();
+  }
+
+  if (action === 'storeCatalogHealth') {
+    return storeCatalogHealth();
+  }
+
+  if (action === 'getStoreMenuDraft') {
+    return getStoreMenuDraft();
+  }
+
+  if (action === 'saveStoreMenuDraft') {
+    return saveStoreMenuDraft(body);
+  }
+
+  if (action === 'publishStoreMenu') {
+    return publishStoreMenu();
+  }
+
+  if (action === 'setProductAgotado') {
+    return setProductAgotado(body.productId, body.agotado);
+  }
+
+  if (action === 'importStoreMenuFromSheet') {
+    return importStoreMenuFromSheet({ publish: !!body.publish });
+  }
+
+  if (action === 'importStoreMenuFromSheetIfEmpty') {
+    return importStoreMenuFromSheetIfEmpty();
   }
 
   if (action === 'searchClientes') {

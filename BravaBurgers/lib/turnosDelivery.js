@@ -294,4 +294,7 @@ module.exports = {
 	argentinaNowMinutes: argentinaNowMinutes,
 	parseTimeToMinutes: parseTimeToMinutes,
 	evaluateTurn: evaluateTurn,
+	parseConfigCSV: parseConfigCSV,
+	normalizeTime: normalizeTime,
+	parseIntConfig: parseIntConfig,
 };

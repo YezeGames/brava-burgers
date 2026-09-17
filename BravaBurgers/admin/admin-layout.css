@@ -362,6 +362,24 @@ html:not([data-theme="dark"]) .turno-pill--closed {
 	grid-template-columns: 1fr;
 }
 
+.tienda-config-frame {
+	display: block;
+	width: 100%;
+	min-height: calc(100vh - 120px);
+	height: calc(100vh - 120px);
+	border: none;
+	border-radius: 12px;
+	background: var(--bg-page);
+}
+
+#view-tienda {
+	padding: 0;
+}
+
+.top-actions.turno-toolbar.hidden {
+	display: none !important;
+}
+
 /* Pipeline tabs */
 .pipeline {
 	display: flex;

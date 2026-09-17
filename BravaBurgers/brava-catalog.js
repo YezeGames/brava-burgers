@@ -1176,9 +1176,26 @@
 		return response.text();
 	}
 
+	async function cargar_catalogo_desde_api() {
+		try {
+			const response = await fetch('/api/catalog?t=' + Date.now());
+			if (!response.ok) return null;
+			const data = await response.json();
+			if (!data || !data.ok || data.empty || !data.productos || !data.productos.length) return null;
+			global.g_productos = data.productos;
+			global.g_extras_catalog = data.extras || [];
+			global.g_catalog_source = 'supabase';
+			global.g_catalog_published_at = data.publishedAt || null;
+			inferLegacyPersonalizacion(global.g_productos);
+			applyIngredientesPorProducto(global.g_productos);
+			return true;
+		} catch (e) {
+			return null;
+		}
+	}
+
 	async function cargar_datos_desde_sheets() {
-		const [productsCSV, configCSV, extrasCSV, ingredientesCSV] = await Promise.all([
-			loadCSV(sheetCsvUrl(SHEET_PRODUCTOS)),
+		const [configCSV, extrasCSV, ingredientesCSV] = await Promise.all([
 			loadCSV(sheetCsvUrl(SHEET_CONFIG)).catch(function () {
 				return null;
 			}),
@@ -1190,10 +1207,6 @@
 			}),
 		]);
 
-		if (!productsCSV) {
-			throw new Error('No se pudo descargar la hoja productos');
-		}
-
 		if (configCSV) {
 			const cfg = parseConfigCSV(configCSV);
 			applyConfigToGlobals(cfg);
@@ -1202,17 +1215,31 @@
 		}
 		injectThemeCss();
 
-		const rows = parseCSV(productsCSV);
-		global.g_productos = buildProductsFromSheetRows(rows);
-		global.g_extras_catalog = extrasCSV ? buildExtrasCatalog(parseCSV(extrasCSV)) : [];
+		const fromApi = await cargar_catalogo_desde_api();
+		if (!fromApi) {
+			const productsCSV = await loadCSV(sheetCsvUrl(SHEET_PRODUCTOS)).catch(function () {
+				return null;
+			});
+			if (!productsCSV) {
+				throw new Error('No se pudo cargar el menú (API ni Sheet productos)');
+			}
+			const rows = parseCSV(productsCSV);
+			global.g_productos = buildProductsFromSheetRows(rows);
+			global.g_extras_catalog = extrasCSV ? buildExtrasCatalog(parseCSV(extrasCSV)) : [];
+			global.g_catalog_source = 'sheet';
+			global.g_catalog_published_at = null;
+			inferLegacyPersonalizacion(global.g_productos);
+			applyIngredientesPorProducto(global.g_productos);
+		} else if (!global.g_extras_catalog.length && extrasCSV) {
+			global.g_extras_catalog = buildExtrasCatalog(parseCSV(extrasCSV));
+		}
+
 		global.g_ingredientes_catalog = ingredientesCSV
 			? buildIngredientesCatalog(parseCSV(ingredientesCSV))
 			: [];
 		if (!global.g_ingredientes_catalog.length) {
 			global.g_ingredientes_catalog = defaultIngredientesCatalog();
 		}
-		inferLegacyPersonalizacion(global.g_productos);
-		applyIngredientesPorProducto(global.g_productos);
 		global.g_ultima_sync_sheets = Date.now();
 
 		return true;
@@ -1224,6 +1251,7 @@
 		parseCSV: parseCSV,
 		limpiarPrecio: limpiarPrecio,
 		cargar_datos_desde_sheets: cargar_datos_desde_sheets,
+		cargar_catalogo_desde_api: cargar_catalogo_desde_api,
 		buildProductsFromSheetRows: buildProductsFromSheetRows,
 		buildExtrasCatalog: buildExtrasCatalog,
 		buildIngredientesCatalog: buildIngredientesCatalog,

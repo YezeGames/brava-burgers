@@ -3294,6 +3294,7 @@
     ensureWaMessagesOnce();
     ensureCompensacionesOnce();
     ensureManualOrderSchemaOnce();
+    ensureStoreCatalogOnce();
     initDefaultAlertSound();
 
     if (window.BravaWaPanel) {
@@ -3380,6 +3381,43 @@
         try {
           sessionStorage.setItem('brava_manual_order_ok_v1', '1');
         } catch (e2) {}
+      }
+    });
+  }
+
+  /** Una vez por sesión: tablas catálogo tienda (store_catalog.sql). */
+  function ensureStoreCatalogOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_store_catalog_try_v1') === '1') return;
+      sessionStorage.setItem('brava_store_catalog_try_v1', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'storeCatalogHealth', token: token }).then(function (health) {
+      if (health.data && health.data.ok && health.data.configured) {
+        try {
+          sessionStorage.setItem('brava_store_catalog_ok_v1', '1');
+        } catch (eOk) {}
+        return api({ action: 'importStoreMenuFromSheetIfEmpty', token: token });
+      }
+      return api({ action: 'migrateStoreCatalogSchema', token: token });
+    }).then(function (res) {
+      if (res && res.data && res.data.ok && res.data.migrated) {
+        return api({ action: 'importStoreMenuFromSheetIfEmpty', token: token });
+      }
+      return res;
+    }).then(function (res) {
+      if (res && res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_store_catalog_ok_v1', '1');
+        } catch (e2) {}
+        var tiendaFrame = $('tienda-config-frame');
+        if (tiendaFrame && tiendaFrame.contentWindow) {
+          try {
+            tiendaFrame.contentWindow.postMessage({ type: 'brava-tienda-focus' }, location.origin);
+          } catch (eFrame) {}
+        }
       }
     });
   }
@@ -6642,6 +6680,10 @@
       reparto: 'Reparto',
       caja: 'Caja y turno',
       historial: 'Historial',
+      tienda: 'Tienda',
+    };
+    var subtitles = {
+      tienda: 'Menú, horarios, turnos y promociones',
     };
     document.querySelectorAll('.caja-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -6666,16 +6708,31 @@
         document.querySelectorAll('.admin-view').forEach(function (v) {
           v.hidden = v.id !== 'view-' + view;
         });
-        if ($('view-title')) $('view-title').textContent = titles[view] || 'Admin';
+        if ($('view-title')) {
+          $('view-title').childNodes[0].textContent = titles[view] || 'Admin';
+        }
+        if ($('view-subtitle')) {
+          $('view-subtitle').textContent = subtitles[view] || '';
+        }
         var aside = $('wa-aside');
         var showAside = view === 'pedidos' || view === 'reparto';
         if (aside) aside.hidden = !showAside;
         var appMain = document.querySelector('.app-main');
         if (appMain) {
-          appMain.classList.toggle('app-main--full', view === 'caja' || view === 'historial');
+          appMain.classList.toggle('app-main--full', view === 'caja' || view === 'historial' || view === 'tienda');
         }
+        var topActions = document.querySelector('.top-actions.turno-toolbar');
+        if (topActions) topActions.classList.toggle('hidden', view === 'tienda');
         if (view === 'reparto' && window.BravaReparto && typeof window.BravaReparto.onViewShow === 'function') {
           window.BravaReparto.onViewShow();
+        }
+        if (view === 'tienda') {
+          var tiendaFrame = $('tienda-config-frame');
+          if (tiendaFrame && tiendaFrame.contentWindow) {
+            try {
+              tiendaFrame.contentWindow.postMessage({ type: 'brava-tienda-focus' }, location.origin);
+            } catch (eFocus) {}
+          }
         }
       });
     });
