@@ -1,6 +1,23 @@
 # Google Sheets — formato Pedilo (igual que BR Burgers)
 
-La web **Brava Burgers** usa el **mismo Excel / Google Sheet** que Pedilo.shop: dos hojas obligatorias con los mismos nombres de columna y claves de configuración.
+## Modelo híbrido (operación actual)
+
+| Dónde editás | Qué controla |
+|--------------|--------------|
+| **Admin → Tienda** (publicar) | Menú, categorías, extras, ingredientes, horarios, turnos, promos, agotados |
+| **Sheet → `configuracion`** | Colores, logo, imagen de fondo, título, pie, zonas de envío, labels checkout, WhatsApp, monto mínimo, moneda |
+
+La web carga siempre `configuracion` del Sheet y el menú desde **Supabase** (`/api/catalog`). Si hay catálogo publicado en admin, **horarios y turnos del Sheet no aplican** (los pisa Supabase).
+
+**Import desde Sheet** en admin: solo para sincronización inicial o carga masiva; el día a día del menú es desde admin.
+
+Pestañas `productos`, `extras` e `ingredientes` del Sheet: **respaldo** si Supabase no responde.
+
+Sheet operativo: [BRAVA-BURGERS](https://docs.google.com/spreadsheets/d/1s3sZcKRqwpCH8L4N1xfgyba14s_HUC3F43FL5ekOCS0/edit)
+
+---
+
+La web mantiene el **mismo formato** que Pedilo.shop: hojas con los mismos nombres de columna y claves de configuración.
 
 ---
 
@@ -69,9 +86,9 @@ Claves importantes (mismas etiquetas que en el Excel):
 | Pregunta previa al pedido 1 … 6 | Labels del checkout |
 | Preguntas encabezado / Preguntas pie | Textos del modal |
 | Pregunta previa al pedido 5 / 6 | URL Pedilo `select.php` **o** la web usa opciones por defecto si no hay URL |
-| Control horario | `SI` / vacío |
-| Mensaje si está CERRADO | Popup al cargar / pedir |
-| Horario abierto LUNES … DOMINGO | Ej. `19:00-23:30` o `12:00-14:30 17:00-23:30` |
+| Control horario | Respaldo; **admin publicado** manda |
+| Mensaje si está CERRADO | Respaldo; admin puede definir `msg_cerrado` |
+| Horario abierto LUNES … DOMINGO | Respaldo; **admin → Horarios** manda si hay publicación |
 | Monto mínimo del pedido | Número |
 | Zona 1 - Nombre / Zona 1 - Costo de envío | Hasta zona 10 |
 | Zona de envío - Título | Label del select |
@@ -80,7 +97,7 @@ Claves importantes (mismas etiquetas que en el Excel):
 | Texto al final del mensaje | Cierre del WhatsApp |
 | Moneda signo | `$` |
 
-Editás el Sheet → en ~1 minuto la web actualiza sola (refresh cada 60 s).
+Cambios en **`configuracion`** (diseño, zonas, checkout): ~1 min en la web (refresh cada 60 s). Cambios de menú/horarios: **admin → Publicar**.
 
 ---
 

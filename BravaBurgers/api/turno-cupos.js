@@ -27,6 +27,7 @@ async function handleCatalog(req, res) {
 		publishedAt: catalog.publishedAt || null,
 		productos: catalog.productos || [],
 		extras: catalog.extras || [],
+		promos: catalog.promos || [],
 	};
 	if (catalog.storeConfig) payload.storeConfig = catalog.storeConfig;
 	if (catalog.empty) {

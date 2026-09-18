@@ -1,5 +1,7 @@
 # Hoja de cálculo Brava (formato Pedilo)
 
+**Modelo híbrido:** editá **`configuracion`** para diseño, zonas y textos de checkout/WhatsApp. Menú, horarios y turnos → **admin de la tienda** (publicar). Ver `GOOGLE_SHEETS_TEMPLATE.md`.
+
 ## Archivo único (recomendado)
 
 **`BRAVA-BURGERS-Pedilo.xlsx`**

@@ -535,6 +535,32 @@ function productsToShopFormat(published) {
         quitarGrupo: '',
         ingredientesSacar: ingredientesSacar,
         atajo: p.atajo || '',
+        sinPromoMenu: !!p.sin_promo_menu,
+        sinPromoCat: !!p.sin_promo_cat,
+      };
+    });
+}
+
+function promosToShopFormat(published) {
+  const today = new Date().toISOString().slice(0, 10);
+  return (published.promos || [])
+    .filter(function (pr) {
+      if (pr.activa === false) return false;
+      if ((pr.modo || 'codigo') !== 'auto') return false;
+      if (pr.hasta) {
+        const h = String(pr.hasta).slice(0, 10);
+        if (h && h < today) return false;
+      }
+      return String(pr.tipo || '').indexOf('pct') === 0;
+    })
+    .map(function (pr) {
+      return {
+        id: pr.id,
+        nombre: pr.nombre,
+        tipo: pr.tipo,
+        alcance: pr.alcance || '',
+        valor: Number(pr.valor) || 0,
+        exceptuados: Array.isArray(pr.exceptuados) ? pr.exceptuados : [],
       };
     });
 }
@@ -647,14 +673,24 @@ async function getPublishedShopCatalog() {
   const metaR = await getMenuMetaRow();
   const publishedAt = metaR.ok && metaR.row ? metaR.row.published_at : null;
   const storeConfig = hasPublishedStoreConfig(publishedR) ? storeConfigToShopFormat(publishedR) : null;
+  const promos = promosToShopFormat(publishedR);
   if (!publishedR.products.length && !publishedR.categories.length) {
-    return { ok: true, empty: true, productos: [], extras: [], storeConfig: storeConfig, publishedAt: publishedAt };
+    return {
+      ok: true,
+      empty: true,
+      productos: [],
+      extras: [],
+      promos: promos,
+      storeConfig: storeConfig,
+      publishedAt: publishedAt,
+    };
   }
   return {
     ok: true,
     empty: false,
     productos: productsToShopFormat(publishedR),
     extras: extrasToShopFormat(publishedR),
+    promos: promos,
     storeConfig: storeConfig,
     publishedAt: publishedAt,
   };
@@ -682,4 +718,5 @@ module.exports = {
   storeConfigToShopFormat,
   turnosToShopDeliveryConfig,
   hasPublishedStoreConfig,
+  promosToShopFormat,
 };

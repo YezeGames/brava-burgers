@@ -1651,6 +1651,27 @@ body.brava-shop-b .brava-row-price {
 	margin-top: 4px;
 }
 
+body.brava-shop-b .brava-row-price .brava-price-old {
+	font-size: 0.72rem;
+	font-weight: 500;
+	color: var(--brava-muted) !important;
+	text-decoration: line-through;
+	margin-right: 4px;
+}
+
+body.brava-shop-b .brava-row-price .brava-price-promo {
+	color: #81c784 !important;
+}
+
+body.brava-shop-b .brava-row-price .brava-promo-note {
+	display: block;
+	font-size: 0.65rem;
+	font-weight: 600;
+	color: #81c784 !important;
+	margin-top: 2px;
+	line-height: 1.2;
+}
+
 body.brava-shop-b .brava-btn-add {
 	width: 44px;
 	height: 44px;

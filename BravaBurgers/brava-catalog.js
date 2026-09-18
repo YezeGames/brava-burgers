@@ -1202,6 +1202,93 @@
 		return response.text();
 	}
 
+	function productoDbId(prod) {
+		if (!prod) return null;
+		if (prod.db_id != null) return prod.db_id;
+		if (prod.id != null && String(prod.id).indexOf('db_') === 0) {
+			return parseInt(String(prod.id).slice(3), 10);
+		}
+		return prod.id;
+	}
+
+	function promoVigente(promo) {
+		if (!promo || promo.activa === false) return false;
+		if (promo.modo && promo.modo !== 'auto') return false;
+		if (promo.hasta) {
+			var hasta = String(promo.hasta).slice(0, 10);
+			var today = new Date().toISOString().slice(0, 10);
+			if (hasta && hasta < today) return false;
+		}
+		return true;
+	}
+
+	function productoExcluidoDePromo(prod, promo) {
+		if (!prod || !promo) return true;
+		var pid = productoDbId(prod);
+		if (promo.exceptuados && promo.exceptuados.indexOf(pid) >= 0) return true;
+		if (promo.tipo === 'pct_menu' && prod.sinPromoMenu) return true;
+		if (promo.tipo === 'pct_cat') {
+			var catId =
+				promo.alcance && promo.alcance.indexOf('cat:') === 0 ? +promo.alcance.split(':')[1] : null;
+			if (catId && prod.catId === catId && prod.sinPromoCat) return true;
+		}
+		return false;
+	}
+
+	function promoAlcanceIncluyeProducto(prod, promo) {
+		if (promo.tipo === 'pct_menu') return true;
+		if (promo.tipo === 'pct_cat') {
+			var catId =
+				promo.alcance && promo.alcance.indexOf('cat:') === 0 ? +promo.alcance.split(':')[1] : null;
+			return !!(catId && prod.catId === catId);
+		}
+		if (promo.tipo === 'pct_prod') {
+			if (promo.alcance && promo.alcance.indexOf('prod:') === 0) {
+				return productoDbId(prod) === +promo.alcance.split(':')[1];
+			}
+		}
+		return false;
+	}
+
+	function promoAplicaAProducto(prod, promo) {
+		if (!promoVigente(promo) || !prod) return false;
+		if (String(promo.tipo || '').indexOf('pct') !== 0) return false;
+		if (!promoAlcanceIncluyeProducto(prod, promo)) return false;
+		return !productoExcluidoDePromo(prod, promo);
+	}
+
+	function promoActivaParaProducto(prod, promos) {
+		if (!promos || !promos.length) return null;
+		for (var i = 0; i < promos.length; i++) {
+			if (promoAplicaAProducto(prod, promos[i])) return promos[i];
+		}
+		return null;
+	}
+
+	function calcPrecioConPromo(precioBase, promo) {
+		if (!promo || String(promo.tipo || '').indexOf('pct') !== 0) return precioBase;
+		var desc = Math.round(precioBase * (Number(promo.valor) / 100));
+		return Math.max(0, precioBase - desc);
+	}
+
+	function applyMenuPromosToProducts(products, promos) {
+		if (!products || !products.length || !promos || !promos.length) return;
+		products.forEach(function (p) {
+			var base = limpiarPrecio(p.precio_base || p.precio);
+			var promo = promoActivaParaProducto(p, promos);
+			if (!promo) return;
+			var final = calcPrecioConPromo(base, promo);
+			if (final >= base) return;
+			p.precio_lista = String(base);
+			p.precio = String(final);
+			p.precio_mostrar = String(final);
+			p.precio_base = String(final);
+			p.promoNombre = promo.nombre;
+			p.promoId = promo.id;
+			p.promoPct = promo.valor;
+		});
+	}
+
 	function applyStoreConfigFromSupabase(storeConfig) {
 		if (!storeConfig) return false;
 		global.g_control_horario = storeConfig.controlHorario !== false;
@@ -1237,10 +1324,12 @@
 			if (data.empty || !data.productos || !data.productos.length) return null;
 			global.g_productos = data.productos;
 			global.g_extras_catalog = data.extras || [];
+			global.g_menu_promos = data.promos || [];
 			global.g_catalog_source = 'supabase';
 			global.g_catalog_published_at = data.publishedAt || null;
 			inferLegacyPersonalizacion(global.g_productos);
 			applyIngredientesPorProducto(global.g_productos);
+			applyMenuPromosToProducts(global.g_productos, global.g_menu_promos);
 			return true;
 		} catch (e) {
 			return null;
@@ -1310,6 +1399,9 @@
 		buildIngredientesCatalog: buildIngredientesCatalog,
 		applyConfigToGlobals: applyConfigToGlobals,
 		applyStoreConfigFromSupabase: applyStoreConfigFromSupabase,
+		applyMenuPromosToProducts: applyMenuPromosToProducts,
+		promoActivaParaProducto: promoActivaParaProducto,
+		calcPrecioConPromo: calcPrecioConPromo,
 		injectThemeCss: injectThemeCss,
 		injectMobileBgImg: injectMobileBgImg,
 		syncMenuBgOffset: syncMenuBgOffset,

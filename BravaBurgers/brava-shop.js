@@ -1578,6 +1578,27 @@
 		$.fancybox.open({ src: '#popup_control_horario' });
 	}
 
+	function bravaMenuPriceHtml(producto) {
+		var signo = g_moneda_signo || '$';
+		var lista = parseFloat(producto.precio_lista);
+		var actual = parseFloat(producto.precio);
+		if (!isNaN(lista) && !isNaN(actual) && lista > actual) {
+			var html =
+				'<span class="brava-price-old">' +
+				signo +
+				formatear_moneda(producto.precio_lista) +
+				'</span> <span class="brava-price-promo">' +
+				signo +
+				formatear_moneda(producto.precio) +
+				'</span>';
+			if (producto.promoNombre) {
+				html += '<span class="brava-promo-note">' + escapeHtml(producto.promoNombre) + '</span>';
+			}
+			return html;
+		}
+		return signo + formatear_moneda(producto.precio);
+	}
+
 	window.renderizar_catalogo_desde_datos = function () {
 		if (!g_productos || g_productos.length === 0) {
 			console.warn('Sin productos');
@@ -1665,7 +1686,10 @@
 				}
 
 				subs.forEach(function (producto) {
-					var precioLabel = 'Desde $' + formatear_moneda(producto.precio);
+					var precioInner = bravaMenuPriceHtml(producto);
+					var precioLabel = producto.tiene_precios_diferentes
+						? 'Desde ' + precioInner
+						: precioInner;
 					var agotado = producto.se_puede_pedir === false;
 					html +=
 						'<div class="col-12 producto brava-row-item' +
