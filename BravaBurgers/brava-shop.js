@@ -182,7 +182,7 @@
 			src: src,
 			type: 'inline',
 			touch: false,
-			smallBtn: true,
+			smallBtn: !isPersonalizacion,
 			autoSize: false,
 			baseClass: 'brava-fancybox-modal',
 			beforeShow: function () {
