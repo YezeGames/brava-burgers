@@ -935,11 +935,8 @@ body:has(#app-view) .tab.active {
 .brava-pers-chips {
 	display: flex;
 	flex-direction: column;
-	align-items: stretch;
 	gap: 0;
-	width: fit-content;
-	max-width: 100%;
-	margin: 0 auto;
+	width: 100%;
 	border: 1px solid var(--brava-border);
 	border-radius: 6px;
 	overflow: hidden;
@@ -953,7 +950,7 @@ body:has(#app-view) .tab.active {
 	gap: 8px;
 	width: 100%;
 	box-sizing: border-box;
-	padding: 6px 12px;
+	padding: 7px 10px;
 	background: transparent;
 	border: none;
 	border-bottom: 1px solid var(--brava-border);
@@ -962,7 +959,6 @@ body:has(#app-view) .tab.active {
 	font-size: 0.78rem;
 	margin: 0;
 	line-height: 1.25;
-	text-align: center;
 }
 
 .brava-pers-chip:last-child {
