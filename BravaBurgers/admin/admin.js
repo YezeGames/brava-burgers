@@ -6740,7 +6740,7 @@
     var next =
       '/admin/demo-tienda-config.html?embed=1&section=' +
       encodeURIComponent(section || 'menu') +
-      '&v=10';
+      '&v=11';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;

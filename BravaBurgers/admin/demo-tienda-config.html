@@ -175,13 +175,6 @@
 		.toast.show { transform: translateY(0); opacity: 1; }
 		html.embed-mode .toast.toast--embed { bottom: auto; right: auto; left: 50%; transform: translate(-50%, -16px); }
 		html.embed-mode .toast.toast--embed.show { transform: translate(-50%, 0); }
-		.embed-status-bar { display: none; }
-		html.embed-mode .embed-status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
-		.embed-status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; border: 1px solid var(--border); background: var(--bg-surface-muted); color: var(--text-muted); }
-		.embed-status-pill.is-ok { border-color: rgba(46,125,50,0.5); background: rgba(46,125,50,0.12); color: #2e7d32; }
-		html[data-theme="dark"] .embed-status-pill.is-ok { color: #81c784; }
-		.embed-status-pill.is-warn { border-color: rgba(198,40,40,0.45); background: rgba(198,40,40,0.1); color: #c62828; }
-		html[data-theme="dark"] .embed-status-pill.is-warn { color: #ef9a9a; }
 		.nav-btn.nav-demo-mark::after { content: ''; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--brava); }
 
 		.draft-pill {
@@ -328,26 +321,9 @@
 
 			<div class="app-main">
 				<div class="main-content">
-					<div class="embed-status-bar" id="embed-status-bar" aria-live="polite">
-						<span class="embed-status-pill" id="embed-status-pill"><i class="fas fa-spinner fa-spin"></i> Conectando con Supabase…</span>
-					</div>
 					<div class="config-banner hidden" id="backend-ok-banner" role="status" style="border-color:#81c784;background:rgba(46,125,50,0.08)">
 						<i class="fas fa-check-circle" style="color:#2e7d32"></i>
 						<div><strong>Supabase conectado</strong> — los cambios se guardan en borrador. Publicá para aplicarlos en la tienda.</div>
-					</div>
-					<div class="config-banner" role="note">
-						<i class="fas fa-palette"></i>
-						<div>
-							<strong>Google Sheet = solo diseño visual</strong> (colores, logo, columnas, pie de página).
-							<strong>Categorías, productos, horarios, turnos y promos</strong> se guardan en <strong>Supabase</strong> (borrador → publicar).
-						</div>
-					</div>
-					<div class="config-banner hidden" id="backend-banner" role="alert" style="border-color:#ef5350;background:rgba(198,40,40,0.08)">
-						<i class="fas fa-database"></i>
-						<div style="flex:1">
-							<div id="backend-banner-text">Conectando con Supabase…</div>
-							<button type="button" class="btn-sm btn-accent hidden" id="btn-backend-setup" style="margin-top:10px"><i class="fas fa-plug"></i> Conectar Supabase</button>
-						</div>
 					</div>
 					<div class="menu-toolbar" id="tienda-import-bar" style="margin-bottom:14px">
 						<p style="margin:0;font-size:0.82rem;color:var(--text-subtle);flex:1">Importá el menú actual desde Google Sheets (productos + extras + horarios).</p>
@@ -846,89 +822,23 @@
 
 		function updateBackendBanner() {
 			var badge = $('#backend-badge');
-			var banner = $('#backend-banner');
 			var okBanner = $('#backend-ok-banner');
-			var text = $('#backend-banner-text');
-			var setupBtn = $('#btn-backend-setup');
-			var embedPill = $('#embed-status-pill');
 			if (backendOnline) {
 				if (badge) badge.innerHTML = '<i class="fas fa-cloud"></i> Supabase';
-				if (banner) banner.classList.add('hidden');
 				if (okBanner) okBanner.classList.remove('hidden');
-				if (setupBtn) setupBtn.classList.add('hidden');
-				if (embedPill) {
-					embedPill.className = 'embed-status-pill is-ok';
-					embedPill.innerHTML = '<i class="fas fa-cloud"></i> Supabase conectado';
-				}
 				notifyParentBackendStatus();
 				return;
 			}
 			if (badge) badge.innerHTML = '<i class="fas fa-unlink"></i> Sin backend';
-			if (banner) banner.classList.remove('hidden');
 			if (okBanner) okBanner.classList.add('hidden');
-			if (setupBtn) setupBtn.classList.toggle('hidden', !adminToken() || backendUnauthorized);
-			if (embedPill) {
-				embedPill.className = 'embed-status-pill is-warn';
-				embedPill.innerHTML = '<i class="fas fa-unlink"></i> Sin conexión Supabase';
-			}
 			if (backendUnauthorized) {
-				text.innerHTML = 'Sesión expirada — recargá el admin o volvé a entrar en <a href="/admin/" target="_top">/admin/</a>.';
+				toast('Sesión expirada — volvé a entrar al admin');
 			} else if (backendNeedsMigrate) {
-				text.innerHTML = 'Faltan las tablas del catálogo en Supabase. Tocá <strong>Conectar Supabase</strong> (con sesión de admin) o ejecutá <code>supabase/store_catalog.sql</code> en Supabase SQL.';
-			} else if (!adminToken()) {
-				text.innerHTML = 'No hay sesión de admin en esta vista. Volvé a <a href="/admin/" target="_top">/admin/</a> e iniciá sesión, luego abrí Catálogo de nuevo.';
+				toast('Faltan tablas en Supabase — recargá el admin');
 			} else if (backendLastError) {
-				text.textContent = 'Error de backend: ' + backendLastError + '. Probá Conectar Supabase.';
-			} else {
-				text.textContent = 'No se pudo conectar con Supabase. Probá Conectar Supabase.';
+				toast('Error Supabase: ' + backendLastError);
 			}
 			notifyParentBackendStatus();
-		}
-
-		function runBackendSetup() {
-			if (!adminToken()) {
-				toast('Iniciá sesión en /admin/ primero');
-				updateBackendBanner();
-				return;
-			}
-			var setupBtn = $('#btn-backend-setup');
-			if (setupBtn) setupBtn.disabled = true;
-			toast('Conectando Supabase…');
-			fetch('/api/catalog?health=1&t=' + Date.now())
-				.then(function (r) { return r.json(); })
-				.then(function (health) {
-					if (health.ok && health.configured) {
-						toast('Supabase OK — cargando menú…');
-						return loadFromBackend();
-					}
-					if (health.error !== 'not_migrated') {
-						throw new Error(health.hint || health.error || 'health_failed');
-					}
-					return apiAdmin({ action: 'migrateStoreCatalogSchema' }, 25000).then(function (migrateR) {
-						if (!migrateR.ok) {
-							throw new Error(migrateR.hint || migrateR.detail || migrateR.error || 'migrate_failed');
-						}
-						if (migrateR.migrated) toast('Tablas creadas — importando menú…');
-						return apiAdmin({ action: 'importStoreMenuFromSheetIfEmpty' }, 35000);
-					}).then(function (importR) {
-						if (importR && !importR.ok && !importR.skipped) {
-							throw new Error(importR.detail || importR.error || importR.hint || 'import_failed');
-						}
-						return loadFromBackend();
-					});
-				})
-				.then(function () {
-					bootUi();
-					toast(backendOnline ? 'Supabase conectado' : 'Revisá el mensaje en rojo');
-				})
-				.catch(function (e) {
-					backendLastError = String(e.message || e);
-					updateBackendBanner();
-					toast('Error: ' + backendLastError);
-				})
-				.finally(function () {
-					if (setupBtn) setupBtn.disabled = false;
-				});
 		}
 
 		function scheduleSaveDraft() {
@@ -946,11 +856,6 @@
 			backendNeedsMigrate = false;
 			backendUnauthorized = false;
 			backendLastError = '';
-			var embedPill = $('#embed-status-pill');
-			if (embedPill) {
-				embedPill.className = 'embed-status-pill';
-				embedPill.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conectando con Supabase…';
-			}
 			return fetch('/api/catalog?health=1&t=' + Date.now())
 				.then(function (r) { return r.json(); })
 				.then(function (health) {
@@ -2064,8 +1969,6 @@
 
 		$('#btn-import-sheet-draft').addEventListener('click', function () { importFromSheet(false); });
 		$('#btn-import-sheet-publish').addEventListener('click', function () { importFromSheet(true); });
-		$('#btn-backend-setup').addEventListener('click', runBackendSetup);
-
 		window.addEventListener('message', function (ev) {
 			if (ev.origin !== location.origin) return;
 			if (ev.data && ev.data.type === 'brava-tienda-focus') {
