@@ -748,7 +748,7 @@
 			const tienePreciosDiferentes = new Set(prices).size > 1;
 			const ingredientesSacar = g.ingredientesSacar || [];
 			const personalizableExtras = !!g.extrasGrupo;
-			const personalizable = personalizableExtras;
+			const personalizable = personalizableExtras || ingredientesSacar.length > 0 || !!g.quitarGrupo;
 
 			return {
 				id: stableProductId(key, idx),
@@ -774,9 +774,22 @@
 		});
 	}
 
+	function normalizeIngredientesSacar(list) {
+		if (!list || !list.length) return list;
+		if (typeof list[0] === 'string') {
+			return list.map(function (nombre) {
+				return { nombre: nombre, default: true };
+			});
+		}
+		return list;
+	}
+
 	function applyIngredientesPorProducto(products) {
 		products.forEach(function (p) {
-			if (p.ingredientesSacar && p.ingredientesSacar.length) return;
+			if (p.ingredientesSacar && p.ingredientesSacar.length) {
+				p.ingredientesSacar = normalizeIngredientesSacar(p.ingredientesSacar);
+				return;
+			}
 			if (p.descripcion) {
 				p.ingredientesSacar = parseIngredientesFromDescripcion(p.descripcion);
 			}

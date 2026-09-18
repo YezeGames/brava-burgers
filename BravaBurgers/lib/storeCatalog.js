@@ -48,7 +48,33 @@ function parseIngredientes(str) {
     .map(function (s) {
       return s.trim();
     })
-    .filter(Boolean);
+    .filter(Boolean)
+    .map(function (nombre) {
+      return { nombre: nombre, default: true };
+    });
+}
+
+function isOrphanExtraCategoryName(nombre) {
+  return /^(default|simple|doble|triple|extras?)$/i.test(String(nombre || '').trim());
+}
+
+function extraAppliesToProduct(extra, productCatId, catMap, productCountByCat) {
+  if (!extra || extra.oculto) return false;
+  if (extra.cat_id === productCatId) return true;
+  const prodCat = catMap[productCatId];
+  const extraCat = catMap[extra.cat_id];
+  if (!prodCat || !extraCat) return false;
+  if (isOrphanExtraCategoryName(extraCat.nombre) && /hamburg/i.test(prodCat.nombre)) return true;
+  const extraCatProducts = (productCountByCat && productCountByCat[extra.cat_id]) || 0;
+  if (
+    extraCatProducts === 0 &&
+    /hamburg/i.test(prodCat.nombre) &&
+    !/promo|bebida|acompa/i.test(prodCat.nombre) &&
+    !/promo|bebida|acompa/i.test(extraCat.nombre)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function extrasGrupoForCat(catId) {
@@ -457,35 +483,36 @@ async function setProductAgotado(productId, agotado) {
 function productsToShopFormat(published) {
   const catMap = {};
   (published.categories || []).forEach(function (c) {
-    if (c.visible === false) return;
     catMap[c.id] = c;
   });
   const subMap = {};
   (published.subcategories || []).forEach(function (s) {
     subMap[s.id] = s;
   });
-  const extrasByCat = {};
-  (published.extras || []).forEach(function (e) {
-    if (e.oculto) return;
-    const g = extrasGrupoForCat(e.cat_id);
-    if (!extrasByCat[g]) extrasByCat[g] = true;
+  const productCountByCat = {};
+  (published.products || []).forEach(function (p) {
+    if (p.oculto) return;
+    productCountByCat[p.cat_id] = (productCountByCat[p.cat_id] || 0) + 1;
   });
 
   return (published.products || [])
     .filter(function (p) {
-      return !p.oculto && catMap[p.cat_id];
+      return !p.oculto && catMap[p.cat_id] && catMap[p.cat_id].visible !== false;
     })
-    .map(function (p, idx) {
+    .map(function (p) {
       const cat = catMap[p.cat_id];
       const sub = p.sub_id ? subMap[p.sub_id] : null;
       const precio = Math.round(Number(p.precio) || 0);
       const ingredientesSacar = parseIngredientes(p.ingredientes);
-      const grupo = extrasGrupoForCat(p.cat_id);
-      const hasExtras = !!extrasByCat[grupo];
+      const applicableExtras = (published.extras || []).filter(function (e) {
+        return extraAppliesToProduct(e, p.cat_id, catMap, productCountByCat);
+      });
+      const hasExtras = applicableExtras.length > 0;
       const personalizable = hasExtras || ingredientesSacar.length > 0;
       return {
         id: 'db_' + p.id,
         db_id: p.id,
+        catId: p.cat_id,
         nombre: p.nombre,
         descripcion: p.descripcion || '',
         categoria: cat.nombre,
@@ -501,7 +528,10 @@ function productsToShopFormat(published) {
         step: 1,
         variedades: [],
         personalizable: personalizable,
-        extrasGrupo: hasExtras ? grupo : '',
+        extrasGrupo: hasExtras ? extrasGrupoForCat(p.cat_id) : '',
+        extrasIds: applicableExtras.map(function (e) {
+          return 'ex_' + e.id;
+        }),
         quitarGrupo: '',
         ingredientesSacar: ingredientesSacar,
         atajo: p.atajo || '',
@@ -521,6 +551,7 @@ function extrasToShopFormat(published) {
     .map(function (e) {
       return {
         id: 'ex_' + e.id,
+        catId: e.cat_id,
         nombre: e.nombre,
         precio: Math.round(Number(e.precio) || 0),
         grupos: [extrasGrupoForCat(e.cat_id)],

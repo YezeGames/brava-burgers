@@ -233,21 +233,40 @@
 		return resultado;
 	};
 
+	function normalizeIngrediente(ing) {
+		if (!ing) return null;
+		if (typeof ing === 'string') return { nombre: ing, default: true };
+		if (ing.nombre) return ing;
+		return null;
+	}
+
 	function extrasParaProducto(producto) {
 		if (producto.extrasLocales && producto.extrasLocales.length) {
 			return producto.extrasLocales;
 		}
-		var g = String(producto.extrasGrupo || '').toLowerCase();
 		var catalog = window.g_extras_catalog || [];
+		if (producto.extrasIds && producto.extrasIds.length) {
+			var idSet = {};
+			producto.extrasIds.forEach(function (id) {
+				idSet[id] = true;
+			});
+			return catalog.filter(function (e) {
+				return !!idSet[e.id];
+			});
+		}
+		var g = String(producto.extrasGrupo || '').toLowerCase();
+		if (!g) return [];
 		return catalog.filter(function (e) {
-			if (!e.grupos || !e.grupos.length) return true;
-			return e.grupos.indexOf(g) >= 0;
+			if (!e.grupos || !e.grupos.length) return false;
+			return e.grupos.some(function (gr) {
+				return String(gr).toLowerCase() === g;
+			});
 		});
 	}
 
 	function ingredientesParaProducto(producto) {
 		if (producto.ingredientesSacar && producto.ingredientesSacar.length) {
-			return producto.ingredientesSacar;
+			return producto.ingredientesSacar.map(normalizeIngrediente).filter(Boolean);
 		}
 		var g = String(producto.quitarGrupo || '').toLowerCase();
 		if (!g) return [];

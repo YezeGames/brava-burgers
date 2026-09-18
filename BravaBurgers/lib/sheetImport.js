@@ -248,6 +248,13 @@ function ensureSubcategory(cat, subName, subMap) {
   return sub;
 }
 
+function findCategoryByNamePattern(catMap, pattern) {
+  for (const k in catMap) {
+    if (pattern.test(catMap[k].nombre)) return catMap[k].id;
+  }
+  return null;
+}
+
 function mapGrupoToCatId(grupo, catMap, categorias) {
   const g = String(grupo || '').trim().toLowerCase();
   if (!g) return categorias[0] ? categorias[0].id : 1;
@@ -256,6 +263,23 @@ function mapGrupoToCatId(grupo, catMap, categorias) {
   }
   const cat = ensureCategory(categorias, catMap, grupo);
   return cat.id;
+}
+
+function mapExtraGrupoToCatId(grupo, catMap, categorias) {
+  const raw = String(grupo || '').trim();
+  const g = raw.toLowerCase();
+  if (!g || g === 'default') {
+    const burgerCat = findCategoryByNamePattern(catMap, /hamburg/i);
+    if (burgerCat) return burgerCat;
+    return categorias[0] ? categorias[0].id : 1;
+  }
+  const first = g.split(/[,;|]/)[0].trim();
+  if (first === 'simple' || first === 'doble' || first === 'triple') {
+    const burgerCat = findCategoryByNamePattern(catMap, /hamburg/i);
+    if (burgerCat) return burgerCat;
+  }
+  if (first !== g) return mapExtraGrupoToCatId(first, catMap, categorias);
+  return mapGrupoToCatId(raw, catMap, categorias);
 }
 
 async function buildDraftFromSheet() {
@@ -311,7 +335,7 @@ async function buildDraftFromSheet() {
     draft.extras.push({
       id: idx + 1,
       nombre: nombre,
-      catId: mapGrupoToCatId(col(row, ['grupo', 'grupos', 'aplica']), catMap, draft.categorias),
+      catId: mapExtraGrupoToCatId(col(row, ['grupo', 'grupos', 'aplica']), catMap, draft.categorias),
       precio: limpiarPrecio(col(row, ['precio'])),
       atajo: col(row, ['atajo', 'codigo', 'id']) || String(500 + idx),
       oculto: isSi(col(row, ['ocultar'])),
