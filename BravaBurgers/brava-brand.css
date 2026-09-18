@@ -902,15 +902,19 @@ body:has(#app-view) .tab.active {
 	color: var(--brava-accent) !important;
 	font-weight: bold;
 	font-size: 0.92rem;
-	margin: 0 22px 4px 0;
+	margin: 0 0 4px;
+	padding: 0 22px;
 	line-height: 1.2;
+	text-align: center;
 }
 
 .brava-pers-sub {
 	font-size: 0.7rem;
 	color: var(--brava-muted);
 	margin: 0 0 6px;
+	padding: 0 4px;
 	line-height: 1.3;
+	text-align: center;
 }
 
 .brava-pers-section {
@@ -920,6 +924,7 @@ body:has(#app-view) .tab.active {
 	color: var(--brava-accent);
 	font-weight: 700;
 	margin: 8px 0 5px;
+	text-align: center;
 }
 
 #pregunta_personalizacion_extras_wrap .brava-pers-section,
