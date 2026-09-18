@@ -203,11 +203,11 @@
 					css.display = 'flex';
 					css.flexDirection = 'column';
 				} else if (isPersonalizacion) {
-					css.width = '380px';
+					css.width = '300px';
 					css.height = 'auto';
-					css.maxHeight = '88vh';
+					css.maxHeight = '78vh';
 					css.overflowY = 'auto';
-					css.padding = '18px 16px 16px';
+					css.padding = '12px 12px 10px';
 					css.display = 'block';
 				}
 				current.$content.css(css);
