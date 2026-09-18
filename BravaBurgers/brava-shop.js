@@ -177,6 +177,7 @@
 	/** Modal checkout (~350px). Estilos finos en brava-brand.css (no pisar padding acá). */
 	function bravaModalCheckoutOpts(src) {
 		var isCheckout = src === '#preguntas_pedido';
+		var isPersonalizacion = src === '#pregunta_personalizacion';
 		return {
 			src: src,
 			type: 'inline',
@@ -201,6 +202,13 @@
 					css.overflow = 'hidden';
 					css.display = 'flex';
 					css.flexDirection = 'column';
+				} else if (isPersonalizacion) {
+					css.width = '380px';
+					css.height = 'auto';
+					css.maxHeight = '88vh';
+					css.overflowY = 'auto';
+					css.padding = '18px 16px 16px';
+					css.display = 'block';
 				}
 				current.$content.css(css);
 			},
@@ -298,7 +306,7 @@
 		var exHtml = '';
 		extras.forEach(function (e) {
 			exHtml +=
-				'<label class="brava-pers-chip"><input type="checkbox" data-precio="' +
+				'<label class="brava-pers-chip brava-pers-chip--extra"><input type="checkbox" data-precio="' +
 				e.precio +
 				'"> <span>' +
 				escapeHtml(e.nombre) +
