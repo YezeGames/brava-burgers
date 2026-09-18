@@ -935,7 +935,11 @@ body:has(#app-view) .tab.active {
 .brava-pers-chips {
 	display: flex;
 	flex-direction: column;
+	align-items: stretch;
 	gap: 0;
+	width: fit-content;
+	max-width: 100%;
+	margin: 0 auto;
 	border: 1px solid var(--brava-border);
 	border-radius: 6px;
 	overflow: hidden;
@@ -943,13 +947,13 @@ body:has(#app-view) .tab.active {
 }
 
 .brava-pers-chip {
-	display: grid;
-	grid-template-columns: 16px minmax(0, 1fr);
+	display: flex;
 	align-items: center;
-	column-gap: 8px;
+	justify-content: center;
+	gap: 8px;
 	width: 100%;
 	box-sizing: border-box;
-	padding: 6px 10px;
+	padding: 6px 12px;
 	background: transparent;
 	border: none;
 	border-bottom: 1px solid var(--brava-border);
@@ -958,6 +962,7 @@ body:has(#app-view) .tab.active {
 	font-size: 0.78rem;
 	margin: 0;
 	line-height: 1.25;
+	text-align: center;
 }
 
 .brava-pers-chip:last-child {
@@ -975,14 +980,16 @@ body:has(#app-view) .tab.active {
 .brava-pers-text {
 	display: inline-flex;
 	align-items: baseline;
+	justify-content: center;
 	flex-wrap: wrap;
 	gap: 4px 6px;
 	min-width: 0;
+	text-align: center;
 }
 
 .brava-pers-label {
 	color: var(--brava-text);
-	text-align: left;
+	text-align: center;
 }
 
 .brava-pers-chip.is-on {
