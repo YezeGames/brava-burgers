@@ -1242,18 +1242,25 @@
 				promo.alcance && promo.alcance.indexOf('cat:') === 0 ? +promo.alcance.split(':')[1] : null;
 			return !!(catId && prod.catId === catId);
 		}
-		if (promo.tipo === 'pct_prod') {
-			if (promo.alcance && promo.alcance.indexOf('prod:') === 0) {
-				return productoDbId(prod) === +promo.alcance.split(':')[1];
-			}
+		if (promo.tipo === 'monto' && !promo.alcance) return true;
+		if (promo.alcance && promo.alcance.indexOf('cat:') === 0) {
+			var catIdMonto = +promo.alcance.split(':')[1];
+			return !!(catIdMonto && prod.catId === catIdMonto);
+		}
+		if (promo.alcance && promo.alcance.indexOf('prod:') === 0) {
+			return productoDbId(prod) === +promo.alcance.split(':')[1];
 		}
 		return false;
 	}
 
 	function promoAplicaAProducto(prod, promo) {
 		if (!promoVigente(promo) || !prod) return false;
-		if (String(promo.tipo || '').indexOf('pct') !== 0) return false;
-		if (!promoAlcanceIncluyeProducto(prod, promo)) return false;
+		var tipo = String(promo.tipo || '');
+		if (tipo.indexOf('pct') !== 0 && tipo !== 'monto') return false;
+		if (!promoAlcanceIncluyeProducto(prod, promo)) {
+			if (tipo === 'monto' && !promo.alcance) return !productoExcluidoDePromo(prod, promo);
+			return false;
+		}
 		return !productoExcluidoDePromo(prod, promo);
 	}
 
@@ -1266,9 +1273,16 @@
 	}
 
 	function calcPrecioConPromo(precioBase, promo) {
-		if (!promo || String(promo.tipo || '').indexOf('pct') !== 0) return precioBase;
-		var desc = Math.round(precioBase * (Number(promo.valor) / 100));
-		return Math.max(0, precioBase - desc);
+		if (!promo) return precioBase;
+		var tipo = String(promo.tipo || '');
+		if (tipo.indexOf('pct') === 0) {
+			var desc = Math.round(precioBase * (Number(promo.valor) / 100));
+			return Math.max(0, precioBase - desc);
+		}
+		if (tipo === 'monto') {
+			return Math.max(0, precioBase - (Number(promo.valor) || 0));
+		}
+		return precioBase;
 	}
 
 	function applyMenuPromosToProducts(products, promos) {

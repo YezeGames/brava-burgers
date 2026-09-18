@@ -551,7 +551,8 @@ function promosToShopFormat(published) {
         const h = String(pr.hasta).slice(0, 10);
         if (h && h < today) return false;
       }
-      return String(pr.tipo || '').indexOf('pct') === 0;
+      const tipo = String(pr.tipo || '');
+      return tipo.indexOf('pct') === 0 || tipo === 'monto';
     })
     .map(function (pr) {
       return {
