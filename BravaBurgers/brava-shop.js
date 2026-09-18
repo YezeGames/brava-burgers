@@ -306,7 +306,7 @@
 		var exHtml = '';
 		extras.forEach(function (e) {
 			exHtml +=
-				'<label class="brava-pers-chip brava-pers-chip--extra"><input type="checkbox" data-precio="' +
+				'<label class="brava-pers-chip"><input type="checkbox" data-precio="' +
 				e.precio +
 				'"> <span>' +
 				escapeHtml(e.nombre) +

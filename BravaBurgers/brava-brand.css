@@ -927,35 +927,29 @@ body:has(#app-view) .tab.active {
 
 .brava-pers-chips {
 	display: flex;
-	flex-wrap: wrap;
+	flex-direction: column;
 	gap: 8px;
-	align-items: flex-start;
 }
 
 .brava-pers-chip {
-	display: inline-flex;
+	display: flex;
 	align-items: center;
-	gap: 6px;
-	padding: 7px 12px;
+	gap: 10px;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 10px 12px;
 	background: var(--brava-card);
 	border: 1px solid var(--brava-border);
-	border-radius: 999px;
+	border-radius: 8px;
 	cursor: pointer;
-	font-size: 0.8rem;
+	font-size: 0.88rem;
 	margin: 0;
-	line-height: 1.2;
-	max-width: 100%;
-	white-space: normal;
-	transition: border-color 0.15s ease, background 0.15s ease;
-}
-
-.brava-pers-chip--extra {
-	border-color: rgba(255, 107, 53, 0.35);
+	line-height: 1.3;
 }
 
 .brava-pers-chip input {
-	width: 16px;
-	height: 16px;
+	width: 18px;
+	height: 18px;
 	margin: 0;
 	flex-shrink: 0;
 	accent-color: var(--brava-accent);
@@ -963,14 +957,14 @@ body:has(#app-view) .tab.active {
 
 .brava-pers-chip.is-on {
 	border-color: var(--brava-accent);
-	background: rgba(255, 107, 53, 0.12);
-	box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.25);
+	background: rgba(255, 107, 53, 0.1);
 }
 
 .brava-pers-chip .precio-chip {
+	margin-left: auto;
 	color: var(--brava-accent);
 	font-weight: 700;
-	font-size: 0.78rem;
+	font-size: 0.85rem;
 	white-space: nowrap;
 }
 
