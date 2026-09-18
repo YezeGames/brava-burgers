@@ -203,11 +203,11 @@
 					css.display = 'flex';
 					css.flexDirection = 'column';
 				} else if (isPersonalizacion) {
-					css.width = '300px';
+					css.width = '272px';
 					css.height = 'auto';
 					css.maxHeight = '78vh';
 					css.overflowY = 'auto';
-					css.padding = '12px 12px 10px';
+					css.padding = '12px 10px 10px';
 					css.display = 'block';
 				}
 				current.$content.css(css);
@@ -308,12 +308,12 @@
 			exHtml +=
 				'<label class="brava-pers-chip"><input type="checkbox" data-precio="' +
 				e.precio +
-				'"> <span>' +
+				'"><span class="brava-pers-text"><span class="brava-pers-label">' +
 				escapeHtml(e.nombre) +
 				'</span><span class="precio-chip">+' +
 				g_moneda_signo +
 				formatear_moneda(e.precio) +
-				'</span></label>';
+				'</span></span></label>';
 		});
 		$('#pregunta_personalizacion_extras').html(
 			exHtml || '<p class="brava-pers-empty">Sin extras configurados.</p>'
@@ -324,9 +324,9 @@
 		var quHtml = '';
 		ings.forEach(function (ing) {
 			quHtml +=
-				'<label class="brava-pers-chip"><input type="checkbox" class="brava-quitar-ing"> <span>Sin ' +
+				'<label class="brava-pers-chip"><input type="checkbox" class="brava-quitar-ing"><span class="brava-pers-text"><span class="brava-pers-label">Sin ' +
 				escapeHtml(ing.nombre) +
-				'</span></label>';
+				'</span></span></label>';
 		});
 		$('#pregunta_personalizacion_quitar').html(
 			quHtml || '<p class="brava-pers-empty">Podés usar la nota de abajo.</p>'
@@ -355,7 +355,7 @@
 			extrasNombres.push(
 				$(this)
 					.closest('label')
-					.find('span')
+					.find('.brava-pers-label')
 					.first()
 					.text()
 			);
@@ -367,7 +367,7 @@
 			sin.push(
 				$(this)
 					.closest('label')
-					.find('span')
+					.find('.brava-pers-label')
 					.text()
 					.replace(/^Sin\s+/i, '')
 			);

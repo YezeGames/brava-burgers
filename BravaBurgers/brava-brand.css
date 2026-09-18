@@ -875,12 +875,12 @@ body:has(#app-view) .tab.active {
 }
 #pregunta_personalizacion.fancybox-content,
 .fancybox-container.brava-fancybox-modal #pregunta_personalizacion.fancybox-content {
-	width: 300px !important;
+	width: 272px !important;
 	max-width: calc(100vw - 24px) !important;
 	min-width: 0 !important;
 	height: auto !important;
 	max-height: min(78vh, 100dvh) !important;
-	padding: 12px 12px 10px !important;
+	padding: 12px 10px 10px !important;
 	box-sizing: border-box !important;
 	overflow-x: hidden !important;
 	overflow-y: auto !important;
@@ -930,23 +930,33 @@ body:has(#app-view) .tab.active {
 .brava-pers-chips {
 	display: flex;
 	flex-direction: column;
-	gap: 5px;
+	gap: 0;
+	border: 1px solid var(--brava-border);
+	border-radius: 6px;
+	overflow: hidden;
+	background: var(--brava-card);
 }
 
 .brava-pers-chip {
-	display: flex;
+	display: grid;
+	grid-template-columns: 16px minmax(0, 1fr);
 	align-items: center;
-	gap: 8px;
+	column-gap: 8px;
 	width: 100%;
 	box-sizing: border-box;
-	padding: 7px 10px;
-	background: var(--brava-card);
-	border: 1px solid var(--brava-border);
-	border-radius: 6px;
+	padding: 6px 10px;
+	background: transparent;
+	border: none;
+	border-bottom: 1px solid var(--brava-border);
+	border-radius: 0;
 	cursor: pointer;
 	font-size: 0.78rem;
 	margin: 0;
-	line-height: 1.2;
+	line-height: 1.25;
+}
+
+.brava-pers-chip:last-child {
+	border-bottom: none;
 }
 
 .brava-pers-chip input {
@@ -957,16 +967,27 @@ body:has(#app-view) .tab.active {
 	accent-color: var(--brava-accent);
 }
 
+.brava-pers-text {
+	display: inline-flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: 4px 6px;
+	min-width: 0;
+}
+
+.brava-pers-label {
+	color: var(--brava-text);
+	text-align: left;
+}
+
 .brava-pers-chip.is-on {
-	border-color: var(--brava-accent);
-	background: rgba(255, 107, 53, 0.1);
+	background: rgba(255, 107, 53, 0.08);
 }
 
 .brava-pers-chip .precio-chip {
-	margin-left: auto;
 	color: var(--brava-accent);
 	font-weight: 700;
-	font-size: 0.74rem;
+	font-size: 0.72rem;
 	white-space: nowrap;
 }
 
