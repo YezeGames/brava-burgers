@@ -573,7 +573,7 @@
 				<label>Nombre<input type="text" class="config-input" id="p-nombre"></label>
 				<label>Tipo<select class="config-select" id="p-tipo">
 					<option value="pct_menu">% en todo el menú</option>
-					<option value="pct_cat">% en categoría o subcategoría</option>
+					<option value="pct_cat">% en categoría</option>
 					<option value="pct_prod">% en producto</option>
 					<option value="monto">$ fijo</option>
 					<option value="2x1">2x1</option>
@@ -967,42 +967,18 @@
 			if (promo.exceptuados && promo.exceptuados.indexOf(prod.id) >= 0) return true;
 			if (promo.tipo === 'pct_menu' && prod.sinPromoMenu) return true;
 			if (promo.tipo === 'pct_cat') {
-				var catId = promoAlcanceCatId(promo.alcance);
+				var catId = promo.alcance && promo.alcance.indexOf('cat:') === 0 ? +promo.alcance.split(':')[1] : null;
 				if (catId && prod.catId === catId && prod.sinPromoCat) return true;
 			}
 			return false;
 		}
 
-		function promoAlcanceSubId(alcance) {
-			if (!alcance || alcance.indexOf('sub:') !== 0) return null;
-			var subId = +alcance.split(':')[1];
-			return subId || null;
-		}
-
-		function promoAlcanceCatId(alcance) {
-			if (!alcance || alcance.indexOf('cat:') !== 0) return null;
-			var catId = +alcance.split(':')[1];
-			return catId || null;
-		}
-
-		function appendPromoScopeOptions() {
-			var html = '';
-			categorias.forEach(function (c) {
-				html += '<option value="cat:' + c.id + '">Categoría: ' + esc(c.nombre) + '</option>';
-				(c.subs || []).forEach(function (s) {
-					html += '<option value="sub:' + s.id + '">Subcategoría: ' + esc(c.nombre) + ' · ' + esc(s.nombre) + '</option>';
-				});
-			});
-			return html;
-		}
-
 		function promoAlcanceIncluyeProducto(prod, promo) {
 			if (promo.tipo === 'pct_menu') return true;
-			var subId = promoAlcanceSubId(promo.alcance);
-			if (subId) return prod.subId === subId;
-			var catId = promoAlcanceCatId(promo.alcance);
-			if (promo.tipo === 'pct_cat') return !!(catId && prod.catId === catId);
-			if (catId) return prod.catId === catId;
+			if (promo.tipo === 'pct_cat') {
+				var catId = promo.alcance && promo.alcance.indexOf('cat:') === 0 ? +promo.alcance.split(':')[1] : null;
+				return catId && prod.catId === catId;
+			}
 			if (promo.alcance && promo.alcance.indexOf('prod:') === 0) {
 				return prod.id === +promo.alcance.split(':')[1];
 			}
@@ -1035,9 +1011,7 @@
 		function productosParaExceptuarPromo(tipo, alcance) {
 			if (tipo === 'pct_menu') return productos.slice();
 			if (tipo === 'pct_cat') {
-				var subId = promoAlcanceSubId(alcance);
-				if (subId) return productos.filter(function (p) { return p.subId === subId; });
-				var catId = promoAlcanceCatId(alcance);
+				var catId = alcance && alcance.indexOf('cat:') === 0 ? +alcance.split(':')[1] : null;
 				if (!catId) return [];
 				return productos.filter(function (p) { return p.catId === catId; });
 			}
@@ -1205,14 +1179,18 @@
 			}
 			$('#p-alcance-wrap').hidden = false;
 			if (tipo === 'pct_cat') {
-				html += appendPromoScopeOptions();
+				categorias.forEach(function (c) {
+					html += '<option value="cat:' + c.id + '">Categoría: ' + esc(c.nombre) + '</option>';
+				});
 			} else if (tipo === 'pct_prod' || tipo === '2x1') {
 				productos.forEach(function (p) {
 					html += '<option value="prod:' + p.id + '">Producto: ' + esc(p.nombre) + '</option>';
 				});
 			} else {
 				html = '<option value="">— Todo el menú —</option>';
-				html += appendPromoScopeOptions();
+				categorias.forEach(function (c) {
+					html += '<option value="cat:' + c.id + '">Categoría: ' + esc(c.nombre) + '</option>';
+				});
 				productos.forEach(function (p) {
 					html += '<option value="prod:' + p.id + '">Producto: ' + esc(p.nombre) + '</option>';
 				});
