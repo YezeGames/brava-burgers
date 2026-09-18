@@ -1,4 +1,5 @@
 const { restSelect } = require('./supabaseServer');
+const { loadPublishedRows, turnosToShopDeliveryConfig, hasPublishedStoreConfig } = require('./storeCatalog');
 
 const SHEET_ID =
 	process.env.BRAVA_SHEET_ID ||
@@ -125,7 +126,17 @@ async function fetchSheetConfigMap() {
 	return cfg;
 }
 
+async function getDeliveryConfigFromSupabase(turnCount) {
+	const publishedR = await loadPublishedRows();
+	if (!publishedR.ok || !hasPublishedStoreConfig(publishedR)) return null;
+	const delivery = turnosToShopDeliveryConfig(publishedR.turnos, publishedR.settings, turnCount || 3);
+	if (!delivery.turnos.length) return null;
+	return delivery;
+}
+
 async function getDeliveryConfig(turnCount) {
+	const fromDb = await getDeliveryConfigFromSupabase(turnCount);
+	if (fromDb) return fromDb;
 	const cfg = await fetchSheetConfigMap();
 	return buildDeliveryConfig(cfg, turnCount || 3);
 }

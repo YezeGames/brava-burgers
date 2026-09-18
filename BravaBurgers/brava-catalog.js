@@ -1176,12 +1176,39 @@
 		return response.text();
 	}
 
+	function applyStoreConfigFromSupabase(storeConfig) {
+		if (!storeConfig) return false;
+		global.g_control_horario = storeConfig.controlHorario !== false;
+		global.g_control_turnos_delivery = storeConfig.controlTurnos !== false;
+		if (storeConfig.horariosPorDia) {
+			global.g_horarios_por_dia = storeConfig.horariosPorDia;
+		}
+		if (storeConfig.turnosDelivery && storeConfig.turnosDelivery.turnos) {
+			global.g_turnos_delivery = storeConfig.turnosDelivery;
+			if (!global.g_preguntas) global.g_preguntas = {};
+			global.g_preguntas.opcionesTurno = storeConfig.turnosDelivery.turnos.map(function (t) {
+				return t.customerLabel;
+			});
+		}
+		if (storeConfig.msgCerrado) {
+			global.g_mensaje_cerrado = String(storeConfig.msgCerrado).replace(/\n/g, '<br>');
+		} else {
+			global.g_mensaje_cerrado = buildMensajeCerradoPopup(global.g_config || {});
+		}
+		global.g_store_config_source = 'supabase';
+		return true;
+	}
+
 	async function cargar_catalogo_desde_api() {
 		try {
 			const response = await fetch('/api/catalog?t=' + Date.now());
 			if (!response.ok) return null;
 			const data = await response.json();
-			if (!data || !data.ok || data.empty || !data.productos || !data.productos.length) return null;
+			if (!data || !data.ok) return null;
+			if (data.storeConfig && data.publishedAt) {
+				applyStoreConfigFromSupabase(data.storeConfig);
+			}
+			if (data.empty || !data.productos || !data.productos.length) return null;
 			global.g_productos = data.productos;
 			global.g_extras_catalog = data.extras || [];
 			global.g_catalog_source = 'supabase';
@@ -1256,6 +1283,7 @@
 		buildExtrasCatalog: buildExtrasCatalog,
 		buildIngredientesCatalog: buildIngredientesCatalog,
 		applyConfigToGlobals: applyConfigToGlobals,
+		applyStoreConfigFromSupabase: applyStoreConfigFromSupabase,
 		injectThemeCss: injectThemeCss,
 		injectMobileBgImg: injectMobileBgImg,
 		syncMenuBgOffset: syncMenuBgOffset,

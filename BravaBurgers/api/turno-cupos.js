@@ -21,16 +21,19 @@ async function handleCatalog(req, res) {
 		}
 		return res.status(502).json(catalog);
 	}
-	if (catalog.empty) {
-		return res.status(200).json({ ok: true, source: 'supabase', empty: true, productos: [], extras: [] });
-	}
-	return res.status(200).json({
+	const payload = {
 		ok: true,
 		source: 'supabase',
-		publishedAt: catalog.publishedAt,
-		productos: catalog.productos,
-		extras: catalog.extras,
-	});
+		publishedAt: catalog.publishedAt || null,
+		productos: catalog.productos || [],
+		extras: catalog.extras || [],
+	};
+	if (catalog.storeConfig) payload.storeConfig = catalog.storeConfig;
+	if (catalog.empty) {
+		payload.empty = true;
+		return res.status(200).json(payload);
+	}
+	return res.status(200).json(payload);
 }
 
 module.exports = async function handler(req, res) {

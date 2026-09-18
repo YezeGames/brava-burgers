@@ -528,19 +528,104 @@ function extrasToShopFormat(published) {
     });
 }
 
+function normalizeShopTime(val, fallback) {
+  if (val === undefined || val === null || String(val).trim() === '') return fallback || '';
+  let s = String(val).trim().replace(/\./g, ':');
+  const m = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!m) return fallback || '';
+  const h = parseInt(m[1], 10);
+  const min = parseInt(m[2], 10) || 0;
+  return (h < 10 ? '0' : '') + h + ':' + (min < 10 ? '0' : '') + min;
+}
+
+function daysToShopHorarios(days) {
+  const horarios = { 0: '', 1: '', 2: '', 3: '', 4: '', 5: '', 6: '' };
+  (days || []).forEach(function (d) {
+    const dow = d.dow != null ? d.dow : d.id;
+    if (dow == null || dow < 0 || dow > 6) return;
+    const abierto = d.abierto != null ? !!d.abierto : !!d.on;
+    if (!abierto) {
+      horarios[dow] = '';
+      return;
+    }
+    const from = normalizeShopTime(d.desde || d.from, '');
+    const to = normalizeShopTime(d.hasta || d.to, '');
+    horarios[dow] = from && to ? from + '-' + to : '';
+  });
+  return horarios;
+}
+
+function turnosToShopDeliveryConfig(turnos, settings, turnCount) {
+  const s = settings || {};
+  const enabled = s.control_turnos !== '0' && s.control_turnos !== 'false';
+  const pedidosDesde = normalizeShopTime(s.pedidos_desde, '19:30');
+  const maxPorHora = parseInt(s.max_por_hora, 10) || 12;
+  const defaultBuckets = [20, 21, 22, 23, 0];
+  const rows = (turnos || []).slice(0, Math.max(1, Math.min(turnCount || 5, 5)));
+  const slots = rows.map(function (t, i) {
+    const from = normalizeShopTime(t.desde || t.from, '20:00');
+    const to = normalizeShopTime(t.hasta || t.to, '23:00');
+    const cutoff = normalizeShopTime(t.cierre || t.cierre, to);
+    const hMatch = from.match(/^(\d{1,2})/);
+    const nombre = String(t.nombre || '').trim();
+    return {
+      index: i + 1,
+      deliveryStart: from,
+      deliveryEnd: to,
+      orderCutoff: cutoff,
+      hourBucket: hMatch ? parseInt(hMatch[1], 10) : defaultBuckets[i] || 20,
+      customerLabel: nombre || 'Turno ' + (i + 1) + ' — ' + from + ' a ' + to,
+    };
+  });
+  return {
+    enabled: enabled,
+    pedidosDesde: pedidosDesde,
+    maxPorHora: maxPorHora,
+    turnos: slots,
+  };
+}
+
+function storeConfigToShopFormat(published, turnCount) {
+  const s = (published && published.settings) || {};
+  return {
+    controlHorario: s.control_horario !== '0' && s.control_horario !== 'false',
+    controlTurnos: s.control_turnos !== '0' && s.control_turnos !== 'false',
+    msgCerrado: s.msg_cerrado || '',
+    horariosPorDia: daysToShopHorarios(published.days),
+    turnosDelivery: turnosToShopDeliveryConfig(published.turnos, s, turnCount),
+  };
+}
+
+function hasPublishedStoreConfig(published) {
+  if (!published || !published.ok) return false;
+  if ((published.days || []).length) return true;
+  if ((published.turnos || []).length) return true;
+  const s = published.settings || {};
+  return (
+    s.control_horario != null ||
+    s.control_turnos != null ||
+    s.msg_cerrado != null ||
+    s.pedidos_desde != null ||
+    s.max_por_hora != null
+  );
+}
+
 async function getPublishedShopCatalog() {
   const publishedR = await loadPublishedRows();
   if (!publishedR.ok) return publishedR;
-  if (!publishedR.products.length && !publishedR.categories.length) {
-    return { ok: true, empty: true, productos: [], extras: [] };
-  }
   const metaR = await getMenuMetaRow();
+  const publishedAt = metaR.ok && metaR.row ? metaR.row.published_at : null;
+  const storeConfig = hasPublishedStoreConfig(publishedR) ? storeConfigToShopFormat(publishedR) : null;
+  if (!publishedR.products.length && !publishedR.categories.length) {
+    return { ok: true, empty: true, productos: [], extras: [], storeConfig: storeConfig, publishedAt: publishedAt };
+  }
   return {
     ok: true,
     empty: false,
     productos: productsToShopFormat(publishedR),
     extras: extrasToShopFormat(publishedR),
-    publishedAt: metaR.ok && metaR.row ? metaR.row.published_at : null,
+    storeConfig: storeConfig,
+    publishedAt: publishedAt,
   };
 }
 
@@ -563,4 +648,7 @@ module.exports = {
   publishedToDraft,
   isStoreCatalogUnavailable,
   loadPublishedRows,
+  storeConfigToShopFormat,
+  turnosToShopDeliveryConfig,
+  hasPublishedStoreConfig,
 };
