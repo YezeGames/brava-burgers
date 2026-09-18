@@ -1222,14 +1222,25 @@
 		return true;
 	}
 
+	function promoAlcanceSubId(alcance) {
+		if (!alcance || alcance.indexOf('sub:') !== 0) return null;
+		var subId = +alcance.split(':')[1];
+		return subId || null;
+	}
+
+	function promoAlcanceCatId(alcance) {
+		if (!alcance || alcance.indexOf('cat:') !== 0) return null;
+		var catId = +alcance.split(':')[1];
+		return catId || null;
+	}
+
 	function productoExcluidoDePromo(prod, promo) {
 		if (!prod || !promo) return true;
 		var pid = productoDbId(prod);
 		if (promo.exceptuados && promo.exceptuados.indexOf(pid) >= 0) return true;
 		if (promo.tipo === 'pct_menu' && prod.sinPromoMenu) return true;
 		if (promo.tipo === 'pct_cat') {
-			var catId =
-				promo.alcance && promo.alcance.indexOf('cat:') === 0 ? +promo.alcance.split(':')[1] : null;
+			var catId = promoAlcanceCatId(promo.alcance);
 			if (catId && prod.catId === catId && prod.sinPromoCat) return true;
 		}
 		return false;
@@ -1237,16 +1248,12 @@
 
 	function promoAlcanceIncluyeProducto(prod, promo) {
 		if (promo.tipo === 'pct_menu') return true;
-		if (promo.tipo === 'pct_cat') {
-			var catId =
-				promo.alcance && promo.alcance.indexOf('cat:') === 0 ? +promo.alcance.split(':')[1] : null;
-			return !!(catId && prod.catId === catId);
-		}
+		var subId = promoAlcanceSubId(promo.alcance);
+		if (subId) return prod.subId === subId;
+		var catId = promoAlcanceCatId(promo.alcance);
+		if (promo.tipo === 'pct_cat') return !!(catId && prod.catId === catId);
 		if (promo.tipo === 'monto' && !promo.alcance) return true;
-		if (promo.alcance && promo.alcance.indexOf('cat:') === 0) {
-			var catIdMonto = +promo.alcance.split(':')[1];
-			return !!(catIdMonto && prod.catId === catIdMonto);
-		}
+		if (catId) return prod.catId === catId;
 		if (promo.alcance && promo.alcance.indexOf('prod:') === 0) {
 			return productoDbId(prod) === +promo.alcance.split(':')[1];
 		}

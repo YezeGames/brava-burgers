@@ -513,6 +513,7 @@ function productsToShopFormat(published) {
         id: 'db_' + p.id,
         db_id: p.id,
         catId: p.cat_id,
+        subId: p.sub_id || null,
         nombre: p.nombre,
         descripcion: p.descripcion || '',
         categoria: cat.nombre,
