@@ -704,12 +704,28 @@
 			cachedAdminToken = tok || '';
 		}
 
-		function apiAdmin(payload) {
+		function apiAdmin(payload, timeoutMs) {
+			var ms = timeoutMs || 20000;
+			var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+			var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, ms) : null;
 			return fetch('/api/admin', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify(Object.assign({ token: adminToken() }, payload)),
-			}).then(function (r) { return r.json(); });
+				signal: ctrl ? ctrl.signal : undefined,
+			}).then(function (r) {
+				return r.json().then(function (data) {
+					if (!r.ok && data && !data.error) data.error = 'http_' + r.status;
+					return data;
+				});
+			}).catch(function (e) {
+				if (e && e.name === 'AbortError') {
+					throw new Error('Tiempo agotado (' + (payload.action || 'api') + '). Reintentá.');
+				}
+				throw e;
+			}).finally(function () {
+				if (timer) clearTimeout(timer);
+			});
 		}
 
 		function buildDraftPayload() {
@@ -800,31 +816,41 @@
 			var setupBtn = $('#btn-backend-setup');
 			if (setupBtn) setupBtn.disabled = true;
 			toast('Conectando Supabase…');
-			apiAdmin({ action: 'migrateStoreCatalogSchema' }).then(function (migrateR) {
-				if (!migrateR.ok && migrateR.error !== 'migration_failed') {
-					throw new Error(migrateR.hint || migrateR.detail || migrateR.error || 'migrate_failed');
-				}
-				if (migrateR.ok && migrateR.migrated) {
-					toast('Tablas creadas — importando menú…');
-				}
-				return apiAdmin({ action: 'importStoreMenuFromSheetIfEmpty' });
-			}).then(function (importR) {
-				if (importR && !importR.ok && !importR.skipped) {
-					throw new Error(importR.detail || importR.error || importR.hint || 'import_failed');
-				}
-				backendNeedsMigrate = false;
-				backendLastError = '';
-				return loadFromBackend();
-			}).then(function () {
-				bootUi();
-				toast(backendOnline ? 'Supabase conectado' : 'Revisá el mensaje en rojo');
-			}).catch(function (e) {
-				backendLastError = String(e.message || e);
-				updateBackendBanner();
-				toast('Error: ' + backendLastError);
-			}).finally(function () {
-				if (setupBtn) setupBtn.disabled = false;
-			});
+			fetch('/api/catalog?health=1&t=' + Date.now())
+				.then(function (r) { return r.json(); })
+				.then(function (health) {
+					if (health.ok && health.configured) {
+						toast('Supabase OK — cargando menú…');
+						return loadFromBackend();
+					}
+					if (health.error !== 'not_migrated') {
+						throw new Error(health.hint || health.error || 'health_failed');
+					}
+					return apiAdmin({ action: 'migrateStoreCatalogSchema' }, 25000).then(function (migrateR) {
+						if (!migrateR.ok) {
+							throw new Error(migrateR.hint || migrateR.detail || migrateR.error || 'migrate_failed');
+						}
+						if (migrateR.migrated) toast('Tablas creadas — importando menú…');
+						return apiAdmin({ action: 'importStoreMenuFromSheetIfEmpty' }, 35000);
+					}).then(function (importR) {
+						if (importR && !importR.ok && !importR.skipped) {
+							throw new Error(importR.detail || importR.error || importR.hint || 'import_failed');
+						}
+						return loadFromBackend();
+					});
+				})
+				.then(function () {
+					bootUi();
+					toast(backendOnline ? 'Supabase conectado' : 'Revisá el mensaje en rojo');
+				})
+				.catch(function (e) {
+					backendLastError = String(e.message || e);
+					updateBackendBanner();
+					toast('Error: ' + backendLastError);
+				})
+				.finally(function () {
+					if (setupBtn) setupBtn.disabled = false;
+				});
 		}
 
 		function scheduleSaveDraft() {
@@ -2112,6 +2138,9 @@
 			if (document.documentElement.classList.contains('embed-mode')) {
 				setView(initialSection());
 				setupEmbedResize();
+				try {
+					parent.postMessage({ type: 'brava-tienda-request-token' }, location.origin);
+				} catch (eReq) {}
 			}
 		}
 

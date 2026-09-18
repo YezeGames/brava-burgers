@@ -3295,6 +3295,7 @@
     ensureCompensacionesOnce();
     ensureManualOrderSchemaOnce();
     ensureStoreCatalogOnce();
+    syncTiendaIframeToken();
     initDefaultAlertSound();
 
     if (window.BravaWaPanel) {
@@ -6716,6 +6717,9 @@
     if (ev.data && ev.data.type === 'brava-tienda-height') {
       applyTiendaFrameHeight(ev.data.height);
     }
+    if (ev.data && ev.data.type === 'brava-tienda-request-token') {
+      syncTiendaIframeToken();
+    }
   });
 
   function showTiendaSection(section) {
@@ -6724,7 +6728,7 @@
     var next =
       '/admin/demo-tienda-config.html?embed=1&section=' +
       encodeURIComponent(section || 'menu') +
-      '&v=8';
+      '&v=9';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;

@@ -39,6 +39,7 @@ function createPgClient(conn) {
   return new Client({
     connectionString: conn,
     ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 12000,
   });
 }
 
@@ -351,6 +352,16 @@ async function migrateManualOrderSchema() {
 }
 
 async function migrateStoreCatalogSchema() {
+  try {
+    const { storeCatalogHealth } = require('./storeCatalog');
+    const health = await storeCatalogHealth();
+    if (health.ok && health.configured) {
+      return { ok: true, migrated: false, already: true };
+    }
+  } catch (e) {
+    /* seguir a migración SQL si el health check falla */
+  }
+
   const conn = postgresConnectionString();
   if (!conn) {
     return {
