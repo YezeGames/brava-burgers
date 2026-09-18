@@ -238,9 +238,22 @@
 		}
 	}
 
+	function horarioValueForDay(horarios, day) {
+		if (!horarios) return null;
+		if (Object.prototype.hasOwnProperty.call(horarios, day)) return horarios[day];
+		if (Object.prototype.hasOwnProperty.call(horarios, String(day))) return horarios[String(day)];
+		return null;
+	}
+
 	function getHorarioRaw(cfg, day) {
 		var horarios = global.g_horarios_por_dia || {};
-		return String(horarios[day] || configGet(cfg || {}, HORARIO_CFG_KEYS[day]) || '').trim();
+		if (global.g_store_config_source === 'supabase') {
+			var fromDb = horarioValueForDay(horarios, day);
+			return String(fromDb != null ? fromDb : '').trim();
+		}
+		var fromGlobal = horarioValueForDay(horarios, day);
+		if (fromGlobal != null) return String(fromGlobal).trim();
+		return String(configGet(cfg || {}, HORARIO_CFG_KEYS[day]) || '').trim();
 	}
 
 	function formatHorarioRanges(horario_string) {
