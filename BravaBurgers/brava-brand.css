@@ -880,7 +880,7 @@ body:has(#app-view) .tab.active {
 	min-width: 0 !important;
 	height: auto !important;
 	max-height: min(78vh, 100dvh) !important;
-	padding: 12px 10px 10px !important;
+	padding: 18px 10px 10px !important;
 	box-sizing: border-box !important;
 	overflow-x: hidden !important;
 	overflow-y: auto !important;
@@ -901,20 +901,15 @@ body:has(#app-view) .tab.active {
 #pregunta_personalizacion_titulo {
 	color: var(--brava-accent) !important;
 	font-weight: bold;
-	font-size: 0.92rem;
-	margin: 0 0 12px;
-	padding: 0 6px;
-	line-height: 1.2;
+	font-size: 0.95rem;
+	margin: 0 0 14px;
+	padding: 0 8px;
+	line-height: 1.25;
 	text-align: center;
 }
 
-.brava-pers-sub {
-	font-size: 0.7rem;
-	color: var(--brava-muted);
-	margin: 0 0 8px;
-	padding: 0 4px;
-	line-height: 1.35;
-	text-align: center;
+#pregunta_personalizacion_sub {
+	display: none !important;
 }
 
 .fancybox-container.brava-fancybox-modal:has(#pregunta_personalizacion.fancybox-content) .fancybox-close-small {

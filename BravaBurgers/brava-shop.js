@@ -207,7 +207,7 @@
 					css.height = 'auto';
 					css.maxHeight = '78vh';
 					css.overflowY = 'auto';
-					css.padding = '12px 10px 10px';
+					css.padding = '18px 10px 10px';
 					css.display = 'block';
 				}
 				current.$content.css(css);
@@ -300,7 +300,7 @@
 		if (!producto) return;
 		_brava_pers_prod_id = p_id;
 		$('#pregunta_personalizacion_titulo').text(producto.nombre);
-		$('#pregunta_personalizacion_sub').text(producto.descripcion || '');
+		$('#pregunta_personalizacion_sub').addClass('hidden').text('');
 
 		var extras = extrasParaProducto(producto);
 		var exHtml = '';
