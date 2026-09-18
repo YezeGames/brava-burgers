@@ -6720,6 +6720,18 @@
     if (ev.data && ev.data.type === 'brava-tienda-request-token') {
       syncTiendaIframeToken();
     }
+    if (ev.data && ev.data.type === 'brava-tienda-status') {
+      var pill = $('tienda-supabase-pill');
+      if (!pill) return;
+      pill.classList.remove('hidden');
+      if (ev.data.online) {
+        pill.className = 'tienda-supabase-pill is-ok';
+        pill.innerHTML = '<i class="fas fa-cloud" aria-hidden="true"></i> Supabase';
+      } else {
+        pill.className = 'tienda-supabase-pill is-warn';
+        pill.innerHTML = '<i class="fas fa-unlink" aria-hidden="true"></i> Sin Supabase';
+      }
+    }
   });
 
   function showTiendaSection(section) {
@@ -6728,7 +6740,7 @@
     var next =
       '/admin/demo-tienda-config.html?embed=1&section=' +
       encodeURIComponent(section || 'menu') +
-      '&v=9';
+      '&v=10';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;
@@ -6801,6 +6813,9 @@
         if (isTiendaView(view)) {
           showTiendaSection(tiendaViews[view].section);
           refreshTiendaIframe();
+        } else {
+          var tiendaPill = $('tienda-supabase-pill');
+          if (tiendaPill) tiendaPill.classList.add('hidden');
         }
       });
     });

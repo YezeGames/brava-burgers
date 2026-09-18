@@ -387,6 +387,48 @@ html:not([data-theme="dark"]) .turno-pill--closed {
 	padding-bottom: 20px;
 }
 
+.top-title-wrap {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	min-width: 0;
+}
+
+.tienda-supabase-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 10px;
+	border-radius: 999px;
+	font-size: 0.72rem;
+	font-weight: 700;
+	border: 1px solid var(--border);
+	background: var(--bg-surface-muted);
+	color: var(--text-muted);
+	white-space: nowrap;
+}
+
+.tienda-supabase-pill.is-ok {
+	border-color: rgba(46, 125, 50, 0.5);
+	background: rgba(46, 125, 50, 0.12);
+	color: #2e7d32;
+}
+
+html[data-theme="dark"] .tienda-supabase-pill.is-ok {
+	color: #81c784;
+}
+
+.tienda-supabase-pill.is-warn {
+	border-color: rgba(198, 40, 40, 0.45);
+	background: rgba(198, 40, 40, 0.1);
+	color: #c62828;
+}
+
+html[data-theme="dark"] .tienda-supabase-pill.is-warn {
+	color: #ef9a9a;
+}
+
 .top-actions.turno-toolbar.hidden {
 	display: none !important;
 }

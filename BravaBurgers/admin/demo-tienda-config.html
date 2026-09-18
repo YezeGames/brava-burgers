@@ -171,8 +171,17 @@
 		.modal-body label { display: block; margin-bottom: 12px; font-size: 0.78rem; font-weight: 600; color: var(--text-muted); }
 		.modal-body .field-hint { display: block; font-weight: 500; font-size: 0.68rem; color: var(--text-subtle); margin-top: 4px; }
 		.modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border); }
-		.toast { position: fixed; bottom: 20px; right: 20px; z-index: 1100; padding: 12px 16px; border-radius: 10px; background: var(--text-strong); color: var(--bg-surface); font-size: 0.82rem; font-weight: 600; box-shadow: var(--shadow-modal); transform: translateY(80px); opacity: 0; transition: transform 0.25s, opacity 0.25s; pointer-events: none; }
+		.toast { position: fixed; bottom: 20px; right: 20px; z-index: 1100; padding: 12px 16px; border-radius: 10px; background: var(--text-strong); color: var(--bg-surface); font-size: 0.82rem; font-weight: 600; box-shadow: var(--shadow-modal); transform: translateY(80px); opacity: 0; transition: transform 0.25s, opacity 0.25s; pointer-events: none; max-width: min(420px, calc(100vw - 32px)); }
 		.toast.show { transform: translateY(0); opacity: 1; }
+		html.embed-mode .toast.toast--embed { bottom: auto; right: auto; left: 50%; transform: translate(-50%, -16px); }
+		html.embed-mode .toast.toast--embed.show { transform: translate(-50%, 0); }
+		.embed-status-bar { display: none; }
+		html.embed-mode .embed-status-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+		.embed-status-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; border: 1px solid var(--border); background: var(--bg-surface-muted); color: var(--text-muted); }
+		.embed-status-pill.is-ok { border-color: rgba(46,125,50,0.5); background: rgba(46,125,50,0.12); color: #2e7d32; }
+		html[data-theme="dark"] .embed-status-pill.is-ok { color: #81c784; }
+		.embed-status-pill.is-warn { border-color: rgba(198,40,40,0.45); background: rgba(198,40,40,0.1); color: #c62828; }
+		html[data-theme="dark"] .embed-status-pill.is-warn { color: #ef9a9a; }
 		.nav-btn.nav-demo-mark::after { content: ''; position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; border-radius: 50%; background: var(--brava); }
 
 		.draft-pill {
@@ -319,6 +328,13 @@
 
 			<div class="app-main">
 				<div class="main-content">
+					<div class="embed-status-bar" id="embed-status-bar" aria-live="polite">
+						<span class="embed-status-pill" id="embed-status-pill"><i class="fas fa-spinner fa-spin"></i> Conectando con Supabase…</span>
+					</div>
+					<div class="config-banner hidden" id="backend-ok-banner" role="status" style="border-color:#81c784;background:rgba(46,125,50,0.08)">
+						<i class="fas fa-check-circle" style="color:#2e7d32"></i>
+						<div><strong>Supabase conectado</strong> — los cambios se guardan en borrador. Publicá para aplicarlos en la tienda.</div>
+					</div>
 					<div class="config-banner" role="note">
 						<i class="fas fa-palette"></i>
 						<div>
@@ -684,12 +700,49 @@
 		function fmt(n) { return '$' + Math.round(n).toLocaleString('es-AR'); }
 		function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
 
+		function getEmbedVisibleViewport() {
+			var fe = window.frameElement;
+			if (!fe || !window.parent) return null;
+			try {
+				var rect = fe.getBoundingClientRect();
+				var parentH = window.parent.innerHeight || document.documentElement.clientHeight;
+				var visibleTop = Math.max(0, -rect.top);
+				var visibleHeight = Math.min(fe.clientHeight, parentH - Math.max(0, rect.top));
+				return { top: visibleTop, height: Math.max(visibleHeight, 300) };
+			} catch (e) {
+				return null;
+			}
+		}
+
 		function toast(msg) {
 			var el = $('#toast');
+			var embed = document.documentElement.classList.contains('embed-mode');
 			el.textContent = msg;
-			el.classList.add('show');
+			el.classList.remove('show');
+			el.classList.toggle('toast--embed', embed);
+			if (embed) {
+				var vp = getEmbedVisibleViewport();
+				if (vp) {
+					el.style.top = (vp.top + 12) + 'px';
+				} else {
+					el.style.top = '12px';
+				}
+				el.style.position = 'fixed';
+				el.style.left = '50%';
+				el.style.right = 'auto';
+				el.style.bottom = 'auto';
+				el.style.zIndex = '2000';
+			} else {
+				el.style.top = '';
+				el.style.left = '';
+				el.style.right = '';
+				el.style.bottom = '';
+				el.style.position = '';
+				el.style.zIndex = '';
+			}
+			requestAnimationFrame(function () { el.classList.add('show'); });
 			clearTimeout(toast._t);
-			toast._t = setTimeout(function () { el.classList.remove('show'); }, 2600);
+			toast._t = setTimeout(function () { el.classList.remove('show'); }, 3200);
 		}
 
 		function adminToken() {
@@ -780,20 +833,44 @@
 			recalcNextIds();
 		}
 
+		function notifyParentBackendStatus() {
+			try {
+				parent.postMessage({
+					type: 'brava-tienda-status',
+					online: backendOnline,
+					needsMigrate: backendNeedsMigrate,
+					unauthorized: backendUnauthorized,
+				}, location.origin);
+			} catch (e) {}
+		}
+
 		function updateBackendBanner() {
 			var badge = $('#backend-badge');
 			var banner = $('#backend-banner');
+			var okBanner = $('#backend-ok-banner');
 			var text = $('#backend-banner-text');
 			var setupBtn = $('#btn-backend-setup');
+			var embedPill = $('#embed-status-pill');
 			if (backendOnline) {
-				badge.innerHTML = '<i class="fas fa-cloud"></i> Supabase';
-				banner.classList.add('hidden');
+				if (badge) badge.innerHTML = '<i class="fas fa-cloud"></i> Supabase';
+				if (banner) banner.classList.add('hidden');
+				if (okBanner) okBanner.classList.remove('hidden');
 				if (setupBtn) setupBtn.classList.add('hidden');
+				if (embedPill) {
+					embedPill.className = 'embed-status-pill is-ok';
+					embedPill.innerHTML = '<i class="fas fa-cloud"></i> Supabase conectado';
+				}
+				notifyParentBackendStatus();
 				return;
 			}
-			badge.innerHTML = '<i class="fas fa-unlink"></i> Sin backend';
-			banner.classList.remove('hidden');
+			if (badge) badge.innerHTML = '<i class="fas fa-unlink"></i> Sin backend';
+			if (banner) banner.classList.remove('hidden');
+			if (okBanner) okBanner.classList.add('hidden');
 			if (setupBtn) setupBtn.classList.toggle('hidden', !adminToken() || backendUnauthorized);
+			if (embedPill) {
+				embedPill.className = 'embed-status-pill is-warn';
+				embedPill.innerHTML = '<i class="fas fa-unlink"></i> Sin conexión Supabase';
+			}
 			if (backendUnauthorized) {
 				text.innerHTML = 'Sesión expirada — recargá el admin o volvé a entrar en <a href="/admin/" target="_top">/admin/</a>.';
 			} else if (backendNeedsMigrate) {
@@ -805,6 +882,7 @@
 			} else {
 				text.textContent = 'No se pudo conectar con Supabase. Probá Conectar Supabase.';
 			}
+			notifyParentBackendStatus();
 		}
 
 		function runBackendSetup() {
@@ -868,6 +946,11 @@
 			backendNeedsMigrate = false;
 			backendUnauthorized = false;
 			backendLastError = '';
+			var embedPill = $('#embed-status-pill');
+			if (embedPill) {
+				embedPill.className = 'embed-status-pill';
+				embedPill.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Conectando con Supabase…';
+			}
 			return fetch('/api/catalog?health=1&t=' + Date.now())
 				.then(function (r) { return r.json(); })
 				.then(function (health) {
@@ -2021,23 +2104,6 @@
 			try {
 				parent.postMessage({ type: 'brava-tienda-height', height: h }, location.origin);
 			} catch (e) {}
-		}
-
-		function getEmbedVisibleViewport() {
-			var fe = window.frameElement;
-			if (!fe || !window.parent) return null;
-			try {
-				var rect = fe.getBoundingClientRect();
-				var parentH = window.parent.innerHeight || document.documentElement.clientHeight;
-				var visibleTop = Math.max(0, -rect.top);
-				var visibleHeight = Math.min(fe.clientHeight, parentH - Math.max(0, rect.top));
-				return {
-					top: visibleTop,
-					height: Math.max(visibleHeight, 300),
-				};
-			} catch (e) {
-				return null;
-			}
 		}
 
 		function positionEmbedModals() {

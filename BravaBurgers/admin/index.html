@@ -1461,7 +1461,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=24" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=25" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1513,8 +1513,9 @@
 			</nav>
 
 			<header class="app-top">
-				<div>
+				<div class="top-title-wrap">
 					<h1 class="top-title" id="view-title">Pedidos<small id="view-subtitle"></small></h1>
+					<span class="tienda-supabase-pill hidden" id="tienda-supabase-pill" role="status"></span>
 				</div>
 				<div class="top-actions turno-toolbar">
 					<button type="button" class="btn-sm btn-accent" id="btn-pedido-manual" disabled title="Abrí la caja para emitir pedidos manuales">
@@ -1750,7 +1751,7 @@
 							id="tienda-config-frame"
 							class="tienda-config-frame"
 							title="Configuración de tienda"
-							src="/admin/demo-tienda-config.html?embed=1&section=menu&v=9"
+							src="/admin/demo-tienda-config.html?embed=1&section=menu&v=10"
 							loading="lazy"></iframe>
 					</section>
 				</div>
@@ -2371,6 +2372,6 @@
 	<script src="/admin/wa-panel.js?v=28"></script>
 	<script src="/admin/compensaciones.js?v=4"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
-	<script src="/admin/admin.js?v=134"></script>
+	<script src="/admin/admin.js?v=135"></script>
 </body>
 </html>
