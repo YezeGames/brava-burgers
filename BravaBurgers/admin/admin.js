@@ -1684,7 +1684,331 @@
     }
   }
 
+  var cajaEmbedViews = {
+    caja: { title: 'Caja y turno', subtitle: 'Centro de turno · gráficos y stock', section: 'centro' },
+    historial: { title: 'Historial', subtitle: 'Cierres y comparativa de turnos', section: 'historial' },
+  };
+
+  function isCajaEmbedView(view) {
+    return Object.prototype.hasOwnProperty.call(cajaEmbedViews, view);
+  }
+
+  var lastCajaFrameHeight = 0;
+
+  function sumVentasListQty(list) {
+    return (list || []).reduce(function (s, x) {
+      return s + (Number(x.qty) || 0);
+    }, 0);
+  }
+
+  function buildCajaEmbedRangoLabel() {
+    var d1 = filterDesde ? filterDesde.split('-').reverse().join('/') : '…';
+    var d2 = filterHasta ? filterHasta.split('-').reverse().join('/') : '…';
+    var rango = d1 === d2 ? d1 : d1 + ' — ' + d2;
+    if (findCierreForCurrentPeriod()) return 'Turno cerrado · ' + rango;
+    if (isCajaTurnoActivo()) {
+      var ap = getAperturaAtMs();
+      var desdeLbl = isNaN(ap)
+        ? '—'
+        : formatCierreWhen(new Date(ap).toISOString()).split(' ')[1] || '—';
+      return 'Turno abierto desde ' + desdeLbl + ' · ' + rango;
+    }
+    return 'Sin apertura · ' + rango + ' (todo en $0 hasta abrir)';
+  }
+
+  function movimientoHoraLabel(g) {
+    var ms = movimientoTimestampMs(g);
+    if (!ms) return '';
+    var d = new Date(ms);
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  }
+
+  function buildCajaEmbedMovimientos() {
+    var items = [];
+    ingresosVisiblesTurno().forEach(function (x) {
+      items.push({
+        id: x.id,
+        tipo: 'ing',
+        monto: Number(x.monto) || 0,
+        concepto: x.concepto,
+        fecha: x.fecha,
+        cobrado_con: x.cobrado_con,
+        hora: movimientoHoraLabel(x),
+      });
+    });
+    gastosVisiblesTurno().forEach(function (x) {
+      items.push({
+        id: x.id,
+        tipo: 'eg',
+        monto: Number(x.monto) || 0,
+        concepto: x.concepto,
+        fecha: x.fecha,
+        pagado_con: x.pagado_con,
+        hora: movimientoHoraLabel(x),
+      });
+    });
+    return items;
+  }
+
+  function buildCajaEmbedProductos(st) {
+    var out = [];
+    (st.productosVentas || []).forEach(function (p) {
+      out.push({ nombre: p.nombre, qty: Number(p.qty) || 0, tipo: 'hamb', precio: 0 });
+    });
+    (st.acompanamientosVentas || []).forEach(function (p) {
+      out.push({ nombre: p.nombre, qty: Number(p.qty) || 0, tipo: 'acomp', precio: 0 });
+    });
+    (st.bebidasVentas || []).forEach(function (p) {
+      out.push({ nombre: p.nombre, qty: Number(p.qty) || 0, tipo: 'bebida', precio: 0 });
+    });
+    (st.extrasVentas || []).forEach(function (p) {
+      out.push({ nombre: p.nombre, qty: Number(p.qty) || 0, tipo: 'extra', precio: 0 });
+    });
+    return out;
+  }
+
+  function buildCajaEmbedPorHora() {
+    if (!isCajaTurnoActivo()) return [];
+    var desdeMs = getAperturaAtMs();
+    if (isNaN(desdeMs)) return [];
+    var buckets = {};
+    allOrdersCache.forEach(function (o) {
+      if (normalizeEstado(o.estado) !== 'entregada') return;
+      if (!inDateRange(orderCajaDateIso(o))) return;
+      var t = orderEntregadoAtMs(o);
+      if (isNaN(t) || t < desdeMs) return;
+      var h = new Date(t).getHours();
+      var key = h + 'h';
+      if (!buckets[key]) buckets[key] = { h: key, n: 0, pesos: 0, ef: 0, mp: 0 };
+      buckets[key].n++;
+      var total = Number(o.total) || 0;
+      buckets[key].pesos += total;
+      if (pagoEsEfectivo(o.pago)) buckets[key].ef += total;
+      else if (!pagoEsNoCobrado(o.pago)) buckets[key].mp += total;
+    });
+    return Object.keys(buckets)
+      .sort(function (a, b) { return parseInt(a, 10) - parseInt(b, 10); })
+      .map(function (k) { return buckets[k]; });
+  }
+
+  function buildCajaEmbedOps(st) {
+    var ops = {
+      entregados: 0,
+      enCurso: 0,
+      cancelados: 0,
+      ticketProm: 0,
+      nIngresos: ingresosVisiblesTurno().length,
+      nEgresos: gastosVisiblesTurno().length,
+    };
+    if (!isCajaTurnoActivo()) return ops;
+    var desdeMs = getAperturaAtMs();
+    var ventasSum = 0;
+    allOrdersCache.forEach(function (o) {
+      if (!inDateRange(orderCajaDateIso(o))) return;
+      var e = normalizeEstado(o.estado);
+      if (e === 'entregada') {
+        var t = orderEntregadoAtMs(o);
+        if (!isNaN(t) && t >= desdeMs) {
+          ops.entregados++;
+          if (!pagoEsNoCobrado(o.pago)) ventasSum += Number(o.total) || 0;
+        }
+      } else if (e === 'cancelada') {
+        var ct = o.cancelado_at ? new Date(o.cancelado_at).getTime() : NaN;
+        if (!isNaN(ct) && ct >= desdeMs) ops.cancelados++;
+      } else if (e !== 'rechazada') {
+        ops.enCurso++;
+      }
+    });
+    ops.ticketProm = ops.entregados ? Math.round(ventasSum / ops.entregados) : 0;
+    return ops;
+  }
+
+  function buildCajaEmbedStock() {
+    var st = getStockTurno();
+    var activo = isCajaTurnoActivo();
+    return [
+      { name: 'Panes', qty: activo && st ? st.panes : 0, max: 40, low: 8, crit: 4 },
+      { name: 'Medallones', qty: activo && st ? st.medallones : 0, max: 38, low: 10, crit: 5 },
+      { name: 'Lonchas cheddar', qty: activo && st ? st.queso : 0, max: 80, low: 16, crit: 8 },
+    ];
+  }
+
+  function buildCajaEmbedCierres() {
+    return (cierresCache || []).slice(0, 12).map(function (c) {
+      var ing = Math.max(0, Number(c.ingresos) || 0);
+      return {
+        id: c.id,
+        label: c.cerrado_at ? formatCierreWhen(c.cerrado_at) : cierrePeriodoLabelFromRecord(c),
+        ventas: Number(c.ventas_total) || 0,
+        ef: Number(c.efectivo) || 0,
+        mp: Number(c.mercado_pago) || 0,
+        egresos: Number(c.gastos) || 0,
+        ingresos: ing,
+        resultado: Number(c.resultado) || 0,
+        entregados: Number(c.pedidos_entregados) || Number(c.entregados) || 0,
+      };
+    });
+  }
+
+  function buildCajaEmbedState() {
+    var abierto = isCajaTurnoActivo();
+    var st = computeCajaDisplayStats();
+    var apMs = getAperturaAtMs();
+    var apertura = '';
+    if (abierto && !isNaN(apMs)) {
+      var d = new Date(apMs);
+      apertura =
+        String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    }
+    return {
+      abierto: abierto,
+      apertura: apertura || null,
+      rango: buildCajaEmbedRangoLabel(),
+      efectivo: st.ef,
+      mercadopago: st.mp,
+      ventas: st.ventas,
+      egresos: st.gTotal,
+      ingresos: st.iTotal,
+      resultado: st.resultado,
+      simples: st.simples,
+      dobles: st.dobles,
+      salidas: [
+        { cat: 'Simples', u: st.simples || 0 },
+        { cat: 'Dobles', u: st.dobles || 0 },
+        { cat: 'Acompañamientos', u: sumVentasListQty(st.acompanamientosVentas) },
+        { cat: 'Bebidas', u: sumVentasListQty(st.bebidasVentas) },
+        { cat: 'Extras', u: sumVentasListQty(st.extrasVentas) },
+      ],
+      ops: buildCajaEmbedOps(st),
+      porHora: buildCajaEmbedPorHora(),
+      stock: buildCajaEmbedStock(),
+      movimientos: buildCajaEmbedMovimientos(),
+      productosVendidos: buildCajaEmbedProductos(st),
+      cierres: buildCajaEmbedCierres(),
+    };
+  }
+
+  function syncCajaEmbed() {
+    var frame = $('caja-config-frame');
+    if (!frame || !frame.contentWindow) return;
+    try {
+      frame.contentWindow.postMessage(
+        { type: 'brava-caja-state', state: buildCajaEmbedState() },
+        location.origin
+      );
+    } catch (eEmbed) {}
+  }
+
+  function applyCajaFrameHeight(height) {
+    var frame = $('caja-config-frame');
+    if (!frame || !height) return;
+    var h = Math.max(520, Math.ceil(height) + 4);
+    if (Math.abs(h - lastCajaFrameHeight) < 4) return;
+    lastCajaFrameHeight = h;
+    frame.style.height = h + 'px';
+  }
+
+  function showCajaEmbedSection(section) {
+    var frame = $('caja-config-frame');
+    if (!frame) return;
+    var next =
+      '/admin/demo-caja-turno.html?embed=1&section=' +
+      encodeURIComponent(section || 'centro') +
+      '&v=2';
+    var current = frame.getAttribute('src') || '';
+    if (current.split('#')[0] !== next) {
+      frame.src = next;
+      return;
+    }
+    if (frame.contentWindow) {
+      try {
+        frame.contentWindow.postMessage(
+          { type: 'brava-caja-section', section: section || 'centro' },
+          location.origin
+        );
+      } catch (eSection) {}
+    }
+  }
+
+  function openIngresoModalUi() {
+    if (!isCajaTurnoActivo()) {
+      alert('Abrí la caja antes de agregar ingresos. Sin apertura la lista queda en 0.');
+      return;
+    }
+    if (!$('ingreso-modal')) return;
+    $('i-concepto').value = '';
+    $('i-monto').value = '';
+    $('i-fecha').value = filterHasta || todayIsoLocal();
+    $('i-cobro').value = 'efectivo';
+    $('ingreso-modal').classList.remove('hidden');
+    $('i-concepto').focus();
+  }
+
+  function openGastoModalUi() {
+    if (!isCajaTurnoActivo()) {
+      alert('Abrí la caja antes de agregar egresos. Sin apertura la lista queda en 0.');
+      return;
+    }
+    if (!$('gasto-modal')) return;
+    $('g-concepto').value = '';
+    $('g-monto').value = '';
+    $('g-fecha').value = filterHasta || todayIsoLocal();
+    $('g-pagado').value = '';
+    $('gasto-modal').classList.remove('hidden');
+    $('g-concepto').focus();
+  }
+
+  function deleteMovimientoUi(kind, id) {
+    if (!id) return;
+    var label = kind === 'ing' ? 'ingreso' : 'egreso';
+    if (!confirm('¿Eliminar ' + label + ' ' + id + '?')) return;
+    if (kind === 'ing') {
+      var prevI = ingresosCache.slice();
+      ingresosCache = ingresosCache.filter(function (g) {
+        return g.id !== id;
+      });
+      updateCajaUI();
+      api({ action: 'deleteIngreso', token: token, id: id }).then(function (res) {
+        if (res.data.ok) loadIngresos(true);
+        else {
+          ingresosCache = prevI;
+          updateCajaUI();
+          if (res.status === 401) handleAuthFailure();
+          else alert('No se pudo eliminar el ingreso.');
+        }
+      });
+    } else {
+      var prevG = gastosCache.slice();
+      gastosCache = gastosCache.filter(function (g) {
+        return g.id !== id;
+      });
+      updateCajaUI();
+      api({ action: 'deleteGasto', token: token, id: id }).then(function (res) {
+        if (res.data.ok) loadGastos(true);
+        else {
+          gastosCache = prevG;
+          updateCajaUI();
+          if (res.status === 401) handleAuthFailure();
+          else alert('No se pudo eliminar el egreso.');
+        }
+      });
+    }
+  }
+
+  function handleCajaEmbedAction(action, payload) {
+    if (action === 'open-ingreso') openIngresoModalUi();
+    else if (action === 'open-egreso') openGastoModalUi();
+    else if (action === 'delete-mov' && payload) deleteMovimientoUi(payload.kind, payload.id);
+    else if (action === 'open-cierres') openCierreHistorialModal();
+    else if (action === 'open-proformas') openProformasModal();
+  }
+
   function updateCajaUI() {
+    syncCajaEmbed();
+    updateCierreStatusUI();
+    updateTurnoToolbarUI();
+    updateViewSubtitle();
+    syncTurnoPedidosUi();
     if (!$('caja-ventas')) return;
     var st = computeCajaDisplayStats();
     var efTxt = '$' + fmt(st.ef);
@@ -1731,11 +2055,7 @@
         $('caja-range').textContent = 'Sin apertura · ' + rango + ' (todo en $0 hasta abrir)';
       }
     }
-    updateCierreStatusUI();
-    updateTurnoToolbarUI();
-    updateViewSubtitle();
     updateMovimientosChrome();
-    syncTurnoPedidosUi();
     updateStockChrome();
   }
 
@@ -3026,8 +3346,11 @@
   function renderMovimientosList() {
     var ul = $('mov-list');
     var empty = $('mov-empty');
-    if (!ul) return;
     updateMovimientosChrome();
+    if (!ul) {
+      syncCajaEmbed();
+      return;
+    }
     var items = [];
     ingresosVisiblesTurno().forEach(function (x) {
       items.push({
@@ -6684,8 +7007,8 @@
 
   var tiendaViews = {
     'tienda-menu': { title: 'Catálogo', subtitle: 'Categorías, productos y extras', section: 'menu' },
-    'tienda-horarios': { title: 'Horarios', subtitle: 'Días y franjas de apertura', section: 'horarios' },
-    'tienda-turnos': { title: 'Turnos', subtitle: 'Delivery y cupos por hora', section: 'turnos' },
+    'tienda-horarios': { title: 'Horarios y turnos', subtitle: 'Apertura y delivery', section: 'horarios' },
+    'tienda-turnos': { title: 'Horarios y turnos', subtitle: 'Delivery y cupos por hora', section: 'turnos' },
     'tienda-promos': { title: 'Promociones', subtitle: 'Descuentos y excepciones', section: 'promos' },
   };
 
@@ -6720,6 +7043,15 @@
     if (ev.data && ev.data.type === 'brava-tienda-request-token') {
       syncTiendaIframeToken();
     }
+    if (ev.data && ev.data.type === 'brava-caja-height') {
+      applyCajaFrameHeight(ev.data.height);
+    }
+    if (ev.data && ev.data.type === 'brava-caja-request-sync') {
+      syncCajaEmbed();
+    }
+    if (ev.data && ev.data.type === 'brava-caja-action') {
+      handleCajaEmbedAction(ev.data.action, ev.data.payload || null);
+    }
     if (ev.data && ev.data.type === 'brava-tienda-status') {
       var pill = $('tienda-supabase-pill');
       if (!pill) return;
@@ -6740,7 +7072,7 @@
     var next =
       '/admin/demo-tienda-config.html?embed=1&section=' +
       encodeURIComponent(section || 'menu') +
-      '&v=12';
+      '&v=18';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;
@@ -6765,18 +7097,9 @@
       titles[key] = tiendaViews[key].title;
       subtitles[key] = tiendaViews[key].subtitle;
     });
-    document.querySelectorAll('.caja-tab').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var tab = btn.getAttribute('data-caja-tab');
-        document.querySelectorAll('.caja-tab').forEach(function (b) {
-          var on = b === btn;
-          b.classList.toggle('is-active', on);
-          b.setAttribute('aria-selected', on ? 'true' : 'false');
-        });
-        document.querySelectorAll('.caja-tab-panel').forEach(function (panel) {
-          panel.classList.toggle('is-active', panel.getAttribute('data-caja-panel') === tab);
-        });
-      });
+    Object.keys(cajaEmbedViews).forEach(function (key) {
+      titles[key] = cajaEmbedViews[key].title;
+      subtitles[key] = cajaEmbedViews[key].subtitle;
     });
 
     document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
@@ -6786,7 +7109,9 @@
           b.classList.toggle('is-active', b === btn);
         });
         document.querySelectorAll('.admin-view').forEach(function (v) {
-          v.hidden = isTiendaView(view) ? v.id !== 'view-tienda' : v.id !== 'view-' + view;
+          if (isTiendaView(view)) v.hidden = v.id !== 'view-tienda';
+          else if (isCajaEmbedView(view)) v.hidden = v.id !== 'view-caja';
+          else v.hidden = v.id !== 'view-' + view;
         });
         if ($('view-title')) {
           $('view-title').childNodes[0].textContent = titles[view] || 'Admin';
@@ -6799,7 +7124,10 @@
         if (aside) aside.hidden = !showAside;
         var appMain = document.querySelector('.app-main');
         if (appMain) {
-          appMain.classList.toggle('app-main--full', view === 'caja' || view === 'historial' || isTiendaView(view));
+          appMain.classList.toggle(
+            'app-main--full',
+            isCajaEmbedView(view) || isTiendaView(view)
+          );
         }
         var mainContent = document.querySelector('.main-content');
         if (mainContent) {
@@ -6813,6 +7141,11 @@
         if (isTiendaView(view)) {
           showTiendaSection(tiendaViews[view].section);
           refreshTiendaIframe();
+        } else if (isCajaEmbedView(view)) {
+          showCajaEmbedSection(cajaEmbedViews[view].section);
+          refreshCajaTurno();
+          var tiendaPill = $('tienda-supabase-pill');
+          if (tiendaPill) tiendaPill.classList.add('hidden');
         } else {
           var tiendaPill = $('tienda-supabase-pill');
           if (tiendaPill) tiendaPill.classList.add('hidden');
@@ -7126,18 +7459,7 @@
   }
 
   if ($('btn-add-ingreso')) {
-    $('btn-add-ingreso').onclick = function () {
-      if (!isCajaTurnoActivo()) {
-        alert('Abrí la caja antes de agregar ingresos. Sin apertura la lista queda en 0.');
-        return;
-      }
-      $('i-concepto').value = '';
-      $('i-monto').value = '';
-      $('i-fecha').value = filterHasta || todayIsoLocal();
-      $('i-cobro').value = 'efectivo';
-      $('ingreso-modal').classList.remove('hidden');
-      $('i-concepto').focus();
-    };
+    $('btn-add-ingreso').onclick = openIngresoModalUi;
   }
 
   if ($('i-cancel')) {
@@ -7214,18 +7536,7 @@
   }
 
   if ($('btn-add-gasto')) {
-    $('btn-add-gasto').onclick = function () {
-      if (!isCajaTurnoActivo()) {
-        alert('Abrí la caja antes de agregar egresos. Sin apertura la lista queda en 0.');
-        return;
-      }
-      $('g-concepto').value = '';
-      $('g-monto').value = '';
-      $('g-fecha').value = filterHasta || todayIsoLocal();
-      $('g-pagado').value = '';
-      $('gasto-modal').classList.remove('hidden');
-      $('g-concepto').focus();
-    };
+    $('btn-add-gasto').onclick = openGastoModalUi;
   }
 
   if ($('g-cancel')) {

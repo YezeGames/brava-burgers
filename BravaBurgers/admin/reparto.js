@@ -38,6 +38,47 @@
     return 'PAGO (' + String(o.pago || '').toUpperCase() + ')';
   }
 
+  function isEfectivo(o) {
+    return /efectivo/i.test(o && o.pago);
+  }
+
+  function payBadge(o) {
+    if (isEfectivo(o)) {
+      return '<span class="pay-badge pay-badge--ef"><i class="fas fa-money-bill-wave" aria-hidden="true"></i> EF</span>';
+    }
+    return '<span class="pay-badge pay-badge--mp"><i class="fas fa-mobile-screen" aria-hidden="true"></i> MP</span>';
+  }
+
+  function parseOrderItems(o) {
+    if (!o) return [];
+    if (Array.isArray(o.items) && o.items.length) return o.items;
+    if (o.items_json) {
+      try {
+        var j = typeof o.items_json === 'string' ? JSON.parse(o.items_json) : o.items_json;
+        if (Array.isArray(j)) return j;
+      } catch (e) {}
+    }
+    return [];
+  }
+
+  function itemQty(it) {
+    var q = it.qty != null ? it.qty : it.cantidad;
+    q = parseFloat(q);
+    return isNaN(q) || q <= 0 ? 1 : q;
+  }
+
+  function orderItemsSummary(o) {
+    var items = parseOrderItems(o);
+    if (!items.length) return '—';
+    return items
+      .map(function (it) {
+        var q = itemQty(it);
+        var name = String(it.nombre || it.name || 'Item').trim();
+        return (q > 1 ? q + '× ' : '') + name;
+      })
+      .join(' · ');
+  }
+
   function fullAddr(o) {
     var p = [o.direccion];
     if (o.piso) p.push('Piso ' + o.piso);
@@ -283,7 +324,7 @@
     function onPointerMove(e) {
       if (!routeDrag) return;
       var el = document.elementFromPoint(e.clientX, e.clientY);
-      var targetLi = el && el.closest ? el.closest('#reparto-route-list li[data-orn]') : null;
+      var targetLi = el && el.closest ? el.closest('#reparto-route-list .timeline-item[data-orn]') : null;
       ul.querySelectorAll('.is-drag-over').forEach(function (node) {
         if (node !== targetLi) node.classList.remove('is-drag-over');
       });
@@ -313,7 +354,7 @@
     ul.addEventListener('pointerdown', function (e) {
       var handle = e.target.closest('.reparto-drag-handle');
       if (!handle) return;
-      var li = handle.closest('li[data-orn]');
+      var li = handle.closest('.timeline-item[data-orn]');
       if (!li) return;
       e.preventDefault();
       routeDrag = { orn: li.getAttribute('data-orn'), li: li, overOrn: null, overLi: null };
@@ -332,30 +373,56 @@
     ul.innerHTML = '';
     stops().forEach(function (o, idx) {
       var li = document.createElement('li');
+      li.className = 'timeline-item';
       li.setAttribute('data-orn', o.orn);
+      var locHtml = o.localidad
+        ? ' <span class="loc">· ' + escapeHtml(o.localidad) + '</span>'
+        : '';
       li.innerHTML =
-        '<span class="reparto-drag-handle" role="button" tabindex="0" aria-label="Arrastrar parada ' +
+        '<div class="timeline-marker">' +
         (idx + 1) +
-        '" title="Arrastrar para reordenar"><i class="fas fa-grip-vertical" aria-hidden="true"></i></span>' +
-        '<span class="num">' +
+        '</div>' +
+        '<article class="timeline-card">' +
+        '<div class="timeline-card-line1">' +
+        '<span class="addr">' +
+        escapeHtml(o.direccion || '') +
+        locHtml +
+        '</span>' +
+        payBadge(o) +
+        '</div>' +
+        '<div class="timeline-card-line2">' +
+        '<span class="items">' +
+        escapeHtml(orderItemsSummary(o)) +
+        '</span>' +
+        '<span class="total">' +
+        fmt(o.total) +
+        '</span>' +
+        '<span class="orn-tag">' +
+        escapeHtml(String(o.orn || '')) +
+        '</span>' +
+        '<button type="button" class="reparto-drag-handle" role="button" tabindex="0" aria-label="Reordenar parada ' +
         (idx + 1) +
-        '</span><span class="reparto-stop-body">' +
-        escapeHtml(o.direccion) +
-        '<br><span class="reparto-stop-pay">' +
-        escapeHtml(payLine(o)) +
-        '</span></span>';
+        '" title="Arrastrar para reordenar"><i class="fas fa-grip-vertical" aria-hidden="true"></i></button>' +
+        '</div></article>';
       ul.appendChild(li);
     });
 
     var list = stops();
-    var ef = list.filter(function (o) {
-      return /efectivo/i.test(o.pago);
-    });
-    var sum = ef.reduce(function (s, o) {
+    var ef = list.filter(isEfectivo);
+    var sumEf = ef.reduce(function (s, o) {
       return s + (Number(o.total) || 0);
     }, 0);
+    var sumMp = list
+      .filter(function (o) {
+        return !isEfectivo(o);
+      })
+      .reduce(function (s, o) {
+        return s + (Number(o.total) || 0);
+      }, 0);
     $('reparto-n-stops').textContent = String(list.length);
-    $('reparto-ef-total').textContent = fmt(sum);
+    $('reparto-ef-total').textContent = fmt(sumEf);
+    var mpEl = $('reparto-mp-total');
+    if (mpEl) mpEl.textContent = fmt(sumMp);
     $('reparto-hoja').value = buildHoja(list);
     var has = list.length > 0;
     $('reparto-btn-gmaps').disabled = !has;
@@ -670,6 +737,24 @@
         document.execCommand('copy');
       });
     };
+    var hojaCollapse = $('reparto-hoja-collapse');
+    if (hojaCollapse && !hojaCollapse._bound) {
+      hojaCollapse._bound = true;
+      var head = hojaCollapse.querySelector('.hoja-collapse-head');
+      if (head) {
+        function toggleHojaCollapse() {
+          var open = hojaCollapse.classList.toggle('is-open');
+          head.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+        head.addEventListener('click', toggleHojaCollapse);
+        head.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleHojaCollapse();
+          }
+        });
+      }
+    }
   }
 
   function init() {

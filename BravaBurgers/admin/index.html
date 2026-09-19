@@ -1461,7 +1461,7 @@
 			text-align: center;
 		}
 	</style>
-	<link href="/admin/admin-layout.css?v=25" rel="stylesheet">
+	<link href="/admin/admin-layout.css?v=26" rel="stylesheet">
 </head>
 <body>
 	<div id="login-view" class="login card">
@@ -1497,11 +1497,8 @@
 				<button type="button" class="nav-btn" data-view="tienda-menu" title="Catálogo — productos y extras">
 					<i class="fas fa-burger" aria-hidden="true"></i>
 				</button>
-				<button type="button" class="nav-btn" data-view="tienda-horarios" title="Horarios de apertura">
+				<button type="button" class="nav-btn" data-view="tienda-horarios" title="Horarios y turnos">
 					<i class="fas fa-clock" aria-hidden="true"></i>
-				</button>
-				<button type="button" class="nav-btn" data-view="tienda-turnos" title="Turnos de delivery">
-					<i class="fas fa-truck" aria-hidden="true"></i>
 				</button>
 				<button type="button" class="nav-btn" data-view="tienda-promos" title="Promociones">
 					<i class="fas fa-tags" aria-hidden="true"></i>
@@ -1569,181 +1566,67 @@
 						<p class="err" id="app-err" hidden></p>
 					</section>
 
-					<section class="admin-view" id="view-reparto" hidden>
-						<div class="reparto-box">
+					<section class="admin-view reparto-layout-c" id="view-reparto" hidden>
+						<div class="reparto-shell">
 							<div class="reparto-head">
-								<h2>Ruta del turno</h2>
-								<p class="view-hint">Tildá <strong>Ruta</strong> en <strong>En preparación</strong>, arrastrá las paradas para ordenar y marcá en camino acá.</p>
+								<div class="reparto-head-top">
+									<h2>Ruta del turno</h2>
+									<p class="reparto-stats">
+										<span><strong id="reparto-n-stops">0</strong> paradas</span>
+										<span>EF <strong id="reparto-ef-total">$0</strong></span>
+										<span>MP <strong id="reparto-mp-total">$0</strong></span>
+									</p>
+								</div>
 								<div class="reparto-fields-row">
 									<div class="reparto-field">
-										<label for="reparto-origin">Salida cocina</label>
+										<label for="reparto-origin">Salida</label>
 										<input type="text" id="reparto-origin" autocomplete="off" placeholder="Diaz Velez 3231, Olivos" value="Diaz Velez 3231, Olivos">
 									</div>
 									<div class="reparto-field">
-										<label for="reparto-deli-wa">WhatsApp repartidor</label>
+										<label for="reparto-deli-wa">WA repartidor</label>
 										<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…">
 									</div>
 								</div>
-								<p class="reparto-stats">Paradas: <strong id="reparto-n-stops">0</strong> · Efectivo: <strong id="reparto-ef-total">$0</strong></p>
 							</div>
-							<p class="reparto-empty hidden" id="reparto-no-candidates">No hay pedidos en preparación o en camino con dirección.</p>
-							<ol class="reparto-route-list" id="reparto-route-list" aria-label="Orden de paradas"></ol>
-							<div class="reparto-map-wrap">
-								<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» y tildá Ruta en En preparación.</div>
-								<div id="reparto-map" class="hidden" hidden></div>
+							<p class="reparto-empty hidden" id="reparto-no-candidates">No hay pedidos en preparación o en camino con dirección. Tildá <strong>Ruta</strong> en En preparación.</p>
+							<div class="reparto-body">
+								<div class="timeline-col">
+									<ol class="timeline reparto-route-list" id="reparto-route-list" aria-label="Recorrido"></ol>
+								</div>
+								<div class="map-col">
+									<div class="map-col-head">Mapa</div>
+									<div class="reparto-map-wrap">
+										<div id="reparto-map-shell" class="reparto-map-shell">Abrí «Reparto» y tildá Ruta en En preparación.</div>
+										<div id="reparto-map" class="hidden" hidden></div>
+									</div>
+									<div class="hoja-collapse" id="reparto-hoja-collapse">
+										<div class="hoja-collapse-head" tabindex="0" role="button" aria-expanded="false" aria-controls="reparto-hoja-body">
+											<span><i class="fas fa-file-lines" aria-hidden="true"></i> Hoja repartidor</span>
+											<i class="fas fa-chevron-down" aria-hidden="true"></i>
+										</div>
+										<div class="hoja-collapse-body" id="reparto-hoja-body">
+											<textarea class="reparto-hoja" id="reparto-hoja" readonly placeholder="Hoja para el repartidor…"></textarea>
+										</div>
+									</div>
+								</div>
 							</div>
 							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
-							<textarea class="reparto-hoja" id="reparto-hoja" readonly placeholder="Hoja para el repartidor…"></textarea>
 							<div class="reparto-actions">
-								<button type="button" class="btn-sm btn-accent" id="reparto-btn-dispatch" disabled>Marcar en camino</button>
-								<button type="button" class="btn-sm btn-accent" id="reparto-btn-wa" disabled>Enviar ruta (WhatsApp Brava)</button>
-								<button type="button" class="btn-sm" id="reparto-btn-gmaps" disabled>Google Maps</button>
-								<button type="button" class="btn-sm" id="reparto-btn-copy" disabled>Copiar hoja</button>
+								<button type="button" class="btn-sm btn-accent" id="reparto-btn-dispatch" disabled><i class="fas fa-motorcycle" aria-hidden="true"></i> Marcar en camino</button>
+								<button type="button" class="btn-sm btn-accent" id="reparto-btn-wa" disabled><i class="fab fa-whatsapp" aria-hidden="true"></i> Enviar ruta WA</button>
+								<button type="button" class="btn-sm" id="reparto-btn-gmaps" disabled><i class="fas fa-map-location-dot" aria-hidden="true"></i> Google Maps</button>
+								<button type="button" class="btn-sm" id="reparto-btn-copy" disabled><i class="fas fa-copy" aria-hidden="true"></i> Copiar hoja</button>
 							</div>
 						</div>
 					</section>
 
 					<section class="admin-view" id="view-caja" hidden>
-						<div class="view-page view-page--caja">
-						<nav class="caja-tabs" role="tablist" aria-label="Secciones de caja">
-							<button type="button" class="caja-tab is-active" data-caja-tab="resumen" role="tab" aria-selected="true">Resumen</button>
-							<button type="button" class="caja-tab" data-caja-tab="ventas" role="tab" aria-selected="false">Salidas</button>
-							<button type="button" class="caja-tab" data-caja-tab="stock" role="tab" aria-selected="false">Stock</button>
-							<button type="button" class="caja-tab" data-caja-tab="movimientos" role="tab" aria-selected="false">Movimientos</button>
-						</nav>
-						<div class="caja-tab-panel is-active" data-caja-panel="resumen" role="tabpanel">
-							<div class="caja-panel-grid caja-panel-grid--1 caja-panel-grid--turno">
-						<aside class="sidebar-block sidebar-turno-panel">
-							<div class="caja-panel-head">
-								<h2>Turno en curso</h2>
-								<button type="button" class="btn-sm btn-icon btn-refresh-caja" id="btn-refresh-caja" title="Actualizar caja y turno" aria-label="Actualizar caja y turno">
-									<i class="fas fa-rotate" aria-hidden="true"></i>
-								</button>
-							</div>
-							<p class="range-label" id="caja-range">—</p>
-							<div class="aside-stat-grid">
-								<div class="aside-stat-cell">
-									<div class="lbl">Efectivo</div>
-									<div class="val" id="caja-ventas-ef">$0</div>
-								</div>
-								<div class="aside-stat-cell">
-									<div class="lbl">Mercado Pago</div>
-									<div class="val" id="caja-ventas-mp">$0</div>
-								</div>
-							</div>
-							<div class="aside-section">Ventas entregadas</div>
-							<div class="aside-row"><span>Total</span><strong id="caja-ventas">$0</strong></div>
-							<div class="aside-row aside-row--neg"><span>Egresos</span><strong id="caja-gastos">−$0</strong></div>
-							<div class="aside-row aside-row--pos"><span>Resultado</span><strong id="caja-resultado">$0</strong></div>
-							<div class="aside-section">Contadores</div>
-							<div class="aside-row"><span>Simples</span><strong id="ventas-hamb-simples">0</strong></div>
-							<div class="aside-row"><span>Dobles</span><strong id="ventas-hamb-dobles">0</strong></div>
-							<div class="aside-row"><span>Total hamb.</span><strong id="ventas-hamb-total">0</strong></div>
-							<p class="range-label caja-estado" id="caja-estado">—</p>
-							<p class="range-label" id="caja-cierre-detalle" hidden></p>
-							<p class="caja-hint">Cierre = guarda el turno y vuelve contadores a 0. El detalle completo se imprime al cerrar.</p>
-							<button type="button" class="btn-sm btn-accent aside-cierre-btn hidden" id="btn-cierre-caja">Cierre de caja</button>
-						</aside>
-							</div>
-						</div>
-						<div class="caja-tab-panel" data-caja-panel="ventas" role="tabpanel">
-							<div class="caja-panel-grid caja-panel-grid--1">
-						<aside class="sidebar-block ventas-box">
-							<div class="caja-row section">Salidas</div>
-							<h2>Registro de ventas</h2>
-							<div class="caja-row section">Hamburguesas · simples</div>
-							<div id="ventas-hamb-prod-simples-list"></div>
-							<div class="caja-row section">Hamburguesas · dobles</div>
-							<div id="ventas-hamb-prod-dobles-list"></div>
-							<div class="caja-row section">Acompañamientos</div>
-							<div id="ventas-acomp-list"></div>
-							<div class="caja-row section">Extras</div>
-							<div id="ventas-extras-list"></div>
-							<div class="caja-row section">Bebidas</div>
-							<div id="ventas-bebidas-list"></div>
-							<p class="caja-hint" id="ventas-turno-hint">Solo cuenta con caja abierta; al cerrar turno vuelve a 0.</p>
-							<p class="caja-hint">Ventas = pedidos entregados + ingresos − egresos (por Efectivo / Mercado Pago). Solo con caja abierta; al cerrar, todo en 0.</p>
-						</aside>
-							</div>
-						</div>
-						<div class="caja-tab-panel" data-caja-panel="movimientos" role="tabpanel">
-							<div class="caja-panel-grid caja-panel-grid--1">
-						<aside class="sidebar-block movimientos-box">
-							<h2>Ingresos y egresos</h2>
-							<div class="mov-actions">
-								<button type="button" class="btn-sm btn-accent" id="btn-add-ingreso">+ Ingreso</button>
-								<button type="button" class="btn-sm btn-outline" id="btn-add-gasto">+ Egreso</button>
-							</div>
-							<div class="caja-row section">Detalle del turno</div>
-							<ul class="mov-list" id="mov-list"></ul>
-							<p class="mov-empty hidden" id="mov-empty">Sin movimientos en este turno.</p>
-						</aside>
-							</div>
-						</div>
-						<div class="caja-tab-panel" data-caja-panel="stock" role="tabpanel">
-							<div class="caja-panel-grid caja-panel-grid--1">
-						<aside class="sidebar-block sidebar-stock-panel">
-							<div class="burger-capacity-box is-off" id="burger-capacity-box" aria-live="polite">
-								<h3>¿Cuántas burgers?</h3>
-								<p class="cap-sub" id="burger-cap-sub">Abrí caja y cargá stock.</p>
-								<div class="burger-cap-row">
-									<span>Hasta · simples</span>
-									<span class="num" id="burger-cap-simples">—</span>
-								</div>
-								<div class="burger-cap-row">
-									<span>Hasta · dobles</span>
-									<span class="num" id="burger-cap-dobles">—</span>
-								</div>
-								<p class="burger-cap-foot" id="burger-cap-foot">2 lonchas/med · extra cheddar +1 al entregar.</p>
-							</div>
-							<div class="stock-cocina-block hidden" id="stock-cocina-block" aria-live="polite">
-								<div class="stock-cocina-head">
-									<h3>Inventario</h3>
-									<button type="button" class="btn-sm" id="btn-stock-recontar">Recontar</button>
-								</div>
-								<p class="stock-cocina-hint">Panes, medallones y lonchas. Bajan al pasar a preparación.</p>
-								<div class="stock-live-row ok" data-stock-key="panes" data-stock-low="8" data-stock-critical="4">
-									<span class="name">Panes</span>
-									<span class="qty" id="stock-live-panes">0</span>
-									<span class="stock-mini-btns">
-										<button type="button" data-stock-delta="-1" aria-label="Menos pan">−</button>
-										<button type="button" data-stock-delta="1" aria-label="Más pan">+</button>
-									</span>
-								</div>
-								<div class="stock-live-row ok" data-stock-key="medallones" data-stock-low="10" data-stock-critical="5">
-									<span class="name">Medallones</span>
-									<span class="qty" id="stock-live-med">0</span>
-									<span class="stock-mini-btns">
-										<button type="button" data-stock-delta="-1">−</button>
-										<button type="button" data-stock-delta="1">+</button>
-									</span>
-								</div>
-								<div class="stock-live-row ok" data-stock-key="queso" data-stock-low="20" data-stock-critical="10">
-									<span class="name">Queso cheddar</span>
-									<span class="qty" id="stock-live-queso">0</span>
-									<span class="stock-mini-btns">
-										<button type="button" data-stock-delta="-1">−</button>
-										<button type="button" data-stock-delta="1">+</button>
-									</span>
-								</div>
-							</div>
-						</aside>
-							</div>
-						</div>
-						</div>
-					</section>
-
-					<section class="admin-view" id="view-historial" hidden>
-						<aside class="sidebar-block">
-							<h2>Cierre operativo</h2>
-							<p class="caja-hint">Buscá cierres anteriores por fecha o ID y reimprimí el resumen del turno.</p>
-							<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-cierre-historial">Buscar cierres…</button>
-						</aside>
-						<aside class="sidebar-block">
-							<h2>Comandas guardadas</h2>
-							<p class="caja-hint">Buscá por teléfono, ORN o nombre en todo el histórico de pedidos.</p>
-							<button type="button" class="btn-sm btn-accent" style="width:100%;margin-top:8px;" id="btn-open-proformas">Buscar comandas…</button>
-						</aside>
+						<iframe
+							id="caja-config-frame"
+							class="caja-config-frame"
+							title="Caja y turno"
+							src="/admin/demo-caja-turno.html?embed=1&section=centro&v=2"
+							loading="lazy"></iframe>
 					</section>
 
 					<section class="admin-view" id="view-tienda" hidden>
@@ -1751,7 +1634,7 @@
 							id="tienda-config-frame"
 							class="tienda-config-frame"
 							title="Configuración de tienda"
-							src="/admin/demo-tienda-config.html?embed=1&section=menu&v=12"
+							src="/admin/demo-tienda-config.html?embed=1&section=menu&v=18"
 							loading="lazy"></iframe>
 					</section>
 				</div>
@@ -2368,10 +2251,10 @@
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=20"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=12"></script>
+	<script src="/admin/reparto.js?v=13"></script>
 	<script src="/admin/wa-panel.js?v=28"></script>
 	<script src="/admin/compensaciones.js?v=4"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
-	<script src="/admin/admin.js?v=136"></script>
+	<script src="/admin/admin.js?v=137"></script>
 </body>
 </html>

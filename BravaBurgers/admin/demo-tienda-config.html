@@ -207,10 +207,20 @@
 		.promo-preview-box .new { font-weight: 800; color: var(--brava); }
 		.tag-rule { background: var(--bg-surface-muted); color: var(--text-muted); border: 1px solid var(--border); margin-right: 4px; }
 		.modal-box--wide { max-width: 900px; }
-		.modal-box--split { display: grid; grid-template-columns: 1fr 300px; gap: 0; max-width: 920px; }
-		@media (max-width: 800px) { .modal-box--split { grid-template-columns: 1fr; } .shop-preview-col { border-left: none !important; border-top: 1px solid var(--border); } }
-		.modal-split-main { padding: 0; overflow: auto; max-height: 90vh; }
-		.modal-split-main .modal-head, .modal-split-main .modal-body, .modal-split-main .modal-foot { padding-left: 16px; padding-right: 16px; }
+		.modal-box--menu {
+			width: min(440px, calc(100vw - 24px)); max-height: min(88vh, 520px);
+			display: flex; flex-direction: column; overflow: hidden;
+		}
+		.modal-box--menu .modal-head {
+			padding: 12px 14px 10px; flex-shrink: 0;
+		}
+		.modal-box--menu .modal-head h2 { margin: 0; font-size: 0.95rem; font-weight: 700; }
+		.modal-box--menu .modal-body {
+			padding: 0 14px 12px; overflow-y: auto; flex: 1; min-height: 0;
+		}
+		.modal-box--menu .modal-foot {
+			padding: 10px 14px; flex-shrink: 0; border-top: 1px solid var(--border-strong);
+		}
 		.shop-preview-col {
 			background: #141414; border-left: 1px solid var(--border); padding: 14px;
 			overflow: auto; max-height: 90vh;
@@ -221,7 +231,7 @@
 		}
 		.shop-mock { font-family: 'DM Sans', system-ui, sans-serif; font-size: 0.78rem; color: #eee; }
 		.shop-mock-row {
-			display: flex; align-items: center; justify-content: space-between; gap: 10px;
+			display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap;
 			padding: 12px 10px; border-bottom: 1px solid #333; background: #1a1a1a; border-radius: 8px;
 		}
 		.shop-mock-row.is-hidden { opacity: 0.35; }
@@ -292,6 +302,219 @@
 		.shop-mock-price .old-price { font-size: 0.68rem; color: #888; text-decoration: line-through; font-weight: 500; display: block; text-align: right; }
 		.shop-mock-price .promo-price { color: #81c784; }
 		.shop-promo-note { font-size: 0.62rem; color: #888; margin-top: 4px; text-align: right; }
+
+		/* Modal producto — compacto */
+		.m-form { display: flex; flex-direction: column; gap: 8px; }
+		.m-field { display: block; margin: 0; font-size: 0.68rem; font-weight: 600; color: var(--text-subtle); }
+		.m-field .config-input,
+		.m-field .config-select,
+		.m-field .config-textarea {
+			display: block; width: 100%; box-sizing: border-box; margin-top: 3px;
+			padding: 7px 9px; font-size: 0.8rem;
+		}
+		.m-field .config-textarea { min-height: 0; resize: vertical; }
+		.m-row { display: grid; gap: 8px; }
+		.m-row--2 { grid-template-columns: 1fr 1fr; }
+		.m-row--3 { grid-template-columns: 1fr 1fr 88px; }
+		.m-flags {
+			display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+			padding: 8px 10px; border-radius: 8px; background: var(--bg-surface-muted);
+			border: 1px solid var(--border-strong); font-size: 0.74rem;
+		}
+		.m-flag {
+			display: inline-flex; align-items: center; gap: 8px; color: var(--text-muted); cursor: default;
+		}
+		.m-flag strong { font-weight: 600; color: var(--text-strong); }
+		.m-flag .instant-hint { font-size: 0.62rem; }
+		.m-more {
+			margin-top: 2px; border-radius: 8px; border: 1px solid var(--border-strong); overflow: hidden;
+		}
+		.m-more > summary {
+			padding: 7px 10px; font-size: 0.72rem; font-weight: 600; color: var(--text-subtle);
+			cursor: pointer; list-style: none; background: var(--bg-surface-muted);
+		}
+		.m-more > summary::-webkit-details-marker { display: none; }
+		.m-more-body { padding: 8px 10px 10px; border-top: 1px solid var(--border-strong); }
+		.m-more-body .promo-rule-row { font-size: 0.72rem; padding: 4px 0; }
+		.m-more-body .field-hint { margin: 0 0 6px; font-size: 0.65rem; }
+
+		.m-img-row {
+			display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+			border: 1px dashed var(--border); border-radius: 10px; background: var(--bg-surface-muted);
+		}
+		.m-img-thumb {
+			width: 52px; height: 52px; border-radius: 8px; flex-shrink: 0;
+			background: var(--bg-surface) center/cover no-repeat; border: 1px solid var(--border);
+			display: grid; place-items: center; color: var(--text-subtle); font-size: 1.1rem; overflow: hidden;
+		}
+		.m-img-thumb.has-img { border-color: rgba(255,107,53,0.35); }
+		.m-img-actions { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+		.m-img-actions .field-hint { width: 100%; margin: 0; font-size: 0.62rem; }
+		.m-img-input { position: absolute; width: 0; height: 0; opacity: 0; pointer-events: none; }
+
+		.shop-mock-thumb {
+			width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0;
+			background: #252525 center/cover no-repeat; border: 1px solid #333;
+		}
+		.shop-mock-thumb--empty {
+			display: grid; place-items: center; color: #666; font-size: 1rem;
+		}
+		.shop-mock-row-body { flex: 1; min-width: 0; }
+
+		/* Catálogo — layout B (árbol + lista + preview) */
+		.menu-layout-b {
+			background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px;
+			box-shadow: var(--shadow-card); overflow: hidden;
+		}
+		.menu-layout-b .menu-toolbar {
+			margin-bottom: 0; padding: 10px 12px; border-bottom: 1px solid var(--border-strong);
+		}
+		.menu-layout-b .menu-search { min-width: 160px; flex: 1; max-width: 280px; margin: 0; }
+		.menu-layout-body {
+			display: grid; grid-template-columns: 210px 1fr minmax(200px, 240px);
+			min-height: 460px; max-height: min(72vh, 640px);
+		}
+		@media (max-width: 960px) {
+			.menu-layout-body { grid-template-columns: 1fr; max-height: none; }
+			.menu-preview-col { order: -1; max-height: 220px; }
+		}
+		.menu-tree-col {
+			border-right: 1px solid var(--border-strong); padding: 8px; overflow-y: auto;
+			background: var(--bg-surface-muted);
+		}
+		.menu-tree-item {
+			display: flex; align-items: center; gap: 6px; width: 100%;
+			padding: 7px 8px; border: none; border-radius: 8px; background: transparent;
+			color: var(--text); font: inherit; font-size: 0.74rem; font-weight: 600; text-align: left; cursor: pointer;
+		}
+		.menu-tree-item:hover { background: var(--bg-surface); }
+		.menu-tree-item.is-active { background: rgba(255,107,53,0.15); color: var(--brava); }
+		.menu-tree-item.is-dim { opacity: 0.55; }
+		.menu-tree-item .count {
+			margin-left: auto; font-size: 0.62rem; font-weight: 700; color: var(--text-subtle);
+			background: var(--bg-surface); padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border);
+		}
+		.menu-tree-sub { padding-left: 12px; }
+		.menu-tree-divider {
+			font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+			color: var(--text-subtle); padding: 10px 8px 4px;
+		}
+		.menu-main-col { display: flex; flex-direction: column; min-height: 0; }
+		.menu-main-head {
+			padding: 10px 12px; border-bottom: 1px solid var(--border-strong);
+			font-size: 0.82rem; font-weight: 700; color: var(--text-strong);
+		}
+		.menu-main-head small { font-weight: 500; color: var(--text-subtle); margin-left: 6px; }
+		.menu-prod-list { flex: 1; overflow-y: auto; }
+		.menu-prod-row {
+			display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center;
+			padding: 8px 12px; border-bottom: 1px solid var(--border-strong); font-size: 0.76rem; cursor: pointer;
+		}
+		.menu-prod-row:last-child { border-bottom: none; }
+		.menu-prod-row.is-selected { background: rgba(255,107,53,0.08); }
+		.menu-prod-row.is-dim { opacity: 0.5; }
+		.menu-prod-row .name { font-weight: 600; color: var(--text-strong); }
+		.menu-prod-row .meta { font-size: 0.66rem; color: var(--text-subtle); margin-top: 1px; }
+		.menu-prod-row .price { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+		.menu-prod-row .actions { display: flex; gap: 4px; }
+		.menu-preview-col {
+			border-left: 1px solid var(--border-strong); background: #141414; padding: 12px;
+			overflow-y: auto; min-height: 0;
+		}
+		.menu-preview-col h3 {
+			margin: 0 0 10px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+			letter-spacing: 0.06em; color: #888;
+		}
+		.menu-preview-col .shop-preview-note { margin-top: 10px; font-size: 0.62rem; color: #666; line-height: 1.4; }
+		.menu-empty {
+			padding: 16px 12px; font-size: 0.78rem; color: var(--text-subtle); text-align: center;
+		}
+
+		/* Horarios y turnos — layout B (semana visual + timeline) */
+		.sched-section-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+		.sched-section-tab {
+			padding: 8px 14px; border-radius: 999px; border: 1px solid var(--border);
+			background: var(--bg-surface); color: var(--text-muted); font: inherit; font-size: 0.78rem; font-weight: 700; cursor: pointer;
+		}
+		.sched-section-tab.is-active {
+			background: rgba(255,107,53,0.12); border-color: rgba(255,107,53,0.55); color: var(--brava);
+		}
+		.sched-section-panel { display: none; }
+		.sched-section-panel.is-active { display: block; }
+		.sched-shell {
+			background: var(--bg-surface); border: 1px solid var(--border); border-radius: 12px;
+			box-shadow: var(--shadow-card); overflow: hidden;
+		}
+		.sched-layout-b .sched-body { display: grid; grid-template-columns: 1fr 220px; min-height: 420px; }
+		@media (max-width: 900px) { .sched-layout-b .sched-body { grid-template-columns: 1fr; } }
+		.sched-layout-b .sched-main { padding: 12px; }
+		.sched-layout-b .sched-toolbar {
+			display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+			padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border-strong); font-size: 0.74rem;
+		}
+		.sched-layout-b .week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 12px; }
+		.sched-layout-b .week-day {
+			text-align: center; padding: 8px 4px; border-radius: 10px; border: 1px solid var(--border);
+			background: var(--bg-surface-muted); cursor: pointer; font: inherit; font-size: 0.68rem;
+			transition: border-color 0.15s, background 0.15s;
+		}
+		.sched-layout-b .week-day .dow { font-weight: 800; font-size: 0.72rem; color: var(--text-strong); }
+		.sched-layout-b .week-day .hrs { font-size: 0.6rem; color: var(--text-subtle); margin-top: 3px; line-height: 1.2; }
+		.sched-layout-b .week-day.is-on { border-color: rgba(255,107,53,0.45); background: rgba(255,107,53,0.08); }
+		.sched-layout-b .week-day.is-off { opacity: 0.45; }
+		.sched-layout-b .week-day.is-selected { box-shadow: 0 0 0 2px rgba(255,107,53,0.35); }
+		.sched-layout-b .timeline-wrap {
+			padding: 10px; border-radius: 10px; background: var(--bg-surface-muted); border: 1px solid var(--border); margin-bottom: 12px;
+		}
+		.sched-layout-b .timeline-lbl { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; color: var(--text-subtle); margin-bottom: 8px; }
+		.sched-layout-b .timeline-bar {
+			position: relative; height: 28px; border-radius: 6px; background: var(--bg-surface);
+			border: 1px solid var(--border); overflow: hidden;
+		}
+		.sched-layout-b .timeline-seg {
+			position: absolute; top: 3px; bottom: 3px; border-radius: 4px;
+			background: linear-gradient(90deg, rgba(255,107,53,0.55), rgba(255,107,53,0.85)); min-width: 2px;
+		}
+		.sched-layout-b .timeline-axis {
+			display: flex; justify-content: space-between; font-size: 0.58rem; color: var(--text-subtle); margin-top: 4px;
+		}
+		.sched-layout-b .day-editor {
+			display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end;
+			padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--bg-surface-muted);
+		}
+		.sched-layout-b .day-editor label { font-size: 0.65rem; font-weight: 600; color: var(--text-subtle); display: block; margin-bottom: 3px; }
+		.sched-layout-b .day-editor input[type="time"] {
+			width: 100%; box-sizing: border-box; padding: 6px 8px; border: 1px solid var(--border-input);
+			border-radius: 8px; background: var(--input-bg); color: var(--text); font: inherit; font-size: 0.78rem;
+		}
+		.sched-layout-b .day-open-row { display: flex; align-items: center; gap: 8px; padding-bottom: 6px; font-size: 0.74rem; }
+		.sched-layout-b .sched-msg-row { margin-top: 12px; }
+		.sched-layout-b .sched-msg-row label { font-size: 0.65rem; font-weight: 600; color: var(--text-subtle); display: block; margin-bottom: 4px; }
+		.sched-layout-b .turno-timeline { margin-top: 4px; }
+		.sched-layout-b .turno-timeline .timeline-bar { height: 36px; }
+		.sched-layout-b .turno-seg {
+			position: absolute; top: 4px; bottom: 4px; border-radius: 5px; font-size: 0.55rem; font-weight: 700;
+			color: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden;
+			padding: 0 4px; white-space: nowrap; text-overflow: ellipsis;
+		}
+		.sched-layout-b .turno-list-compact { display: flex; flex-direction: column; gap: 6px; }
+		.sched-layout-b .turno-row {
+			display: grid; grid-template-columns: 1fr 72px 72px 72px 32px; gap: 6px; align-items: center;
+			padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-surface-muted); font-size: 0.72rem;
+		}
+		.sched-layout-b .turno-row input {
+			width: 100%; padding: 4px 6px; border: 1px solid var(--border-input); border-radius: 6px;
+			font: inherit; font-size: 0.72rem; background: var(--input-bg); color: var(--text);
+		}
+		.sched-preview {
+			background: #141414; border-left: 1px solid var(--border); padding: 12px; min-width: 0; overflow-y: auto;
+		}
+		.sched-preview h3 {
+			margin: 0 0 10px; font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+			letter-spacing: 0.06em; color: #888;
+		}
+		.sched-preview .preview-card { border: none; box-shadow: none; }
+		.sched-preview .preview-note { margin-top: 10px; font-size: 0.62rem; color: #666; line-height: 1.4; }
 	</style>
 </head>
 <body>
@@ -300,8 +523,7 @@
 			<nav class="app-nav" aria-label="Secciones admin">
 				<div class="app-nav-logo" title="Brava Burgers">BRAVA</div>
 				<button type="button" class="nav-btn" disabled style="opacity:0.35;cursor:not-allowed" title="Pedidos (producción)"><i class="fas fa-clipboard-list"></i></button>
-				<button type="button" class="nav-btn nav-demo-mark" data-view="horarios" title="Horarios"><i class="fas fa-clock"></i></button>
-				<button type="button" class="nav-btn nav-demo-mark" data-view="turnos" title="Turnos"><i class="fas fa-truck"></i></button>
+				<button type="button" class="nav-btn nav-demo-mark" data-view="horarios" title="Horarios y turnos"><i class="fas fa-clock"></i></button>
 				<button type="button" class="nav-btn is-active nav-demo-mark" data-view="menu" title="Catálogo"><i class="fas fa-burger"></i></button>
 				<button type="button" class="nav-btn nav-demo-mark" data-view="promos" title="Promociones"><i class="fas fa-tags"></i></button>
 				<span class="nav-spacer"></span>
@@ -346,117 +568,43 @@
 					<p class="published-meta" id="published-meta">Última publicación: <strong id="published-at">hace un momento (demo)</strong></p>
 
 					<section class="admin-view" id="view-horarios" hidden>
-						<div class="config-grid">
-							<div>
-								<div class="config-panel">
-									<h2>Control de horario</h2>
-									<p class="panel-hint">Activá días de apertura. Si un día está apagado, la tienda muestra «cerrado».</p>
-									<div class="config-row">
-										<div class="config-row-label">Control horario activo</div>
-										<label class="toggle"><input type="checkbox" id="ctrl-horario" checked><span></span></label>
-									</div>
-									<textarea class="config-textarea" id="msg-cerrado" rows="2">¡Estamos cerrados! 🔥 Horario: ver días activos abajo.</textarea>
-								</div>
-								<div class="config-panel">
-									<h2>Días de apertura</h2>
-									<div id="days-grid"></div>
-								</div>
+						<p class="panel-hint" style="margin:0 0 12px">Semana visual de apertura y timeline de turnos delivery. Los cambios quedan en borrador hasta <strong>Publicar</strong>.</p>
+						<nav class="sched-section-tabs" role="tablist" aria-label="Horarios o turnos">
+							<button type="button" class="sched-section-tab is-active" data-sched-section="horarios" role="tab" aria-selected="true">Horarios de apertura</button>
+							<button type="button" class="sched-section-tab" data-sched-section="turnos" role="tab" aria-selected="false">Turnos delivery</button>
+						</nav>
+						<div class="sched-section-panel is-active" data-sched-panel="horarios">
+							<div class="sched-shell sched-layout-b">
+								<div class="sched-body" id="sched-horarios-root"></div>
 							</div>
-							<aside class="config-preview">
-								<div class="preview-card">
-									<div class="preview-card-head">
-										<div class="preview-logo">BRAVA BURGERS</div>
-										<div class="preview-status open" id="preview-status">🟢 Abierto</div>
-									</div>
-									<div class="preview-card-body">
-										<div id="preview-days"></div>
-										<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Turnos en checkout:</p>
-										<div id="preview-turnos"></div>
-										<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Menú (categorías admin):</p>
-										<div id="preview-cats"></div>
-									</div>
-								</div>
-								<p class="preview-note">Horarios y turnos: acá (publicados). Logo, colores y fondo: Sheet <em>configuracion</em>.</p>
-							</aside>
 						</div>
-					</section>
-
-					<section class="admin-view" id="view-turnos" hidden>
-						<div class="config-grid">
-							<div>
-								<div class="config-panel">
-									<h2>Turnos de delivery</h2>
-									<p class="panel-hint">Creá los turnos que necesites. Nombre libre (ej. «Noche 1», «Turno tarde»).</p>
-									<div class="config-row">
-										<div class="config-row-label">Control turnos delivery</div>
-										<label class="toggle"><input type="checkbox" id="ctrl-turnos" checked><span></span></label>
-									</div>
-									<div class="config-row">
-										<span class="field-lbl">Pedidos web desde</span>
-										<input type="time" class="config-input config-input--sm" id="pedidos-desde" value="19:00">
-									</div>
-									<div class="config-row">
-										<span class="field-lbl">Máx. pedidos por hora</span>
-										<input type="number" class="config-input config-input--sm" id="max-hora" value="4" min="1">
-									</div>
-									<div id="turnos-list"></div>
-									<div class="turnos-toolbar">
-										<button type="button" class="btn-sm btn-accent" id="btn-add-turno"><i class="fas fa-plus"></i> Agregar turno</button>
-									</div>
-								</div>
+						<div class="sched-section-panel" data-sched-panel="turnos">
+							<div class="sched-shell sched-layout-b">
+								<div class="sched-body" id="sched-turnos-root"></div>
 							</div>
-							<aside class="config-preview">
-								<div class="preview-card">
-									<div class="preview-card-head">
-										<div class="preview-logo">BRAVA BURGERS</div>
-										<div class="preview-status open" id="preview-status-turnos">🟢 Abierto</div>
-									</div>
-									<div class="preview-card-body">
-										<p style="margin:0 0 8px;font-size:0.72rem;color:#888">Turnos en checkout:</p>
-										<div id="preview-turnos-only"></div>
-									</div>
-								</div>
-								<p class="preview-note">Los turnos se eligen al finalizar el pedido en la tienda.</p>
-							</aside>
 						</div>
 					</section>
 
 					<section class="admin-view" id="view-menu">
-						<div class="menu-toolbar">
-							<button type="button" class="btn-sm tab-menu active" data-menu-tab="categorias">Categorías</button>
-							<button type="button" class="btn-sm tab-menu" data-menu-tab="productos">Productos</button>
-							<button type="button" class="btn-sm tab-menu" data-menu-tab="extras">Extras</button>
-							<input type="search" class="config-input menu-search" id="menu-search" placeholder="Buscar…" hidden>
-							<span class="spacer"></span>
-							<button type="button" class="btn-sm btn-accent" id="btn-add-menu"><i class="fas fa-plus"></i> <span id="btn-add-label">Agregar categoría</span></button>
-						</div>
-
-						<div id="panel-categorias">
-							<p class="panel-hint" style="margin:0 0 14px">Definí categorías y subcategorías acá. Al agregar un producto solo elegís de esta lista.</p>
-							<div class="cat-list" id="cat-list"></div>
-						</div>
-
-						<div id="panel-productos" hidden>
-							<p class="panel-hint" style="margin:0 0 14px">Un producto = <strong>precio base</strong> + ingredientes para «quitar». Los extras (bacon, cheddar…) los elige el cliente en la tienda desde el catálogo de la pestaña <strong>Extras</strong>.</p>
-							<div class="data-table-wrap">
-								<table class="data-table">
-									<thead><tr>
-										<th>Producto</th><th>Categoría</th><th class="num">Precio</th><th>Atajo</th><th>Estado</th><th></th>
-									</tr></thead>
-									<tbody id="tbody-productos"></tbody>
-								</table>
+						<p class="panel-hint" style="margin:0 0 12px">Elegí categoría a la izquierda, editá productos al centro y mirá la vista tienda a la derecha. <strong>Agotado</strong> aplica al instante; el resto requiere publicar.</p>
+						<div class="menu-layout-b">
+							<div class="menu-toolbar">
+								<input type="search" class="config-input menu-search" id="menu-search" placeholder="Buscar producto, extra o atajo…">
+								<span class="spacer"></span>
+								<button type="button" class="btn-sm" id="btn-manage-cats"><i class="fas fa-layer-group"></i> Categorías</button>
+								<button type="button" class="btn-sm btn-accent" id="btn-add-menu"><i class="fas fa-plus"></i> <span id="btn-add-label">Agregar producto</span></button>
 							</div>
-						</div>
-
-						<div id="panel-extras" hidden>
-							<p class="panel-hint" style="margin:0 0 14px">Catálogo global de extras. Precio acá; el cliente los suma al pedir (modal de personalización en la web).</p>
-							<div class="data-table-wrap">
-								<table class="data-table">
-									<thead><tr>
-										<th>Extra</th><th>Grupo</th><th class="num">Precio</th><th>Atajo</th><th>Estado</th><th></th>
-									</tr></thead>
-									<tbody id="tbody-extras"></tbody>
-								</table>
+							<div class="menu-layout-body">
+								<div class="menu-tree-col" id="menu-tree" aria-label="Categorías"></div>
+								<div class="menu-main-col">
+									<div class="menu-main-head" id="menu-list-head">—</div>
+									<div class="menu-prod-list" id="menu-list"></div>
+								</div>
+								<div class="menu-preview-col" id="menu-preview-col">
+									<h3>Vista tienda</h3>
+									<div class="shop-mock" id="menu-shop-mock"></div>
+									<p class="shop-preview-note">Preview en vivo — también se actualiza mientras editás en el modal.</p>
+								</div>
 							</div>
 						</div>
 					</section>
@@ -469,6 +617,24 @@
 						<div class="promo-grid" id="promo-grid"></div>
 					</section>
 				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Modal gestión categorías -->
+	<div class="modal-overlay" id="modal-cat-manage" hidden>
+		<div class="modal-box modal-box--wide">
+			<div class="modal-head">
+				<h2>Categorías y subcategorías</h2>
+				<button type="button" class="btn-sm btn-icon btn-ghost modal-close" data-close="modal-cat-manage"><i class="fas fa-times"></i></button>
+			</div>
+			<div class="modal-body">
+				<p class="panel-hint" style="margin:0 0 14px">Definí categorías y subcategorías acá. Al agregar un producto solo elegís de esta lista.</p>
+				<div class="cat-list" id="cat-list"></div>
+			</div>
+			<div class="modal-foot">
+				<button type="button" class="btn-sm btn-accent" id="btn-add-cat-from-manage"><i class="fas fa-plus"></i> Agregar categoría</button>
+				<button type="button" class="btn-sm modal-close" data-close="modal-cat-manage">Listo</button>
 			</div>
 		</div>
 	</div>
@@ -490,78 +656,86 @@
 		</div>
 	</div>
 
-	<!-- Modal producto / extra -->
+	<!-- Modal producto / extra (compacto — preview en panel catálogo) -->
 	<div class="modal-overlay" id="modal-menu" hidden>
-		<div class="modal-box modal-box--wide modal-box--split" id="modal-menu-box">
-			<div class="modal-split-main">
+		<div class="modal-box modal-box--menu" id="modal-menu-box">
 			<div class="modal-head">
 				<h2 id="modal-menu-title">Agregar producto</h2>
 				<button type="button" class="btn-sm btn-icon btn-ghost modal-close" data-close="modal-menu"><i class="fas fa-times"></i></button>
 			</div>
 			<div class="modal-body">
-				<label>Nombre<input type="text" class="config-input" id="m-nombre" placeholder="Ej. Cheeseburger Simple"></label>
-				<label id="m-cat-wrap">Categoría
-					<select class="config-select" id="m-categoria"></select>
-					<span class="field-hint">Solo categorías creadas en la pestaña Categorías</span>
-				</label>
-				<label id="m-sub-wrap">Subcategoría
-					<select class="config-select" id="m-sub"></select>
-					<span class="field-hint" id="m-sub-hint">Sin subcategorías en esta categoría</span>
-				</label>
-				<div id="m-producto-only">
-					<div class="product-info-box" id="m-extras-info">
-						<strong>Extras:</strong> se gestionan en la pestaña <strong>Extras</strong> (catálogo global).
-						El cliente elige cheddar, bacon, etc. al armar el pedido en la tienda — no se cargan acá como variantes.
-					</div>
-					<label>Precio base ($)<input type="number" class="config-input" id="m-precio" step="500" min="0"></label>
-					<label>Ingredientes (para «quitar» en la tienda)
-						<textarea class="config-textarea" id="m-ingredientes" rows="2" placeholder="Medallón, Cheddar, Cebolla, Salsa mil islas, Pepinillos"></textarea>
-						<span class="field-hint">Lista lo que lleva la burger. En checkout el cliente tilda qué sacar (como hoy en el Sheet).</span>
+				<div class="m-form">
+					<label class="m-field">Nombre
+						<input type="text" class="config-input" id="m-nombre" placeholder="Cheeseburger Simple" autocomplete="off">
 					</label>
-					<div class="estado-toggles" id="m-estado-wrap">
-						<p style="margin:0 0 6px;font-size:0.72rem;font-weight:700;text-transform:uppercase;color:var(--text-muted)">Visibilidad en tienda</p>
-						<div class="promo-rule-row">
-							<span><strong>Agotado</strong> — se ve pero no se puede pedir<span class="instant-hint"> · aplica al instante (sin publicar)</span></span>
-							<label class="toggle"><input type="checkbox" id="m-agotado"><span></span></label>
+
+					<div id="m-producto-only">
+						<div class="m-img-row" id="m-imagen-wrap">
+							<div class="m-img-thumb" id="m-imagen-thumb" aria-hidden="true"><i class="fas fa-image"></i></div>
+							<div class="m-img-actions">
+								<input type="file" class="m-img-input" id="m-imagen-file" accept="image/jpeg,image/png,image/webp,image/gif">
+								<button type="button" class="btn-sm" id="m-imagen-pick"><i class="fas fa-upload"></i> Subir foto</button>
+								<button type="button" class="btn-sm btn-ghost" id="m-imagen-clear" hidden>Quitar</button>
+								<span class="field-hint">JPG/PNG/WebP · preview en tienda · se guarda al publicar</span>
+							</div>
 						</div>
-						<div class="promo-rule-row">
-							<span><strong>Oculto</strong> — no aparece en el menú<span class="field-hint" style="margin:0"> · requiere publicar</span></span>
-							<label class="toggle"><input type="checkbox" id="m-oculto"><span></span></label>
+						<div class="m-row m-row--2">
+							<label class="m-field" id="m-cat-wrap">Categoría
+								<select class="config-select" id="m-categoria"></select>
+							</label>
+							<label class="m-field" id="m-sub-wrap">Subcategoría
+								<select class="config-select" id="m-sub"></select>
+							</label>
+						</div>
+						<label class="m-field">Precio ($)
+							<input type="number" class="config-input" id="m-precio" step="500" min="0">
+						</label>
+						<label class="m-field">Descripción
+							<input type="text" class="config-input" id="m-desc" placeholder="Medallón 120g, cheddar…">
+						</label>
+						<label class="m-field">Ingredientes (quitar)
+							<input type="text" class="config-input" id="m-ingredientes" placeholder="Medallón, Cheddar, Cebolla…">
+						</label>
+						<div class="m-flags" id="m-estado-wrap">
+							<div class="m-flag"><label class="toggle"><input type="checkbox" id="m-agotado"><span></span></label><strong>Agotado</strong> <span class="instant-hint">instantáneo</span></div>
+							<div class="m-flag"><label class="toggle"><input type="checkbox" id="m-oculto"><span></span></label><strong>Oculto</strong></div>
+						</div>
+						<details class="m-more" id="m-promo-except-wrap">
+							<summary>Más opciones</summary>
+							<div class="m-more-body">
+								<p class="field-hint">Excepciones de descuento · extras en catálogo global</p>
+								<div class="promo-rule-row">
+									<span>Sin promo menú</span>
+									<label class="toggle"><input type="checkbox" id="m-sin-promo-menu"><span></span></label>
+								</div>
+								<div class="promo-rule-row">
+									<span>Sin promo categoría</span>
+									<label class="toggle"><input type="checkbox" id="m-sin-promo-cat"><span></span></label>
+								</div>
+							</div>
+						</details>
+					</div>
+
+					<div id="m-extra-only" hidden>
+						<div class="m-row m-row--2">
+							<label class="m-field">Grupo
+								<select class="config-select" id="m-grupo"></select>
+							</label>
+							<label class="m-field">Precio ($)
+								<input type="number" class="config-input" id="m-precio-extra" step="100" min="0">
+							</label>
 						</div>
 					</div>
-					<div class="estado-toggles" id="m-promo-except-wrap">
-						<p style="margin:0 0 6px;font-size:0.72rem;font-weight:700;text-transform:uppercase;color:var(--text-muted)">Excepciones de descuento</p>
-						<p class="field-hint" style="margin:0 0 8px">Si hay promo del 10% en todo el menú o en hamburguesas, este producto queda <strong>fuera</strong>.</p>
-						<div class="promo-rule-row">
-							<span><strong>Sin promo de menú</strong> — no lleva % sobre todo el menú</span>
-							<label class="toggle"><input type="checkbox" id="m-sin-promo-menu"><span></span></label>
-						</div>
-						<div class="promo-rule-row">
-							<span><strong>Sin promo de categoría</strong> — no lleva % de su categoría (ej. 10% hamburguesas)</span>
-							<label class="toggle"><input type="checkbox" id="m-sin-promo-cat"><span></span></label>
-						</div>
-					</div>
-				</div>
-				<div id="m-extra-only" hidden>
-					<label>Grupo
-						<select class="config-select" id="m-grupo"></select>
-						<span class="field-hint">Agrupa extras del catálogo (ej. todos los de hamburguesas).</span>
+
+					<label class="m-field" id="m-atajo-wrap">Atajo
+						<input type="text" class="config-input" id="m-atajo" maxlength="4" placeholder="100">
 					</label>
-					<label>Precio ($)<input type="number" class="config-input" id="m-precio-extra" step="100" min="0"></label>
 				</div>
-				<label>Atajo pedido manual<input type="text" class="config-input" id="m-atajo" maxlength="4"></label>
-				<label>Descripción<textarea class="config-textarea" id="m-desc" rows="2" placeholder="Medallón 120g, cheddar, salsa mil islas…"></textarea></label>
 			</div>
 			<div class="modal-foot">
 				<button type="button" class="btn-sm modal-close" data-close="modal-menu">Cancelar</button>
 				<button type="button" class="btn-sm btn-accent" id="modal-menu-save">Guardar</button>
 			</div>
-			</div>
-			<aside class="shop-preview-col" id="shop-preview-col" hidden>
-				<h3>Vista previa tienda</h3>
-				<div class="shop-mock" id="shop-mock"></div>
-				<p class="shop-preview-note">Simula fila del menú + modal al tocar +. Extras del catálogo global.</p>
-			</aside>
 		</div>
 	</div>
 
@@ -639,6 +813,17 @@
 			{ id: 2, nombre: 'Noche 2', from: '21:00', to: '22:00', cierre: '21:30' },
 			{ id: 3, nombre: 'Noche 3', from: '22:00', to: '23:00', cierre: '22:40' },
 		];
+		var DAY_SHORT = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+		var selectedDayId = 6;
+		var schedSection = 'horarios';
+		var turnoColors = ['#ff6b35', '#e65100', '#bf360c'];
+		var schedSettings = {
+			controlHorario: true,
+			controlTurnos: true,
+			msgCerrado: '¡Estamos cerrados! 🔥 Horario: ver días activos abajo.',
+			pedidosDesde: '19:00',
+			maxPorHora: 4,
+		};
 		var categorias = [
 			{ id: 1, nombre: 'Hamburguesas', visible: true, subs: [{ id: 11, nombre: 'Simples' }, { id: 12, nombre: 'Dobles' }] },
 			{ id: 2, nombre: 'Acompañamientos', visible: true, subs: [] },
@@ -662,9 +847,14 @@
 			{ id: 3, nombre: '10% Hamburguesas', modo: 'auto', codigo: '', tipo: 'pct_cat', alcance: 'cat:1', alcanceLabel: 'Categoría: Hamburguesas', valor: 10, hasta: '2026-12-31', activa: true, unTelefono: false, noCombinar: true, exceptuados: [2] },
 		];
 
-		var menuTab = 'categorias';
+		var menuListKind = 'productos';
+		var selectedCatId = null;
+		var selectedSubId = null;
+		var selectedProdId = null;
 		var editMenuId = null;
 		var editMenuKind = 'productos';
+		var menuModalImagen = '';
+		var MENU_IMG_MAX_BYTES = 1200000;
 		var catModalMode = 'cat';
 		var catModalParentId = null;
 		var editCatId = null;
@@ -774,13 +964,16 @@
 				productos: productos,
 				extras: extras,
 				promos: promos,
-				settings: {
-					controlHorario: $('#ctrl-horario').checked,
-					controlTurnos: $('#ctrl-turnos').checked,
-					msgCerrado: $('#msg-cerrado').value.trim(),
-					pedidosDesde: $('#pedidos-desde').value || '19:30',
-					maxPorHora: +$('#max-hora').value || 12,
-				},
+				settings: (function () {
+					var s = readSchedSettings();
+					return {
+						controlHorario: s.controlHorario,
+						controlTurnos: s.controlTurnos,
+						msgCerrado: String(s.msgCerrado || '').trim(),
+						pedidosDesde: s.pedidosDesde || '19:30',
+						maxPorHora: s.maxPorHora || 12,
+					};
+				})(),
 			};
 		}
 
@@ -809,11 +1002,21 @@
 			if (draft.extras) extras = draft.extras;
 			if (draft.promos) promos = draft.promos;
 			if (draft.settings) {
-				$('#ctrl-horario').checked = draft.settings.controlHorario !== false;
-				$('#ctrl-turnos').checked = draft.settings.controlTurnos !== false;
-				if (draft.settings.msgCerrado) $('#msg-cerrado').value = draft.settings.msgCerrado;
-				if (draft.settings.pedidosDesde) $('#pedidos-desde').value = draft.settings.pedidosDesde;
-				if (draft.settings.maxPorHora) $('#max-hora').value = draft.settings.maxPorHora;
+				schedSettings.controlHorario = draft.settings.controlHorario !== false;
+				schedSettings.controlTurnos = draft.settings.controlTurnos !== false;
+				if (draft.settings.msgCerrado) schedSettings.msgCerrado = draft.settings.msgCerrado;
+				if (draft.settings.pedidosDesde) schedSettings.pedidosDesde = draft.settings.pedidosDesde;
+				if (draft.settings.maxPorHora) schedSettings.maxPorHora = draft.settings.maxPorHora;
+				var ctrlH = $('#ctrl-horario');
+				var ctrlT = $('#ctrl-turnos');
+				var msg = $('#msg-cerrado');
+				var ped = $('#pedidos-desde');
+				var max = $('#max-hora');
+				if (ctrlH) ctrlH.checked = schedSettings.controlHorario;
+				if (ctrlT) ctrlT.checked = schedSettings.controlTurnos;
+				if (msg) msg.value = schedSettings.msgCerrado;
+				if (ped) ped.value = schedSettings.pedidosDesde;
+				if (max) max.value = schedSettings.maxPorHora;
 			}
 			recalcNextIds();
 		}
@@ -1254,6 +1457,7 @@
 				precio: +$('#m-precio').value || 0,
 				desc: $('#m-desc').value.trim(),
 				ingredientes: $('#m-ingredientes').value.trim(),
+				imagen: menuModalImagen || '',
 				agotado: $('#m-agotado').checked,
 				oculto: $('#m-oculto').checked,
 				catId: +$('#m-categoria').value || null,
@@ -1262,10 +1466,42 @@
 			};
 		}
 
-		function updateShopPreview() {
-			var col = $('#shop-preview-col');
-			if (col.hidden) return;
-			var p = getProductoFormData();
+		function escCssUrl(url) {
+			return String(url || '').replace(/\\/g, '\\\\').replace(/'/g, '%27');
+		}
+
+		function shopMockThumbHtml(imgUrl) {
+			if (imgUrl) {
+				return '<div class="shop-mock-thumb" style="background-image:url(\'' + escCssUrl(imgUrl) + '\')" aria-hidden="true"></div>';
+			}
+			return '<div class="shop-mock-thumb shop-mock-thumb--empty" aria-hidden="true"><i class="fas fa-burger"></i></div>';
+		}
+
+		function renderModalImagenThumb() {
+			var thumb = $('#m-imagen-thumb');
+			var clearBtn = $('#m-imagen-clear');
+			if (!thumb) return;
+			if (menuModalImagen) {
+				thumb.style.backgroundImage = 'url(\'' + escCssUrl(menuModalImagen) + '\')';
+				thumb.classList.add('has-img');
+				thumb.innerHTML = '';
+				if (clearBtn) clearBtn.hidden = false;
+			} else {
+				thumb.style.backgroundImage = '';
+				thumb.classList.remove('has-img');
+				thumb.innerHTML = '<i class="fas fa-image"></i>';
+				if (clearBtn) clearBtn.hidden = true;
+			}
+		}
+
+		function setMenuModalImagen(url) {
+			menuModalImagen = String(url || '').trim();
+			renderModalImagenThumb();
+			updateShopPreview();
+		}
+
+		function buildShopMockHtml(p) {
+			if (!p) return '<p style="color:#666;font-size:0.72rem;margin:0">Seleccioná un producto</p>';
 			var ings = parseIngredientes(p.ingredientes);
 			var exList = extrasVisibles();
 			var rowClass = 'shop-mock-row';
@@ -1282,7 +1518,8 @@
 				: (excluidoPromo ? fmt(p.precio) + '<div class="shop-promo-note">Sin promo (excluido)</div>' : fmt(p.precio));
 
 			var rowHtml = '<div class="' + rowClass + '">' +
-				'<div><div class="shop-mock-name">' + esc(p.nombre) + '</div>' +
+				shopMockThumbHtml(p.imagen) +
+				'<div class="shop-mock-row-body"><div class="shop-mock-name">' + esc(p.nombre) + '</div>' +
 				(p.desc ? '<div class="shop-mock-desc">' + esc(p.desc) + '</div>' : '') +
 				(p.oculto ? '<div class="shop-mock-desc">No visible en menú publicado</div>' : '') +
 				'</div>' +
@@ -1309,65 +1546,418 @@
 					'<div class="shop-pers-section"><div class="shop-pers-lbl">Quitar ingredientes</div>' + quitarHtml + '</div>' +
 					'</div>';
 
-			$('#shop-mock').innerHTML = rowHtml + persHtml;
+			return rowHtml + persHtml;
 		}
 
-		function renderDays() {
-			$('#days-grid').innerHTML = days.map(function (d) {
-				return '<div class="day-row" data-day="' + d.id + '">' +
-					'<span class="day-name">' + d.name + '</span>' +
-					'<label class="toggle"><input type="checkbox" class="day-on"' + (d.on ? ' checked' : '') + '><span></span></label>' +
-					'<input type="time" class="config-input day-from" value="' + d.from + '"' + (d.on ? '' : ' disabled') + '>' +
-					'<input type="time" class="config-input day-to" value="' + d.to + '"' + (d.on ? '' : ' disabled') + '>' +
-					'<span class="day-status' + (d.on ? ' is-open' : '') + '">' + (d.on ? 'Abierto' : 'Cerrado') + '</span></div>';
+		function updateShopPreview() {
+			if ($('#modal-menu').hidden || editMenuKind !== 'productos') return;
+			var mock = $('#menu-shop-mock');
+			if (mock) mock.innerHTML = buildShopMockHtml(getProductoFormData());
+		}
+
+		function updateMenuListPreview() {
+			var col = $('#menu-preview-col');
+			if (!col || menuListKind === 'extras') return;
+			var p = productos.find(function (x) { return x.id === selectedProdId; });
+			$('#menu-shop-mock').innerHTML = buildShopMockHtml(p);
+		}
+
+		function menuSearchQuery() {
+			return ($('#menu-search').value || '').toLowerCase().trim();
+		}
+
+		function productMatchesSearch(p, q) {
+			if (!q) return true;
+			return p.nombre.toLowerCase().indexOf(q) >= 0 || String(p.atajo || '').indexOf(q) >= 0;
+		}
+
+		function countProductsInCat(catId, subId) {
+			var q = menuSearchQuery();
+			return productos.filter(function (p) {
+				if (p.catId !== catId) return false;
+				if (subId != null && p.subId !== subId) return false;
+				return productMatchesSearch(p, q);
+			}).length;
+		}
+
+		function ensureMenuSelection() {
+			if (menuListKind === 'extras') return;
+			if (!categorias.length) {
+				selectedCatId = null;
+				selectedSubId = null;
+				selectedProdId = null;
+				return;
+			}
+			if (!selectedCatId || !catById(selectedCatId)) {
+				selectedCatId = categorias[0].id;
+				selectedSubId = null;
+			}
+			var list = productosFiltrados();
+			if (!list.length) {
+				selectedProdId = null;
+				return;
+			}
+			if (!selectedProdId || !list.some(function (p) { return p.id === selectedProdId; })) {
+				selectedProdId = list[0].id;
+			}
+		}
+
+		function productosFiltrados() {
+			var q = menuSearchQuery();
+			return productos.filter(function (p) {
+				if (menuListKind !== 'productos') return false;
+				if (selectedCatId == null || p.catId !== selectedCatId) return false;
+				if (selectedSubId != null && p.subId !== selectedSubId) return false;
+				return productMatchesSearch(p, q);
+			});
+		}
+
+		function extrasFiltrados() {
+			var q = menuSearchQuery();
+			return extras.filter(function (e) {
+				return !q || e.nombre.toLowerCase().indexOf(q) >= 0 || String(e.atajo || '').indexOf(q) >= 0;
+			});
+		}
+
+		function renderMenuTree() {
+			var tree = $('#menu-tree');
+			if (!tree) return;
+			var html = categorias.map(function (c) {
+				var catActive = menuListKind === 'productos' && selectedCatId === c.id && selectedSubId == null;
+				var count = countProductsInCat(c.id, null);
+				var block = '<button type="button" class="menu-tree-item' + (catActive ? ' is-active' : '') + (!c.visible ? ' is-dim' : '') + '" data-cat="' + c.id + '" data-sub="">' +
+					'<i class="fas fa-folder" style="opacity:0.5;font-size:0.68rem"></i> ' + esc(c.nombre) +
+					'<span class="count">' + count + '</span></button>';
+				if (c.subs.length) {
+					block += '<div class="menu-tree-sub">' + c.subs.map(function (s) {
+						var subActive = menuListKind === 'productos' && selectedCatId === c.id && selectedSubId === s.id;
+						var subCount = countProductsInCat(c.id, s.id);
+						return '<button type="button" class="menu-tree-item' + (subActive ? ' is-active' : '') + '" data-cat="' + c.id + '" data-sub="' + s.id + '">' +
+							esc(s.nombre) + '<span class="count">' + subCount + '</span></button>';
+					}).join('') + '</div>';
+				}
+				return block;
 			}).join('');
-			$('#days-grid').querySelectorAll('.day-row').forEach(function (row) {
-				var d = days[+row.getAttribute('data-day')];
-				row.querySelector('.day-on').addEventListener('change', function (e) {
-					d.on = e.target.checked;
-					row.querySelector('.day-from').disabled = !d.on;
-					row.querySelector('.day-to').disabled = !d.on;
-					row.querySelector('.day-status').textContent = d.on ? 'Abierto' : 'Cerrado';
-					row.querySelector('.day-status').classList.toggle('is-open', d.on);
-					markDirty(); updatePreview();
+			var exCount = extrasFiltrados().length;
+			html += '<div class="menu-tree-divider">Extras</div>' +
+				'<button type="button" class="menu-tree-item' + (menuListKind === 'extras' ? ' is-active' : '') + '" data-extras="1">' +
+				'<i class="fas fa-plus-circle" style="opacity:0.5;font-size:0.68rem"></i> Catálogo extras' +
+				'<span class="count">' + exCount + '</span></button>';
+			tree.innerHTML = html;
+
+			tree.querySelectorAll('.menu-tree-item[data-cat]').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					menuListKind = 'productos';
+					selectedCatId = +btn.getAttribute('data-cat');
+					var sub = btn.getAttribute('data-sub');
+					selectedSubId = sub ? +sub : null;
+					ensureMenuSelection();
+					updateMenuAddLabel();
+					renderMenuLayout();
 				});
-				row.querySelector('.day-from').addEventListener('change', function (e) { d.from = e.target.value; markDirty(); updatePreview(); });
-				row.querySelector('.day-to').addEventListener('change', function (e) { d.to = e.target.value; markDirty(); updatePreview(); });
+			});
+			var exBtn = tree.querySelector('[data-extras]');
+			if (exBtn) {
+				exBtn.addEventListener('click', function () {
+					menuListKind = 'extras';
+					selectedProdId = null;
+					updateMenuAddLabel();
+					renderMenuLayout();
+				});
+			}
+		}
+
+		function wireProductRowActions(scope) {
+			scope.querySelectorAll('.btn-toggle-agotado').forEach(function (btn) {
+				btn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					var p = productos.find(function (x) { return x.id === +btn.closest('.menu-prod-row').getAttribute('data-id'); });
+					var next = !p.agotado;
+					function applyLocal() {
+						p.agotado = next;
+						if (p.agotado) p.oculto = false;
+						renderMenuLayout();
+						toast(p.nombre + (p.agotado ? ' → Agotado (instantáneo)' : ' → Vendible'));
+					}
+					if (backendOnline) {
+						apiAdmin({ action: 'setProductAgotado', productId: p.id, agotado: next }).then(function (r) {
+							if (!r.ok) { toast('Error agotado: ' + (r.error || '')); return; }
+							applyLocal();
+						});
+					} else {
+						applyLocal();
+					}
+				});
+			});
+			scope.querySelectorAll('.btn-toggle-oculto').forEach(function (btn) {
+				btn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					var p = productos.find(function (x) { return x.id === +btn.closest('.menu-prod-row').getAttribute('data-id'); });
+					p.oculto = !p.oculto;
+					if (p.oculto) p.agotado = false;
+					markDirty();
+					renderMenuLayout();
+					toast(p.nombre + (p.oculto ? ' → Oculto (publicar)' : ' → Visible'));
+				});
+			});
+			scope.querySelectorAll('.btn-edit-prod').forEach(function (btn) {
+				btn.addEventListener('click', function (e) {
+					e.stopPropagation();
+					openMenuModal('productos', productos.find(function (x) { return x.id === +btn.closest('.menu-prod-row').getAttribute('data-id'); }));
+				});
+			});
+			scope.querySelectorAll('.menu-prod-row[data-id]').forEach(function (row) {
+				row.addEventListener('click', function (e) {
+					if (e.target.closest('button')) return;
+					selectedProdId = +row.getAttribute('data-id');
+					renderMenuLayout();
+				});
+			});
+		}
+
+		function renderMenuList() {
+			var head = $('#menu-list-head');
+			var list = $('#menu-list');
+			var preview = $('#menu-preview-col');
+			if (!list) return;
+
+			if (menuListKind === 'extras') {
+				if (preview) preview.hidden = true;
+				if (head) head.innerHTML = 'Extras <small>' + extrasFiltrados().length + ' ítems</small>';
+				var exHtml = extrasFiltrados().map(function (e) {
+					var c = catById(e.catId);
+					return '<div class="menu-prod-row" data-id="' + e.id + '">' +
+						'<div><div class="name">' + esc(e.nombre) + '</div>' +
+						'<div class="meta">' + esc(c ? c.nombre : '—') + ' · ' + esc(e.atajo || '—') + '</div></div>' +
+						'<div class="price">' + fmt(e.precio) + '</div>' +
+						'<div>' + (e.oculto ? '<span class="tag tag-agotado">Oculto</span>' : '<span class="tag tag-ok">Visible</span>') + '</div>' +
+						'<div class="actions"><button type="button" class="btn-sm btn-icon btn-edit-extra" title="Editar"><i class="fas fa-pen"></i></button></div></div>';
+				}).join('');
+				list.innerHTML = exHtml || '<p class="menu-empty">Sin extras' + (menuSearchQuery() ? ' que coincidan' : '') + '</p>';
+				list.querySelectorAll('.btn-edit-extra').forEach(function (btn) {
+					btn.addEventListener('click', function (e) {
+						e.stopPropagation();
+						openMenuModal('extras', extras.find(function (x) { return x.id === +btn.closest('.menu-prod-row').getAttribute('data-id'); }));
+					});
+				});
+				return;
+			}
+
+			if (preview) preview.hidden = false;
+			ensureMenuSelection();
+			var cat = catById(selectedCatId);
+			var sub = selectedSubId != null ? subById(cat, selectedSubId) : null;
+			var title = cat ? esc(cat.nombre) : '—';
+			if (sub) title += ' · ' + esc(sub.nombre);
+			var prods = productosFiltrados();
+			if (head) head.innerHTML = title + ' <small>' + prods.length + ' producto' + (prods.length === 1 ? '' : 's') + '</small>';
+
+			list.innerHTML = prods.map(function (p) {
+				var subP = subById(cat, p.subId);
+				return '<div class="menu-prod-row' + (p.id === selectedProdId ? ' is-selected' : '') + (p.oculto ? ' is-dim' : '') + '" data-id="' + p.id + '">' +
+					'<div><div class="name">' + esc(p.nombre) + '</div>' +
+					'<div class="meta">' + (subP && !sub ? esc(subP.nombre) + ' · ' : '') + esc(p.atajo || '—') + '</div></div>' +
+					'<div class="price">' + fmt(p.precio) + '</div>' +
+					'<div>' + estadoProductoTags(p) + '</div>' +
+					'<div class="actions">' +
+					'<button type="button" class="btn-sm btn-icon btn-toggle-agotado" title="Agotado (instantáneo)"><i class="fas fa-' + (p.agotado ? 'check' : 'ban') + '"></i></button>' +
+					'<button type="button" class="btn-sm btn-icon btn-toggle-oculto" title="Ocultar en tienda"><i class="fas fa-eye' + (p.oculto ? '-slash' : '') + '"></i></button>' +
+					'<button type="button" class="btn-sm btn-icon btn-edit-prod" title="Editar"><i class="fas fa-pen"></i></button></div></div>';
+			}).join('') || '<p class="menu-empty">Sin productos' + (menuSearchQuery() ? ' que coincidan' : ' en esta categoría') + '</p>';
+
+			wireProductRowActions(list);
+		}
+
+		function updateMenuAddLabel() {
+			var lbl = $('#btn-add-label');
+			if (lbl) lbl.textContent = menuListKind === 'extras' ? 'Agregar extra' : 'Agregar producto';
+		}
+
+		function renderMenuLayout() {
+			renderMenuTree();
+			renderMenuList();
+			updateMenuListPreview();
+			notifyEmbedHeight();
+		}
+
+		function renderProductos() { renderMenuLayout(); }
+		function renderExtras() { renderMenuLayout(); }
+
+		function timeToMin(t) {
+			var p = String(t || '0:0').split(':');
+			return (+p[0] || 0) * 60 + (+p[1] || 0);
+		}
+		function openDaysList() { return days.filter(function (d) { return d.on; }); }
+		function findDayById(id) {
+			for (var i = 0; i < days.length; i++) { if (days[i].id === id) return days[i]; }
+			return days[0];
+		}
+		function readSchedSettings() {
+			var ctrlH = $('#ctrl-horario');
+			var ctrlT = $('#ctrl-turnos');
+			var msg = $('#msg-cerrado');
+			var ped = $('#pedidos-desde');
+			var max = $('#max-hora');
+			return {
+				controlHorario: ctrlH ? ctrlH.checked : schedSettings.controlHorario,
+				controlTurnos: ctrlT ? ctrlT.checked : schedSettings.controlTurnos,
+				msgCerrado: msg ? msg.value : schedSettings.msgCerrado,
+				pedidosDesde: ped ? ped.value : schedSettings.pedidosDesde,
+				maxPorHora: max ? (+max.value || schedSettings.maxPorHora) : schedSettings.maxPorHora,
+			};
+		}
+		function schedPreviewAside(kind) {
+			if (kind === 'turnos') {
+				return '<aside class="sched-preview"><h3>Vista tienda</h3>' +
+					'<div class="preview-card"><div class="preview-card-head">' +
+					'<div class="preview-logo">BRAVA BURGERS</div>' +
+					'<div class="preview-status open" id="preview-status-turnos">🟢 Abierto</div></div>' +
+					'<div class="preview-card-body">' +
+					'<p style="margin:0 0 8px;font-size:0.72rem;color:#888">Turnos en checkout:</p>' +
+					'<div id="preview-turnos-only"></div></div></div>' +
+					'<p class="preview-note">Los turnos se eligen al finalizar el pedido en la tienda.</p></aside>';
+			}
+			return '<aside class="sched-preview"><h3>Vista tienda</h3>' +
+				'<div class="preview-card"><div class="preview-card-head">' +
+				'<div class="preview-logo">BRAVA BURGERS</div>' +
+				'<div class="preview-status open" id="preview-status">🟢 Abierto</div></div>' +
+				'<div class="preview-card-body"><div id="preview-days"></div>' +
+				'<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Turnos en checkout:</p><div id="preview-turnos"></div>' +
+				'<p style="margin:12px 0 0;font-size:0.72rem;color:#888">Menú (categorías admin):</p><div id="preview-cats"></div></div></div>' +
+				'<p class="preview-note">Horarios y turnos: acá (publicados). Logo, colores y fondo: Sheet <em>configuracion</em>.</p></aside>';
+		}
+		function renderSchedHorarios() {
+			var root = $('#sched-horarios-root');
+			if (!root) return;
+			var settings = readSchedSettings();
+			var sel = findDayById(selectedDayId);
+			var strip = days.map(function (d) {
+				return '<button type="button" class="week-day' + (d.on ? ' is-on' : ' is-off') + (d.id === selectedDayId ? ' is-selected' : '') + '" data-day="' + d.id + '">' +
+					'<div class="dow">' + DAY_SHORT[d.id] + '</div>' +
+					'<div class="hrs">' + (d.on ? d.from.slice(0, 5) + '–' + d.to.slice(0, 5) : 'cerrado') + '</div></button>';
+			}).join('');
+			var seg = '';
+			if (sel.on) {
+				var start = ((timeToMin(sel.from) - 18 * 60) / (6 * 60)) * 100;
+				var w = ((timeToMin(sel.to) - timeToMin(sel.from)) / (6 * 60)) * 100;
+				seg = '<div class="timeline-seg" style="left:' + Math.max(0, start) + '%;width:' + Math.max(2, w) + '%"></div>';
+			}
+			root.innerHTML = '<div class="sched-main">' +
+				'<div class="sched-toolbar"><span>Control horario activo</span>' +
+				'<label class="toggle"><input type="checkbox" id="ctrl-horario"' + (settings.controlHorario ? ' checked' : '') + '><span></span></label>' +
+				'<span style="margin-left:auto;font-size:0.68rem;color:var(--text-subtle)">' + openDaysList().length + ' día(s) activo(s)</span></div>' +
+				'<div class="week-strip">' + strip + '</div>' +
+				'<div class="timeline-wrap"><div class="timeline-lbl">' + esc(sel.name) + ' · franja 18:00–24:00</div>' +
+				'<div class="timeline-bar">' + seg + '</div><div class="timeline-axis"><span>18</span><span>20</span><span>22</span><span>24</span></div></div>' +
+				'<div class="day-editor"><div><label>Desde</label><input type="time" class="hb-from" value="' + sel.from + '"' + (sel.on ? '' : ' disabled') + '></div>' +
+				'<div><label>Hasta</label><input type="time" class="hb-to" value="' + sel.to + '"' + (sel.on ? '' : ' disabled') + '></div>' +
+				'<div class="day-open-row"><span>Abierto</span><label class="toggle"><input type="checkbox" class="hb-on"' + (sel.on ? ' checked' : '') + '><span></span></label></div></div>' +
+				'<div class="sched-msg-row"><label for="msg-cerrado">Mensaje cuando está cerrado</label>' +
+				'<textarea class="config-textarea" id="msg-cerrado" rows="2">' + esc(settings.msgCerrado) + '</textarea></div></div>' +
+				schedPreviewAside('horarios');
+			root.querySelector('#ctrl-horario').addEventListener('change', function () { markDirty(); updatePreview(); });
+			root.querySelector('#msg-cerrado').addEventListener('input', function () { markDirty(); });
+			root.querySelectorAll('.week-day').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					selectedDayId = +btn.getAttribute('data-day');
+					renderSchedHorarios();
+				});
+			});
+			var d = sel;
+			root.querySelector('.hb-on').addEventListener('change', function (e) {
+				d.on = e.target.checked; markDirty(); renderSchedHorarios();
+			});
+			root.querySelector('.hb-from').addEventListener('change', function (e) {
+				d.from = e.target.value; markDirty(); renderSchedHorarios();
+			});
+			root.querySelector('.hb-to').addEventListener('change', function (e) {
+				d.to = e.target.value; markDirty(); renderSchedHorarios();
 			});
 			updatePreview();
 		}
-
-		function renderTurnos() {
-			$('#turnos-list').innerHTML = turnos.map(function (t) {
-				return '<div class="turno-block" data-id="' + t.id + '">' +
-					'<div class="turno-block-head">' +
-					'<input type="text" class="turno-name-input" value="' + esc(t.nombre) + '" placeholder="Nombre del turno">' +
-					'<button type="button" class="btn-sm btn-danger btn-del-turno" title="Eliminar"' + (turnos.length <= 1 ? ' disabled' : '') + '><i class="fas fa-trash"></i></button></div>' +
-					'<div class="turno-fields">' +
-					'<div><span class="field-lbl">Entrega desde</span><input type="time" class="config-input t-from" value="' + t.from + '"></div>' +
-					'<div><span class="field-lbl">Entrega hasta</span><input type="time" class="config-input t-to" value="' + t.to + '"></div>' +
-					'<div><span class="field-lbl">Cierre pedidos</span><input type="time" class="config-input t-cierre" value="' + t.cierre + '"></div></div></div>';
+		function renderSchedTurnos() {
+			var root = $('#sched-turnos-root');
+			if (!root) return;
+			var settings = readSchedSettings();
+			var base = 18 * 60;
+			var span = 6 * 60;
+			var segs = turnos.map(function (t, i) {
+				var left = ((timeToMin(t.from) - base) / span) * 100;
+				var w = ((timeToMin(t.to) - timeToMin(t.from)) / span) * 100;
+				return '<div class="turno-seg" style="left:' + left + '%;width:' + w + '%;background:' + turnoColors[i % turnoColors.length] + '" title="' + esc(t.nombre) + '">' + esc(t.nombre) + '</div>';
 			}).join('');
-
-			$('#turnos-list').querySelectorAll('.turno-block').forEach(function (block) {
-				var t = turnos.find(function (x) { return x.id === +block.getAttribute('data-id'); });
-				block.querySelector('.turno-name-input').addEventListener('input', function (e) { t.nombre = e.target.value; markDirty(); updatePreview(); });
-				block.querySelector('.t-from').addEventListener('change', function (e) { t.from = e.target.value; markDirty(); updatePreview(); });
-				block.querySelector('.t-to').addEventListener('change', function (e) { t.to = e.target.value; markDirty(); updatePreview(); });
-				block.querySelector('.t-cierre').addEventListener('change', function (e) { t.cierre = e.target.value; markDirty(); updatePreview(); });
-				block.querySelector('.btn-del-turno').addEventListener('click', function () {
+			var rows = turnos.map(function (t) {
+				return '<div class="turno-row" data-id="' + t.id + '"><input type="text" class="t-name" value="' + esc(t.nombre) + '">' +
+					'<input type="time" class="t-from" value="' + t.from + '"><input type="time" class="t-to" value="' + t.to + '">' +
+					'<input type="time" class="t-cierre" value="' + t.cierre + '">' +
+					'<button type="button" class="btn-sm btn-icon t-del" style="padding:4px"' + (turnos.length <= 1 ? ' disabled' : '') + ' title="Eliminar"><i class="fas fa-times"></i></button></div>';
+			}).join('');
+			root.innerHTML = '<div class="sched-main">' +
+				'<div class="sched-toolbar"><span>Control turnos delivery</span>' +
+				'<label class="toggle"><input type="checkbox" id="ctrl-turnos"' + (settings.controlTurnos ? ' checked' : '') + '><span></span></label>' +
+				'<span>Pedidos desde</span><input type="time" class="config-input config-input--sm" id="pedidos-desde" value="' + settings.pedidosDesde + '">' +
+				'<span>Máx. / hora</span><input type="number" class="config-input config-input--sm" id="max-hora" value="' + settings.maxPorHora + '" min="1"></div>' +
+				'<div class="timeline-wrap turno-timeline"><div class="timeline-lbl">Franja nocturna · entrega por turnos</div>' +
+				'<div class="timeline-bar">' + segs + '</div><div class="timeline-axis"><span>18</span><span>20</span><span>22</span><span>24</span></div></div>' +
+				'<div class="turno-list-compact">' + rows + '</div>' +
+				'<button type="button" class="btn-sm btn-accent" id="btn-add-turno" style="margin-top:8px"><i class="fas fa-plus"></i> Agregar turno</button></div>' +
+				schedPreviewAside('turnos');
+			root.querySelector('#ctrl-turnos').addEventListener('change', function () { markDirty(); updatePreview(); });
+			root.querySelector('#pedidos-desde').addEventListener('change', function () { markDirty(); renderSchedTurnos(); });
+			root.querySelector('#max-hora').addEventListener('change', function () { markDirty(); renderSchedTurnos(); });
+			root.querySelectorAll('.turno-row').forEach(function (row) {
+				var t = turnos.find(function (x) { return x.id === +row.getAttribute('data-id'); });
+				row.querySelector('.t-name').addEventListener('input', function (e) { t.nombre = e.target.value; markDirty(); updatePreview(); });
+				row.querySelector('.t-from').addEventListener('change', function (e) { t.from = e.target.value; markDirty(); renderSchedTurnos(); });
+				row.querySelector('.t-to').addEventListener('change', function (e) { t.to = e.target.value; markDirty(); renderSchedTurnos(); });
+				row.querySelector('.t-cierre').addEventListener('change', function (e) { t.cierre = e.target.value; markDirty(); renderSchedTurnos(); });
+				row.querySelector('.t-del').addEventListener('click', function () {
 					if (turnos.length <= 1) return;
 					turnos = turnos.filter(function (x) { return x.id !== t.id; });
-					renderTurnos(); markDirty();
-					toast('Turno eliminado');
+					markDirty(); renderSchedTurnos(); toast('Turno eliminado');
 				});
+			});
+			root.querySelector('#btn-add-turno').addEventListener('click', function () {
+				var last = turnos[turnos.length - 1];
+				turnos.push({
+					id: ++nextId.turno,
+					nombre: 'Turno ' + (turnos.length + 1),
+					from: last ? last.to : '20:00',
+					to: '23:00',
+					cierre: last ? last.to : '22:30',
+				});
+				markDirty(); renderSchedTurnos(); toast('Turno agregado');
 			});
 			updatePreview();
 		}
+		function setSchedSection(name) {
+			schedSection = name;
+			document.querySelectorAll('.sched-section-tab[data-sched-section]').forEach(function (btn) {
+				var on = btn.getAttribute('data-sched-section') === name;
+				btn.classList.toggle('is-active', on);
+				btn.setAttribute('aria-selected', on ? 'true' : 'false');
+			});
+			document.querySelectorAll('.sched-section-panel[data-sched-panel]').forEach(function (panel) {
+				panel.classList.toggle('is-active', panel.getAttribute('data-sched-panel') === name);
+			});
+			if (name === 'turnos') {
+				var turnosRoot = $('#sched-turnos-root');
+				if (turnosRoot && !turnosRoot.querySelector('.sched-main')) renderSchedTurnos();
+			}
+			var sub = $('#view-subtitle');
+			if (sub) sub.textContent = name === 'turnos' ? 'Delivery y cupos por hora' : 'Días y franjas de apertura';
+			notifyEmbedHeight();
+		}
+		function renderDays() { renderSchedHorarios(); }
+		function renderTurnos() { renderSchedTurnos(); }
 
 		function updatePreview() {
 			var openDays = days.filter(function (d) { return d.on; });
-			var isOpen = openDays.length && $('#ctrl-horario').checked;
+			var ctrlH = $('#ctrl-horario');
+			var ctrlT = $('#ctrl-turnos');
+			var horarioOn = ctrlH ? ctrlH.checked : schedSettings.controlHorario;
+			var turnosOn = ctrlT ? ctrlT.checked : schedSettings.controlTurnos;
+			var isOpen = openDays.length && horarioOn;
 			var st = $('#preview-status');
 			if (st) {
 				if (!isOpen) {
@@ -1392,7 +1982,7 @@
 					? openDays.map(function (d) { return '<span class="chip">' + d.name + ' ' + d.from + '–' + d.to + '</span>'; }).join('')
 					: '<span style="color:#ef9a9a">Sin días</span>';
 			}
-			var turnosHtml = $('#ctrl-turnos').checked
+			var turnosHtml = turnosOn
 				? turnos.map(function (t) { return '<span class="chip">' + esc(t.nombre) + ': ' + t.from + '–' + t.to + '</span>'; }).join('')
 				: '<span style="color:#888">Off</span>';
 			var turnosEl = $('#preview-turnos');
@@ -1464,6 +2054,7 @@
 				});
 			});
 			updatePreview();
+			renderMenuLayout();
 		}
 
 		function refreshProductCatSelects() {
@@ -1482,90 +2073,15 @@
 			var catId = +$('#m-categoria').value;
 			var c = catById(catId);
 			var subSel = $('#m-sub');
-			var hint = $('#m-sub-hint');
 			if (!c || !c.subs.length) {
 				subSel.innerHTML = '<option value="">— Sin subcategoría —</option>';
 				subSel.disabled = true;
-				hint.textContent = c ? 'Esta categoría no tiene subcategorías' : '';
 				return;
 			}
 			subSel.disabled = false;
 			subSel.innerHTML = c.subs.map(function (s) {
 				return '<option value="' + s.id + '">' + esc(s.nombre) + '</option>';
 			}).join('');
-			hint.textContent = 'Elegí la subcategoría del producto';
-		}
-
-		function renderProductos() {
-			var q = ($('#menu-search').value || '').toLowerCase();
-			$('#tbody-productos').innerHTML = productos.filter(function (p) {
-				return !q || p.nombre.toLowerCase().indexOf(q) >= 0;
-			}).map(function (p) {
-				var c = catById(p.catId);
-				var sub = subById(c, p.subId);
-				return '<tr data-id="' + p.id + '"' + (p.oculto ? ' class="row-oculto"' : '') + '><td><strong>' + esc(p.nombre) + '</strong>' +
-					(sub ? '<br><span class="tag tag-sub">' + esc(sub.nombre) + '</span>' : '') + '</td>' +
-					'<td><span class="tag tag-cat">' + esc(c ? c.nombre : '—') + '</span></td>' +
-					'<td class="num">' + fmt(p.precio) + '</td><td><code>' + esc(p.atajo || '—') + '</code></td>' +
-					'<td>' + estadoProductoTags(p) + '</td>' +
-					'<td><div class="row-actions">' +
-					'<button type="button" class="btn-sm btn-icon btn-toggle-agotado" title="Agotado (instantáneo)"><i class="fas fa-' + (p.agotado ? 'check' : 'ban') + '"></i></button>' +
-					'<button type="button" class="btn-sm btn-icon btn-toggle-oculto" title="Ocultar en tienda"><i class="fas fa-eye' + (p.oculto ? '-slash' : '') + '"></i></button>' +
-					'<button type="button" class="btn-sm btn-icon btn-edit-prod" title="Editar"><i class="fas fa-pen"></i></button></div></td></tr>';
-			}).join('');
-			$('#tbody-productos').querySelectorAll('.btn-toggle-agotado').forEach(function (btn) {
-				btn.addEventListener('click', function () {
-					var p = productos.find(function (x) { return x.id === +btn.closest('tr').getAttribute('data-id'); });
-					var next = !p.agotado;
-					function applyLocal() {
-						p.agotado = next;
-						if (p.agotado) p.oculto = false;
-						renderProductos();
-						toast(p.nombre + (p.agotado ? ' → Agotado (instantáneo)' : ' → Vendible'));
-					}
-					if (backendOnline) {
-						apiAdmin({ action: 'setProductAgotado', productId: p.id, agotado: next }).then(function (r) {
-							if (!r.ok) { toast('Error agotado: ' + (r.error || '')); return; }
-							applyLocal();
-						});
-					} else {
-						applyLocal();
-					}
-				});
-			});
-			$('#tbody-productos').querySelectorAll('.btn-toggle-oculto').forEach(function (btn) {
-				btn.addEventListener('click', function () {
-					var p = productos.find(function (x) { return x.id === +btn.closest('tr').getAttribute('data-id'); });
-					p.oculto = !p.oculto;
-					if (p.oculto) p.agotado = false;
-					markDirty(); renderProductos();
-					toast(p.nombre + (p.oculto ? ' → Oculto (publicar)' : ' → Visible'));
-				});
-			});
-			$('#tbody-productos').querySelectorAll('.btn-edit-prod').forEach(function (btn) {
-				btn.addEventListener('click', function () {
-					openMenuModal('productos', productos.find(function (x) { return x.id === +btn.closest('tr').getAttribute('data-id'); }));
-				});
-			});
-		}
-
-		function renderExtras() {
-			var q = ($('#menu-search').value || '').toLowerCase();
-			$('#tbody-extras').innerHTML = extras.filter(function (e) {
-				return !q || e.nombre.toLowerCase().indexOf(q) >= 0;
-			}).map(function (e) {
-				var c = catById(e.catId);
-				return '<tr data-id="' + e.id + '"><td><strong>' + esc(e.nombre) + '</strong></td>' +
-					'<td>' + esc(c ? c.nombre : '—') + '</td><td class="num">' + fmt(e.precio) + '</td>' +
-					'<td><code>' + esc(e.atajo) + '</code></td>' +
-					'<td>' + (e.oculto ? '<span class="tag tag-agotado">Oculto</span>' : '<span class="tag tag-ok">Visible</span>') + '</td>' +
-					'<td><button type="button" class="btn-sm btn-icon btn-edit-extra"><i class="fas fa-pen"></i></button></td></tr>';
-			}).join('');
-			$('#tbody-extras').querySelectorAll('.btn-edit-extra').forEach(function (btn) {
-				btn.addEventListener('click', function () {
-					openMenuModal('extras', extras.find(function (x) { return x.id === +btn.closest('tr').getAttribute('data-id'); }));
-				});
-			});
 		}
 
 		function fillPromoAlcance() {
@@ -1611,38 +2127,30 @@
 			});
 		}
 
-		function setMenuTab(tab) {
-			menuTab = tab;
-			document.querySelectorAll('.tab-menu').forEach(function (b) {
-				b.classList.toggle('active', b.getAttribute('data-menu-tab') === tab);
-			});
-			$('#panel-categorias').hidden = tab !== 'categorias';
-			$('#panel-productos').hidden = tab !== 'productos';
-			$('#panel-extras').hidden = tab !== 'extras';
-			$('#menu-search').hidden = tab === 'categorias';
-			var labels = { categorias: 'Agregar categoría', productos: 'Agregar producto', extras: 'Agregar extra' };
-			$('#btn-add-label').textContent = labels[tab];
-			if (tab === 'productos') renderProductos();
-			if (tab === 'extras') renderExtras();
-		}
-
 		function setView(name) {
+			var schedTab = null;
+			if (name === 'turnos') {
+				schedTab = 'turnos';
+				name = 'horarios';
+			} else if (name === 'horarios') {
+				schedTab = 'horarios';
+			}
 			document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
 				btn.classList.toggle('is-active', btn.getAttribute('data-view') === name);
 			});
 			var titles = {
-				horarios: ['Horarios', 'Días y franjas de apertura'],
-				turnos: ['Turnos', 'Delivery y cupos por hora'],
+				horarios: ['Horarios y turnos', schedTab === 'turnos' ? 'Delivery y cupos por hora' : 'Días y franjas de apertura'],
 				menu: ['Catálogo', 'Categorías · productos · extras'],
 				promos: ['Promociones', 'Descuentos y cupones'],
 			};
 			var t = titles[name] || ['Demo', ''];
 			$('#view-title').childNodes[0].textContent = t[0];
 			$('#view-subtitle').textContent = t[1];
-			['horarios', 'turnos', 'menu', 'promos'].forEach(function (v) {
+			['horarios', 'menu', 'promos'].forEach(function (v) {
 				var el = $('#view-' + v);
 				if (el) el.hidden = v !== name;
 			});
+			if (schedTab) setSchedSection(schedTab);
 			var embed = document.documentElement.classList.contains('embed-mode');
 			var importBar = $('#tienda-import-bar');
 			if (importBar) importBar.hidden = embed && name !== 'menu';
@@ -1652,7 +2160,8 @@
 		function initialSection() {
 			var section = new URLSearchParams(location.search).get('section') || 'menu';
 			if (section === 'catalogo') section = 'menu';
-			if (['horarios', 'turnos', 'menu', 'promos'].indexOf(section) < 0) section = 'menu';
+			if (section === 'turnos') return 'turnos';
+			if (['horarios', 'menu', 'promos'].indexOf(section) < 0) section = 'menu';
 			return section;
 		}
 
@@ -1713,16 +2222,11 @@
 			editMenuId = item ? item.id : null;
 			refreshProductCatSelects();
 			var isExtra = kind === 'extras';
-			$('#modal-menu-box').classList.toggle('modal-box--split', !isExtra);
-			$('#shop-preview-col').hidden = isExtra;
-			$('#modal-menu-title').textContent = (item ? 'Editar ' : 'Agregar ') + (isExtra ? 'extra' : 'producto');
+			$('#modal-menu-title').textContent = (item ? 'Editar ' : 'Nuevo ') + (isExtra ? 'extra' : 'producto');
 			$('#m-nombre').value = item ? item.nombre : '';
 			$('#m-atajo').value = item ? (item.atajo || '') : '';
 			$('#m-desc').value = item && item.desc ? item.desc : '';
-			$('#m-cat-wrap').hidden = isExtra;
-			$('#m-sub-wrap').hidden = isExtra;
 			$('#m-producto-only').hidden = isExtra;
-			$('#m-estado-wrap').hidden = isExtra;
 			$('#m-extra-only').hidden = !isExtra;
 			if (isExtra) {
 				$('#m-precio-extra').value = item ? item.precio : '';
@@ -1734,6 +2238,10 @@
 				$('#m-oculto').checked = item ? !!item.oculto : false;
 				$('#m-sin-promo-menu').checked = item ? !!item.sinPromoMenu : false;
 				$('#m-sin-promo-cat').checked = item ? !!item.sinPromoCat : false;
+				menuModalImagen = item && item.imagen ? item.imagen : '';
+				var fileInput = $('#m-imagen-file');
+				if (fileInput) fileInput.value = '';
+				renderModalImagenThumb();
 				if (item) {
 					$('#m-categoria').value = item.catId;
 					refreshSubSelect();
@@ -1742,6 +2250,11 @@
 				wireShopPreviewInputs();
 				updateShopPreview();
 			}
+			if (isExtra) {
+				menuModalImagen = '';
+				var fi = $('#m-imagen-file');
+				if (fi) fi.value = '';
+			}
 			$('#modal-menu').hidden = false;
 			pauseEmbedResize();
 		}
@@ -1749,26 +2262,29 @@
 		document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
 			btn.addEventListener('click', function () { setView(btn.getAttribute('data-view')); });
 		});
-		document.querySelectorAll('.tab-menu').forEach(function (btn) {
-			btn.addEventListener('click', function () { setMenuTab(btn.getAttribute('data-menu-tab')); });
+		$('#btn-manage-cats').addEventListener('click', function () {
+			renderCategorias();
+			$('#modal-cat-manage').hidden = false;
+			pauseEmbedResize();
 		});
+		$('#btn-add-cat-from-manage').addEventListener('click', function () { openCatModal('cat'); });
 
-		$('#btn-add-turno').addEventListener('click', function () {
-			var last = turnos[turnos.length - 1];
-			turnos.push({
-				id: ++nextId.turno,
-				nombre: 'Turno ' + (turnos.length + 1),
-				from: last ? last.to : '20:00',
-				to: '23:00',
-				cierre: last ? last.to : '22:30',
-			});
-			renderTurnos(); markDirty();
-			toast('Turno agregado');
+		document.querySelectorAll('.sched-section-tab[data-sched-section]').forEach(function (btn) {
+			btn.addEventListener('click', function () { setSchedSection(btn.getAttribute('data-sched-section')); });
 		});
 
 		$('#btn-add-menu').addEventListener('click', function () {
-			if (menuTab === 'categorias') openCatModal('cat');
-			else openMenuModal(menuTab, null);
+			if (menuListKind === 'extras') {
+				openMenuModal('extras', null);
+				return;
+			}
+			openMenuModal('productos', null);
+			if (selectedCatId) {
+				$('#m-categoria').value = selectedCatId;
+				refreshSubSelect();
+				if (selectedSubId) $('#m-sub').value = selectedSubId;
+			}
+			updateShopPreview();
 		});
 
 		$('#modal-cat-save').addEventListener('click', function () {
@@ -1794,6 +2310,39 @@
 
 		$('#m-categoria').addEventListener('change', refreshSubSelect);
 
+		$('#m-imagen-pick').addEventListener('click', function () {
+			var input = $('#m-imagen-file');
+			if (input) input.click();
+		});
+		$('#m-imagen-file').addEventListener('change', function () {
+			var file = this.files && this.files[0];
+			if (!file) return;
+			if (!file.type || file.type.indexOf('image/') !== 0) {
+				toast('Elegí una imagen JPG, PNG o WebP');
+				this.value = '';
+				return;
+			}
+			if (file.size > MENU_IMG_MAX_BYTES) {
+				toast('Imagen muy pesada (máx. ~1,2 MB en demo)');
+				this.value = '';
+				return;
+			}
+			var reader = new FileReader();
+			reader.onload = function () {
+				setMenuModalImagen(String(reader.result || ''));
+				toast('Foto cargada · preview actualizado');
+			};
+			reader.onerror = function () {
+				toast('No se pudo leer la imagen');
+			};
+			reader.readAsDataURL(file);
+		});
+		$('#m-imagen-clear').addEventListener('click', function () {
+			var input = $('#m-imagen-file');
+			if (input) input.value = '';
+			setMenuModalImagen('');
+		});
+
 		$('#modal-menu-save').addEventListener('click', function () {
 			var nom = $('#m-nombre').value.trim();
 			if (!nom) { toast('Falta el nombre'); return; }
@@ -1809,6 +2358,7 @@
 				if (agotado && oculto) oculto = false;
 				var payload = {
 					nombre: nom, precio: precio, ingredientes: ingredientes, desc: desc,
+					imagen: menuModalImagen || '',
 					atajo: $('#m-atajo').value.trim(), catId: catId, subId: subId,
 					agotado: agotado, oculto: oculto,
 					sinPromoMenu: $('#m-sin-promo-menu').checked,
@@ -1933,10 +2483,7 @@
 
 		$('#btn-publish-demo').addEventListener('click', publishChanges);
 		$('#btn-publish-banner').addEventListener('click', publishChanges);
-		$('#ctrl-horario').addEventListener('change', function () { markDirty(); updatePreview(); });
-		$('#ctrl-turnos').addEventListener('change', function () { markDirty(); updatePreview(); });
-		$('#msg-cerrado').addEventListener('input', function () { markDirty(); });
-		$('#menu-search').addEventListener('input', function () { renderProductos(); renderExtras(); });
+		$('#menu-search').addEventListener('input', function () { renderMenuLayout(); });
 
 		$('#theme-toggle').addEventListener('click', function () {
 			var dark = document.documentElement.getAttribute('data-theme') === 'dark';
@@ -1948,12 +2495,12 @@
 		});
 
 		function bootUi() {
-			renderDays();
-			renderTurnos();
+			renderSchedHorarios();
+			renderSchedTurnos();
 			renderCategorias();
 			refreshProductCatSelects();
-			renderProductos();
-			renderExtras();
+			updateMenuAddLabel();
+			renderMenuLayout();
 			fillPromoAlcance();
 			renderPromos();
 			updatePreview();
