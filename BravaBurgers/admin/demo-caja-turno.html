@@ -160,6 +160,7 @@
 		}
 		.chart-wrap { position: relative; height: 220px; }
 		.chart-wrap--donut { height: 200px; max-width: 280px; margin: 0 auto; }
+		.chart-wrap--ventas-prod { height: 260px; }
 
 		.dash-bottom {
 			display: grid;
@@ -480,9 +481,9 @@
 							</div>
 							<div class="dash-panel">
 								<h2>Qué se vendió</h2>
-								<p class="panel-hint">Unidades entregadas por categoría</p>
-								<div class="chart-wrap">
-									<canvas id="chart-ventas" aria-label="Gráfico ventas por categoría"></canvas>
+								<p class="panel-hint">Unidades entregadas por producto (top del turno)</p>
+								<div class="chart-wrap chart-wrap--ventas-prod">
+									<canvas id="chart-ventas" aria-label="Gráfico ventas por producto"></canvas>
 								</div>
 							</div>
 						</div>
@@ -888,6 +889,13 @@
 			});
 		}
 
+		function ventasChartProductos(limit) {
+			var list = (state.productosVendidos || []).filter(function (p) {
+				return (Number(p.qty) || 0) > 0;
+			});
+			return productosSorted(list).slice(0, limit || 10);
+		}
+
 		function productosKpis() {
 			var list = (state.productosVendidos || []).filter(function (p) { return (Number(p.qty) || 0) > 0; });
 			var total = 0;
@@ -1197,12 +1205,7 @@
 				{ lbl: 'Efectivo', val: fmt(state.efectivo), sub: Math.round(state.ventas ? (state.efectivo / state.ventas) * 100 : 0) + '% del total' },
 				{ lbl: 'Mercado Pago', val: fmt(state.mercadopago), sub: Math.round(state.ventas ? (state.mercadopago / state.ventas) * 100 : 0) + '% del total' },
 				{ lbl: 'Resultado', val: fmt(state.resultado), sub: 'Ventas − egresos + ingresos', pos: state.resultado >= 0, neg: state.resultado < 0 && state.abierto },
-				{ lbl: 'Entregados', val: String(o.entregados || 0), sub: 'Pedidos ✓ del turno' },
-				{ lbl: 'En curso', val: String(o.enCurso || 0), sub: 'Pend. + prep. + camino' },
-				{ lbl: 'Ticket prom.', val: o.ticketProm ? fmt(o.ticketProm) : '$0', sub: 'Por pedido entregado' },
-				{ lbl: 'Mov. de caja', val: String((o.nIngresos || 0) + (o.nEgresos || 0)), sub: (o.nIngresos || 0) + ' ing. · ' + (o.nEgresos || 0) + ' egr.' },
-				{ lbl: 'Simples', val: String(state.simples), sub: 'Hamburguesas' },
-				{ lbl: 'Dobles', val: String(state.dobles), sub: 'Hamburguesas' }
+				{ lbl: 'Mov. de caja', val: String((o.nIngresos || 0) + (o.nEgresos || 0)), sub: (o.nIngresos || 0) + ' ing. · ' + (o.nEgresos || 0) + ' egr.' }
 			];
 			grid.innerHTML = items.map(function (it) {
 				var cls = 'dash-kpi' + (dim ? ' is-dim' : '') + (it.accent ? ' is-accent' : '') + (it.pos ? ' is-pos' : '') + (it.neg ? ' is-neg' : '');
@@ -1508,25 +1511,33 @@
 				}
 			});
 
+			var ventasProd = ventasChartProductos(10);
 			chartVentas = new Chart($('#chart-ventas'), {
 				type: 'bar',
 				data: {
-					labels: state.salidas.map(function (x) { return x.cat; }),
+					labels: ventasProd.length
+						? ventasProd.map(function (p) { return p.nombre; })
+						: ['Sin ventas'],
 					datasets: [{
 						label: 'Unidades',
-						data: state.salidas.map(function (x) { return x.u; }),
-						backgroundColor: c.bars,
+						data: ventasProd.length
+							? ventasProd.map(function (p) { return Number(p.qty) || 0; })
+							: [0],
+						backgroundColor: ventasProd.length
+							? ventasProd.map(function (p) { return c.prod[p.tipo] || c.bars[0]; })
+							: [c.grid],
 						borderRadius: 6,
 						borderSkipped: false
 					}]
 				},
 				options: {
+					indexAxis: 'y',
 					responsive: true,
 					maintainAspectRatio: false,
 					plugins: { legend: { display: false } },
 					scales: {
-						x: { ticks: { color: c.text }, grid: { display: false } },
-						y: { beginAtZero: true, ticks: { color: c.text, stepSize: 1 }, grid: { color: c.grid } }
+						x: { beginAtZero: true, ticks: { color: c.text, stepSize: 1 }, grid: { color: c.grid } },
+						y: { ticks: { color: c.text, autoSkip: false, font: { size: 10 } }, grid: { display: false } }
 					}
 				}
 			});
