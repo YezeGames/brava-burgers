@@ -1914,7 +1914,7 @@
     var next =
       '/admin/demo-caja-turno.html?embed=1&section=' +
       encodeURIComponent(section || 'centro') +
-      '&v=2';
+      '&v=3';
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;

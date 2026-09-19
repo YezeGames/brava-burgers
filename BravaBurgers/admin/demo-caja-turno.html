@@ -112,7 +112,7 @@
 
 		.dash-kpi-grid {
 			display: grid;
-			grid-template-columns: repeat(6, 1fr);
+			grid-template-columns: repeat(5, 1fr);
 			gap: 12px;
 			margin-bottom: 16px;
 		}
@@ -168,15 +168,6 @@
 		}
 		@media (max-width: 960px) { .dash-bottom { grid-template-columns: 1fr; } }
 
-		.ops-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 14px; }
-		@media (max-width: 520px) { .ops-summary { grid-template-columns: 1fr; } }
-		.ops-stat {
-			padding: 10px 12px; border-radius: 10px;
-			background: var(--bg-surface-muted); border: 1px solid var(--border-strong);
-		}
-		.ops-stat .lbl { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-subtle); }
-		.ops-stat .val { font-size: 1.1rem; font-weight: 800; color: var(--text-strong); margin-top: 4px; }
-		.ops-stat .sub { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
 		.chart-wrap--hora { height: 160px; margin-top: 4px; }
 		.chart-wrap--flujo { height: 200px; margin-top: 4px; }
 		.chart-toggle { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
@@ -506,10 +497,8 @@
 
 						<div class="dash-bottom">
 							<div class="dash-panel">
-								<h2>Resumen operativo</h2>
-								<p class="panel-hint">Totales del turno — el detalle de cada movimiento queda en Movimientos</p>
-								<div class="ops-summary" id="ops-summary"></div>
-								<h2 style="margin-top:4px;font-size:0.85rem">Actividad por hora</h2>
+								<h2>Actividad por hora</h2>
+								<p class="panel-hint">Pedidos y ventas del turno · el detalle de movimientos está en Movimientos</p>
 								<div class="chart-toggle" role="group" aria-label="Vista por hora">
 									<button type="button" class="prod-filter is-active" data-hora-mode="pedidos">Pedidos</button>
 									<button type="button" class="prod-filter" data-hora-mode="pesos">Ventas $</button>
@@ -1202,34 +1191,22 @@
 		function renderKpis() {
 			var grid = $('#kpi-grid');
 			var dim = !state.abierto;
+			var o = state.ops || {};
 			var items = [
 				{ lbl: 'Ventas', val: fmt(state.ventas), sub: 'Entregados', accent: true },
 				{ lbl: 'Efectivo', val: fmt(state.efectivo), sub: Math.round(state.ventas ? (state.efectivo / state.ventas) * 100 : 0) + '% del total' },
 				{ lbl: 'Mercado Pago', val: fmt(state.mercadopago), sub: Math.round(state.ventas ? (state.mercadopago / state.ventas) * 100 : 0) + '% del total' },
 				{ lbl: 'Resultado', val: fmt(state.resultado), sub: 'Ventas − egresos + ingresos', pos: state.resultado >= 0, neg: state.resultado < 0 && state.abierto },
+				{ lbl: 'Entregados', val: String(o.entregados || 0), sub: 'Pedidos ✓ del turno' },
+				{ lbl: 'En curso', val: String(o.enCurso || 0), sub: 'Pend. + prep. + camino' },
+				{ lbl: 'Ticket prom.', val: o.ticketProm ? fmt(o.ticketProm) : '$0', sub: 'Por pedido entregado' },
+				{ lbl: 'Mov. de caja', val: String((o.nIngresos || 0) + (o.nEgresos || 0)), sub: (o.nIngresos || 0) + ' ing. · ' + (o.nEgresos || 0) + ' egr.' },
 				{ lbl: 'Simples', val: String(state.simples), sub: 'Hamburguesas' },
 				{ lbl: 'Dobles', val: String(state.dobles), sub: 'Hamburguesas' }
 			];
 			grid.innerHTML = items.map(function (it) {
 				var cls = 'dash-kpi' + (dim ? ' is-dim' : '') + (it.accent ? ' is-accent' : '') + (it.pos ? ' is-pos' : '') + (it.neg ? ' is-neg' : '');
 				return '<div class="' + cls + '"><div class="lbl">' + it.lbl + '</div><div class="val">' + it.val + '</div><div class="sub">' + it.sub + '</div></div>';
-			}).join('');
-		}
-
-		function renderOpsSummary() {
-			var o = state.ops || {};
-			var dim = !state.abierto;
-			var items = [
-				{ lbl: 'Entregados', val: String(o.entregados || 0), sub: 'Pedidos ✓ del turno' },
-				{ lbl: 'En curso', val: String(o.enCurso || 0), sub: 'Pendientes + en prep. + camino' },
-				{ lbl: 'Ticket prom.', val: o.ticketProm ? fmt(o.ticketProm) : '$0', sub: 'Por pedido entregado' },
-				{ lbl: 'Mov. de caja', val: String((o.nIngresos || 0) + (o.nEgresos || 0)), sub: (o.nIngresos || 0) + ' ing. · ' + (o.nEgresos || 0) + ' egr.' }
-			];
-			$('#ops-summary').innerHTML = items.map(function (it) {
-				return (
-					'<div class="ops-stat"' + (dim ? ' style="opacity:0.55"' : '') + '>' +
-					'<div class="lbl">' + it.lbl + '</div><div class="val">' + it.val + '</div><div class="sub">' + it.sub + '</div></div>'
-				);
 			}).join('');
 		}
 
@@ -1690,7 +1667,6 @@
 		function renderAll() {
 			renderTurnoChrome();
 			renderKpis();
-			renderOpsSummary();
 			renderMovimientos();
 			renderProductosTab();
 			renderHistorial();
