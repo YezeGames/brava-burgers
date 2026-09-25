@@ -1503,6 +1503,9 @@
 				<button type="button" class="nav-btn" data-view="tienda-promos" title="Promociones">
 					<i class="fas fa-tags" aria-hidden="true"></i>
 				</button>
+				<button type="button" class="nav-btn" data-view="costos" title="Costos y márgenes">
+					<i class="fas fa-chart-pie" aria-hidden="true"></i>
+				</button>
 				<span class="nav-spacer" aria-hidden="true"></span>
 				<button type="button" class="nav-btn theme-toggle-btn" id="theme-toggle-nav" aria-pressed="false" title="Modo noche / claro">
 					<i class="fas fa-moon" aria-hidden="true"></i>
@@ -1625,7 +1628,7 @@
 							id="caja-config-frame"
 							class="caja-config-frame"
 							title="Caja y turno"
-							src="/admin/demo-caja-turno.html?embed=1&section=centro&v=4"
+							src="/admin/caja-turno.html?embed=1&section=centro&v=7"
 							loading="lazy"></iframe>
 					</section>
 
@@ -1637,6 +1640,25 @@
 							src="/admin/demo-tienda-config.html?embed=1&section=menu&v=18"
 							loading="lazy"></iframe>
 					</section>
+
+					<section class="admin-view" id="view-costos" hidden>
+						<iframe
+							id="costos-config-frame"
+							class="costos-config-frame"
+							title="Costos y márgenes"
+							src="/admin/demo-costos-margenes.html?embed=1&v=1"
+							loading="lazy"></iframe>
+					</section>
+
+					<section class="admin-view" id="view-historial" hidden>
+						<iframe
+							id="historial-config-frame"
+							class="historial-config-frame"
+							title="Historial de cierres"
+							src="/admin/historial-caja.html?embed=1&v=18"
+							loading="lazy"></iframe>
+					</section>
+
 				</div>
 
 				<aside class="main-aside wa-aside" id="wa-aside">
@@ -2255,6 +2277,6 @@
 	<script src="/admin/wa-panel.js?v=28"></script>
 	<script src="/admin/compensaciones.js?v=4"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
-	<script src="/admin/admin.js?v=137"></script>
+	<script src="/admin/admin.js?v=138"></script>
 </body>
 </html>

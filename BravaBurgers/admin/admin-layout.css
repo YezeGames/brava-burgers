@@ -363,7 +363,9 @@ html:not([data-theme="dark"]) .turno-pill--closed {
 }
 
 .tienda-config-frame,
-.caja-config-frame {
+.caja-config-frame,
+.costos-config-frame,
+.historial-config-frame {
 	display: block;
 	width: 100%;
 	min-height: 520px;
@@ -375,7 +377,9 @@ html:not([data-theme="dark"]) .turno-pill--closed {
 }
 
 #view-tienda,
-#view-caja {
+#view-caja,
+#view-costos,
+#view-historial {
 	padding: 0;
 }
 
@@ -1606,9 +1610,8 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 }
 
 #view-historial {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-	gap: 12px;
+	display: block;
+	min-height: 0;
 }
 
 /* Mobile */

@@ -108,6 +108,8 @@
 
   var rechazoOrn = null;
   var gastosCache = [];
+  var historialEmbedGastos = [];
+  var historialEmbedGastosFetchInFlight = null;
 
   var ingresosCache = [];
   var cierresCache = [];
@@ -1686,14 +1688,55 @@
 
   var cajaEmbedViews = {
     caja: { title: 'Caja y turno', subtitle: 'Centro de turno · gráficos y stock', section: 'centro' },
-    historial: { title: 'Historial', subtitle: 'Cierres y comparativa de turnos', section: 'historial' },
   };
 
   function isCajaEmbedView(view) {
     return Object.prototype.hasOwnProperty.call(cajaEmbedViews, view);
   }
 
+  var historialEmbedViews = {
+    historial: { title: 'Historial', subtitle: 'Cierres · proformas · balance · ventas · gastos · productos' },
+  };
+
+  function isHistorialEmbedView(view) {
+    return Object.prototype.hasOwnProperty.call(historialEmbedViews, view);
+  }
+
+  var costosEmbedViews = {
+    costos: { title: 'Costos y márgenes', subtitle: 'Insumos, empaque y margen por producto', section: '' },
+  };
+
+  function isCostosEmbedView(view) {
+    return Object.prototype.hasOwnProperty.call(costosEmbedViews, view);
+  }
+
+  function isAdminEmbedFullView(view) {
+    return (
+      isTiendaView(view) ||
+      isCajaEmbedView(view) ||
+      isHistorialEmbedView(view) ||
+      isCostosEmbedView(view)
+    );
+  }
+
   var lastCajaFrameHeight = 0;
+  var lastCostosFrameHeight = 0;
+  var lastHistorialFrameHeight = 0;
+  var CAJA_TURNO_EMBED_V = 7;
+  var HISTORIAL_EMBED_V = 18;
+
+  function cajaTurnoEmbedUrl(section) {
+    return (
+      '/admin/caja-turno.html?embed=1&section=' +
+      encodeURIComponent(section || 'centro') +
+      '&v=' +
+      CAJA_TURNO_EMBED_V
+    );
+  }
+
+  function historialCajaEmbedUrl() {
+    return '/admin/historial-caja.html?embed=1&v=' + HISTORIAL_EMBED_V;
+  }
 
   function sumVentasListQty(list) {
     return (list || []).reduce(function (s, x) {
@@ -1833,23 +1876,6 @@
     ];
   }
 
-  function buildCajaEmbedCierres() {
-    return (cierresCache || []).slice(0, 12).map(function (c) {
-      var ing = Math.max(0, Number(c.ingresos) || 0);
-      return {
-        id: c.id,
-        label: c.cerrado_at ? formatCierreWhen(c.cerrado_at) : cierrePeriodoLabelFromRecord(c),
-        ventas: Number(c.ventas_total) || 0,
-        ef: Number(c.efectivo) || 0,
-        mp: Number(c.mercado_pago) || 0,
-        egresos: Number(c.gastos) || 0,
-        ingresos: ing,
-        resultado: Number(c.resultado) || 0,
-        entregados: Number(c.pedidos_entregados) || Number(c.entregados) || 0,
-      };
-    });
-  }
-
   function buildCajaEmbedState() {
     var abierto = isCajaTurnoActivo();
     var st = computeCajaDisplayStats();
@@ -1884,8 +1910,143 @@
       stock: buildCajaEmbedStock(),
       movimientos: buildCajaEmbedMovimientos(),
       productosVendidos: buildCajaEmbedProductos(st),
-      cierres: buildCajaEmbedCierres(),
     };
+  }
+
+  function loadHistorialEmbedGastos(force) {
+    if (!token) {
+      historialEmbedGastos = [];
+      return Promise.resolve(false);
+    }
+    if (historialEmbedGastosFetchInFlight && !force) return historialEmbedGastosFetchInFlight;
+    historialEmbedGastosFetchInFlight = api({
+      action: 'listGastos',
+      token: token,
+      desde: '',
+      hasta: '',
+    })
+      .then(function (res) {
+        if (res.data && res.data.ok) {
+          historialEmbedGastos = res.data.gastos || [];
+          return true;
+        }
+        if (res.status === 401 || (res.data && res.data.error === 'unauthorized')) handleAuthFailure();
+        return false;
+      })
+      .finally(function () {
+        historialEmbedGastosFetchInFlight = null;
+      });
+    return historialEmbedGastosFetchInFlight;
+  }
+
+  function buildHistorialEmbedGastos() {
+    return (historialEmbedGastos || []).map(function (g) {
+      return {
+        id: g.id,
+        fecha: g.fecha,
+        concepto: g.concepto,
+        monto: Number(g.monto) || 0,
+        pagado_con: g.pagado_con || '',
+      };
+    });
+  }
+
+  function buildHistorialEmbedCierres() {
+    return (cierresCache || []).slice(0, 20).map(function (c) {
+      var ing = Math.max(0, Number(c.ingresos) || 0);
+      return {
+        id: c.id,
+        label: c.cerrado_at ? formatCierreWhen(c.cerrado_at) : cierrePeriodoLabelFromRecord(c),
+        fecha: cierreHistorialFechaIso(c) || '',
+        ventas: Number(c.ventas_total) || 0,
+        ef: Number(c.efectivo) || 0,
+        mp: Number(c.mercado_pago) || 0,
+        egresos: Number(c.gastos) || 0,
+        ingresos: ing,
+        resultado: Number(c.resultado) || 0,
+        entregados: Number(c.pedidos_entregados) || Number(c.entregados) || 0,
+      };
+    });
+  }
+
+  function buildHistorialEmbedComandas() {
+    return (allOrdersCache || []).slice(0, 50);
+  }
+
+  function buildHistorialEmbedState() {
+    return {
+      live: !!token,
+      cierres: buildHistorialEmbedCierres(),
+      comandas: buildHistorialEmbedComandas(),
+      gastos: buildHistorialEmbedGastos(),
+    };
+  }
+
+  function syncHistorialEmbed() {
+    var frame = $('historial-config-frame');
+    if (!frame || !frame.contentWindow) return;
+    try {
+      frame.contentWindow.postMessage(
+        { type: 'brava-historial-state', state: buildHistorialEmbedState() },
+        location.origin
+      );
+    } catch (eHistEmbed) {}
+  }
+
+  function applyHistorialFrameHeight(height) {
+    var frame = $('historial-config-frame');
+    if (!frame || !height) return;
+    var h = Math.max(520, Math.ceil(height) + 4);
+    if (Math.abs(h - lastHistorialFrameHeight) < 4) return;
+    lastHistorialFrameHeight = h;
+    frame.style.height = h + 'px';
+  }
+
+  function refreshHistorialEmbed() {
+    return Promise.all([
+      loadCierres(true),
+      fetchOrdersFromServer(true),
+      loadHistorialEmbedGastos(true),
+    ]).then(function () {
+      syncHistorialEmbed();
+    });
+  }
+
+  function findCierreRecordForPrint(id) {
+    if (!id) return null;
+    var c = findHistorialCierreById(id);
+    if (c) return c;
+    for (var i = 0; i < (cierresCache || []).length; i++) {
+      if (cierresCache[i].id === id) return cierresCache[i];
+    }
+    return null;
+  }
+
+  function handleHistorialEmbedAction(action, payload) {
+    if (!payload) return;
+    if (action === 'print' && payload.id) {
+      var c = findCierreRecordForPrint(payload.id);
+      if (!c) return;
+      var html =
+        '<div class="resumen resumen-ticket resumen-cierre">' +
+        buildCierreOperativoHtmlFromRecord(c) +
+        '</div>';
+      printCierreResumenThermal(html);
+      return;
+    }
+    if (action === 'print-comanda' && payload.orn) {
+      var o = findOrderByOrn(payload.orn);
+      if (!o) {
+        for (var i = 0; i < (allOrdersCache || []).length; i++) {
+          if (allOrdersCache[i].orn === payload.orn) {
+            o = allOrdersCache[i];
+            break;
+          }
+        }
+      }
+      if (!o || !window.BravaComanda || typeof window.BravaComanda.printOrderTicket !== 'function') return;
+      window.BravaComanda.printOrderTicket(o);
+    }
   }
 
   function syncCajaEmbed() {
@@ -1911,10 +2072,7 @@
   function showCajaEmbedSection(section) {
     var frame = $('caja-config-frame');
     if (!frame) return;
-    var next =
-      '/admin/demo-caja-turno.html?embed=1&section=' +
-      encodeURIComponent(section || 'centro') +
-      '&v=4';
+    var next = cajaTurnoEmbedUrl(section || 'centro');
     var current = frame.getAttribute('src') || '';
     if (current.split('#')[0] !== next) {
       frame.src = next;
@@ -2005,6 +2163,7 @@
 
   function updateCajaUI() {
     syncCajaEmbed();
+    syncHistorialEmbed();
     updateCierreStatusUI();
     updateTurnoToolbarUI();
     updateViewSubtitle();
@@ -7052,6 +7211,21 @@
     if (ev.data && ev.data.type === 'brava-caja-action') {
       handleCajaEmbedAction(ev.data.action, ev.data.payload || null);
     }
+    if (ev.data && ev.data.type === 'brava-historial-height') {
+      applyHistorialFrameHeight(ev.data.height);
+    }
+    if (ev.data && ev.data.type === 'brava-historial-request-sync') {
+      syncHistorialEmbed();
+    }
+    if (ev.data && ev.data.type === 'brava-historial-action') {
+      handleHistorialEmbedAction(ev.data.action, ev.data.payload || null);
+    }
+    if (ev.data && ev.data.type === 'brava-costos-height') {
+      applyCostosFrameHeight(ev.data.height);
+    }
+    if (ev.data && ev.data.type === 'brava-costos-request-token') {
+      syncCostosEmbedToken();
+    }
     if (ev.data && ev.data.type === 'brava-tienda-status') {
       var pill = $('tienda-supabase-pill');
       if (!pill) return;
@@ -7065,6 +7239,27 @@
       }
     }
   });
+
+  function applyCostosFrameHeight(height) {
+    var frame = $('costos-config-frame');
+    if (!frame || !height) return;
+    var h = Math.max(520, Math.ceil(height) + 4);
+    if (Math.abs(h - lastCostosFrameHeight) < 4) return;
+    lastCostosFrameHeight = h;
+    frame.style.height = h + 'px';
+  }
+
+  function syncCostosEmbedToken() {
+    var frame = $('costos-config-frame');
+    if (!frame || !frame.contentWindow || !token) return;
+    try {
+      frame.contentWindow.postMessage({ type: 'brava-admin-token', token: token }, location.origin);
+    } catch (eCostos) {}
+  }
+
+  function refreshCostosEmbed() {
+    syncCostosEmbedToken();
+  }
 
   function showTiendaSection(section) {
     var frame = $('tienda-config-frame');
@@ -7101,7 +7296,14 @@
       titles[key] = cajaEmbedViews[key].title;
       subtitles[key] = cajaEmbedViews[key].subtitle;
     });
-
+    Object.keys(historialEmbedViews).forEach(function (key) {
+      titles[key] = historialEmbedViews[key].title;
+      subtitles[key] = historialEmbedViews[key].subtitle;
+    });
+    Object.keys(costosEmbedViews).forEach(function (key) {
+      titles[key] = costosEmbedViews[key].title;
+      subtitles[key] = costosEmbedViews[key].subtitle;
+    });
     document.querySelectorAll('.nav-btn[data-view]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var view = btn.getAttribute('data-view');
@@ -7111,6 +7313,8 @@
         document.querySelectorAll('.admin-view').forEach(function (v) {
           if (isTiendaView(view)) v.hidden = v.id !== 'view-tienda';
           else if (isCajaEmbedView(view)) v.hidden = v.id !== 'view-caja';
+          else if (isHistorialEmbedView(view)) v.hidden = v.id !== 'view-historial';
+          else if (isCostosEmbedView(view)) v.hidden = v.id !== 'view-costos';
           else v.hidden = v.id !== 'view-' + view;
         });
         if ($('view-title')) {
@@ -7124,17 +7328,19 @@
         if (aside) aside.hidden = !showAside;
         var appMain = document.querySelector('.app-main');
         if (appMain) {
-          appMain.classList.toggle(
-            'app-main--full',
-            isCajaEmbedView(view) || isTiendaView(view)
-          );
+          appMain.classList.toggle('app-main--full', isAdminEmbedFullView(view));
         }
         var mainContent = document.querySelector('.main-content');
         if (mainContent) {
-          mainContent.classList.toggle('main-content--tienda', isTiendaView(view));
+          mainContent.classList.toggle('main-content--tienda', isAdminEmbedFullView(view));
         }
         var topActions = document.querySelector('.top-actions.turno-toolbar');
-        if (topActions) topActions.classList.toggle('hidden', isTiendaView(view));
+        if (topActions) {
+          topActions.classList.toggle(
+            'hidden',
+            isTiendaView(view) || isCostosEmbedView(view) || isHistorialEmbedView(view)
+          );
+        }
         if (view === 'reparto' && window.BravaReparto && typeof window.BravaReparto.onViewShow === 'function') {
           window.BravaReparto.onViewShow();
         }
@@ -7146,6 +7352,14 @@
           refreshCajaTurno();
           var tiendaPill = $('tienda-supabase-pill');
           if (tiendaPill) tiendaPill.classList.add('hidden');
+        } else if (isHistorialEmbedView(view)) {
+          refreshHistorialEmbed();
+          var tiendaPillHist = $('tienda-supabase-pill');
+          if (tiendaPillHist) tiendaPillHist.classList.add('hidden');
+        } else if (isCostosEmbedView(view)) {
+          refreshCostosEmbed();
+          var tiendaPillCostos = $('tienda-supabase-pill');
+          if (tiendaPillCostos) tiendaPillCostos.classList.add('hidden');
         } else {
           var tiendaPill = $('tienda-supabase-pill');
           if (tiendaPill) tiendaPill.classList.add('hidden');
