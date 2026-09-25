@@ -629,7 +629,7 @@
 						<div class="dash-panel prod-section-toolbar">
 							<div class="prod-head-top">
 								<h2>Productos vendidos</h2>
-								<p class="panel-hint" style="margin:0">Elegí escala y período; el detalle se ve abajo en gráficos (demo).</p>
+								<p class="panel-hint" id="prod-section-hint" style="margin:0">Elegí escala y período; el detalle se ve abajo en gráficos.</p>
 							</div>
 							<div class="prod-toolbar-compact">
 								<div class="prod-seg" role="group" aria-label="Agregación temporal">
@@ -1001,6 +1001,8 @@
 		var chartBalFlow = null;
 		var chartBalNet = null;
 		var chartBalPago = null;
+
+		var productosLive = false;
 
 		var prodRange = 'semana';
 		var prodPeriodIdx = 0;
@@ -1876,6 +1878,12 @@
 		function renderProductosVentas() {
 			var period = currentVentasPeriod();
 			var enPesos = prodMetric === 'pesos';
+			var sectionHint = $('#prod-section-hint');
+			if (sectionHint) {
+				sectionHint.textContent = productosLive
+					? 'Datos reales de pedidos entregados (rango de fechas del admin).'
+					: 'Modo demo — iniciá sesión en el admin para ver ventas reales.';
+			}
 			var chartTitle = $('#prod-chart-title');
 			if (chartTitle) {
 				chartTitle.textContent = enPesos ? 'Participación en pesos ($)' : 'Participación por producto';
@@ -2330,6 +2338,14 @@
 
 		function applyLiveState(state) {
 			if (!state) return;
+			if (Object.prototype.hasOwnProperty.call(state, 'productosVentas') && state.live) {
+				var pv = state.productosVentas;
+				if (pv && pv.dia && pv.semana && pv.mes) {
+					MOCK_VENTAS = pv;
+					productosLive = true;
+					prodPeriodIdx = 0;
+				}
+			}
 			if (Object.prototype.hasOwnProperty.call(state, 'gastos')) {
 				var incomingG = state.gastos || [];
 				allGastos = incomingG.map(function (g) {
@@ -2382,6 +2398,10 @@
 			if (activeHistTab === 'gastos') {
 				syncGastosPeriodSelect();
 				renderHistorialGastos();
+			}
+			if (activeHistTab === 'productos') {
+				syncProdPeriodSelect();
+				renderProductosVentas();
 			}
 			notifyEmbedHeight();
 		}

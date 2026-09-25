@@ -1723,7 +1723,7 @@
   var lastCostosFrameHeight = 0;
   var lastHistorialFrameHeight = 0;
   var CAJA_TURNO_EMBED_V = 7;
-  var HISTORIAL_EMBED_V = 18;
+  var HISTORIAL_EMBED_V = 19;
 
   function cajaTurnoEmbedUrl(section) {
     return (
@@ -1973,13 +1973,258 @@
     return (allOrdersCache || []).slice(0, 50);
   }
 
-  function buildHistorialEmbedState() {
+  var HISTORIAL_MESES_ES = [
+    'Enero',
+    'Febrero',
+    'Marzo',
+    'Abril',
+    'Mayo',
+    'Junio',
+    'Julio',
+    'Agosto',
+    'Septiembre',
+    'Octubre',
+    'Noviembre',
+    'Diciembre',
+  ];
+
+  function historialIsoAddDays(iso, delta) {
+    var d = new Date(iso + 'T12:00:00');
+    if (isNaN(d.getTime())) return iso;
+    d.setDate(d.getDate() + delta);
+    return (
+      d.getFullYear() +
+      '-' +
+      String(d.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(d.getDate()).padStart(2, '0')
+    );
+  }
+
+  function historialStartOfWeekMonday(iso) {
+    var d = new Date(iso + 'T12:00:00');
+    if (isNaN(d.getTime())) return iso;
+    var day = d.getDay();
+    var diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return (
+      d.getFullYear() +
+      '-' +
+      String(d.getMonth() + 1).padStart(2, '0') +
+      '-' +
+      String(d.getDate()).padStart(2, '0')
+    );
+  }
+
+  function historialFormatDayLabel(iso) {
+    var d = new Date(iso + 'T12:00:00');
+    if (isNaN(d.getTime())) return iso;
+    var days = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    return days[d.getDay()];
+  }
+
+  function historialFormatWeekLabel(desde, hasta) {
+    var fd = new Date(desde + 'T12:00:00');
+    var hd = new Date(hasta + 'T12:00:00');
+    if (isNaN(fd.getTime()) || isNaN(hd.getTime())) return desde + ' – ' + hasta;
+    var meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return fd.getDate() + '–' + hd.getDate() + ' ' + meses[hd.getMonth()];
+  }
+
+  function historialMonthEnd(ym, capHasta) {
+    var y = Number(ym.slice(0, 4));
+    var mo = Number(ym.slice(5, 7));
+    var last = new Date(y, mo, 0).getDate();
+    var end = ym + '-' + String(last).padStart(2, '0');
+    if (capHasta && end > capHasta && ym === capHasta.slice(0, 7)) return capHasta;
+    return end;
+  }
+
+  function buildHistorialProductoPeriodDefs() {
+    readDateFiltersFromUi();
+    var hasta = filterHasta || todayIsoLocal();
+    var dia = [];
+    var i;
+    for (i = 6; i >= 0; i--) {
+      var dayId = historialIsoAddDays(hasta, -i);
+      dia.push({
+        id: dayId,
+        label: historialFormatDayLabel(dayId),
+        desde: dayId,
+        hasta: dayId,
+      });
+    }
+    var semana = [];
+    var anchor = hasta;
+    for (i = 0; i < 4; i++) {
+      var wStart = historialStartOfWeekMonday(anchor);
+      var wEnd = historialIsoAddDays(wStart, 6);
+      if (wEnd > hasta) wEnd = hasta;
+      semana.push({
+        id: 'w-' + wStart,
+        label: historialFormatWeekLabel(wStart, wEnd),
+        desde: wStart,
+        hasta: wEnd,
+      });
+      anchor = historialIsoAddDays(wStart, -1);
+    }
+    var mes = [];
+    var ym = hasta.slice(0, 7);
+    for (i = 0; i < 4; i++) {
+      var moNum = Number(ym.slice(5, 7));
+      var yStr = ym.slice(0, 4);
+      mes.push({
+        id: ym,
+        label: HISTORIAL_MESES_ES[moNum - 1] + ' ' + yStr,
+        desde: ym + '-01',
+        hasta: historialMonthEnd(ym, hasta),
+      });
+      moNum--;
+      var yNum = Number(yStr);
+      if (moNum < 1) {
+        moNum = 12;
+        yNum--;
+      }
+      ym = yNum + '-' + String(moNum).padStart(2, '0');
+    }
+    return { dia: dia, semana: semana, mes: mes };
+  }
+
+  function emptyHistorialVentasAcc() {
     return {
+      simples: 0,
+      dobles: 0,
+      porProducto: {},
+      bebidas: {},
+      acompanamientos: {},
+      extras: {},
+    };
+  }
+
+  function historialTrackItemPrecio(it, precios) {
+    var r = resolveItemMeta(it);
+    var nombre = (r.nombre || '').trim();
+    if (!nombre) return;
+    var unit = editItemLineUnit(it);
+    if (unit > 0 && (!precios[nombre] || unit > precios[nombre])) precios[nombre] = unit;
+  }
+
+  function historialAccumulateOrder(o, acc, precios) {
+    parseOrderItems(o).forEach(function (it) {
+      accumulateVentasItem(it, acc);
+      historialTrackItemPrecio(it, precios);
+    });
+  }
+
+  function historialAccToProductos(acc, precios) {
+    var list = [];
+    Object.keys(acc.porProducto || {}).forEach(function (nombre) {
+      var qty = Number(acc.porProducto[nombre]) || 0;
+      if (qty > 0) {
+        list.push({
+          nombre: nombre,
+          qty: qty,
+          tipo: 'hamb',
+          precio: Number(precios[nombre]) || 0,
+        });
+      }
+    });
+    function pushMap(map, tipo) {
+      Object.keys(map || {}).forEach(function (nombre) {
+        var qty = Number(map[nombre]) || 0;
+        if (qty > 0) {
+          list.push({
+            nombre: nombre,
+            qty: qty,
+            tipo: tipo,
+            precio: Number(precios[nombre]) || 0,
+          });
+        }
+      });
+    }
+    pushMap(acc.bebidas, 'bebida');
+    pushMap(acc.acompanamientos, 'acomp');
+    pushMap(acc.extras, 'extra');
+    return list;
+  }
+
+  function orderIsoInHistorialPeriod(iso, per) {
+    return iso && per && iso >= per.desde && iso <= per.hasta;
+  }
+
+  function buildHistorialEmbedProductosVentas() {
+    var defs = buildHistorialProductoPeriodDefs();
+    var buckets = { dia: {}, semana: {}, mes: {} };
+
+    function ensureBucket(kind, id) {
+      if (!buckets[kind][id]) {
+        buckets[kind][id] = { acc: emptyHistorialVentasAcc(), precios: {} };
+      }
+      return buckets[kind][id];
+    }
+
+    defs.dia.forEach(function (p) {
+      ensureBucket('dia', p.id);
+    });
+    defs.semana.forEach(function (p) {
+      ensureBucket('semana', p.id);
+    });
+    defs.mes.forEach(function (p) {
+      ensureBucket('mes', p.id);
+    });
+
+    allOrdersCache.forEach(function (o) {
+      if (normalizeEstado(o.estado) !== 'entregada') return;
+      if (pagoEsNoCobrado(o.pago)) return;
+      var iso = orderCajaDateIso(o);
+      if (!inDateRange(iso)) return;
+
+      defs.dia.forEach(function (p) {
+        if (!orderIsoInHistorialPeriod(iso, p)) return;
+        var b = ensureBucket('dia', p.id);
+        historialAccumulateOrder(o, b.acc, b.precios);
+      });
+      defs.semana.forEach(function (p) {
+        if (!orderIsoInHistorialPeriod(iso, p)) return;
+        var b2 = ensureBucket('semana', p.id);
+        historialAccumulateOrder(o, b2.acc, b2.precios);
+      });
+      defs.mes.forEach(function (p) {
+        if (!orderIsoInHistorialPeriod(iso, p)) return;
+        var b3 = ensureBucket('mes', p.id);
+        historialAccumulateOrder(o, b3.acc, b3.precios);
+      });
+    });
+
+    function mapPeriods(list, kind) {
+      return list.map(function (p) {
+        var b = buckets[kind][p.id] || { acc: emptyHistorialVentasAcc(), precios: {} };
+        return {
+          id: p.id,
+          label: p.label,
+          productos: historialAccToProductos(b.acc, b.precios),
+        };
+      });
+    }
+
+    return {
+      dia: mapPeriods(defs.dia, 'dia'),
+      semana: mapPeriods(defs.semana, 'semana'),
+      mes: mapPeriods(defs.mes, 'mes'),
+    };
+  }
+
+  function buildHistorialEmbedState() {
+    var state = {
       live: !!token,
       cierres: buildHistorialEmbedCierres(),
       comandas: buildHistorialEmbedComandas(),
       gastos: buildHistorialEmbedGastos(),
     };
+    if (token) {
+      state.productosVentas = buildHistorialEmbedProductosVentas();
+    }
+    return state;
   }
 
   function syncHistorialEmbed() {
@@ -2007,6 +2252,7 @@
       loadCierres(true),
       fetchOrdersFromServer(true),
       loadHistorialEmbedGastos(true),
+      loadHambMenuMeta(),
     ]).then(function () {
       syncHistorialEmbed();
     });
