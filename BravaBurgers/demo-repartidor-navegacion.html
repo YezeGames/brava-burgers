@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+	<meta name="robots" content="noindex,nofollow">
+	<meta name="apple-mobile-web-app-capable" content="yes">
+	<meta name="mobile-web-app-capable" content="yes">
+	<meta name="theme-color" content="#0b141a">
+	<title>Brava Repartidor — demo</title>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+	<style>
+		:root {
+			--brava: #ff6b35;
+			--bg: #0b141a;
+			--surface: #152028;
+			--text: #e8eef2;
+			--muted: #8fa3b0;
+			--line: #243038;
+			--ok: #43a047;
+			--ef: #ffb300;
+			--mp: #29b6f6;
+			--safe-t: env(safe-area-inset-top, 0px);
+			--safe-b: env(safe-area-inset-bottom, 0px);
+		}
+		* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+		html { height: 100%; }
+		body {
+			margin: 0;
+			min-height: 100%;
+			height: 100%;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			background: #111;
+			color: var(--text);
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			justify-content: center;
+			padding: 10px;
+		}
+		.desktop-hint {
+			flex-shrink: 0;
+			font-size: 0.72rem;
+			color: #888;
+			text-align: center;
+			margin-bottom: 8px;
+			max-width: 430px;
+			line-height: 1.35;
+		}
+		.desktop-hint strong { color: #ccc; }
+		.phone-shell {
+			width: 100%;
+			max-width: 430px;
+			height: min(100dvh - 48px, 880px);
+			flex: 1;
+			min-height: 0;
+			display: flex;
+			flex-direction: column;
+			background: var(--bg);
+			border-radius: 32px;
+			border: 3px solid #2a2a2a;
+			box-shadow: 0 24px 80px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.04);
+			overflow: hidden;
+			position: relative;
+		}
+		.phone-notch {
+			flex-shrink: 0;
+			height: 28px;
+			background: var(--surface);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.62rem;
+			font-weight: 700;
+			letter-spacing: 0.06em;
+			text-transform: uppercase;
+			color: var(--muted);
+			padding-top: var(--safe-t);
+		}
+		.app-viewport {
+			flex: 1;
+			min-height: 0;
+			position: relative;
+			display: flex;
+			flex-direction: column;
+		}
+		.screen {
+			display: none;
+			flex-direction: column;
+			height: 100%;
+			width: 100%;
+			position: absolute;
+			inset: 0;
+			background: var(--bg);
+		}
+		.screen.is-active { display: flex; }
+		.topbar {
+			flex-shrink: 0;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 14px 16px 12px;
+			background: var(--surface);
+			border-bottom: 1px solid var(--line);
+		}
+		.app-brand {
+			width: 36px;
+			height: 36px;
+			border-radius: 10px;
+			background: linear-gradient(135deg, var(--brava), #e65100);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: 800;
+			font-size: 0.85rem;
+			color: #fff;
+			flex-shrink: 0;
+		}
+		.topbar-text { flex: 1; min-width: 0; }
+		.topbar h1 { margin: 0; font-size: 1.05rem; font-weight: 700; }
+		.topbar .sub { font-size: 0.72rem; color: var(--muted); font-weight: 500; margin-top: 2px; }
+		.sync-strip {
+			flex-shrink: 0;
+			padding: 10px 16px;
+			font-size: 0.75rem;
+			line-height: 1.35;
+			background: #122018;
+			border-bottom: 1px solid #1e3d2a;
+			color: #a5d6a7;
+		}
+		.sync-strip em { font-style: normal; color: var(--muted); display: block; margin-top: 4px; font-size: 0.68rem; }
+		.order-list {
+			flex: 1;
+			overflow-y: auto;
+			padding: 12px 16px;
+			padding-bottom: calc(88px + var(--safe-b));
+			-webkit-overflow-scrolling: touch;
+		}
+		.order-card {
+			display: block;
+			width: 100%;
+			text-align: left;
+			border: 1px solid var(--line);
+			background: var(--surface);
+			border-radius: 16px;
+			padding: 16px;
+			margin-bottom: 12px;
+			color: inherit;
+			cursor: pointer;
+			min-height: 88px;
+		}
+		.order-card:active { transform: scale(0.98); border-color: var(--brava); }
+		.stop-num {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 28px;
+			height: 28px;
+			border-radius: 8px;
+			background: rgba(255,107,53,0.2);
+			color: var(--brava);
+			font-size: 0.8rem;
+			font-weight: 800;
+			margin-right: 10px;
+			flex-shrink: 0;
+		}
+		.order-head { display: flex; align-items: center; margin-bottom: 8px; }
+		.order-head .orn { font-size: 0.78rem; color: var(--muted); flex: 1; }
+		.badge {
+			font-size: 0.68rem;
+			font-weight: 700;
+			padding: 5px 10px;
+			border-radius: 999px;
+			text-transform: uppercase;
+		}
+		.badge-ef { background: rgba(255,179,0,0.22); color: var(--ef); }
+		.badge-mp { background: rgba(41,182,246,0.22); color: var(--mp); }
+		.order-addr {
+			font-size: 1rem;
+			font-weight: 600;
+			line-height: 1.3;
+			text-transform: uppercase;
+			letter-spacing: 0.01em;
+		}
+		.order-meta { margin-top: 8px; font-size: 0.82rem; color: var(--muted); }
+		.empty-state {
+			text-align: center;
+			padding: 32px 20px;
+			color: var(--muted);
+			font-size: 0.88rem;
+			line-height: 1.45;
+		}
+		.empty-state strong { color: var(--text); display: block; margin-bottom: 8px; font-size: 1rem; }
+		.app-dock {
+			position: absolute;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			padding: 10px 16px calc(12px + var(--safe-b));
+			background: linear-gradient(transparent, var(--bg) 24%);
+			pointer-events: none;
+		}
+		.app-dock .btn { pointer-events: auto; width: 100%; min-height: 48px; font-size: 0.85rem; }
+		#map-wrap {
+			flex: 1 1 auto;
+			position: relative;
+			min-height: 220px;
+			height: 42dvh;
+			width: 100%;
+			background: #1a2630;
+		}
+		#map {
+			position: absolute;
+			inset: 0;
+			width: 100%;
+			height: 100%;
+			touch-action: none;
+		}
+		.map-loading {
+			position: absolute;
+			inset: 0;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.8rem;
+			color: var(--muted);
+			pointer-events: none;
+			z-index: 2;
+		}
+		.map-loading.hidden { display: none; }
+		.maplibregl-ctrl-attrib { font-size: 8px !important; max-width: 140px; }
+		.maplibregl-ctrl-group button { width: 36px; height: 36px; }
+		.nav-sheet {
+			flex-shrink: 0;
+			background: var(--surface);
+			border-top: 1px solid var(--line);
+			padding: 14px 16px calc(12px + var(--safe-b));
+			max-height: 46dvh;
+			display: flex;
+			flex-direction: column;
+			gap: 12px;
+			border-radius: 20px 20px 0 0;
+			box-shadow: 0 -8px 32px rgba(0,0,0,0.35);
+		}
+		.nav-instruction { font-size: 1.15rem; font-weight: 700; line-height: 1.25; }
+		.nav-meta { font-size: 0.78rem; color: var(--muted); }
+		.nav-steps {
+			display: none;
+		}
+		.nav-actions { display: flex; gap: 10px; }
+		.nav-actions .btn { flex: 1; min-height: 48px; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; }
+		.chip-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+		.chip {
+			flex-shrink: 0;
+			font-size: 0.72rem;
+			padding: 8px 12px;
+			min-height: 36px;
+			border-radius: 999px;
+			border: 1px solid var(--line);
+			background: var(--bg);
+			color: var(--muted);
+			font-family: inherit;
+			font-weight: 600;
+		}
+		.chip.on { border-color: var(--brava); color: var(--brava); }
+		.btn {
+			border: 1px solid var(--line);
+			background: var(--surface);
+			color: var(--text);
+			font: inherit;
+			font-weight: 600;
+			padding: 10px 14px;
+			border-radius: 12px;
+			cursor: pointer;
+		}
+		.btn-back { min-width: 72px; min-height: 44px; padding: 8px 10px; }
+		.btn-ok { background: var(--ok); border-color: var(--ok); color: #fff; }
+		.status-dot {
+			width: 10px; height: 10px; border-radius: 50%;
+			background: var(--muted); flex-shrink: 0;
+		}
+		.status-dot.live { background: var(--ok); box-shadow: 0 0 0 4px rgba(67,160,71,0.25); }
+		@media (max-width: 520px) {
+			body { padding: 0; background: var(--bg); }
+			.desktop-hint { display: none; }
+			.phone-shell {
+				max-width: none;
+				height: 100dvh;
+				border: none;
+				border-radius: 0;
+				box-shadow: none;
+			}
+			.phone-notch { display: none; }
+		}
+	</style>
+</head>
+<body>
+	<p class="desktop-hint">
+		<strong>Vista móvil (app repartidor)</strong> — En PC se ve en marco de celular. Abrí esta URL en el teléfono para probar GPS y voz.
+		La cocina asigna en <strong>Admin → Reparto</strong>; acá solo llegan <em>tus</em> pedidos asignados (demo simulada).
+	</p>
+
+	<div class="phone-shell" id="phone-shell">
+		<div class="phone-notch" aria-hidden="true">Brava repartidor · demo</div>
+		<div class="app-viewport">
+			<section class="screen is-active" id="screen-list">
+				<header class="topbar">
+					<div class="app-brand" aria-hidden="true">B</div>
+					<div class="topbar-text">
+						<h1 id="driver-name">Hola, Tomás</h1>
+						<div class="sub" id="assign-summary">Mis entregas asignadas</div>
+					</div>
+					<span class="status-dot" id="gps-dot-list" title="GPS"></span>
+				</header>
+				<div class="sync-strip" id="sync-strip">
+					Sin pedidos asignados todavía.
+					<em>En producción: Supabase realtime cuando Reparto te asigne la ruta.</em>
+				</div>
+				<div class="order-list" id="order-list"></div>
+				<div class="app-dock" id="list-dock">
+					<button type="button" class="btn" id="btn-sim-assign">Simular asignación desde cocina</button>
+				</div>
+			</section>
+
+			<section class="screen" id="screen-nav">
+				<header class="topbar">
+					<button type="button" class="btn btn-back" id="btn-back" aria-label="Volver">←</button>
+					<div class="topbar-text">
+						<h1 id="nav-stop">Parada 1</h1>
+						<div class="sub" id="nav-cliente">—</div>
+					</div>
+					<span class="status-dot" id="gps-dot-nav"></span>
+				</header>
+				<div id="map-wrap">
+					<div class="map-loading" id="map-loading">Cargando mapa…</div>
+					<div id="map"></div>
+				</div>
+				<div class="nav-sheet">
+					<div class="nav-instruction" id="nav-instruction">Calculando ruta…</div>
+					<div class="nav-meta" id="nav-meta">—</div>
+					<div class="chip-row">
+						<button type="button" class="chip" id="chip-follow">Seguir GPS</button>
+						<button type="button" class="chip on" id="chip-tts">Voz</button>
+						<button type="button" class="chip" id="chip-sim">Simular ruta</button>
+					</div>
+					<ol class="nav-steps" id="nav-steps" aria-hidden="true"></ol>
+					<div class="nav-actions">
+						<button type="button" class="btn" id="btn-ext-maps">Maps</button>
+						<button type="button" class="btn btn-ok" id="btn-delivered">Entregado</button>
+					</div>
+				</div>
+			</section>
+		</div>
+	</div>
+
+	<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+	<script>
+	(function () {
+		'use strict';
+
+		var REPARTIDOR_ID = 'rep-tomas-demo';
+		var REPARTIDOR_NOMBRE = 'Tomás';
+		/** Misma salida que Admin → Reparto (Diaz Velez 3231, Olivos). */
+		var KITCHEN = {
+			lng: -58.49435,
+			lat: -34.50695,
+			label: 'Díaz Vélez 3231, Olivos',
+		};
+		var OSRM = 'https://router.project-osrm.org/route/v1/driving/';
+		var MAP_STYLE = 'https://demotiles.maplibre.org/style.json';
+
+		var catalog = [
+			{
+				orn: 'ORN-DEL-DEMO1',
+				cliente: 'María G.',
+				direccion: 'Av. Maipú 2400',
+				localidad: 'Olivos',
+				pago: 'Efectivo',
+				total: 22400,
+				lng: -58.4882,
+				lat: -34.5121,
+			},
+			{
+				orn: 'ORN-DEL-DEMO2',
+				cliente: 'Lucas P.',
+				direccion: 'Paraná 3450',
+				piso: '4B',
+				localidad: 'Florida',
+				pago: 'Mercado Pago',
+				total: 18900,
+				lng: -58.5012,
+				lat: -34.5188,
+			},
+		];
+
+		/** Solo pedidos que Reparto asignó a este repartidor (no es la pantalla Reparto). */
+		var assignments = [];
+
+		var map = null;
+		var watchId = null;
+		var simTimer = null;
+		var followGps = false;
+		var ttsOn = true;
+		var simOn = false;
+		var currentOrder = null;
+		var routeCoords = [];
+		var steps = [];
+		var stepAnnounced = {};
+		var lastSpokenStep = -1;
+		var userPos = null;
+		var markerUser = null;
+		var markerKitchen = null;
+		var mapBooting = false;
+
+		function $(id) { return document.getElementById(id); }
+
+		function setMapLoading(on, msg) {
+			var el = $('map-loading');
+			if (!el) return;
+			if (msg) el.textContent = msg;
+			el.classList.toggle('hidden', !on);
+		}
+
+		function resizeMapHard() {
+			if (!map) return;
+			map.resize();
+			window.setTimeout(function () { map.resize(); }, 80);
+			window.setTimeout(function () { map.resize(); }, 350);
+		}
+
+		function fmt(n) {
+			return '$' + Math.round(Number(n) || 0).toLocaleString('es-AR');
+		}
+
+		function payBadge(o) {
+			if (/efectivo/i.test(o.pago)) return '<span class="badge badge-ef">EF ' + fmt(o.total) + '</span>';
+			return '<span class="badge badge-mp">MP</span>';
+		}
+
+		function myAssignments() {
+			return assignments
+				.filter(function (a) {
+					return a.repartidor_id === REPARTIDOR_ID && a.estado === 'en_camino';
+				})
+				.sort(function (a, b) {
+					return (a.parada || 0) - (b.parada || 0);
+				});
+		}
+
+		function updateSyncStrip() {
+			var list = myAssignments();
+			var el = $('sync-strip');
+			if (!list.length) {
+				el.innerHTML =
+					'Sin pedidos asignados todavía.<em>En producción: Supabase realtime cuando Reparto te asigne la ruta.</em>';
+				$('assign-summary').textContent = 'Mis entregas asignadas';
+				$('list-dock').style.display = '';
+				return;
+			}
+			el.innerHTML =
+				'<strong>' +
+				list.length +
+				' parada' +
+				(list.length === 1 ? '' : 's') +
+				'</strong> enviadas desde cocina · orden fijado en Reparto.' +
+				'<em>Esta app no arma la ruta: solo navega y marca entregado.</em>';
+			$('assign-summary').textContent = list.length + ' en ruta · turno hoy';
+			$('list-dock').style.display = 'none';
+		}
+
+		function showScreen(id) {
+			document.querySelectorAll('.screen').forEach(function (el) {
+				el.classList.toggle('is-active', el.id === id);
+			});
+			if (map) {
+				setTimeout(function () {
+					map.resize();
+				}, 250);
+			}
+		}
+
+		function renderList() {
+			updateSyncStrip();
+			var box = $('order-list');
+			var active = myAssignments();
+			if (!active.length) {
+				box.innerHTML =
+					'<div class="empty-state">' +
+					'<strong>Nada en tu app</strong>' +
+					'Cuando el operador te asigne pedidos en <strong>Reparto</strong> (admin PC), aparecen acá en el orden de la ruta.' +
+					'</div>';
+				return;
+			}
+			box.innerHTML = active
+				.map(function (o) {
+					return (
+						'<button type="button" class="order-card" data-orn="' +
+						o.orn +
+						'">' +
+						'<div class="order-head">' +
+						'<span class="stop-num">' +
+						o.parada +
+						'</span>' +
+						'<span class="orn">' +
+						o.orn +
+						'</span>' +
+						payBadge(o) +
+						'</div>' +
+						'<div class="order-addr">' +
+						(o.direccion || '') +
+						(o.piso ? ' · Piso ' + o.piso : '') +
+						'</div>' +
+						'<div class="order-meta">' +
+						o.cliente +
+						' · ' +
+						(/efectivo/i.test(o.pago) ? 'Cobrar ' + fmt(o.total) : 'MP pagado') +
+						'</div></button>'
+					);
+				})
+				.join('');
+			box.querySelectorAll('.order-card').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					openNav(btn.getAttribute('data-orn'));
+				});
+			});
+		}
+
+		function simAssignFromKitchen() {
+			assignments = catalog.map(function (o, i) {
+				return Object.assign({}, o, {
+					repartidor_id: REPARTIDOR_ID,
+					parada: i + 1,
+					estado: 'en_camino',
+					asignado_at: new Date().toISOString(),
+				});
+			});
+			renderList();
+		}
+
+		function addKitchenMarker() {
+			if (!map || markerKitchen) return;
+			var el = document.createElement('div');
+			el.className = 'kitchen-pin';
+			el.textContent = 'B';
+			el.style.cssText =
+				'width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#ff6b35,#e65100);' +
+				'color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center;' +
+				'border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35)';
+			el.title = KITCHEN.label;
+			markerKitchen = new maplibregl.Marker({ element: el })
+				.setLngLat([KITCHEN.lng, KITCHEN.lat])
+				.addTo(map);
+		}
+
+		function ensureMap(callback) {
+			if (!window.maplibregl) {
+				setMapLoading(true, 'No cargó MapLibre. Revisá conexión.');
+				if (callback) callback(new Error('maplibre_missing'));
+				return;
+			}
+			function done() {
+				addKitchenMarker();
+				setMapLoading(false);
+				resizeMapHard();
+				if (callback) callback(null);
+			}
+			if (map) {
+				resizeMapHard();
+				if (map.isStyleLoaded()) done();
+				else map.once('load', done);
+				return;
+			}
+			if (mapBooting) {
+				map.once('load', function () { if (callback) callback(null); });
+				return;
+			}
+			mapBooting = true;
+			setMapLoading(true, 'Cargando mapa…');
+			map = new maplibregl.Map({
+				container: 'map',
+				style: MAP_STYLE,
+				center: [KITCHEN.lng, KITCHEN.lat],
+				zoom: 14,
+				attributionControl: { compact: true },
+			});
+			map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
+			map.on('error', function (e) {
+				console.warn('[demo-map]', e && e.error ? e.error : e);
+			});
+			map.once('load', function () {
+				mapBooting = false;
+				done();
+			});
+		}
+
+		function geocodeKitchen() {
+			var q = encodeURIComponent('Díaz Vélez 3231, Olivos, Buenos Aires, Argentina');
+			fetch('https://nominatim.openstreetmap.org/search?q=' + q + '&format=json&limit=1', {
+				headers: { Accept: 'application/json' },
+			})
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (!data || !data[0]) return;
+					KITCHEN.lng = parseFloat(data[0].lon);
+					KITCHEN.lat = parseFloat(data[0].lat);
+					if (markerKitchen) {
+						markerKitchen.setLngLat([KITCHEN.lng, KITCHEN.lat]);
+					}
+					if (map && !currentOrder) {
+						map.setCenter([KITCHEN.lng, KITCHEN.lat]);
+					}
+				})
+				.catch(function () {});
+		}
+
+		function clearRouteLayers() {
+			if (!map || !map.isStyleLoaded()) return;
+			if (map.getLayer('route-line')) map.removeLayer('route-line');
+			if (map.getSource('route')) map.removeSource('route');
+			if (map.getLayer('dest-pin')) map.removeLayer('dest-pin');
+			if (map.getSource('dest')) map.removeSource('dest');
+		}
+
+		function drawRoute(geojson, dest) {
+			if (!map.isStyleLoaded()) {
+				map.once('load', function () { drawRoute(geojson, dest); });
+				return;
+			}
+			clearRouteLayers();
+			addKitchenMarker();
+			if (markerKitchen) markerKitchen.setLngLat([KITCHEN.lng, KITCHEN.lat]);
+			map.addSource('route', { type: 'geojson', data: geojson });
+			map.addLayer({
+				id: 'route-line',
+				type: 'line',
+				source: 'route',
+				paint: { 'line-color': '#ff6b35', 'line-width': 6, 'line-opacity': 0.95 },
+			});
+			map.addSource('dest', {
+				type: 'geojson',
+				data: { type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] } },
+			});
+			map.addLayer({
+				id: 'dest-pin',
+				type: 'circle',
+				source: 'dest',
+				paint: { 'circle-radius': 11, 'circle-color': '#43a047', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' },
+			});
+			if (!followGps || !userPos) {
+				var bounds = new maplibregl.LngLatBounds();
+				geojson.coordinates.forEach(function (c) { bounds.extend(c); });
+				bounds.extend([dest.lng, dest.lat]);
+				bounds.extend([KITCHEN.lng, KITCHEN.lat]);
+				map.fitBounds(bounds, { padding: { top: 40, bottom: 200, left: 24, right: 24 }, maxZoom: 15 });
+			}
+		}
+
+		function maneuverText(step) {
+			if (!step || !step.maneuver) return 'Seguí por la ruta';
+			var m = step.maneuver;
+			var street = (m.name || step.name || '').trim();
+			var t = m.type || '';
+			var mod = m.modifier || '';
+			if (t === 'arrive') return 'Llegaste al destino';
+			if (t === 'depart') return 'Salí hacia ' + (street || 'la ruta');
+			if (mod === 'left') return 'Girá a la izquierda' + (street ? ' en ' + street : '');
+			if (mod === 'right') return 'Girá a la derecha' + (street ? ' en ' + street : '');
+			if (mod === 'slight left') return 'Mantenete a la izquierda';
+			if (mod === 'slight right') return 'Mantenete a la derecha';
+			if (t === 'roundabout') return 'Tomá la rotonda';
+			if (t === 'continue') return 'Continuá' + (street ? ' por ' + street : '');
+			return m.instruction || 'Seguí la ruta';
+		}
+
+		function haversineM(a, b) {
+			var R = 6371000;
+			var toRad = Math.PI / 180;
+			var dLat = (b.lat - a.lat) * toRad;
+			var dLng = (b.lng - a.lng) * toRad;
+			var x =
+				Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+				Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+			return 2 * R * Math.asin(Math.sqrt(x));
+		}
+
+		function speak(text) {
+			if (!ttsOn || !text) return;
+			if (!window.speechSynthesis) return;
+			window.speechSynthesis.cancel();
+			var u = new SpeechSynthesisUtterance(text);
+			u.lang = 'es-AR';
+			u.rate = 0.92;
+			window.speechSynthesis.speak(u);
+		}
+
+		function updateUserMarker(lng, lat) {
+			if (!map) return;
+			if (!markerUser) {
+				var el = document.createElement('div');
+				el.style.width = '20px';
+				el.style.height = '20px';
+				el.style.borderRadius = '50%';
+				el.style.background = '#29b6f6';
+				el.style.border = '3px solid #fff';
+				el.style.boxShadow = '0 0 0 3px rgba(41,182,246,0.45)';
+				markerUser = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+			} else {
+				markerUser.setLngLat([lng, lat]);
+			}
+			if (followGps) {
+				map.easeTo({
+					center: [lng, lat],
+					zoom: Math.max(map.getZoom(), 16),
+					duration: 600,
+				});
+			}
+		}
+
+		function findStepIndex(pos) {
+			if (!steps.length) return 0;
+			var best = 0;
+			var bestD = Infinity;
+			for (var i = 0; i < steps.length; i++) {
+				var loc = steps[i].maneuver && steps[i].maneuver.location;
+				if (!loc) continue;
+				var d = haversineM(pos, { lng: loc[0], lat: loc[1] });
+				if (d < bestD) {
+					bestD = d;
+					best = i;
+				}
+			}
+			return best;
+		}
+
+		function onPosition(lng, lat) {
+			userPos = { lng: lng, lat: lat };
+			$('gps-dot-list').classList.add('live');
+			$('gps-dot-nav').classList.add('live');
+			if ($('screen-nav').classList.contains('is-active')) {
+				updateUserMarker(lng, lat);
+			}
+			if (!steps.length || !$('screen-nav').classList.contains('is-active')) return;
+			var idx = findStepIndex(userPos);
+			var step = steps[idx];
+			var instr = maneuverText(step);
+			$('nav-instruction').textContent = instr;
+			var dist = step.distance ? Math.round(step.distance) + ' m' : '';
+			$('nav-meta').textContent = 'Paso ' + (idx + 1) + '/' + steps.length + (dist ? ' · ' + dist : '');
+
+			var loc = step.maneuver && step.maneuver.location;
+			if (loc) {
+				var dMan = haversineM(userPos, { lng: loc[0], lat: loc[1] });
+				if (dMan < 90 && !stepAnnounced[idx]) {
+					stepAnnounced[idx] = true;
+					if (lastSpokenStep !== idx) {
+						lastSpokenStep = idx;
+						speak(instr);
+					}
+				}
+			}
+		}
+
+		function startGps() {
+			if (!navigator.geolocation) return;
+			if (watchId != null) navigator.geolocation.clearWatch(watchId);
+			watchId = navigator.geolocation.watchPosition(
+				function (p) {
+					onPosition(p.coords.longitude, p.coords.latitude);
+				},
+				function () {
+					$('gps-dot-list').classList.remove('live');
+				},
+				{ enableHighAccuracy: true, maximumAge: 1500, timeout: 12000 }
+			);
+		}
+
+		function stopSim() {
+			if (simTimer) clearInterval(simTimer);
+			simTimer = null;
+			simOn = false;
+			$('chip-sim').classList.remove('on');
+		}
+
+		function startSim() {
+			stopSim();
+			if (!routeCoords.length) return;
+			simOn = true;
+			$('chip-sim').classList.add('on');
+			var i = 0;
+			simTimer = setInterval(function () {
+				if (i >= routeCoords.length) {
+					stopSim();
+					return;
+				}
+				var c = routeCoords[i];
+				onPosition(c[0], c[1]);
+				i += Math.max(1, Math.floor(routeCoords.length / 70));
+			}, 350);
+		}
+
+		function fetchRoute(from, to) {
+			var url =
+				OSRM +
+				from.lng +
+				',' +
+				from.lat +
+				';' +
+				to.lng +
+				',' +
+				to.lat +
+				'?steps=true&geometries=geojson&overview=full';
+			return fetch(url)
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
+						throw new Error((data && data.message) || 'Sin ruta OSRM');
+					}
+					return data.routes[0];
+				});
+		}
+
+		function openNav(orn) {
+			currentOrder = myAssignments().find(function (o) { return o.orn === orn; });
+			if (!currentOrder) return;
+			stepAnnounced = {};
+			lastSpokenStep = -1;
+			steps = [];
+			routeCoords = [];
+			$('nav-stop').textContent = 'Parada ' + currentOrder.parada;
+			$('nav-cliente').textContent =
+				currentOrder.cliente + ' · ' + (currentOrder.direccion || '').toUpperCase();
+			$('nav-instruction').textContent = 'Calculando ruta…';
+			$('nav-meta').textContent = 'Salida: ' + KITCHEN.label + ' (Brava)';
+			showScreen('screen-nav');
+			window.requestAnimationFrame(function () {
+				window.requestAnimationFrame(function () {
+					ensureMap(function (err) {
+						if (err) {
+							$('nav-instruction').textContent = 'Mapa no disponible.';
+							return;
+						}
+						loadRouteForOrder();
+					});
+				});
+			});
+		}
+
+		function loadRouteForOrder() {
+			var dest = { lng: currentOrder.lng, lat: currentOrder.lat };
+			/** Siempre desde cocina Brava, igual que Reparto admin. */
+			var from = { lng: KITCHEN.lng, lat: KITCHEN.lat };
+			fetchRoute(from, dest)
+				.then(function (route) {
+					var geom = route.geometry;
+					routeCoords = geom.coordinates || [];
+					drawRoute(geom, dest);
+					steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
+					var totalKm = (route.distance / 1000).toFixed(1);
+					var totalMin = Math.round(route.duration / 60);
+					$('nav-meta').textContent =
+						'Desde ' +
+						KITCHEN.label +
+						' · ' +
+						totalKm +
+						' km · ~' +
+						totalMin +
+						' min';
+					resizeMapHard();
+					if (steps[0]) {
+						$('nav-instruction').textContent = maneuverText(steps[0]);
+						speak('Parada ' + currentOrder.parada + '. ' + maneuverText(steps[0]));
+					}
+				})
+				.catch(function (e) {
+					$('nav-instruction').textContent = 'Error: ' + (e.message || e);
+				});
+		}
+
+		function gmapsExternal() {
+			if (!currentOrder) return;
+			var q = encodeURIComponent(
+				(currentOrder.direccion || '') +
+					', ' +
+					(currentOrder.localidad || 'Olivos') +
+					', Provincia de Buenos Aires, Argentina'
+			);
+			window.open('https://www.google.com/maps/dir/?api=1&destination=' + q + '&travelmode=driving', '_blank');
+		}
+
+		function markDelivered() {
+			if (!currentOrder) return;
+			if (!confirm('¿Confirmás entrega de parada ' + currentOrder.parada + '?')) return;
+			var orn = currentOrder.orn;
+			assignments.forEach(function (a) {
+				if (a.orn === orn) a.estado = 'entregada';
+			});
+			stopSim();
+			speak('Entregado');
+			currentOrder = null;
+			showScreen('screen-list');
+			renderList();
+		}
+
+		$('btn-back').addEventListener('click', function () {
+			stopSim();
+			showScreen('screen-list');
+		});
+		$('btn-delivered').addEventListener('click', markDelivered);
+		$('btn-ext-maps').addEventListener('click', gmapsExternal);
+		$('btn-sim-assign').addEventListener('click', simAssignFromKitchen);
+		$('chip-follow').addEventListener('click', function () {
+			followGps = !followGps;
+			$('chip-follow').classList.toggle('on', followGps);
+		});
+		$('chip-tts').addEventListener('click', function () {
+			ttsOn = !ttsOn;
+			$('chip-tts').classList.toggle('on', ttsOn);
+			if (!ttsOn && window.speechSynthesis) window.speechSynthesis.cancel();
+		});
+		$('chip-sim').addEventListener('click', function () {
+			if (simOn) stopSim();
+			else startSim();
+		});
+
+		$('driver-name').textContent = 'Hola, ' + REPARTIDOR_NOMBRE;
+		renderList();
+		startGps();
+		geocodeKitchen();
+	})();
+	</script>
+</body>
+</html>
