@@ -769,6 +769,76 @@ async function updateOrder(body) {
 
 }
 
+async function listRepartidorRuta(telefono) {
+  const tel = telNorm(telefono);
+  if (!tel) return { ok: false, error: 'missing_telefono' };
+  const r = await restSelect(
+    'orders',
+    'select=orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,items_json&repartidor_tel=eq.' +
+      encodeURIComponent(tel) +
+      '&estado=eq.en_camino&order=reparto_parada.asc.nullslast,fecha_creado.asc'
+  );
+  if (!r.ok) {
+    if (isRepartidorColumnsMissing(r)) {
+      return { ok: false, error: 'repartidor_schema_missing', hint: 'Ejecutá migrateRepartidorAssign en admin o repartidor-asignacion.sql' };
+    }
+    return supabaseFail(r, 'repartidor_list_failed');
+  }
+  const rows = Array.isArray(r.data) ? r.data : [];
+  const pedidos = rows.map(function (row, idx) {
+    const o = rowToOrder(row);
+    return {
+      orn: o.orn,
+      cliente: o.cliente,
+      direccion: o.direccion,
+      localidad: o.localidad,
+      piso: o.piso,
+      pago: o.pago,
+      total: o.total,
+      estado: o.estado,
+      parada: o.reparto_parada != null ? o.reparto_parada : idx + 1,
+      reparto_ruta_id: o.reparto_ruta_id || '',
+      asignado_at: o.reparto_asignado_at || '',
+      items: o.items,
+    };
+  });
+  pedidos.sort(function (a, b) {
+    return (a.parada || 0) - (b.parada || 0);
+  });
+  return {
+    ok: true,
+    repartidor_tel: tel,
+    pedidos: pedidos,
+    ruta_id: pedidos[0] ? pedidos[0].reparto_ruta_id : '',
+  };
+}
+
+function isRepartidorColumnsMissing(r) {
+  if (!r || r.ok) return false;
+  const blob = restErrorBlob(r);
+  return blob.indexOf('repartidor_tel') >= 0 || blob.indexOf('reparto_parada') >= 0;
+}
+
+async function repartidorMarkEntregada(body) {
+  const tel = telNorm(body.telefono || body.repartidor_tel);
+  const orn = String(body.orn || '').trim();
+  if (!tel || !orn) return { ok: false, error: 'missing_fields' };
+  const lookup = await restSelect(
+    'orders',
+    'select=orn,repartidor_tel,estado&orn=eq.' + encodeURIComponent(orn) + '&limit=1'
+  );
+  if (!lookup.ok) return supabaseFail(lookup, 'order_lookup_failed');
+  if (!lookup.data || !lookup.data[0]) return { ok: false, error: 'order_not_found' };
+  const row = lookup.data[0];
+  if (telNorm(row.repartidor_tel) !== tel) {
+    return { ok: false, error: 'order_not_assigned_to_repartidor' };
+  }
+  if (String(row.estado || '').toLowerCase() === 'entregada') {
+    return { ok: true, orn: orn, already: true };
+  }
+  return updateOrder({ orn: orn, estado: 'entregada' });
+}
+
 async function assignRepartidorRuta(body) {
   const tel = telNorm(body.repartidor_tel || body.telefono);
   const stopsIn = body.stops || body.orders || [];
@@ -1700,6 +1770,10 @@ module.exports = {
   createManualOrder,
 
   assignRepartidorRuta,
+
+  listRepartidorRuta,
+
+  repartidorMarkEntregada,
 
 };
 

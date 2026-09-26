@@ -345,6 +345,41 @@
 			background: var(--muted); flex-shrink: 0;
 		}
 		.status-dot.live { background: var(--ok); box-shadow: 0 0 0 4px rgba(67,160,71,0.25); }
+		.repartidor-tel-row {
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			width: 100%;
+		}
+		.repartidor-tel-row label {
+			font-size: 0.72rem;
+			color: var(--muted);
+			font-weight: 600;
+		}
+		.repartidor-tel-row input {
+			width: 100%;
+			box-sizing: border-box;
+			padding: 12px 14px;
+			border-radius: 12px;
+			border: 1px solid var(--line);
+			background: var(--surface);
+			color: var(--text);
+			font: inherit;
+			font-size: 1rem;
+		}
+		.repartidor-tel-row .btn-load {
+			width: 100%;
+			min-height: 48px;
+			background: var(--brava);
+			border-color: var(--brava);
+			color: #fff;
+		}
+		.repartidor-tel-hint {
+			font-size: 0.68rem;
+			color: var(--muted);
+			line-height: 1.35;
+			margin: 0;
+		}
 		@media (max-width: 520px) {
 			body { padding: 0; background: var(--bg); }
 			.desktop-hint { display: none; }
@@ -362,7 +397,7 @@
 <body>
 	<p class="desktop-hint">
 		<strong>Vista móvil (app repartidor)</strong> — En PC se ve en marco de celular. Abrí esta URL en el teléfono para probar GPS y voz.
-		La cocina asigna en <strong>Admin → Reparto</strong>; acá solo llegan <em>tus</em> pedidos asignados (demo simulada).
+		Cocina publica en <strong>Admin → Reparto → Publicar en app</strong>. Acá cargás tu teléfono y ves pedidos reales <em>en camino</em> asignados a vos.
 	</p>
 
 	<div class="phone-shell" id="phone-shell">
@@ -391,7 +426,13 @@
 				</div>
 				<div class="order-list" id="order-list"></div>
 				<div class="app-dock" id="list-dock">
-					<button type="button" class="btn" id="btn-sim-assign">Simular asignación desde cocina</button>
+					<div class="repartidor-tel-row">
+						<label for="repartidor-tel">Tu celular (mismo que en Reparto admin)</label>
+						<input type="tel" id="repartidor-tel" inputmode="tel" autocomplete="tel" placeholder="54911…">
+						<button type="button" class="btn btn-load" id="btn-load-ruta">Cargar mis entregas</button>
+						<p class="repartidor-tel-hint">Pedidos <strong>en camino</strong> con tu número en «Publicar en app repartidor».</p>
+						<button type="button" class="btn" id="btn-sim-assign" style="font-size:0.75rem">Modo demo (datos falsos)</button>
+					</div>
 				</div>
 			</section>
 
@@ -432,8 +473,18 @@
 	(function () {
 		'use strict';
 
-		var REPARTIDOR_ID = 'rep-tomas-demo';
-		var REPARTIDOR_NOMBRE = 'Tomás';
+		var TEL_STORAGE_KEY = 'brava_repartidor_tel_v1';
+		var REPARTIDOR_NOMBRE = 'Repartidor';
+		var API_KEY = (function () {
+			try {
+				return new URLSearchParams(window.location.search).get('key') || '';
+			} catch (e) {
+				return '';
+			}
+		})();
+		var liveFromSupabase = false;
+		var refreshPoll = null;
+		var lastFetchError = '';
 		/** Misma salida que Admin → Reparto (Diaz Velez 3231, Olivos). */
 		var KITCHEN = {
 			lng: -58.49435,
@@ -519,10 +570,49 @@
 			return '<span class="badge badge-mp">MP</span>';
 		}
 
+		function telNorm(t) {
+			return String(t || '').replace(/\D/g, '').slice(-10);
+		}
+
+		function driverTelRaw() {
+			var el = $('repartidor-tel');
+			return el ? String(el.value || '').trim() : '';
+		}
+
+		function driverTel() {
+			return telNorm(driverTelRaw());
+		}
+
+		function saveDriverTel() {
+			var raw = driverTelRaw();
+			try {
+				if (raw) localStorage.setItem(TEL_STORAGE_KEY, raw);
+			} catch (e) {}
+		}
+
+		function loadDriverTel() {
+			try {
+				var saved = localStorage.getItem(TEL_STORAGE_KEY);
+				if (saved && $('repartidor-tel')) $('repartidor-tel').value = saved;
+			} catch (e2) {}
+		}
+
+		function repartidorApi(body) {
+			body.action = body.action || 'listRuta';
+			if (API_KEY) body.key = API_KEY;
+			return fetch('/api/repartidor', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body),
+			}).then(function (r) {
+				return r.json();
+			});
+		}
+
 		function myAssignments() {
 			return assignments
 				.filter(function (a) {
-					return a.repartidor_id === REPARTIDOR_ID && a.estado === 'en_camino';
+					return String(a.estado || '').toLowerCase() === 'en_camino';
 				})
 				.sort(function (a, b) {
 					return (a.parada || 0) - (b.parada || 0);
@@ -532,11 +622,28 @@
 		function updateSyncStrip() {
 			var list = myAssignments();
 			var el = $('sync-strip');
+			var tel = driverTel();
+			if (!tel) {
+				el.innerHTML =
+					'Ingresá tu celular y tocá <strong>Cargar mis entregas</strong>.' +
+					'<em>Mismo número que cargás en Admin → Reparto.</em>';
+				$('assign-summary').textContent = 'Mis entregas asignadas';
+				return;
+			}
+			if (lastFetchError && !list.length) {
+				el.innerHTML =
+					'<strong>Sin pedidos o error</strong> · ' +
+					lastFetchError +
+					'<em>¿Publicaste la ruta en Reparto con este teléfono?</em>';
+				$('assign-summary').textContent = liveFromSupabase ? 'Conectado · 0 en camino' : 'Mis entregas';
+				return;
+			}
 			if (!list.length) {
 				el.innerHTML =
-					'Sin pedidos asignados todavía.<em>En producción: Supabase realtime cuando Reparto te asigne la ruta.</em>';
-				$('assign-summary').textContent = 'Mis entregas asignadas';
-				$('list-dock').style.display = '';
+					'No tenés paradas <strong>en camino</strong> asignadas a ' +
+					tel +
+					'.<em>Pedile a cocina «Publicar en app repartidor».</em>';
+				$('assign-summary').textContent = liveFromSupabase ? 'Conectado · 0 en camino' : 'Mis entregas';
 				return;
 			}
 			el.innerHTML =
@@ -544,10 +651,100 @@
 				list.length +
 				' parada' +
 				(list.length === 1 ? '' : 's') +
-				'</strong> enviadas desde cocina · orden fijado en Reparto.' +
-				'<em>Esta app no arma la ruta: solo navega y marca entregado.</em>';
-			$('assign-summary').textContent = list.length + ' en ruta · turno hoy';
-			$('list-dock').style.display = 'none';
+				'</strong> desde Supabase · en camino.' +
+				(liveFromSupabase ? '<em>Se actualiza cada 45 s.</em>' : '<em>Modo demo local.</em>');
+			$('assign-summary').textContent = list.length + ' en ruta · ' + tel.slice(-4);
+		}
+
+		function fetchRutaLive(showToast) {
+			var tel = driverTel();
+			if (!tel) {
+				updateSyncStrip();
+				renderList();
+				return Promise.resolve();
+			}
+			saveDriverTel();
+			lastFetchError = '';
+			var btn = $('btn-load-ruta');
+			if (btn) btn.disabled = true;
+			return repartidorApi({ action: 'listRuta', telefono: tel })
+				.then(function (data) {
+					if (!data.ok) {
+						lastFetchError = data.error || data.hint || 'error';
+						if (data.error === 'repartidor_schema_missing') {
+							lastFetchError = 'Falta migración repartidor en Supabase';
+						}
+						if (showToast) alert('No se pudo cargar: ' + lastFetchError);
+						if (!liveFromSupabase) assignments = [];
+					} else {
+						liveFromSupabase = true;
+						assignments = (data.pedidos || []).map(function (p) {
+							return {
+								orn: p.orn,
+								cliente: p.cliente,
+								direccion: p.direccion,
+								localidad: p.localidad,
+								piso: p.piso,
+								pago: p.pago,
+								total: p.total,
+								parada: p.parada,
+								estado: p.estado || 'en_camino',
+								lat: p.lat != null ? p.lat : null,
+								lng: p.lng != null ? p.lng : null,
+								reparto_ruta_id: p.reparto_ruta_id || data.ruta_id || '',
+							};
+						});
+					}
+					renderList();
+					if (showToast && data.ok) {
+						showPushToast(
+							'Ruta actualizada',
+							assignments.length
+								? assignments.length + ' entrega(s) en camino'
+								: 'Nada en camino para tu número'
+						);
+					}
+				})
+				.catch(function () {
+					lastFetchError = 'red';
+					if (showToast) alert('Error de red al cargar entregas.');
+					renderList();
+				})
+				.finally(function () {
+					if (btn) btn.disabled = false;
+				});
+		}
+
+		function startRefreshPoll() {
+			if (refreshPoll) clearInterval(refreshPoll);
+			refreshPoll = setInterval(function () {
+				if (liveFromSupabase && driverTel() && !$('screen-nav').classList.contains('is-active')) {
+					fetchRutaLive(false);
+				}
+			}, 45000);
+		}
+
+		function geocodeOrder(o) {
+			if (o.lat != null && o.lng != null && !isNaN(o.lat) && !isNaN(o.lng)) {
+				return Promise.resolve(o);
+			}
+			var parts = [o.direccion || ''];
+			if (o.piso) parts.push('Piso ' + o.piso);
+			if (o.localidad) parts.push(o.localidad);
+			parts.push('Provincia de Buenos Aires', 'Argentina');
+			var q = encodeURIComponent(parts.filter(Boolean).join(', '));
+			return fetch('https://nominatim.openstreetmap.org/search?q=' + q + '&format=json&limit=1', {
+				headers: { Accept: 'application/json' },
+			})
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (data) {
+					if (!data || !data[0]) throw new Error('No ubicamos la dirección en el mapa');
+					o.lat = parseFloat(data[0].lat);
+					o.lng = parseFloat(data[0].lon);
+					return o;
+				});
 		}
 
 		function showScreen(id) {
@@ -665,15 +862,16 @@
 
 		function simAssignFromKitchen() {
 			ensureNotifyPermission();
+			liveFromSupabase = false;
+			lastFetchError = '';
 			assignments = catalog.map(function (o, i) {
 				return Object.assign({}, o, {
-					repartidor_id: REPARTIDOR_ID,
 					parada: i + 1,
 					estado: 'en_camino',
-					asignado_at: new Date().toISOString(),
 				});
 			});
 			renderList();
+			showPushToast('Modo demo', 'Datos de prueba (no Supabase)');
 		}
 
 		function addKitchenMarker() {
@@ -1051,31 +1249,38 @@
 		}
 
 		function openNav(orn) {
-			currentOrder = myAssignments().find(function (o) { return o.orn === orn; });
-			if (!currentOrder) return;
+			var base = myAssignments().find(function (o) { return o.orn === orn; });
+			if (!base) return;
 			stepAnnounced = {};
 			lastSpokenStep = -1;
 			steps = [];
 			routeCoords = [];
 			resetNavigationCamera();
 			routeMetaLine = '';
-			$('nav-stop').textContent = 'Parada ' + currentOrder.parada;
-			$('nav-cliente').textContent =
-				currentOrder.cliente + ' · ' + (currentOrder.direccion || '').toUpperCase();
-			$('nav-instruction').textContent = 'Calculando ruta…';
+			currentOrder = base;
+			$('nav-stop').textContent = 'Parada ' + base.parada;
+			$('nav-cliente').textContent = base.cliente + ' · ' + (base.direccion || '').toUpperCase();
+			$('nav-instruction').textContent = 'Ubicando dirección…';
 			$('nav-meta').textContent = 'Salida: ' + KITCHEN.label + ' (Brava)';
 			showScreen('screen-nav');
-			window.requestAnimationFrame(function () {
-				window.requestAnimationFrame(function () {
-					ensureMap(function (err) {
-						if (err) {
-							$('nav-instruction').textContent = 'Mapa no disponible.';
-							return;
-						}
-						loadRouteForOrder();
+			geocodeOrder(base)
+				.then(function (o) {
+					currentOrder = o;
+					window.requestAnimationFrame(function () {
+						window.requestAnimationFrame(function () {
+							ensureMap(function (err) {
+								if (err) {
+									$('nav-instruction').textContent = 'Mapa no disponible.';
+									return;
+								}
+								loadRouteForOrder();
+							});
+						});
 					});
+				})
+				.catch(function (e) {
+					$('nav-instruction').textContent = e.message || 'Sin ubicación';
 				});
-			});
 		}
 
 		function loadRouteForOrder() {
@@ -1121,18 +1326,51 @@
 			var order = currentOrder;
 			if (!confirm('¿Confirmás entrega de parada ' + order.parada + '?')) return;
 			var orn = order.orn;
-			assignments.forEach(function (a) {
-				if (a.orn === orn) a.estado = 'entregada';
-			});
-			stopSim();
-			resetNavigationCamera();
-			speak('Pedido entregado');
-			currentOrder = null;
-			showScreen('screen-list');
-			renderList();
-			window.setTimeout(function () {
-				notifyDeliveryConfirmed(order);
-			}, 320);
+
+			function doneLocal() {
+				assignments.forEach(function (a) {
+					if (a.orn === orn) a.estado = 'entregada';
+				});
+				stopSim();
+				resetNavigationCamera();
+				speak('Pedido entregado');
+				currentOrder = null;
+				showScreen('screen-list');
+				renderList();
+				window.setTimeout(function () {
+					notifyDeliveryConfirmed(order);
+				}, 320);
+			}
+
+			if (liveFromSupabase && driverTel()) {
+				var btn = $('btn-delivered');
+				if (btn) btn.disabled = true;
+				repartidorApi({ action: 'markEntregada', telefono: driverTel(), orn: orn })
+					.then(function (data) {
+						if (!data.ok) {
+							alert('No se pudo marcar entregado: ' + (data.error || 'error'));
+							return;
+						}
+						return fetchRutaLive(false).then(function () {
+							stopSim();
+							resetNavigationCamera();
+							speak('Pedido entregado');
+							currentOrder = null;
+							showScreen('screen-list');
+							window.setTimeout(function () {
+								notifyDeliveryConfirmed(order);
+							}, 320);
+						});
+					})
+					.catch(function () {
+						alert('Error de red al marcar entregado.');
+					})
+					.finally(function () {
+						if (btn) btn.disabled = false;
+					});
+				return;
+			}
+			doneLocal();
 		}
 
 		$('btn-back').addEventListener('click', function () {
@@ -1146,6 +1384,11 @@
 		$('btn-delivered').addEventListener('click', markDelivered);
 		$('btn-ext-maps').addEventListener('click', gmapsExternal);
 		$('btn-sim-assign').addEventListener('click', simAssignFromKitchen);
+		$('btn-load-ruta').addEventListener('click', function () {
+			fetchRutaLive(true);
+			startRefreshPoll();
+		});
+		$('repartidor-tel').addEventListener('change', saveDriverTel);
 		$('chip-follow').addEventListener('click', function () {
 			followGps = !followGps;
 			$('chip-follow').classList.toggle('on', followGps);
@@ -1167,10 +1410,13 @@
 			else startSim();
 		});
 
-		$('driver-name').textContent = 'Hola, ' + REPARTIDOR_NOMBRE;
+		$('driver-name').textContent = 'Brava repartidor';
+		loadDriverTel();
 		renderList();
 		startGps();
 		geocodeKitchen();
+		startRefreshPoll();
+		if (driverTel()) fetchRutaLive(false);
 		document.body.addEventListener(
 			'click',
 			function onceNotify() {
