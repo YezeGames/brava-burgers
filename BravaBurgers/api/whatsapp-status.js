@@ -7,7 +7,7 @@ const {
   subscribeWabaToApp,
 } = require('../lib/whatsappMeta');
 const { listWaMessages, insertWaMessage } = require('../lib/waInbox');
-const { migrateWaMessages } = require('../lib/dbMigrate');
+const { migrateWaMessages, migrateWaReclamos } = require('../lib/dbMigrate');
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -15,6 +15,23 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
     res.setHeader('Allow', 'GET, OPTIONS');
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+  }
+
+  const migrateKind = String(req.query.migrate || '').trim();
+  if (migrateKind === 'wa_reclamos') {
+    const key = String(req.query.key || '').trim();
+    const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();
+    if (!expected || key !== expected) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    const migrateResult = await migrateWaReclamos();
+    return res.status(200).json({
+      ok: !!migrateResult.ok,
+      kind: 'wa_reclamos',
+      migrated: !!migrateResult.migrated,
+      error: migrateResult.ok ? null : migrateResult.error,
+      detail: migrateResult.ok ? null : (migrateResult.detail || migrateResult.hint || '').slice(0, 300),
+    });
   }
 
   const token = String(req.query.token || '').trim();
@@ -33,8 +50,10 @@ module.exports = async function handler(req, res) {
   }
 
   let migrateResult = null;
+  let migrateReclamosResult = null;
   if (req.query.migrate === '1') {
     migrateResult = await migrateWaMessages();
+    migrateReclamosResult = await migrateWaReclamos();
   }
 
   let inboxWrite = null;
@@ -77,5 +96,12 @@ module.exports = async function handler(req, res) {
     migrateOk: migrateResult ? !!migrateResult.ok : null,
     migrateError: migrateResult && !migrateResult.ok ? migrateResult.error : null,
     migrateDetail: migrateResult && !migrateResult.ok ? (migrateResult.detail || '').slice(0, 200) : null,
+    migrateReclamosOk: migrateReclamosResult ? !!migrateReclamosResult.ok : null,
+    migrateReclamosError:
+      migrateReclamosResult && !migrateReclamosResult.ok ? migrateReclamosResult.error : null,
+    migrateReclamosDetail:
+      migrateReclamosResult && !migrateReclamosResult.ok
+        ? (migrateReclamosResult.detail || migrateReclamosResult.hint || '').slice(0, 200)
+        : null,
   });
 };
