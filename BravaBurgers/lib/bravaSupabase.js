@@ -743,7 +743,18 @@ async function updateOrder(body) {
 
   if (!r.ok) return supabaseFail(r, r.error);
 
-  return { ok: true, orn: outOrn };
+  var waPostEntrega = null;
+  if (patch.estado === 'entregada') {
+    try {
+      const { sendPostEntregaForOrn } = require('./waPostEntrega');
+      waPostEntrega = await sendPostEntregaForOrn(outOrn);
+    } catch (e) {
+      console.warn('[updateOrder] wa post-entrega error', outOrn, e.message || e);
+      waPostEntrega = { ok: false, error: String(e.message || e) };
+    }
+  }
+
+  return { ok: true, orn: outOrn, waPostEntrega: waPostEntrega };
 
 }
 

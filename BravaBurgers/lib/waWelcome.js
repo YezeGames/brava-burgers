@@ -1,6 +1,8 @@
 const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
 const { normalizeWaRecipient, sendTextMessage, getWhatsAppConfig } = require('./whatsappMeta');
 const { insertWaMessage, AUTO_CONSULTA_MARKER, encodeWaMediaBody } = require('./waInbox');
+const { handleReclamoInbound } = require('./waReclamo');
+const { getReclamoSession } = require('./waReclamoStore');
 
 const ACTIVE_ORDER_STATES = ['pendiente', 'aceptado', 'en_preparacion', 'en_camino'];
 
@@ -169,7 +171,16 @@ async function sendAutoReply(from, text) {
   return { sent: true, messageId: graphId || null };
 }
 
-async function handleInboundMessage({ from, text, messageId, mediaType, mediaId, caption, fileName }) {
+async function handleInboundMessage({
+  from,
+  text,
+  messageId,
+  mediaType,
+  mediaId,
+  caption,
+  fileName,
+  interactiveReplyId,
+}) {
   let body = '';
   if (mediaId && (mediaType === 'image' || mediaType === 'pdf' || mediaType === 'document')) {
     body = encodeWaMediaBody(mediaType, mediaId, caption || text || '', fileName || '');
@@ -195,6 +206,43 @@ async function handleInboundMessage({ from, text, messageId, mediaType, mediaId,
   });
 
   let autoReply = { sent: false, kind: 'none', reason: 'none' };
+  let botReply = { handled: false };
+
+  const reclamoBot = await handleReclamoInbound({
+    from: from,
+    text: String(text || caption || '').trim(),
+    interactiveReplyId: interactiveReplyId,
+    mediaType: mediaType,
+    mediaId: mediaId,
+  });
+  if (reclamoBot && reclamoBot.handled) {
+    botReply = Object.assign({ handled: true }, reclamoBot);
+    return {
+      ok: saved.ok,
+      saved: saved.ok,
+      firstContact: firstContact,
+      autoReply: autoReply,
+      botReply: botReply,
+      autoWelcome: { sent: false },
+      error: saved.error || null,
+      detail: saved.detail || null,
+    };
+  }
+
+  const openSession = await getReclamoSession(from);
+  if (openSession && openSession.open && String(openSession.step || '') === 'need_photo' && mediaId) {
+    /* reclamo bot debió manejar imagen; si no, no mandar bienvenida */
+    return {
+      ok: saved.ok,
+      saved: saved.ok,
+      firstContact: firstContact,
+      autoReply: autoReply,
+      botReply: { handled: true, kind: 'reclamo_fallback' },
+      autoWelcome: { sent: false },
+      error: saved.error || null,
+      detail: saved.detail || null,
+    };
+  }
 
   if (!isWithinOpenHours()) {
     autoReply = Object.assign({ kind: 'closed' }, await sendAutoReply(from, getClosedMessage()));

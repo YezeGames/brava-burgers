@@ -790,10 +790,10 @@ stateDiagram-v2
 
 **Implementación (cuando retomemos):**
 
-- [ ] Enviar interactivo post-entrega al pasar a `entregada` (si ventana 24 h; si no, evaluar plantilla utilidad).
-- [ ] Pasar `button_reply.id` / `list_reply.id` del webhook al router del bot.
-- [ ] Tabla `wa_reclamos` (orn, tel, motivo, texto, wa_media_id, estado, created_at).
-- [ ] Máquina de estados motivo → descripción → foto; tests: foto sin descripción / descripción sin foto → bloqueado.
+- [x] Enviar interactivo post-entrega al pasar a `entregada` (`lib/waPostEntrega.js`; ventana 24 h Meta).
+- [x] Pasar `button_reply.id` / `list_reply.id` del webhook al router del bot.
+- [x] Tablas `wa_reclamos` + `wa_reclamo_sessions` (`supabase/wa_reclamos.sql`).
+- [x] Máquina de estados motivo → descripción → foto (`lib/waReclamo.js`).
 - [ ] Vista admin: reclamos pendientes con thumbnail (reutilizar media URL del inbox).
 - [x] **Pestaña inbox WA «Reclamos»** en `/admin` (`wa-panel.js` v29): filtra chats con reclamo abierto; botón **Resolver**; `BravaWaPanel.markReclamoOpen` / `resolveReclamo` (hoy `localStorage`, luego Supabase). Detección provisional si el outbound contiene «Recibimos tu reclamo».
 

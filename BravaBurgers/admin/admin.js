@@ -6825,8 +6825,15 @@
           patchOrderInCache(orn, { orn: serverOrn });
         }
         if (patch.estado) maybeWaAutoNotify(serverOrn, patch.estado);
+        if (normalizeEstado(patch.estado) === 'entregada' && res.data.waPostEntrega) {
+          var wpe = res.data.waPostEntrega;
+          if (wpe.ok && wpe.sent) syncWaPanelOrders();
+          else if (!wpe.skipped && !wpe.ok) {
+            console.warn('[Brava] WhatsApp post-entrega no enviado:', wpe.error || wpe.message || wpe.hint || wpe.reason || '');
+          }
+        }
         updateCajaUI();
-        return { ok: true, orn: serverOrn };
+        return { ok: true, orn: serverOrn, waPostEntrega: res.data.waPostEntrega || null };
       }
 
       if (res.status === 401 || res.data.error === 'unauthorized') handleAuthFailure();

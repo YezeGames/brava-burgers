@@ -161,6 +161,15 @@ function parseWebhookPayload(raw) {
 
       (value.messages || []).forEach(function (msg) {
         const media = extractInboundMedia(msg);
+        var interactiveReplyId = '';
+        if (msg.type === 'interactive' && msg.interactive) {
+          var ir = msg.interactive;
+          if (ir.type === 'button_reply' && ir.button_reply && ir.button_reply.id) {
+            interactiveReplyId = String(ir.button_reply.id).trim();
+          } else if (ir.type === 'list_reply' && ir.list_reply && ir.list_reply.id) {
+            interactiveReplyId = String(ir.list_reply.id).trim();
+          }
+        }
         events.push({
           ...base,
           type: 'message',
@@ -169,6 +178,7 @@ function parseWebhookPayload(raw) {
           timestamp: msg.timestamp,
           messageType: msg.type,
           text: extractInboundMessageText(msg),
+          interactiveReplyId: interactiveReplyId,
           mediaType: media ? media.mediaType : '',
           mediaId: media ? media.mediaId : '',
           caption: media ? media.caption : '',
@@ -203,62 +213,127 @@ function normalizeWaRecipient(to) {
   return '54911' + d;
 }
 
-async function sendTextMessage(to, text) {
+function graphErrorFromResponse(res, data) {
+  const detail = data.error || data;
+  const code = detail && detail.code != null ? detail.code : null;
+  let hint = '';
+  if (code === 190 || code === 102) hint = 'token_invalid';
+  else if (code === 131047 || code === 131026) hint = 'needs_template_or_session';
+  else if (code === 131030) hint = 'recipient_not_allowed';
+  return {
+    ok: false,
+    error: 'graph_error',
+    hint: hint,
+    status: res.status,
+    detail: detail,
+    message: detail && detail.message ? String(detail.message) : 'graph_request_failed',
+  };
+}
+
+async function graphSendMessage(payload) {
   const cfg = getWhatsAppConfig();
   if (!cfg.accessToken || !cfg.phoneNumberId) {
     return { ok: false, error: 'whatsapp_not_configured' };
   }
-  const digits = normalizeWaRecipient(to);
-  if (!digits || !String(text || '').trim()) {
-    return { ok: false, error: 'invalid_params' };
-  }
-
   const url =
     'https://graph.facebook.com/' +
     encodeURIComponent(cfg.graphVersion) +
     '/' +
     encodeURIComponent(cfg.phoneNumberId) +
     '/messages';
-
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       Authorization: 'Bearer ' + cfg.accessToken,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: digits,
-      type: 'text',
-      text: { body: String(text).trim() },
-    }),
+    body: JSON.stringify(payload),
     signal: AbortSignal.timeout(25000),
   });
-
   const data = await res.json().catch(function () {
     return {};
   });
-  if (!res.ok) {
-    const detail = data.error || data;
-    const code = detail && detail.code != null ? detail.code : null;
-    let hint = '';
-    if (code === 190 || code === 102) {
-      hint = 'token_invalid';
-    } else if (code === 131047 || code === 131026) {
-      hint = 'needs_template_or_session';
-    } else if (code === 131030) {
-      hint = 'recipient_not_allowed';
-    }
-    return {
-      ok: false,
-      error: 'graph_error',
-      hint: hint,
-      status: res.status,
-      detail: detail,
-      message: detail && detail.message ? String(detail.message) : 'graph_request_failed',
-    };
+  if (!res.ok) return graphErrorFromResponse(res, data);
+  return { ok: true, data: data };
+}
+
+async function sendTextMessage(to, text) {
+  const digits = normalizeWaRecipient(to);
+  if (!digits || !String(text || '').trim()) {
+    return { ok: false, error: 'invalid_params' };
   }
-  return { ok: true, data };
+  return graphSendMessage({
+    messaging_product: 'whatsapp',
+    to: digits,
+    type: 'text',
+    text: { body: String(text).trim() },
+  });
+}
+
+async function sendInteractiveButtons(opts) {
+  opts = opts || {};
+  const digits = normalizeWaRecipient(opts.to);
+  const bodyText = String(opts.bodyText || '').trim();
+  const buttons = Array.isArray(opts.buttons) ? opts.buttons.slice(0, 3) : [];
+  if (!digits || !bodyText || !buttons.length) {
+    return { ok: false, error: 'invalid_params' };
+  }
+  const interactive = {
+    type: 'button',
+    body: { text: bodyText },
+    action: {
+      buttons: buttons.map(function (b) {
+        return {
+          type: 'reply',
+          reply: {
+            id: String(b.id || b.title || '').slice(0, 256),
+            title: String(b.title || b.id || '').slice(0, 20),
+          },
+        };
+      }),
+    },
+  };
+  const footer = String(opts.footerText || '').trim();
+  if (footer) interactive.footer = { text: footer.slice(0, 60) };
+  const imageUrl = String(opts.imageUrl || '').trim();
+  if (imageUrl) {
+    interactive.header = { type: 'image', image: { link: imageUrl } };
+  }
+  return graphSendMessage({
+    messaging_product: 'whatsapp',
+    to: digits,
+    type: 'interactive',
+    interactive: interactive,
+  });
+}
+
+async function sendInteractiveList(opts) {
+  opts = opts || {};
+  const digits = normalizeWaRecipient(opts.to);
+  const bodyText = String(opts.bodyText || '').trim();
+  const buttonLabel = String(opts.buttonLabel || 'Ver opciones').slice(0, 20);
+  const sections = Array.isArray(opts.sections) ? opts.sections : [];
+  if (!digits || !bodyText || !sections.length) {
+    return { ok: false, error: 'invalid_params' };
+  }
+  const interactive = {
+    type: 'list',
+    body: { text: bodyText },
+    action: {
+      button: buttonLabel,
+      sections: sections,
+    },
+  };
+  const headerText = String(opts.headerText || '').trim();
+  if (headerText) {
+    interactive.header = { type: 'text', text: headerText.slice(0, 60) };
+  }
+  return graphSendMessage({
+    messaging_product: 'whatsapp',
+    to: digits,
+    type: 'interactive',
+    interactive: interactive,
+  });
 }
 
 async function uploadMediaBuffer(buffer, mimeType) {
@@ -477,6 +552,8 @@ module.exports = {
   parseWebhookPayload,
   extractInboundMedia,
   sendTextMessage,
+  sendInteractiveButtons,
+  sendInteractiveList,
   sendImageMessage,
   uploadMediaBuffer,
   downloadMediaBuffer,

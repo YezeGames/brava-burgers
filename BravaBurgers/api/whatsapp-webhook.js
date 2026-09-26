@@ -56,6 +56,7 @@ async function handler(req, res) {
               mediaId: ev.mediaId,
               caption: ev.caption,
               fileName: ev.fileName,
+              interactiveReplyId: ev.interactiveReplyId || '',
             });
             saveResults.push({
               messageId: ev.messageId,
