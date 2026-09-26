@@ -97,6 +97,14 @@ function rowToOrder(row) {
 
     reenvio_de: row.reenvio_de || '',
 
+    repartidor_tel: row.repartidor_tel || '',
+
+    reparto_parada: row.reparto_parada != null ? Number(row.reparto_parada) : null,
+
+    reparto_asignado_at: row.reparto_asignado_at || '',
+
+    reparto_ruta_id: row.reparto_ruta_id || '',
+
     origen: row.origen || 'web',
 
     nota_pedido: row.nota_pedido || '',
@@ -761,7 +769,61 @@ async function updateOrder(body) {
 
 }
 
+async function assignRepartidorRuta(body) {
+  const tel = telNorm(body.repartidor_tel || body.telefono);
+  const stopsIn = body.stops || body.orders || [];
+  if (!tel) return { ok: false, error: 'missing_repartidor_tel' };
+  if (!Array.isArray(stopsIn) || !stopsIn.length) return { ok: false, error: 'missing_stops' };
 
+  const markEnCamino = body.markEnCamino !== false;
+  const now = new Date().toISOString();
+  const rutaId =
+    String(body.ruta_id || '').trim() ||
+    'RUT-' + now.replace(/[:.]/g, '').slice(0, 15) + '-' + tel.slice(-4);
+
+  var assigned = 0;
+  var failed = [];
+  for (var i = 0; i < stopsIn.length; i++) {
+    var row = stopsIn[i];
+    var orn = String((row && row.orn) || row || '').trim();
+    if (!orn) continue;
+    var parada = row && row.parada != null ? Number(row.parada) : i + 1;
+    if (isNaN(parada) || parada < 1) parada = i + 1;
+    var patch = {
+      repartidor_tel: tel,
+      reparto_parada: parada,
+      reparto_asignado_at: now,
+      reparto_ruta_id: rutaId,
+    };
+    if (markEnCamino) {
+      patch.estado = 'en_camino';
+      patch.en_camino_at = now;
+    }
+    var r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
+    if (!r.ok && patch.en_camino_at) {
+      var retry = Object.assign({}, patch);
+      delete retry.en_camino_at;
+      r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), retry);
+    }
+    if (r.ok) assigned++;
+    else failed.push({ orn: orn, error: r.error || 'patch_failed' });
+  }
+  if (!assigned) {
+    return {
+      ok: false,
+      error: failed[0] && failed[0].error === 'patch_failed' ? 'assign_failed' : 'assign_failed',
+      detail: failed,
+    };
+  }
+  return {
+    ok: true,
+    assigned: assigned,
+    failed: failed,
+    ruta_id: rutaId,
+    repartidor_tel: tel,
+    markEnCamino: markEnCamino,
+  };
+}
 
 async function listGastos(desde, hasta) {
 
@@ -1636,6 +1698,8 @@ module.exports = {
   saveCliente,
 
   createManualOrder,
+
+  assignRepartidorRuta,
 
 };
 

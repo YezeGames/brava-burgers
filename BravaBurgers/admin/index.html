@@ -1596,8 +1596,8 @@
 										<input type="text" id="reparto-origin" autocomplete="off" placeholder="Diaz Velez 3231, Olivos" value="Diaz Velez 3231, Olivos">
 									</div>
 									<div class="reparto-field">
-										<label for="reparto-deli-wa">WA repartidor</label>
-										<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…">
+										<label for="reparto-deli-wa">Repartidor (teléfono app)</label>
+										<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…" title="Mismo número con el que entra a la app repartidor">
 									</div>
 								</div>
 							</div>
@@ -1625,8 +1625,9 @@
 							</div>
 							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
 							<div class="reparto-actions">
-								<button type="button" class="btn-sm btn-accent" id="reparto-btn-dispatch" disabled><i class="fas fa-motorcycle" aria-hidden="true"></i> Marcar en camino</button>
-								<button type="button" class="btn-sm btn-accent" id="reparto-btn-wa" disabled><i class="fab fa-whatsapp" aria-hidden="true"></i> Enviar ruta WA</button>
+								<button type="button" class="btn-sm btn-accent" id="reparto-btn-app" disabled><i class="fas fa-mobile-screen" aria-hidden="true"></i> Publicar en app repartidor</button>
+								<button type="button" class="btn-sm" id="reparto-btn-dispatch" disabled><i class="fas fa-motorcycle" aria-hidden="true"></i> Solo marcar en camino</button>
+								<button type="button" class="btn-sm" id="reparto-btn-wa" disabled><i class="fab fa-whatsapp" aria-hidden="true"></i> Enviar ruta WA (opcional)</button>
 								<button type="button" class="btn-sm" id="reparto-btn-gmaps" disabled><i class="fas fa-map-location-dot" aria-hidden="true"></i> Google Maps</button>
 								<button type="button" class="btn-sm" id="reparto-btn-copy" disabled><i class="fas fa-copy" aria-hidden="true"></i> Copiar hoja</button>
 							</div>
@@ -2291,7 +2292,7 @@
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=20"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=13"></script>
+	<script src="/admin/reparto.js?v=14"></script>
 	<script src="/admin/wa-panel.js?v=30"></script>
 	<script src="/admin/compensaciones.js?v=7"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>

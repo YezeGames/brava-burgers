@@ -427,6 +427,7 @@
     var has = list.length > 0;
     $('reparto-btn-gmaps').disabled = !has;
     $('reparto-btn-wa').disabled = !has;
+    $('reparto-btn-app').disabled = !has;
     $('reparto-btn-copy').disabled = !has;
     updateDispatchButton();
     if (refreshMap) {
@@ -671,6 +672,87 @@
       var u = gmapsUrl(stops());
       if (u) window.open(u, '_blank', 'noopener');
     };
+    function repartoAdminApi(body) {
+      if (!window.getAdminToken) return Promise.reject(new Error('no_admin'));
+      body.token = window.getAdminToken();
+      return fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      }).then(function (r) {
+        return r.json();
+      });
+    }
+
+    function ensureRepartidorAssignSchemaOnce() {
+      try {
+        if (sessionStorage.getItem('brava_repartidor_assign_try_v1') === '1') return;
+        sessionStorage.setItem('brava_repartidor_assign_try_v1', '1');
+      } catch (e) {}
+      repartoAdminApi({ action: 'migrateRepartidorAssign' }).catch(function () {});
+    }
+
+    ensureRepartidorAssignSchemaOnce();
+
+    $('reparto-btn-app').onclick = function () {
+      var list = stops();
+      if (!list.length) return;
+      var waEl = $('reparto-deli-wa');
+      var phone = waEl ? waEl.value : '';
+      if (!normalizeWaPhone(phone)) {
+        setStatus('Completá el teléfono del repartidor (app).', true);
+        if (waEl) waEl.focus();
+        return;
+      }
+      try {
+        sessionStorage.setItem(DELI_WA_KEY, phone);
+      } catch (e) {}
+      if (window.BravaWaPanel && typeof window.BravaWaPanel.setRepartidorTel === 'function') {
+        window.BravaWaPanel.setRepartidorTel(phone);
+      }
+      var stopsPayload = list.map(function (o, idx) {
+        return { orn: o.orn, parada: idx + 1 };
+      });
+      var btn = $('reparto-btn-app');
+      if (btn) btn.disabled = true;
+      setStatus('Publicando ruta en la app…');
+      repartoAdminApi({
+        action: 'assignRepartidorRuta',
+        repartidor_tel: phone,
+        stops: stopsPayload,
+        markEnCamino: true,
+      })
+        .then(function (data) {
+          if (!data.ok) {
+            var msg = data.error || 'error';
+            if (/column|repartidor|schema/i.test(String(data.detail || ''))) {
+              msg += ' — recargá el admin (migración repartidor).';
+            }
+            setStatus('No se pudo publicar: ' + msg, true);
+            return;
+          }
+          var extra = data.failed && data.failed.length ? ' (' + data.failed.length + ' fallaron)' : '';
+          setStatus(
+            'Ruta ' +
+              data.ruta_id +
+              ' → app del repartidor · ' +
+              data.assigned +
+              ' pedido(s)' +
+              extra +
+              '. Sin WhatsApp.'
+          );
+          if (window.fetchOrdersFromServer) window.fetchOrdersFromServer(true);
+        })
+        .catch(function () {
+          setStatus('Error de red al publicar en app.', true);
+        })
+        .finally(function () {
+          updateDispatchButton();
+          var has = stops().length > 0;
+          if ($('reparto-btn-app')) $('reparto-btn-app').disabled = !has;
+        });
+    };
+
     $('reparto-btn-dispatch').onclick = function () {
       var orns = selectedOrnsInPreparacion();
       if (!orns.length) return;

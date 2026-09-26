@@ -24,8 +24,19 @@ const {
   getCliente,
   saveCliente,
   createManualOrder,
+  assignRepartidorRuta,
 } = require('../lib/bravaSupabase');
-const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateWaReclamos, migrateCompensacionesSchema, migrateManualOrderSchema, migrateStoreCatalogSchema } = require('../lib/dbMigrate');
+const {
+  migrateEnCaminoColumn,
+  migrateIngresosSchema,
+  migratePendOrnDel,
+  migrateWaMessages,
+  migrateWaReclamos,
+  migrateCompensacionesSchema,
+  migrateManualOrderSchema,
+  migrateStoreCatalogSchema,
+  migrateRepartidorAssignSchema,
+} = require('../lib/dbMigrate');
 const {
   getStoreMenuDraft,
   saveStoreMenuDraft,
@@ -175,6 +186,19 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateStoreCatalogSchema') {
     return migrateStoreCatalogSchema();
+  }
+
+  if (action === 'migrateRepartidorAssign') {
+    return migrateRepartidorAssignSchema();
+  }
+
+  if (action === 'assignRepartidorRuta') {
+    return assignRepartidorRuta({
+      repartidor_tel: body.repartidor_tel,
+      stops: body.stops,
+      markEnCamino: body.markEnCamino,
+      ruta_id: body.ruta_id,
+    });
   }
 
   if (action === 'getStoreMenuDraft') {

@@ -518,6 +518,34 @@ async function migrateStoreCatalogSchema() {
   }
 }
 
+async function migrateRepartidorAssignSchema() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'SUPABASE_DB_PASSWORD o POSTGRES_URL en Vercel.',
+    };
+  }
+  const client = createPgClient(conn);
+  try {
+    await client.connect();
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS repartidor_tel text;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_parada integer;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_asignado_at timestamptz;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_ruta_id text;');
+    await client.query('CREATE INDEX IF NOT EXISTS orders_repartidor_tel_idx ON orders (repartidor_tel, estado);');
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
 module.exports = {
   migrateEnCaminoColumn,
   migrateIngresosSchema,
@@ -528,4 +556,5 @@ module.exports = {
   migrateCompensacionesSchema,
   migrateManualOrderSchema,
   migrateStoreCatalogSchema,
+  migrateRepartidorAssignSchema,
 };
