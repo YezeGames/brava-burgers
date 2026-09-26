@@ -797,6 +797,7 @@ async function listRepartidorRuta(telefono) {
     return {
       orn: o.orn,
       cliente: o.cliente,
+      telefono: o.telefono || '',
       direccion: o.direccion,
       localidad: o.localidad,
       piso: o.piso,
