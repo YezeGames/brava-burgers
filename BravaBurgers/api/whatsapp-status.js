@@ -153,9 +153,11 @@ module.exports = async function handler(req, res) {
 
   let migrateResult = null;
   let migrateReclamosResult = null;
+  let migrateDeliveryResult = null;
   if (req.query.migrate === '1') {
     migrateResult = await migrateWaMessages();
     migrateReclamosResult = await migrateWaReclamos();
+    migrateDeliveryResult = await migrateWaMessageStatus();
   }
 
   let inboxWrite = null;
@@ -205,5 +207,8 @@ module.exports = async function handler(req, res) {
       migrateReclamosResult && !migrateReclamosResult.ok
         ? (migrateReclamosResult.detail || migrateReclamosResult.hint || '').slice(0, 200)
         : null,
+    migrateDeliveryOk: migrateDeliveryResult ? !!migrateDeliveryResult.ok : null,
+    migrateDeliveryError:
+      migrateDeliveryResult && !migrateDeliveryResult.ok ? migrateDeliveryResult.error : null,
   });
 };
