@@ -467,6 +467,28 @@
 			background: var(--bg);
 		}
 		.handoff-dock .btn { width: 100%; min-height: 52px; font-size: 0.95rem; font-weight: 700; }
+		.notify-gate-actions { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 360px; margin: 0 auto; }
+		.notify-gate-actions .btn-load { width: 100%; }
+		.btn-notify-secondary {
+			width: 100%;
+			min-height: 44px;
+			border-radius: 12px;
+			border: 1px solid var(--line);
+			background: var(--surface);
+			color: var(--text);
+			font: inherit;
+			font-weight: 600;
+			cursor: pointer;
+		}
+		.notify-denied-hint {
+			font-size: 0.78rem;
+			color: var(--ef);
+			line-height: 1.45;
+			margin: 12px 0 0;
+			max-width: 360px;
+			margin-left: auto;
+			margin-right: auto;
+		}
 		.hidden { display: none !important; }
 		.btn-nav-start {
 			width: 100%;
@@ -632,6 +654,24 @@
 				</div>
 			</section>
 
+			<section class="screen" id="screen-notify">
+				<div class="login-screen">
+					<div class="login-hero">
+						<div class="app-brand" aria-hidden="true">🔔</div>
+						<h1>Alertas de entrega</h1>
+						<p>Obligatorio para repartir: avisos con <strong>sonido</strong> cuando cocina te asigna paradas.</p>
+					</div>
+					<div class="login-form notify-gate-actions">
+						<button type="button" class="btn btn-load" id="btn-enable-notify">Activar notificaciones</button>
+						<button type="button" class="btn-notify-secondary" id="btn-test-alert-sound">Probar sonido de alerta</button>
+						<p class="repartidor-tel-hint">Si el celular pregunta, elegí <strong>Permitir</strong>. Sin esto no podés usar el panel de entregas.</p>
+						<p class="notify-denied-hint hidden" id="notify-denied-hint">
+							Las notificaciones están bloqueadas. En iPhone: Ajustes → Apps → Safari (o Chrome) → Notificaciones → activar para este sitio. En Android: candado en la barra de dirección → Notificaciones. Después recargá esta página.
+						</p>
+					</div>
+				</div>
+			</section>
+
 			<section class="screen" id="screen-list">
 				<header class="topbar">
 					<div class="app-brand" aria-hidden="true">B</div>
@@ -739,6 +779,7 @@
 		var refreshPoll = null;
 		var routePollReady = false;
 		var ROUTE_POLL_MS = 18000;
+		var alertAudioCtx = null;
 		var lastFetchError = '';
 		/** Misma salida que Admin → Reparto (Diaz Velez 3231, Olivos). */
 		var KITCHEN = {
@@ -902,18 +943,135 @@
 			renderList();
 		}
 
+		function notificationsSupported() {
+			return typeof window !== 'undefined' && 'Notification' in window;
+		}
+
+		function notificationsOk() {
+			return notificationsSupported() && Notification.permission === 'granted';
+		}
+
+		function updateNotifyGateUi() {
+			var hint = $('notify-denied-hint');
+			var btn = $('btn-enable-notify');
+			if (!hint || !btn) return;
+			if (notificationsSupported() && Notification.permission === 'denied') {
+				hint.classList.remove('hidden');
+				btn.textContent = 'Ya las activé — continuar';
+			} else {
+				hint.classList.add('hidden');
+				btn.textContent = 'Activar notificaciones';
+			}
+		}
+
+		function unlockAlertAudio() {
+			try {
+				var Ctx = window.AudioContext || window.webkitAudioContext;
+				if (!Ctx) return Promise.resolve(false);
+				if (!alertAudioCtx) alertAudioCtx = new Ctx();
+				if (alertAudioCtx.state === 'suspended') {
+					return alertAudioCtx.resume().then(function () {
+						return true;
+					});
+				}
+				return Promise.resolve(true);
+			} catch (e) {
+				return Promise.resolve(false);
+			}
+		}
+
+		function playAlertTones(ctx) {
+			if (!ctx) return;
+			function tone(freq, start, dur) {
+				var o = ctx.createOscillator();
+				var g = ctx.createGain();
+				o.type = 'sine';
+				o.frequency.value = freq;
+				g.gain.setValueAtTime(0.0001, start);
+				g.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
+				g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+				o.connect(g);
+				g.connect(ctx.destination);
+				o.start(start);
+				o.stop(start + dur + 0.02);
+			}
+			var t0 = ctx.currentTime;
+			tone(880, t0, 0.14);
+			tone(1175, t0 + 0.16, 0.2);
+			tone(880, t0 + 0.38, 0.14);
+		}
+
+		function enterMainAppAfterAuth() {
+			if (!isLoggedIn()) return;
+			if (!notificationsOk()) {
+				updateNotifyGateUi();
+				showScreen('screen-notify');
+				return;
+			}
+			updateLoginUi();
+			if (!refreshPoll) startRefreshPoll();
+			fetchRutaLive(false);
+		}
+
 		function updateLoginUi() {
 			var logoutTop = $('btn-logout-top');
 			var navActive = $('screen-nav') && $('screen-nav').classList.contains('is-active');
+			var handoffActive = $('screen-handoff') && $('screen-handoff').classList.contains('is-active');
 			if (isLoggedIn()) {
+				if (!notificationsOk()) {
+					updateNotifyGateUi();
+					showScreen('screen-notify');
+					return;
+				}
 				if (logoutTop) logoutTop.classList.remove('hidden');
 				var label = session.nombre || session.login || 'Repartidor';
 				if ($('driver-name')) $('driver-name').textContent = label;
-				if (!navActive) showScreen('screen-list');
+				if (!navActive && !handoffActive) showScreen('screen-list');
 			} else {
 				if (logoutTop) logoutTop.classList.add('hidden');
 				showScreen('screen-login');
 			}
+		}
+
+		function onNotificationsGranted() {
+			unlockAlertAudio().then(function () {
+				playNewOrderAlert();
+			});
+			updateLoginUi();
+			if (!refreshPoll) startRefreshPoll();
+			fetchRutaLive(false);
+		}
+
+		function requestNotificationsMandatory() {
+			if (!notificationsSupported()) {
+				alert('Tu navegador no soporta notificaciones. Usá Chrome o Safari actualizado en el celular.');
+				return;
+			}
+			unlockAlertAudio();
+			if (Notification.permission === 'granted') {
+				onNotificationsGranted();
+				return;
+			}
+			if (Notification.permission === 'denied') {
+				updateNotifyGateUi();
+				Notification.requestPermission().then(function (p) {
+					updateNotifyGateUi();
+					if (p === 'granted') onNotificationsGranted();
+					else {
+						alert(
+							'Sigue bloqueado. Activá notificaciones en ajustes del celular (texto naranja abajo) y recargá esta página.'
+						);
+					}
+				});
+				return;
+			}
+			Notification.requestPermission().then(function (p) {
+				updateNotifyGateUi();
+				if (p === 'granted') onNotificationsGranted();
+				else if (p === 'denied') {
+					alert('Sin permiso de notificaciones no podés entrar al panel de entregas.');
+				}
+			});
 		}
 
 		function repartidorApi(body) {
@@ -1085,31 +1243,9 @@
 		}
 
 		function playNewOrderAlert() {
-			try {
-				var Ctx = window.AudioContext || window.webkitAudioContext;
-				if (Ctx) {
-					var ctx = new Ctx();
-					function tone(freq, start, dur) {
-						var o = ctx.createOscillator();
-						var g = ctx.createGain();
-						o.type = 'sine';
-						o.frequency.value = freq;
-						g.gain.setValueAtTime(0.0001, start);
-						g.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
-						g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-						o.connect(g);
-						g.connect(ctx.destination);
-						o.start(start);
-						o.stop(start + dur + 0.02);
-					}
-					var t0 = ctx.currentTime;
-					tone(880, t0, 0.12);
-					tone(1175, t0 + 0.14, 0.16);
-					window.setTimeout(function () {
-						ctx.close().catch(function () {});
-					}, 500);
-				}
-			} catch (eAudio) {}
+			unlockAlertAudio().then(function () {
+				if (alertAudioCtx) playAlertTones(alertAudioCtx);
+			});
 			if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 180]);
 		}
 
@@ -2307,13 +2443,16 @@
 					session.nombre = data.nombre || login;
 					session.telefono = data.telefono || '';
 					persistSession();
-					updateLoginUi();
 					lastRouteOrigin = null;
 					deliveredStopOrigins = {};
-					ensureNotifyPermission();
-					return fetchRutaLive(true).then(function () {
-						startRefreshPoll();
-					});
+					if (notificationsOk()) {
+						updateLoginUi();
+						return fetchRutaLive(true).then(function () {
+							startRefreshPoll();
+						});
+					}
+					updateNotifyGateUi();
+					showScreen('screen-notify');
 				})
 				.catch(function () {
 					alert('Error de red al entrar.');
@@ -2333,6 +2472,12 @@
 			if (passEl) passEl.value = '';
 		}
 
+		$('btn-enable-notify').addEventListener('click', requestNotificationsMandatory);
+		$('btn-test-alert-sound').addEventListener('click', function () {
+			unlockAlertAudio().then(function () {
+				playNewOrderAlert();
+			});
+		});
 		$('btn-login').addEventListener('click', doLogin);
 		$('repartidor-password').addEventListener('keydown', function (ev) {
 			if (ev.key === 'Enter') doLogin();
@@ -2372,22 +2517,17 @@
 		ensureMapboxToken();
 		geocodeKitchen();
 		if (isLoggedIn()) {
-			fetchRutaLive(false);
-			startRefreshPoll();
+			enterMainAppAfterAuth();
 		}
 		document.addEventListener('visibilitychange', function () {
-			if (document.visibilityState === 'visible' && isLoggedIn()) {
-				fetchRutaLive(false);
+			if (document.visibilityState !== 'visible' || !isLoggedIn()) return;
+			if (!notificationsOk()) {
+				showScreen('screen-notify');
+				updateNotifyGateUi();
+				return;
 			}
+			fetchRutaLive(false);
 		});
-		document.body.addEventListener(
-			'click',
-			function onceNotify() {
-				ensureNotifyPermission();
-				document.body.removeEventListener('click', onceNotify);
-			},
-			{ once: true }
-		);
 	})();
 	</script>
 </body>
