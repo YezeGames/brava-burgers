@@ -8,9 +8,13 @@ const {
 let cachedHeaderMediaId = null;
 
 function postEntregaMode() {
-  const m = String(process.env.WHATSAPP_POST_ENTREGA_MODE || 'text').trim().toLowerCase();
-  if (m === 'interactive' || m === 'both') return m;
-  return 'text';
+  const m = String(process.env.WHATSAPP_POST_ENTREGA_MODE || 'interactive').trim().toLowerCase();
+  if (m === 'text' || m === 'both') return m;
+  return 'interactive';
+}
+
+function postEntregaUseHeaderImage() {
+  return String(process.env.WHATSAPP_POST_ENTREGA_HEADER_IMAGE || '').trim() === '1';
 }
 
 function postEntregaImageUrl() {
@@ -96,40 +100,42 @@ async function sendPostEntregaTextMenu(to, nombre, orn) {
 }
 
 /**
- * Tarjeta interactiva (botones). En algunos celus Meta acepta API pero no entrega.
+ * Tarjeta interactiva (solo botones, sin imagen por defecto — mejor entrega en Meta).
+ * Imagen header solo si WHATSAPP_POST_ENTREGA_HEADER_IMAGE=1
  */
 async function sendPostEntregaInteractive(to, bodyText) {
   const tel = normalizeWaRecipient(to);
-  const plainBody = plainWaBody(bodyText);
+  const plainBody = plainWaBody(bodyText).slice(0, 1024);
   const buttons = postEntregaButtons();
   const footer = 'Brava Burgers';
 
-  const mediaId = await resolveHeaderMediaId();
   let sent = await sendInteractiveButtons({
     to: tel,
     bodyText: plainBody,
     footerText: footer,
-    imageMediaId: mediaId,
     buttons: buttons,
   });
 
-  if (!sent.ok && mediaId) {
-    sent = await sendInteractiveButtons({
-      to: tel,
-      bodyText: plainBody,
-      footerText: footer,
-      buttons: buttons,
-    });
-  }
-
-  if (!sent.ok) {
-    sent = await sendInteractiveButtons({
-      to: tel,
-      bodyText: plainBody.slice(0, 1024),
-      footerText: footer,
-      imageUrl: postEntregaImageUrl(),
-      buttons: buttons,
-    });
+  if (!sent.ok && postEntregaUseHeaderImage()) {
+    const mediaId = await resolveHeaderMediaId();
+    if (mediaId) {
+      sent = await sendInteractiveButtons({
+        to: tel,
+        bodyText: plainBody,
+        footerText: footer,
+        imageMediaId: mediaId,
+        buttons: buttons,
+      });
+    }
+    if (!sent.ok) {
+      sent = await sendInteractiveButtons({
+        to: tel,
+        bodyText: plainBody,
+        footerText: footer,
+        imageUrl: postEntregaImageUrl(),
+        buttons: buttons,
+      });
+    }
   }
 
   if (!sent.ok) {
@@ -145,7 +151,7 @@ async function sendPostEntregaInteractive(to, bodyText) {
     return { ok: false, error: 'interactive_missing_wamid' };
   }
 
-  return Object.assign({ mode: 'interactive' }, sent);
+  return Object.assign({ mode: 'interactive', body: plainBody }, sent);
 }
 
 module.exports = {

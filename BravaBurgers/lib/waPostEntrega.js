@@ -117,18 +117,38 @@ async function sendPostEntregaForOrder(order, opts) {
     });
   }
 
+  const interactiveBody = buildPostEntregaBody(nombre, orn);
+
   if (mode === 'interactive' || mode === 'both') {
-    interactiveResult = await sendPostEntregaInteractive(tel, buildPostEntregaPrompt());
+    interactiveResult = await sendPostEntregaInteractive(tel, interactiveBody);
     if (interactiveResult.ok) {
       await insertWaMessage({
         messageId: interactiveResult.messageId,
         tel: tel,
         direction: 'out',
-        body: buildPostEntregaPrompt() + '\n\n[Botones: reclamo · calificar · pedir de nuevo]',
+        body: interactiveBody + '\n\n[Botones: reclamo · calificar · pedir de nuevo]',
       });
     } else if (mode === 'interactive') {
-      console.warn('[wa-post-entrega] interactive only failed', orn, interactiveResult);
-      return interactiveResult;
+      const textFallback =
+        String(process.env.WHATSAPP_POST_ENTREGA_TEXT_FALLBACK || '').trim() === '1';
+      if (textFallback) {
+        primary = await sendPostEntregaTextMenu(tel, nombre, orn);
+        if (primary.ok) {
+          await insertWaMessage({
+            messageId: primary.messageId,
+            tel: tel,
+            direction: 'out',
+            body: primary.body + '\n\n[Post-entrega · fallback texto]',
+          });
+          interactiveResult = null;
+        } else {
+          console.warn('[wa-post-entrega] interactive + text fallback failed', orn, interactiveResult);
+          return interactiveResult.ok === false ? interactiveResult : primary;
+        }
+      } else {
+        console.warn('[wa-post-entrega] interactive only failed', orn, interactiveResult);
+        return interactiveResult;
+      }
     }
   }
 
@@ -139,9 +159,10 @@ async function sendPostEntregaForOrder(order, opts) {
   await markPostEntregaSent(orn, tel);
   await upsertReclamoSession(tel, { orn: orn, step: 'menu', open: false });
 
-  var outMode = 'text_menu';
+  var outMode = 'interactive';
   if (primary && interactiveResult && interactiveResult.ok) outMode = 'text_menu_plus_interactive';
   else if (interactiveResult && interactiveResult.ok) outMode = 'interactive';
+  else if (primary && mode === 'interactive') outMode = 'text_fallback';
   else if (primary) outMode = 'text_menu';
 
   var checkWamid =
@@ -175,7 +196,10 @@ async function probePostEntregaInteractive(to) {
   if (!cfg.accessToken || !cfg.phoneNumberId) {
     return { ok: false, error: 'whatsapp_not_configured' };
   }
-  return sendPostEntregaTextMenu(tel, 'Cliente', 'ORN-DEL-TEST');
+  return sendPostEntregaInteractive(
+    tel,
+    buildPostEntregaBody('Cliente', 'ORN-DEL-TEST')
+  );
 }
 
 async function sendPostEntregaForOrn(orn, opts) {

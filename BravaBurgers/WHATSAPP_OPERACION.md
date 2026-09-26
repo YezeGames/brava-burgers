@@ -21,7 +21,7 @@ Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Última actu
 | Fallback `wa.me` si falla API | ✅ |
 | Realtime inbox (entrantes ~instantáneos) | ✅ |
 | Dedup mensajes al enviar | ✅ |
-| **Post-entrega** al marcar ✓ Entregado (menú **texto** RECLAMO/CALIFICAR/PEDIR al **celu del cliente**) | ✅ |
+| **Post-entrega** al marcar ✓ Entregado (**3 botones** interactivos al **celu del cliente**) | ✅ |
 | **Bot reclamo** (motivo → texto → foto → confirmación) | ✅ (tablas vía `migrateWaReclamos` al entrar al admin) |
 
 Variables: ver `WHATSAPP_VERCEL_ENV.txt` y `.env.example` (`WHATSAPP_WELCOME_MESSAGE` opcional).
@@ -32,13 +32,18 @@ Número producción: **+54 9 11 7372-1945** (Phone ID `1335204069669693`, WABA `
 
 ### Post-entrega — menú texto (default) vs botones
 
-Por defecto **`WHATSAPP_POST_ENTREGA_MODE=text`**: un solo mensaje al celu con instrucciones **RECLAMO**, **CALIFICAR**, **PEDIR**. El bot entiende esas palabras (y el flujo de reclamo/calificación sigue por **números 1–5** si las listas/botones de Meta no llegan).
+Por defecto **`WHATSAPP_POST_ENTREGA_MODE=interactive`**: un mensaje con **3 botones** (sin imagen header; más estable). Respaldo por palabras **RECLAMO / CALIFICAR / PEDIR** sigue en el bot si el cliente escribe.
 
 | Modo (`WHATSAPP_POST_ENTREGA_MODE`) | Comportamiento |
 |-------------------------------------|----------------|
-| **`text`** (default) | Solo menú texto |
-| **`interactive`** | Solo tarjeta con 3 botones (puede no entregarse aunque Graph responda OK) |
-| **`both`** | Menú texto + intento de tarjeta |
+| **`interactive`** (default) | Solo tarjeta con 3 botones (texto + botones, sin logo arriba) |
+| **`text`** | Solo menú texto |
+| **`both`** | Menú texto + tarjeta con botones |
+
+| Extra | Uso |
+|-------|-----|
+| `WHATSAPP_POST_ENTREGA_HEADER_IMAGE=1` | Volver a poner imagen arriba de los botones |
+| `WHATSAPP_POST_ENTREGA_TEXT_FALLBACK=1` | Si Meta rechaza el interactivo (Graph error), mandar menú texto |
 
 | Síntoma | Causa habitual | Qué hacer |
 |---------|----------------|-----------|
