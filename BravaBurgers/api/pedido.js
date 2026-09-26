@@ -6,6 +6,7 @@ const {
   listRepartidorRuta,
   repartidorMarkEntregada,
   repartidorConfirmarLlegada,
+  repartidorIniciarRecorrido,
 } = require('../lib/bravaSupabase');
 const { validateRepartidorToken } = require('../lib/repartidorAuth');
 const { repartidorLogin } = require('../lib/repartidorUsers');
@@ -76,6 +77,14 @@ async function handleRepartidor(body, req, res) {
       const out = await repartidorMarkEntregada(payload);
       return res.status(out.ok ? 200 : 400).json(out);
     }
+    if (action === 'iniciarRecorrido') {
+      const payload = Object.assign({}, body, {
+        telefono: auth.tel,
+        repartidor_tel: auth.tel,
+      });
+      const out = await repartidorIniciarRecorrido(payload);
+      return res.status(out.ok ? 200 : 400).json(out);
+    }
     if (action === 'confirmarLlegada') {
       const payload = Object.assign({}, body, {
         telefono: auth.tel,
@@ -134,7 +143,8 @@ module.exports = async function handler(req, res) {
     body.action === 'repartidorLogin' ||
     body.action === 'listRuta' ||
     body.action === 'markEntregada' ||
-    body.action === 'confirmarLlegada'
+    body.action === 'confirmarLlegada' ||
+    body.action === 'iniciarRecorrido'
   ) {
     return handleRepartidor(body, req, res);
   }

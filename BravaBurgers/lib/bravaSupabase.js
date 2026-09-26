@@ -811,7 +811,7 @@ async function listRepartidorRuta(telefono, _retried) {
     'orders',
     'select=orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,repartidor_llegada_at,items_json&repartidor_tel=eq.' +
       encodeURIComponent(tel) +
-      '&estado=eq.en_camino&order=reparto_parada.asc.nullslast,fecha_creado.asc'
+      '&estado=in.(en_preparacion,en_camino)&order=reparto_parada.asc.nullslast,fecha_creado.asc'
   );
   if (!r.ok) {
     if (isRepartidorColumnsMissing(r) && !_retried) {
@@ -866,6 +866,61 @@ function isRepartidorColumnsMissing(r) {
   if (blob.indexOf('reparto_asignado_at') >= 0 || blob.indexOf('reparto_ruta_id') >= 0) return true;
   if (blob.indexOf('pgrst204') >= 0 && blob.indexOf('repart') >= 0) return true;
   return false;
+}
+
+async function repartidorIniciarRecorrido(body) {
+  const { sendEnCaminoWhatsApp } = require('./waEnCamino');
+  const tel = telNorm(body.telefono || body.repartidor_tel);
+  if (!tel) return { ok: false, error: 'missing_telefono' };
+  const r = await restSelect(
+    'orders',
+    'select=orn,cliente,telefono,estado,reparto_parada,repartidor_tel&repartidor_tel=eq.' +
+      encodeURIComponent(tel) +
+      '&estado=eq.en_preparacion&order=reparto_parada.asc.nullslast,fecha_creado.asc'
+  );
+  if (!r.ok) {
+    if (isRepartidorColumnsMissing(r) && !body._retried) {
+      const mig = await migrateRepartidorSchemaAuto();
+      if (mig.ok) return repartidorIniciarRecorrido(Object.assign({}, body, { _retried: true }));
+    }
+    return supabaseFail(r, 'list_prep_failed');
+  }
+  const prepRows = Array.isArray(r.data) ? r.data : [];
+  const waOut = [];
+  var moved = 0;
+  const now = new Date().toISOString();
+  for (var i = 0; i < prepRows.length; i++) {
+    const row = prepRows[i];
+    const orn = String(row.orn || '').trim();
+    if (!orn) continue;
+    if (telNorm(row.repartidor_tel) !== tel) continue;
+    const patch = { estado: 'en_camino', en_camino_at: now };
+    let pr = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
+    if (!pr.ok && patch.en_camino_at) {
+      const retry = { estado: 'en_camino' };
+      pr = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), retry);
+    }
+    if (!pr.ok) {
+      waOut.push({ orn: orn, ok: false, error: pr.error || 'patch_failed' });
+      continue;
+    }
+    moved++;
+    const wa = await sendEnCaminoWhatsApp(row.telefono, row.cliente, orn);
+    waOut.push({ orn: orn, wa: wa });
+  }
+  if (!moved) {
+    const cam = await restSelect(
+      'orders',
+      'select=orn&repartidor_tel=eq.' +
+        encodeURIComponent(tel) +
+        '&estado=eq.en_camino&limit=1'
+    );
+    if (cam.ok && cam.data && cam.data.length) {
+      return { ok: true, already: true, moved: 0, en_camino: cam.data.length, wa: waOut };
+    }
+    return { ok: false, error: 'no_stops_to_start' };
+  }
+  return { ok: true, moved: moved, wa: waOut, repartidor_tel: tel };
 }
 
 async function repartidorMarkEntregada(body) {
@@ -1906,6 +1961,8 @@ module.exports = {
   assignRepartidorRuta,
 
   listRepartidorRuta,
+
+  repartidorIniciarRecorrido,
 
   repartidorMarkEntregada,
 

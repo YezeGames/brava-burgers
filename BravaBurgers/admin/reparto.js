@@ -896,7 +896,7 @@
             action: 'assignRepartidorRuta',
             repartidor_tel: phone,
             stops: stopsPayload,
-            markEnCamino: true,
+            markEnCamino: false,
           });
         })
         .then(function (data) {
@@ -916,7 +916,7 @@
               data.assigned +
               ' pedido(s)' +
               extra +
-              '. Sin WhatsApp.'
+              '. El repartidor pone «Iniciar recorrido» → en camino + WhatsApp.'
           );
           if (window.fetchOrdersFromServer) window.fetchOrdersFromServer(true);
         })

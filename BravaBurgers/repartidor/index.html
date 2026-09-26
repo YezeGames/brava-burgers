@@ -929,18 +929,31 @@
 			});
 		}
 
-		function myAssignments() {
+		function myRouteStops() {
 			return assignments
 				.filter(function (a) {
-					return String(a.estado || '').toLowerCase() === 'en_camino';
+					var e = String(a.estado || '').toLowerCase();
+					return e === 'en_camino' || e === 'en_preparacion';
 				})
 				.sort(function (a, b) {
 					return (a.parada || 0) - (b.parada || 0);
 				});
 		}
 
+		function myAssignments() {
+			return myRouteStops().filter(function (a) {
+				return String(a.estado || '').toLowerCase() === 'en_camino';
+			});
+		}
+
+		function countPreparacionStops() {
+			return myRouteStops().filter(function (a) {
+				return String(a.estado || '').toLowerCase() === 'en_preparacion';
+			}).length;
+		}
+
 		function updateSyncStrip() {
-			var list = myAssignments();
+			var list = myRouteStops();
 			var el = $('sync-strip');
 			var tel = driverTel();
 			if (!isLoggedIn()) return;
@@ -966,13 +979,22 @@
 				$('assign-summary').textContent = liveFromSupabase ? 'Conectado · 0 en camino' : 'Mis entregas';
 				return;
 			}
+			var prepN = countPreparacionStops();
+			var sub =
+				prepN > 0
+					? '<em>Tocá <strong>Iniciar recorrido</strong> → en camino + WhatsApp a clientes.</em>'
+					: liveFromSupabase
+						? '<em>Se actualiza cada 45 s.</em>'
+						: '<em>Modo demo local.</em>';
 			el.innerHTML =
 				'<strong>' +
 				list.length +
 				' parada' +
 				(list.length === 1 ? '' : 's') +
-				'</strong> desde Supabase · en camino.' +
-				(liveFromSupabase ? '<em>Se actualiza cada 45 s.</em>' : '<em>Modo demo local.</em>');
+				'</strong> asignadas' +
+				(prepN ? ' · ' + prepN + ' en preparación' : ' · en camino') +
+				'. ' +
+				sub;
 			$('assign-summary').textContent = list.length + ' en ruta · ' + (session.nombre || session.login);
 		}
 
@@ -1104,7 +1126,7 @@
 		function updateRecorridoButton() {
 			var btn = $('btn-start-recorrido');
 			if (!btn) return;
-			var list = myAssignments();
+			var list = myRouteStops();
 			btn.disabled = !list.length;
 			if (!list.length) {
 				btn.textContent = 'Iniciar recorrido';
@@ -1121,19 +1143,68 @@
 			ensureNotifyPermission();
 			lastRouteOrigin = null;
 			deliveredStopOrigins = {};
-			var list = myAssignments();
+			var list = myRouteStops();
 			if (!list.length) {
-				alert('No hay paradas en camino. Tocá «Cargar mis entregas» primero.');
+				alert('No hay paradas asignadas. Tocá ↻ o pedile a cocina que publique la ruta.');
 				return;
 			}
-			openNav(list[0].orn);
+			var btn = $('btn-start-recorrido');
+			if (btn) btn.disabled = true;
+
+			function openFirstCamino() {
+				var cam = myAssignments();
+				if (!cam.length) cam = myRouteStops();
+				if (cam[0]) openNav(cam[0].orn);
+			}
+
+			if (liveFromSupabase && isLoggedIn()) {
+				repartidorApi({ action: 'iniciarRecorrido' })
+					.then(function (data) {
+						if (!data.ok) {
+							var msg = 'No se pudo iniciar recorrido.';
+							if (data.error === 'no_stops_to_start') {
+								msg = 'No hay pedidos en preparación asignados a vos.';
+							}
+							if (data.error === 'whatsapp_not_configured') {
+								msg = 'WhatsApp no configurado; no se pudo avisar a clientes.';
+							}
+							alert(msg);
+							return;
+						}
+						return fetchRutaLive(false).then(function () {
+							openFirstCamino();
+							var n = data.moved != null ? data.moved : 0;
+							if (n > 0) {
+								speak('Recorrido iniciado. Avisamos a ' + n + ' clientes por WhatsApp.');
+							} else if (data.already) {
+								speak('Recorrido en curso.');
+							}
+						});
+					})
+					.catch(function () {
+						alert('Error de red al iniciar recorrido.');
+					})
+					.finally(function () {
+						if (btn) btn.disabled = false;
+						updateRecorridoButton();
+					});
+				return;
+			}
+			assignments.forEach(function (a) {
+				if (String(a.estado || '').toLowerCase() === 'en_preparacion') {
+					a.estado = 'en_camino';
+				}
+			});
+			renderList();
+			openFirstCamino();
+			if (btn) btn.disabled = false;
 		}
 
 		function renderList() {
 			updateSyncStrip();
 			updateRecorridoButton();
 			var box = $('order-list');
-			var active = myAssignments();
+			var active = myRouteStops();
 			if (!active.length) {
 				box.innerHTML =
 					'<div class="empty-state">' +
@@ -1143,7 +1214,7 @@
 				return;
 			}
 			var hint =
-				'<p class="order-card-hint">Orden fijo de cocina. Tocá <strong>Iniciar recorrido</strong>; en cada parada <strong>Confirmar llegada</strong> y luego entregá.</p>';
+				'<p class="order-card-hint">Tocá <strong>Iniciar recorrido</strong> (en camino + WhatsApp). En cada parada: <strong>Confirmar llegada</strong> y entregá.</p>';
 			box.innerHTML =
 				hint +
 				active
@@ -1164,6 +1235,9 @@
 							'</span>' +
 							payBadge(o) +
 							(idx === 0 ? '<span class="badge" style="background:rgba(255,107,53,0.2);color:var(--brava)">Siguiente</span>' : '') +
+							(String(o.estado || '').toLowerCase() === 'en_preparacion'
+								? '<span class="badge" style="background:rgba(255,179,0,0.15);color:var(--ef)">Prep</span>'
+								: '') +
 							'</div>' +
 							'<div class="order-addr">' +
 							(o.direccion || '') +
