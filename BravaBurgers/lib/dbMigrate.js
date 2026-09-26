@@ -565,6 +565,7 @@ async function migrateRepartidorAssignSchema() {
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_parada integer;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_asignado_at timestamptz;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_ruta_id text;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS repartidor_llegada_at timestamptz;');
     await client.query('CREATE INDEX IF NOT EXISTS orders_repartidor_tel_idx ON orders (repartidor_tel, estado);');
     await client.query("NOTIFY pgrst, 'reload schema';");
     return { ok: true, migrated: true };

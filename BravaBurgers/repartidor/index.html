@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-handoff-llegada -->
+	<!-- repartidor-app v=20260326-wa-llegada -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
@@ -687,7 +687,7 @@
 
 			<section class="screen" id="screen-handoff">
 				<header class="topbar">
-					<button type="button" class="btn btn-back" id="btn-handoff-back" aria-label="Volver al mapa">←</button>
+					<button type="button" class="btn btn-back hidden" id="btn-handoff-back" aria-hidden="true" tabindex="-1">←</button>
 					<div class="topbar-text">
 						<h1 id="handoff-title">Entrega</h1>
 						<div class="sub" id="handoff-sub">Revisá el pedido antes de entregar</div>
@@ -1018,6 +1018,7 @@
 								lat: p.lat != null ? p.lat : null,
 								lng: p.lng != null ? p.lng : null,
 								reparto_ruta_id: p.reparto_ruta_id || data.ruta_id || '',
+								llegada_at: p.llegada_at || '',
 							};
 						});
 					}
@@ -1884,6 +1885,15 @@
 			resetNavigationCamera();
 			routeMetaLine = '';
 			currentOrder = base;
+			if (orderHasLlegada(base)) {
+				geocodeOrder(base)
+					.then(function (o) {
+						currentOrder = o;
+					})
+					.catch(function () {});
+				openHandoffScreen();
+				return;
+			}
 			syncKitchenMarker(base, pickRouteOrigin(base));
 			$('nav-stop').textContent = 'Parada ' + base.parada;
 			$('nav-cliente').textContent = base.cliente + ' · ' + (base.direccion || '').toUpperCase();
@@ -1952,11 +1962,64 @@
 				.join('');
 		}
 
+		function orderHasLlegada(o) {
+			return !!(o && (o.llegada_at || o.llegadaConfirmed));
+		}
+
+		function confirmArrival() {
+			if (!currentOrder) return;
+			if (orderHasLlegada(currentOrder)) {
+				openHandoffScreen();
+				return;
+			}
+			var btn = $('btn-arrival');
+			if (btn) btn.disabled = true;
+			if (liveFromSupabase && isLoggedIn()) {
+				repartidorApi({ action: 'confirmarLlegada', orn: currentOrder.orn })
+					.then(function (data) {
+						if (!data.ok) {
+							var msg = 'No se pudo confirmar llegada.';
+							if (data.error === 'wa_failed') msg = 'No se pudo enviar WhatsApp al cliente. Reintentá.';
+							if (data.error === 'whatsapp_not_configured') {
+								msg = 'WhatsApp no está configurado en el servidor.';
+							}
+							if (data.error === 'repartidor_llegada_schema_missing') {
+								msg =
+									'Falta columna repartidor_llegada_at. En admin entrá de nuevo o migrá Reparto en Supabase.';
+							}
+							alert(msg);
+							return;
+						}
+						currentOrder.llegada_at = data.llegada_at || true;
+						currentOrder.llegadaConfirmed = true;
+						assignments.forEach(function (a) {
+							if (a.orn === currentOrder.orn) {
+								a.llegada_at = data.llegada_at || true;
+							}
+						});
+						stopSim();
+						openHandoffScreen();
+						if (data.wa) speak('Avisamos al cliente por WhatsApp');
+					})
+					.catch(function () {
+						alert('Error de red al confirmar llegada.');
+					})
+					.finally(function () {
+						if (btn) btn.disabled = false;
+					});
+				return;
+			}
+			currentOrder.llegadaConfirmed = true;
+			openHandoffScreen();
+		}
+
 		function openHandoffScreen() {
 			if (!currentOrder) return;
 			var o = currentOrder;
 			$('handoff-title').textContent = 'Parada ' + (o.parada || '?');
-			$('handoff-sub').textContent = 'Revisá el pedido antes de entregar';
+			$('handoff-sub').textContent = orderHasLlegada(o)
+				? 'Le avisamos por WhatsApp · confirmá la entrega al cliente'
+				: 'Revisá el pedido antes de entregar';
 			$('handoff-cliente').textContent = o.cliente || 'Cliente';
 			var addrParts = [o.direccion || '', o.localidad || ''].filter(Boolean);
 			$('handoff-addr').textContent = addrParts.join(', ') || '—';
@@ -2069,10 +2132,7 @@
 		$('btn-nav-start').addEventListener('click', function () {
 			enterNavigationCamera();
 		});
-		$('btn-arrival').addEventListener('click', openHandoffScreen);
-		$('btn-handoff-back').addEventListener('click', function () {
-			showScreen('screen-nav');
-		});
+		$('btn-arrival').addEventListener('click', confirmArrival);
 		$('btn-handoff-confirm').addEventListener('click', markDelivered);
 		$('btn-ext-maps').addEventListener('click', gmapsExternal);
 		$('btn-start-recorrido').addEventListener('click', startRecorrido);

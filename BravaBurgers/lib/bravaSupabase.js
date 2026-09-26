@@ -741,9 +741,13 @@ async function updateOrder(body) {
     patch.reparto_parada = null;
     patch.reparto_asignado_at = null;
     patch.reparto_ruta_id = null;
+    patch.repartidor_llegada_at = null;
   }
   if (body.clearEntregadoAt) patch.entregado_at = null;
-  if (body.clearEnCaminoAt) patch.en_camino_at = null;
+  if (body.clearEnCaminoAt) {
+    patch.en_camino_at = null;
+    patch.repartidor_llegada_at = null;
+  }
 
   let r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
 
@@ -781,7 +785,7 @@ async function listRepartidorRuta(telefono) {
   if (!tel) return { ok: false, error: 'missing_telefono' };
   const r = await restSelect(
     'orders',
-    'select=orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,items_json&repartidor_tel=eq.' +
+    'select=orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,repartidor_llegada_at,items_json&repartidor_tel=eq.' +
       encodeURIComponent(tel) +
       '&estado=eq.en_camino&order=reparto_parada.asc.nullslast,fecha_creado.asc'
   );
@@ -808,6 +812,7 @@ async function listRepartidorRuta(telefono) {
       reparto_ruta_id: o.reparto_ruta_id || '',
       asignado_at: o.reparto_asignado_at || '',
       items: o.items,
+      llegada_at: row.repartidor_llegada_at || '',
     };
   });
   pedidos.sort(function (a, b) {
@@ -825,6 +830,7 @@ function isRepartidorColumnsMissing(r) {
   if (!r || r.ok) return false;
   const blob = restErrorBlob(r);
   if (blob.indexOf('repartidor_tel') >= 0 || blob.indexOf('reparto_parada') >= 0) return true;
+  if (blob.indexOf('repartidor_llegada_at') >= 0) return true;
   if (blob.indexOf('reparto_asignado_at') >= 0 || blob.indexOf('reparto_ruta_id') >= 0) return true;
   if (blob.indexOf('pgrst204') >= 0 && blob.indexOf('repart') >= 0) return true;
   return false;
@@ -848,6 +854,66 @@ async function repartidorMarkEntregada(body) {
     return { ok: true, orn: orn, already: true };
   }
   return updateOrder({ orn: orn, estado: 'entregada' });
+}
+
+async function repartidorConfirmarLlegada(body) {
+  const { sendRepartidorLlegadaWhatsApp } = require('./waRepartidorLlegada');
+  const tel = telNorm(body.telefono || body.repartidor_tel);
+  const orn = String(body.orn || '').trim();
+  if (!tel || !orn) return { ok: false, error: 'missing_fields' };
+  const lookup = await restSelect(
+    'orders',
+    'select=orn,cliente,telefono,repartidor_tel,estado,repartidor_llegada_at&orn=eq.' +
+      encodeURIComponent(orn) +
+      '&limit=1'
+  );
+  if (!lookup.ok) {
+    if (isRepartidorLlegadaColumnMissing(lookup)) {
+      return {
+        ok: false,
+        error: 'repartidor_llegada_schema_missing',
+        hint: 'Ejecutá migrateRepartidorAssign en admin (columna repartidor_llegada_at)',
+      };
+    }
+    return supabaseFail(lookup, 'order_lookup_failed');
+  }
+  if (!lookup.data || !lookup.data[0]) return { ok: false, error: 'order_not_found' };
+  const row = lookup.data[0];
+  if (telNorm(row.repartidor_tel) !== tel) {
+    return { ok: false, error: 'order_not_assigned_to_repartidor' };
+  }
+  const estado = String(row.estado || '').toLowerCase();
+  if (estado !== 'en_camino') {
+    return { ok: false, error: 'invalid_state', estado: estado };
+  }
+  if (row.repartidor_llegada_at) {
+    return { ok: true, already: true, llegada_at: row.repartidor_llegada_at, wa: false };
+  }
+  const wa = await sendRepartidorLlegadaWhatsApp(row.telefono, row.cliente);
+  if (!wa.ok) {
+    return {
+      ok: false,
+      error: wa.error === 'whatsapp_not_configured' ? 'whatsapp_not_configured' : 'wa_failed',
+      detail: wa.error || wa.message,
+    };
+  }
+  const now = new Date().toISOString();
+  const patch = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), {
+    repartidor_llegada_at: now,
+  });
+  if (!patch.ok) {
+    if (isRepartidorLlegadaColumnMissing(patch)) {
+      return { ok: false, error: 'repartidor_llegada_schema_missing' };
+    }
+    return supabaseFail(patch, 'llegada_patch_failed');
+  }
+  return { ok: true, llegada_at: now, wa: true, orn: orn };
+}
+
+function isRepartidorLlegadaColumnMissing(r) {
+  if (!r || r.ok) return false;
+  const blob = restErrorBlob(r);
+  return blob.indexOf('repartidor_llegada_at') >= 0 || (blob.indexOf('pgrst204') >= 0 && blob.indexOf('llegada') >= 0);
 }
 
 async function assignRepartidorRuta(body) {
@@ -1795,6 +1861,8 @@ module.exports = {
   listRepartidorRuta,
 
   repartidorMarkEntregada,
+
+  repartidorConfirmarLlegada,
 
 };
 

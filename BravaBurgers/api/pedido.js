@@ -5,6 +5,7 @@ const {
   validateCouponForShop,
   listRepartidorRuta,
   repartidorMarkEntregada,
+  repartidorConfirmarLlegada,
 } = require('../lib/bravaSupabase');
 const { validateRepartidorToken } = require('../lib/repartidorAuth');
 const { repartidorLogin } = require('../lib/repartidorUsers');
@@ -75,6 +76,16 @@ async function handleRepartidor(body, req, res) {
       const out = await repartidorMarkEntregada(payload);
       return res.status(out.ok ? 200 : 400).json(out);
     }
+    if (action === 'confirmarLlegada') {
+      const payload = Object.assign({}, body, {
+        telefono: auth.tel,
+        repartidor_tel: auth.tel,
+      });
+      const out = await repartidorConfirmarLlegada(payload);
+      const code =
+        out.ok ? 200 : out.error === 'wa_failed' || out.error === 'whatsapp_not_configured' ? 502 : 400;
+      return res.status(code).json(out);
+    }
     return res.status(400).json({ ok: false, error: 'unknown_action' });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'repartidor_failed', detail: String(e.message || e) });
@@ -119,7 +130,12 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   const body = parseBody(req);
-  if (body.action === 'repartidorLogin' || body.action === 'listRuta' || body.action === 'markEntregada') {
+  if (
+    body.action === 'repartidorLogin' ||
+    body.action === 'listRuta' ||
+    body.action === 'markEntregada' ||
+    body.action === 'confirmarLlegada'
+  ) {
     return handleRepartidor(body, req, res);
   }
   if (body.action === 'validateCupon' || (body.codigo && !body.cliente)) {
