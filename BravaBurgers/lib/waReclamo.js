@@ -58,10 +58,10 @@ function normalizeKeywordText(text) {
 
 function matchPostEntregaKeyword(text) {
   const t = normalizeKeywordText(text);
-  if (!t || t.length > 40) return '';
-  if (/\breclamo\b/.test(t) || t === 'reclamar') return 'reclamo';
-  if (/\bcalificar\b/.test(t) || /\bcalificacion\b/.test(t) || /\bvalorar\b/.test(t)) return 'calificar';
-  if (/\bpedir\b/.test(t) || /\bpedido\b/.test(t) || /\bmenu\b/.test(t) || /\bmenú\b/.test(t)) return 'pedir';
+  if (!t || t.length > 28) return '';
+  if (t === 'reclamo' || t === 'reclamar' || t === 'reclamar pedido') return 'reclamo';
+  if (t === 'calificar' || t === 'calificacion' || t === 'valorar') return 'calificar';
+  if (t === 'pedir' || t === 'pedir de nuevo' || t === 'volver a pedir') return 'pedir';
   return '';
 }
 
@@ -394,42 +394,10 @@ async function handleReclamoInbound(ctx) {
     return onMotivoChosen(from, interactiveId, session);
   }
 
-  var sessionEarly = await getReclamoSession(from);
-  if (!interactiveId && text) {
-    const kw = matchPostEntregaKeyword(text);
-    if (kw) {
-      sessionEarly = sessionEarly || {};
-      if (kw === 'reclamo') return maybeStartReclamo(from, sessionEarly);
-      if (kw === 'calificar') return showRating(from);
-      if (kw === 'pedir') return onPedirDeNuevo(from);
-    }
-  }
-
-  const session = sessionEarly || (await getReclamoSession(from));
+  const session = (await getReclamoSession(from)) || null;
   if (!session) return { handled: false };
 
   const step = String(session.step || '').trim();
-
-  if (step === 'menu' && text && !interactiveId) {
-    const kwMenu = matchPostEntregaKeyword(text);
-    if (kwMenu === 'reclamo') return maybeStartReclamo(from, session);
-    if (kwMenu === 'calificar') return showRating(from);
-    if (kwMenu === 'pedir') return onPedirDeNuevo(from);
-  }
-
-  if (step === 'motivo_text' && text && !interactiveId) {
-    const motivoId = parseMotivoNumber(text);
-    if (motivoId) return onMotivoChosen(from, motivoId, session);
-    await replyText(from, 'Respondé solo con un número del 1 al 5 👆\n\n' + motivoTextMenu());
-    return { handled: true, kind: 'reclamo_motivo_bad_number' };
-  }
-
-  if (step === 'rating_text' && text && !interactiveId) {
-    const starId = parseRatingNumber(text);
-    if (starId) return onRating(from, starId);
-    await replyText(from, 'Escribí un número del *1* al *5* para calificar.');
-    return { handled: true, kind: 'rating_bad_number' };
-  }
 
   if (step === 'need_description') {
     if (isImage) {
@@ -457,15 +425,61 @@ async function handleReclamoInbound(ctx) {
     return finishReclamo(from, merged, mediaId);
   }
 
+  if (step === 'motivo_text' && text && !interactiveId) {
+    const motivoId = parseMotivoNumber(text);
+    if (motivoId) return onMotivoChosen(from, motivoId, session);
+    if (text.length >= DESC_MIN) {
+      await upsertReclamoSession(from, {
+        step: 'need_description',
+        motivo: session.motivo || 'otro',
+        open: true,
+        orn: session.orn || '',
+      });
+      return onDescription(from, text, Object.assign({}, session, { motivo: session.motivo || 'otro' }));
+    }
+    await replyText(from, 'Respondé con el *número* del 1 al 5, o contanos qué pasó en un mensaje 👇\n\n' + motivoTextMenu());
+    return { handled: true, kind: 'reclamo_motivo_bad_number' };
+  }
+
   if (step === 'motivo') {
-    const motivoFromText = parseMotivoNumber(text);
-    if (motivoFromText) return onMotivoChosen(from, motivoFromText, session);
+    if (text && !interactiveId) {
+      const motivoFromText = parseMotivoNumber(text);
+      if (motivoFromText) return onMotivoChosen(from, motivoFromText, session);
+      if (text.length >= DESC_MIN) {
+        await upsertReclamoSession(from, {
+          step: 'need_description',
+          motivo: session.motivo || 'otro',
+          open: true,
+          orn: session.orn || '',
+        });
+        return onDescription(from, text, Object.assign({}, session, { motivo: session.motivo || 'otro' }));
+      }
+    }
     await replyText(
       from,
       'Elegí un motivo tocando *Elegir motivo* en el mensaje de arriba, o respondé con el número:\n\n' +
         motivoTextMenu()
     );
     return { handled: true, kind: 'reclamo_pick_motivo' };
+  }
+
+  if (step === 'rating_text' && text && !interactiveId) {
+    const starId = parseRatingNumber(text);
+    if (starId) return onRating(from, starId);
+    await replyText(from, 'Escribí un número del *1* al *5* para calificar.');
+    return { handled: true, kind: 'rating_bad_number' };
+  }
+
+  if (reclamoStepInProgress(step) && text && !interactiveId) {
+    const busy = await replyReclamoFlowBusy(from, session);
+    if (busy) return busy;
+  }
+
+  if (step === 'menu' && text && !interactiveId) {
+    const kwMenu = matchPostEntregaKeyword(text);
+    if (kwMenu === 'reclamo') return maybeStartReclamo(from, session);
+    if (kwMenu === 'calificar') return showRating(from);
+    if (kwMenu === 'pedir') return onPedirDeNuevo(from);
   }
 
   if (session.open && step === 'done') {
