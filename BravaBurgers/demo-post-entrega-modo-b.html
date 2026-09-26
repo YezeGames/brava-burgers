@@ -629,7 +629,12 @@
 				var m = text.match(/^([1-5])/);
 				if (m) {
 					log('rating_text → rate_' + m[1]);
-					addText(m[1] >= 4 ? '¡Gracias! 💛 @bravaburgers.ok' : 'Gracias por contarlo. Seguimos por acá si hace falta.', 'in');
+					addText(
+						m[1] >= 4
+							? '¡Gracias! 💛 Nos alegra que hayas disfrutado.\n\nTe esperamos en el próximo pedido 🍔'
+							: 'Gracias por contarlo. Seguimos por acá si hace falta.',
+						'in'
+					);
 					sessionStep = 'done';
 				} else {
 					addText('Escribí un número del *1* al *5*.', 'in');

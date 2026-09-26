@@ -289,7 +289,7 @@ async function onRating(from, starId) {
   if (Number(n) >= 4) {
     await replyText(
       from,
-      '¡Gracias! 💛 Si te sobra un segundo, una reseña en IG nos ayuda un montón:\n@bravaburgers.ok'
+      '¡Gracias! 💛 Nos alegra que hayas disfrutado.\n\nTe esperamos en el próximo pedido 🍔\nhttps://linktr.ee/bravaburgers'
     );
   } else {
     await replyText(from, 'Gracias por contarlo. Si querés, seguimos por acá para resolverlo.');
