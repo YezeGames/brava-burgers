@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-recorrido -->
+	<!-- repartidor-app v=20260326-login-fullscreen -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
@@ -132,16 +132,86 @@
 			color: #a5d6a7;
 		}
 		.sync-strip em { font-style: normal; color: var(--muted); display: block; margin-top: 4px; font-size: 0.68rem; }
-		.repartidor-login-panel {
-			flex-shrink: 0;
-			padding: 12px 16px;
-			background: var(--surface);
-			border-bottom: 1px solid var(--line);
+		.login-screen {
+			flex: 1;
+			min-height: 0;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			padding: 28px 22px calc(28px + var(--safe-b));
+			overflow-y: auto;
+			-webkit-overflow-scrolling: touch;
 		}
-		.repartidor-login-panel input,
-		.repartidor-login-panel button {
+		.login-hero {
+			text-align: center;
+			margin-bottom: 32px;
+		}
+		.login-hero .app-brand {
+			width: 64px;
+			height: 64px;
+			margin: 0 auto 14px;
+			font-size: 1.35rem;
+			border-radius: 16px;
+		}
+		.login-hero h1 {
+			margin: 0;
+			font-size: 1.35rem;
+			font-weight: 700;
+		}
+		.login-hero p {
+			margin: 8px 0 0;
+			font-size: 0.82rem;
+			color: var(--muted);
+			line-height: 1.4;
+		}
+		.login-form {
+			width: 100%;
+			max-width: 360px;
+			margin: 0 auto;
+		}
+		.login-form input,
+		.login-form button {
 			pointer-events: auto;
 			touch-action: manipulation;
+		}
+		.sync-strip-row {
+			flex-shrink: 0;
+			display: flex;
+			align-items: stretch;
+			border-bottom: 1px solid #1e3d2a;
+		}
+		.sync-strip-row .sync-strip {
+			flex: 1;
+			min-width: 0;
+			border-bottom: none;
+		}
+		.btn-sync-refresh {
+			flex-shrink: 0;
+			width: 48px;
+			border: none;
+			border-left: 1px solid #1e3d2a;
+			background: #122018;
+			color: #a5d6a7;
+			font-size: 1.25rem;
+			cursor: pointer;
+			touch-action: manipulation;
+		}
+		.btn-sync-refresh:active { background: #1a3024; }
+		.topbar-actions {
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			flex-shrink: 0;
+		}
+		.btn-logout {
+			min-height: 36px;
+			padding: 6px 12px;
+			font-size: 0.78rem;
+			border-radius: 10px;
+			border: 1px solid var(--line);
+			background: transparent;
+			color: var(--muted);
+			cursor: pointer;
 		}
 		.order-list {
 			flex: 1;
@@ -429,7 +499,7 @@
 <body>
 	<p class="desktop-hint">
 		<strong>Vista móvil (app repartidor)</strong> — En PC se ve en marco de celular. Abrí esta URL en el teléfono para probar GPS y voz.
-		Cocina publica en <strong>Admin → Reparto → Publicar en app</strong>. Acá cargás tu teléfono y ves pedidos reales <em>en camino</em> asignados a vos.
+		Cocina publica en <strong>Admin → Reparto → Publicar en app</strong>. Entrá con usuario y contraseña de tu cuenta repartidor.
 	</p>
 
 	<div class="phone-shell" id="phone-shell">
@@ -443,21 +513,14 @@
 					<div class="push-toast-meta">Brava Repartidor · ahora</div>
 				</div>
 			</div>
-			<section class="screen is-active" id="screen-list">
-				<header class="topbar">
-					<div class="app-brand" aria-hidden="true">B</div>
-					<div class="topbar-text">
-						<h1 id="driver-name">App repartidor</h1>
-						<div class="sub" id="assign-summary">Entrá con usuario y contraseña de cocina</div>
+			<section class="screen is-active" id="screen-login">
+				<div class="login-screen">
+					<div class="login-hero">
+						<div class="app-brand" aria-hidden="true">B</div>
+						<h1>Brava repartidor</h1>
+						<p>Entrá con usuario y contraseña que te dio cocina.</p>
 					</div>
-					<button type="button" class="btn btn-sm hidden" id="btn-logout-top" title="Cerrar sesión">Salir</button>
-					<span class="status-dot" id="gps-dot-list" title="GPS"></span>
-				</header>
-				<div class="sync-strip" id="sync-strip">
-					Entrá con tu cuenta de repartidor.
-				</div>
-				<div class="repartidor-login-panel" id="repartidor-login-panel">
-					<div class="repartidor-tel-row" id="repartidor-login-form">
+					<div class="login-form repartidor-tel-row" id="repartidor-login-form">
 						<label for="repartidor-login">Usuario</label>
 						<input type="text" id="repartidor-login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="tomas">
 						<label for="repartidor-password">Contraseña</label>
@@ -465,9 +528,24 @@
 						<button type="button" class="btn btn-load" id="btn-login">Entrar</button>
 						<p class="repartidor-tel-hint">La crea cocina en Admin → Reparto → <strong>Cuentas app repartidor</strong>.</p>
 					</div>
-					<div class="repartidor-tel-row hidden" id="repartidor-session-bar">
-						<button type="button" class="btn btn-load" id="btn-load-ruta">Actualizar entregas</button>
+				</div>
+			</section>
+
+			<section class="screen" id="screen-list">
+				<header class="topbar">
+					<div class="app-brand" aria-hidden="true">B</div>
+					<div class="topbar-text">
+						<h1 id="driver-name">Repartidor</h1>
+						<div class="sub" id="assign-summary">Mis entregas asignadas</div>
 					</div>
+					<div class="topbar-actions">
+						<button type="button" class="btn-logout hidden" id="btn-logout-top" title="Cerrar sesión">Salir</button>
+						<span class="status-dot" id="gps-dot-list" title="GPS"></span>
+					</div>
+				</header>
+				<div class="sync-strip-row">
+					<div class="sync-strip" id="sync-strip">Cargando entregas…</div>
+					<button type="button" class="btn-sync-refresh" id="btn-load-ruta" title="Actualizar entregas" aria-label="Actualizar entregas">↻</button>
 				</div>
 				<div class="order-list" id="order-list"></div>
 				<div class="app-dock" id="list-dock">
@@ -675,20 +753,16 @@
 		}
 
 		function updateLoginUi() {
-			var form = $('repartidor-login-form');
-			var bar = $('repartidor-session-bar');
 			var logoutTop = $('btn-logout-top');
+			var navActive = $('screen-nav') && $('screen-nav').classList.contains('is-active');
 			if (isLoggedIn()) {
-				if (form) form.classList.add('hidden');
-				if (bar) bar.classList.remove('hidden');
 				if (logoutTop) logoutTop.classList.remove('hidden');
 				var label = session.nombre || session.login || 'Repartidor';
-				$('driver-name').textContent = label;
+				if ($('driver-name')) $('driver-name').textContent = label;
+				if (!navActive) showScreen('screen-list');
 			} else {
-				if (form) form.classList.remove('hidden');
-				if (bar) bar.classList.add('hidden');
 				if (logoutTop) logoutTop.classList.add('hidden');
-				$('driver-name').textContent = 'Brava repartidor';
+				showScreen('screen-login');
 			}
 		}
 
@@ -721,11 +795,7 @@
 			var list = myAssignments();
 			var el = $('sync-strip');
 			var tel = driverTel();
-			if (!isLoggedIn()) {
-				el.innerHTML = 'Entrá con <strong>usuario y contraseña</strong> que te dio cocina.';
-				$('assign-summary').textContent = 'Mis entregas asignadas';
-				return;
-			}
+			if (!isLoggedIn()) return;
 			if (!tel) {
 				el.innerHTML =
 					'Sesión activa pero falta teléfono en la cuenta. Pedile a cocina que revise la cuenta en Reparto.';
@@ -1692,7 +1762,10 @@
 		function doLogout() {
 			if (refreshPoll) clearInterval(refreshPoll);
 			refreshPoll = null;
+			stopSim();
 			clearSession();
+			var passEl = $('repartidor-password');
+			if (passEl) passEl.value = '';
 		}
 
 		$('btn-login').addEventListener('click', doLogin);
