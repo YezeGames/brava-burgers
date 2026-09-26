@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — WhatsApp post entrega · Brava Burgers</title>
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			background: #0e0e0e;
+			color: #eee;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			line-height: 1.45;
+		}
+		.demo-banner {
+			background: linear-gradient(135deg, #2a1810, #1a1a1a);
+			border-bottom: 1px solid #443;
+			padding: 12px 16px;
+			font-size: 0.8rem;
+			color: #aaa;
+		}
+		.demo-banner strong { color: #ff6b35; }
+		.layout {
+			max-width: 960px;
+			margin: 0 auto;
+			padding: 16px;
+			display: grid;
+			gap: 16px;
+		}
+		@media (min-width: 780px) {
+			.layout { grid-template-columns: 1fr 320px; align-items: start; }
+		}
+		.phone {
+			background: #0b141a;
+			border-radius: 28px;
+			border: 3px solid #333;
+			overflow: hidden;
+			box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+			max-width: 420px;
+			margin: 0 auto;
+		}
+		.wa-top {
+			background: #1f2c34;
+			padding: 10px 12px 12px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.wa-top .avatar {
+			width: 40px;
+			height: 40px;
+			border-radius: 50%;
+			background: #ff6b35;
+			display: grid;
+			place-items: center;
+			overflow: hidden;
+		}
+		.wa-top .avatar img { width: 100%; height: 100%; object-fit: cover; }
+		.wa-top .meta { flex: 1; min-width: 0; }
+		.wa-top .name { font-weight: 700; font-size: 0.95rem; }
+		.wa-top .sub { font-size: 0.72rem; color: #8696a0; }
+		.wa-chat {
+			min-height: 420px;
+			max-height: 520px;
+			overflow-y: auto;
+			padding: 12px 10px 16px;
+			background:
+				url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h60v60H0z' fill='%230b141a'/%3E%3Cpath d='M30 5l2 8h8l-7 5 3 8-6-4-6 4 3-8-7-5h8z' fill='%23182229' opacity='.35'/%3E%3C/svg%3E");
+		}
+		.msg {
+			max-width: 92%;
+			margin-bottom: 8px;
+			animation: msg-in 0.35s ease-out both;
+		}
+		@keyframes msg-in {
+			from { opacity: 0; transform: translateY(8px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+		.msg.out { margin-left: auto; }
+		.msg.in { margin-right: auto; }
+		.bubble {
+			border-radius: 8px;
+			padding: 6px 8px 4px;
+			font-size: 0.86rem;
+			box-shadow: 0 1px 0.5px rgba(0,0,0,0.2);
+		}
+		.msg.in .bubble { background: #1f2c34; color: #e9edef; }
+		.msg.out .bubble { background: #005c4b; color: #e9edef; }
+		.bubble-photo img {
+			display: block;
+			max-width: 220px;
+			border-radius: 6px;
+			margin-bottom: 4px;
+		}
+		.bubble-photo .cap { font-size: 0.78rem; color: #8696a0; }
+		.side .hint-sim {
+			font-size: 0.75rem;
+			color: #ffab91;
+			margin: 8px 0;
+			display: none;
+		}
+		.side .hint-sim.visible { display: block; }
+		.side textarea {
+			width: 100%;
+			min-height: 72px;
+			padding: 10px;
+			border-radius: 8px;
+			border: 1px solid #444;
+			background: #121212;
+			color: #eee;
+			font: inherit;
+			font-size: 0.82rem;
+			resize: vertical;
+			display: none;
+		}
+		.side textarea.visible { display: block; }
+		.btn-photo {
+			width: 100%;
+			margin-top: 4px;
+			padding: 10px;
+			border: 1px dashed #ff6b35;
+			border-radius: 10px;
+			background: rgba(255,107,53,0.08);
+			color: #ffab91;
+			font-weight: 700;
+			cursor: pointer;
+			display: none;
+		}
+		.btn-photo.visible { display: block; }
+		.btn-desc {
+			border-style: solid;
+			background: #333;
+			color: #eee;
+			border-color: #555;
+		}
+		.msg-time {
+			font-size: 0.62rem;
+			color: #8696a0;
+			text-align: right;
+			margin-top: 2px;
+			padding-right: 4px;
+		}
+		.interactive {
+			background: #1f2c34;
+			border-radius: 10px;
+			overflow: hidden;
+			max-width: 300px;
+			box-shadow: 0 1px 0.5px rgba(0,0,0,0.25);
+		}
+		.interactive-header img {
+			display: block;
+			width: 100%;
+			height: 140px;
+			object-fit: cover;
+			background: #2a1810;
+		}
+		.interactive-body {
+			padding: 10px 12px 6px;
+			font-size: 0.86rem;
+			color: #e9edef;
+			white-space: pre-wrap;
+		}
+		.interactive-footer {
+			padding: 0 12px 8px;
+			font-size: 0.68rem;
+			color: #8696a0;
+		}
+		.wa-btn {
+			display: block;
+			width: 100%;
+			border: none;
+			border-top: 1px solid #2a3942;
+			background: transparent;
+			color: #53bdeb;
+			font: inherit;
+			font-size: 0.84rem;
+			font-weight: 600;
+			padding: 12px 10px;
+			cursor: pointer;
+			text-align: center;
+		}
+		.wa-btn:hover { background: rgba(255,255,255,0.04); }
+		.wa-btn i { margin-right: 6px; opacity: 0.9; }
+		.stars {
+			display: flex;
+			flex-direction: column;
+			gap: 0;
+		}
+		.stars .wa-btn { font-size: 0.9rem; }
+		.side {
+			background: #1a1a1a;
+			border: 1px solid #333;
+			border-radius: 14px;
+			padding: 14px 16px;
+		}
+		.side h2 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 1.5rem;
+			color: #ff6b35;
+			margin: 0 0 8px;
+			letter-spacing: 0.06em;
+		}
+		.side p { margin: 0 0 12px; font-size: 0.82rem; color: #999; }
+		.side label { font-size: 0.75rem; color: #888; display: block; margin-bottom: 4px; }
+		.side input {
+			width: 100%;
+			padding: 10px;
+			border-radius: 8px;
+			border: 1px solid #444;
+			background: #121212;
+			color: #eee;
+			font: inherit;
+			margin-bottom: 10px;
+		}
+		.btn-primary {
+			width: 100%;
+			padding: 12px;
+			border: none;
+			border-radius: 10px;
+			background: #25d366;
+			color: #fff;
+			font-weight: 800;
+			font-size: 0.9rem;
+			cursor: pointer;
+		}
+		.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+		.btn-ghost {
+			width: 100%;
+			margin-top: 8px;
+			padding: 10px;
+			border: 1px solid #444;
+			border-radius: 10px;
+			background: transparent;
+			color: #ccc;
+			font: inherit;
+			cursor: pointer;
+		}
+		.log {
+			margin-top: 14px;
+			padding-top: 12px;
+			border-top: 1px solid #333;
+			font-size: 0.72rem;
+			color: #777;
+			max-height: 200px;
+			overflow-y: auto;
+		}
+		.log strong { color: #ffab91; }
+		.badge-demo {
+			display: inline-block;
+			font-size: 0.65rem;
+			font-weight: 800;
+			text-transform: uppercase;
+			background: rgba(255,107,53,0.15);
+			border: 1px solid rgba(255,107,53,0.4);
+			color: #ff6b35;
+			padding: 3px 8px;
+			border-radius: 999px;
+			margin-bottom: 8px;
+		}
+	</style>
+</head>
+<body>
+	<div class="demo-banner">
+		<strong>Demo UX</strong> — Simula el mensaje <strong>interactivo</strong> de WhatsApp Cloud API al marcar un pedido como <strong>entregado</strong> (imagen + texto + hasta 3 botones). No es WhatsApp real.
+	</div>
+
+	<div class="layout">
+		<div class="phone" aria-label="Vista previa chat WhatsApp">
+			<div class="wa-top">
+				<div class="avatar"><img src="logoweb.png" alt="" width="40" height="40"></div>
+				<div class="meta">
+					<div class="name">Brava Burgers</div>
+					<div class="sub">en línea</div>
+				</div>
+				<i class="fas fa-video" style="color:#8696a0;margin-left:auto" aria-hidden="true"></i>
+			</div>
+			<div class="wa-chat" id="chat"></div>
+		</div>
+
+		<div class="side">
+			<span class="badge-demo">Simulador admin</span>
+			<h2>Post entrega</h2>
+			<p>Cuando en el panel tocás <strong>Marcar entregado</strong>, la API enviaría este mensaje al teléfono del cliente (ventana 24 h).</p>
+			<label for="cliente">Nombre cliente</label>
+			<input type="text" id="cliente" value="Cliente demo">
+			<label for="orn">ORN</label>
+			<input type="text" id="orn" value="PEND-DEL-0042">
+			<button type="button" class="btn-primary" id="btn-entregado">
+				<i class="fas fa-check"></i> Simular pedido entregado → enviar WA
+			</button>
+			<button type="button" class="btn-ghost" id="btn-reset">Reiniciar chat</button>
+			<p class="hint-sim" id="hint-desc">Paso bot: el cliente escribe qué pasó (obligatorio antes de la foto):</p>
+			<textarea id="reclamo-desc" hidden placeholder="Ej: Llegó frío y faltaban las papas…"></textarea>
+			<button type="button" class="btn-photo btn-desc" id="btn-sim-desc">
+				<i class="fas fa-comment"></i> Enviar descripción (simular cliente)
+			</button>
+			<p class="hint-sim" id="hint-photo">Después, foto obligatoria del pedido (en WA adjunta desde el chat):</p>
+			<button type="button" class="btn-photo" id="btn-sim-photo">
+				<i class="fas fa-camera"></i> Simular foto del pedido (cliente)
+			</button>
+			<div class="log" id="log">
+				<strong>Backend (simulado):</strong> esperando acción…
+			</div>
+		</div>
+	</div>
+
+	<script>
+	(function () {
+		var chat = document.getElementById('chat');
+		var logEl = document.getElementById('log');
+		var postDeliverySent = false;
+		var reclamoStep = null;
+		var reclamoMotivo = '';
+		var reclamoDescripcion = '';
+
+		function timeNow() {
+			var d = new Date();
+			return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+		}
+
+		function appendLog(line) {
+			var p = document.createElement('div');
+			p.style.marginTop = '6px';
+			p.innerHTML = line;
+			logEl.appendChild(p);
+			logEl.scrollTop = logEl.scrollHeight;
+		}
+
+		function addBubble(html, dir) {
+			dir = dir || 'in';
+			var wrap = document.createElement('div');
+			wrap.className = 'msg ' + dir;
+			wrap.innerHTML =
+				'<div class="bubble">' + html + '</div>' +
+				'<div class="msg-time">' + timeNow() + '</div>';
+			chat.appendChild(wrap);
+			chat.scrollTop = chat.scrollHeight;
+			return wrap;
+		}
+
+		function addText(text, dir) {
+			return addBubble(escapeHtml(text).replace(/\n/g, '<br>'), dir);
+		}
+
+		function escapeHtml(s) {
+			return String(s)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;')
+				.replace(/"/g, '&quot;');
+		}
+
+		function buildPostDeliveryInteractive() {
+			var nombre = (document.getElementById('cliente').value || 'Cliente').trim();
+			var orn = (document.getElementById('orn').value || 'PEND-DEL-0000').trim();
+			var body =
+				'¡Listo, ' + nombre + '! 🍔\n\n' +
+				'Tu pedido *' + orn + '* fue entregado.\n\n' +
+				'¿Cómo te fue? Elegí una opción:';
+
+			var wrap = document.createElement('div');
+			wrap.className = 'msg in';
+			wrap.innerHTML =
+				'<div class="interactive">' +
+				'<div class="interactive-header"><img src="logoweb.png" alt="Brava Burgers"></div>' +
+				'<div class="interactive-body">' + formatWaBold(body) + '</div>' +
+				'<div class="interactive-footer">Brava Burgers · mensaje automático</div>' +
+				'<button type="button" class="wa-btn" data-action="reclamo"><i class="fas fa-life-ring"></i>Iniciar un reclamo</button>' +
+				'<button type="button" class="wa-btn" data-action="calificar"><i class="fas fa-star"></i>Calificar servicio</button>' +
+				'<button type="button" class="wa-btn" data-action="pedir"><i class="fas fa-burger"></i>Pedir de nuevo</button>' +
+				'</div>' +
+				'<div class="msg-time">' + timeNow() + '</div>';
+
+			chat.appendChild(wrap);
+			chat.scrollTop = chat.scrollHeight;
+			wrap.querySelectorAll('.wa-btn').forEach(function (btn) {
+				btn.addEventListener('click', onButtonClick);
+			});
+			return wrap;
+		}
+
+		function formatWaBold(text) {
+			return escapeHtml(text).replace(/\*([^*]+)\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+		}
+
+		function onButtonClick(e) {
+			var action = e.currentTarget.getAttribute('data-action');
+			var labels = {
+				reclamo: 'Iniciar un reclamo',
+				calificar: 'Calificar servicio',
+				pedir: 'Pedir de nuevo'
+			};
+			addText(labels[action] || action, 'out');
+			appendLog('Webhook: <code>button_reply.id=' + action + '</code> → procesando…');
+
+			if (action === 'reclamo') {
+				setTimeout(startReclamoBot, 500);
+			} else if (action === 'calificar') {
+				setTimeout(showRatingInteractive, 500);
+			} else if (action === 'pedir') {
+				setTimeout(function () {
+					addText(
+						'¡Gracias por volver! 🔥\n\nPedí acá con aclaraciones en cada burger:\nhttps://linktr.ee/bravaburgers',
+						'in'
+					);
+					appendLog('Auto-reply: link tienda (mismo CTA que bienvenida actual).');
+				}, 500);
+			}
+		}
+
+		function setDescSimVisible(on) {
+			document.getElementById('hint-desc').classList.toggle('visible', on);
+			var ta = document.getElementById('reclamo-desc');
+			ta.classList.toggle('visible', on);
+			ta.hidden = !on;
+			document.getElementById('btn-sim-desc').classList.toggle('visible', on);
+		}
+
+		function setPhotoSimVisible(on) {
+			document.getElementById('hint-photo').classList.toggle('visible', on);
+			document.getElementById('btn-sim-photo').classList.toggle('visible', on);
+		}
+
+		function hideReclamoSimPanels() {
+			setDescSimVisible(false);
+			setPhotoSimVisible(false);
+		}
+
+		function startReclamoBot() {
+			reclamoStep = 'motivo';
+			reclamoMotivo = '';
+			reclamoDescripcion = '';
+			hideReclamoSimPanels();
+			appendLog('Bot reclamo: estado <strong>motivo</strong>.');
+			var wrap = document.createElement('div');
+			wrap.className = 'msg in';
+			var motivos = [
+				['frio', 'Pedido frío'],
+				['faltante', 'Faltante / incompleto'],
+				['error', 'Error en el pedido'],
+				['demora', 'Demora en la entrega'],
+				['otro', 'Otro']
+			];
+			var btns = motivos.map(function (m) {
+				return '<button type="button" class="wa-btn" data-motivo="' + m[0] + '">' + m[1] + '</button>';
+			}).join('');
+			wrap.innerHTML =
+				'<div class="interactive">' +
+				'<div class="interactive-body" style="padding-top:12px">Lamentamos el inconveniente 😔\n¿Qué pasó con el pedido *' +
+				escapeHtml(document.getElementById('orn').value || '') +
+				'*?</div>' +
+				btns +
+				'</div><div class="msg-time">' + timeNow() + '</div>';
+			chat.appendChild(wrap);
+			chat.scrollTop = chat.scrollHeight;
+			wrap.querySelectorAll('[data-motivo]').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					reclamoMotivo = btn.getAttribute('data-motivo');
+					addText(btn.textContent, 'out');
+					appendLog('Motivo: <code>' + reclamoMotivo + '</code> → pedir <strong>descripción</strong>.');
+					reclamoStep = 'need_description';
+					setTimeout(function () {
+						addText(
+							'Contanos con tus palabras *qué pasó* (qué llegó mal, qué faltó, etc.).\n\n' +
+							'Escribilo en un mensaje. *Es obligatorio* antes de la foto.',
+							'in'
+						);
+						setDescSimVisible(true);
+					}, 450);
+				});
+			});
+		}
+
+		function submitReclamoDescription() {
+			if (reclamoStep !== 'need_description') {
+				appendLog('Primero elegí motivo de reclamo.');
+				return;
+			}
+			var text = (document.getElementById('reclamo-desc').value || '').trim();
+			if (text.length < 8) {
+				appendLog('Descripción muy corta (demo: mínimo 8 caracteres).');
+				addText('Necesitamos un poco más de detalle para entender el reclamo 🙏', 'in');
+				return;
+			}
+			reclamoDescripcion = text;
+			addText(text, 'out');
+			reclamoStep = 'need_photo';
+			setDescSimVisible(false);
+			appendLog('Descripción guardada → pedir <strong>foto obligatoria</strong>.');
+			setTimeout(function () {
+				addText(
+					'Gracias. Ahora mandá una *foto del pedido* (caja, burgers o lo que faltó).\n\n' +
+					'📷 Sin foto no podemos *confirmar* el reclamo.',
+					'in'
+				);
+				setPhotoSimVisible(true);
+			}, 450);
+		}
+
+		document.getElementById('btn-sim-desc').addEventListener('click', submitReclamoDescription);
+
+		function addPhotoBubble() {
+			var wrap = document.createElement('div');
+			wrap.className = 'msg out';
+			wrap.innerHTML =
+				'<div class="bubble bubble-photo">' +
+				'<img src="logoweb.png" alt="Foto demo del pedido">' +
+				'<span class="cap">Foto · demo</span></div>' +
+				'<div class="msg-time">' + timeNow() + '</div>';
+			chat.appendChild(wrap);
+			chat.scrollTop = chat.scrollHeight;
+		}
+
+		function finishReclamoWithPhoto() {
+			if (reclamoStep !== 'need_photo') return;
+			reclamoStep = 'done';
+			setPhotoSimVisible(false);
+			appendLog(
+				'Webhook: <code>type=image</code> → reclamo confirmado. Motivo + texto + media_id + ORN en Supabase.'
+			);
+			setTimeout(function () {
+				addText(
+					'Recibimos tu reclamo *RCL-DEMO-001* ✅\n\n' +
+					'Motivo: ' + (reclamoMotivo || '—') + '\n' +
+					'Resumen guardado con tu foto.\n\n' +
+					'Un humano de Brava lo revisa en breve.',
+					'in'
+				);
+				appendLog('Admin: chat en <strong>Consultas</strong> + reclamo pendiente (Gratificar manual si corresponde).');
+			}, 500);
+		}
+
+		document.getElementById('btn-sim-photo').addEventListener('click', function () {
+			if (reclamoStep !== 'need_photo') {
+				appendLog('Primero iniciá reclamo y elegí motivo.');
+				return;
+			}
+			addPhotoBubble();
+			finishReclamoWithPhoto();
+		});
+
+		function showRatingInteractive() {
+			var wrap = document.createElement('div');
+			wrap.className = 'msg in';
+			var stars = ['⭐ 5 — Excelente', '⭐ 4 — Muy bien', '⭐ 3 — Regular', '⭐ 1–2 — Mejorar'];
+			var btns = stars.map(function (label, i) {
+				return '<button type="button" class="wa-btn" data-star="' + (5 - i) + '">' + label + '</button>';
+			}).join('');
+			wrap.innerHTML =
+				'<div class="interactive">' +
+				'<div class="interactive-body" style="padding-top:12px">¿Cómo calificarías el delivery y las burgers?</div>' +
+				'<div class="stars">' + btns + '</div>' +
+				'</div>' +
+				'<div class="msg-time">' + timeNow() + '</div>';
+			chat.appendChild(wrap);
+			chat.scrollTop = chat.scrollHeight;
+			wrap.querySelectorAll('[data-star]').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					var n = btn.getAttribute('data-star');
+					addText('Calificación: ' + n + ' estrellas', 'out');
+					appendLog('Guardado (simulado): rating=' + n + ' + orn en Supabase.');
+					setTimeout(function () {
+						if (Number(n) >= 4) {
+							addText(
+								'¡Gracias! 💛 Si te sobra un segundo, una reseña en IG nos ayuda un montón:\n@bravaburgers.ok',
+								'in'
+							);
+						} else {
+							addText(
+								'Gracias por contarlo. Si querés, seguimos por acá para resolverlo.',
+								'in'
+							);
+						}
+					}, 400);
+				});
+			});
+			appendLog('Segundo interactivo: <strong>lista / botones</strong> de calificación.');
+		}
+
+		function seedChat() {
+			chat.innerHTML = '';
+			postDeliverySent = false;
+			reclamoStep = null;
+			reclamoDescripcion = '';
+			hideReclamoSimPanels();
+			document.getElementById('reclamo-desc').value = '';
+			logEl.innerHTML = '<strong>Backend (simulado):</strong> esperando acción…';
+			addText('Hola! Acabo de pedir desde la web 🍔', 'out');
+			addText('¡Recibido! Te confirmamos en un ratito.', 'in');
+		}
+
+		document.getElementById('btn-entregado').addEventListener('click', function () {
+			if (postDeliverySent) {
+				appendLog('Ya se envió el post-entrega en este demo. Reiniciá el chat.');
+				return;
+			}
+			postDeliverySent = true;
+			appendLog(
+				'Admin: estado → <strong>entregada</strong> · POST Graph API <code>type: interactive</code> (header image + 3 buttons).'
+			);
+			setTimeout(function () {
+				buildPostDeliveryInteractive();
+				appendLog('Mensaje entregado al cliente (simulado).');
+			}, 400);
+		});
+
+		document.getElementById('btn-reset').addEventListener('click', seedChat);
+
+		seedChat();
+	})();
+	</script>
+</body>
+</html>

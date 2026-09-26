@@ -1816,6 +1816,25 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	border-bottom-color: #25d366;
 	background: var(--bg-surface);
 }
+.wa-inbox-tab.wa-inbox-tab--reclamos.is-active {
+	color: #c45c26;
+	border-bottom-color: #ff6b35;
+}
+.wa-chip-reclamo {
+	display: inline-block;
+	font-size: 0.65rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #ff6b35;
+	margin-bottom: 4px;
+}
+.wa-order-chip .wa-reclamo-detail {
+	font-size: 0.78rem;
+	color: var(--text-muted);
+	margin-top: 6px;
+	line-height: 1.4;
+}
 .wa-inbox-list { flex: 1; overflow-y: auto; }
 .wa-inbox-empty {
 	margin: 0;

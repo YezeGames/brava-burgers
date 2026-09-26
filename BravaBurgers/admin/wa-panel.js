@@ -28,6 +28,9 @@
   /** Teléfono del repartidor (uno solo); mismo storage que pantalla Reparto. */
   var waRepartidorTel = '';
   var REPARTIDOR_TEL_KEY = 'brava_demo_deli_wa_v1';
+  /** Reclamos abiertos (bot post-entrega); luego Supabase `wa_reclamos`. */
+  var WA_RECLAMO_KEY = 'brava_wa_reclamo_v1';
+  var waReclamos = {};
   /** Teléfonos con pedido en este turno — se purgan al cerrar caja/turno. */
   var waTurnoPurgaTels = {};
   var waPendingImage = null;
@@ -167,6 +170,74 @@
     }
   }
 
+  function loadWaReclamos() {
+    try {
+      waReclamos = JSON.parse(localStorage.getItem(WA_RECLAMO_KEY) || '{}') || {};
+    } catch (e) {
+      waReclamos = {};
+    }
+  }
+
+  function saveWaReclamos() {
+    try {
+      localStorage.setItem(WA_RECLAMO_KEY, JSON.stringify(waReclamos));
+    } catch (e) {}
+  }
+
+  function getReclamoRecord(tel) {
+    var key = telWa(tel);
+    if (!key) return null;
+    return waReclamos[key] || null;
+  }
+
+  function threadHasOpenReclamo(tel) {
+    var r = getReclamoRecord(tel);
+    return !!(r && String(r.status || 'abierto') !== 'cerrado');
+  }
+
+  function markReclamoOpen(tel, meta) {
+    meta = meta || {};
+    var key = telWa(tel);
+    if (!key) return false;
+    waReclamos[key] = {
+      status: 'abierto',
+      orn: String(meta.orn || '').trim(),
+      motivo: String(meta.motivo || '').trim(),
+      descripcion: String(meta.descripcion || '').trim(),
+      reclamoId: String(meta.reclamoId || meta.id || '').trim(),
+      updatedAt: new Date().toISOString(),
+    };
+    saveWaReclamos();
+    var prev = threads[key];
+    ensureThread(key, {
+      name: meta.name || (prev && prev.name) || 'Cliente',
+      phone: meta.phone || (prev && prev.phone) || key,
+      orn: waReclamos[key].orn || (prev && prev.orn) || '',
+    });
+    renderWaThreads();
+    updateWaTabBadges();
+    return true;
+  }
+
+  function resolveReclamo(tel) {
+    var key = telWa(tel);
+    var r = waReclamos[key];
+    if (!r || String(r.status) === 'cerrado') return false;
+    r.status = 'cerrado';
+    r.resolvedAt = new Date().toISOString();
+    saveWaReclamos();
+    if (waActiveTel === key) renderWaMessages();
+    renderWaThreads();
+    updateWaTabBadges();
+    updateWaDeleteChrome();
+    return true;
+  }
+
+  function normalizeWaInboxTab(tab) {
+    if (tab === 'consultas' || tab === 'repartidores' || tab === 'reclamos') return tab;
+    return 'pedidos';
+  }
+
   function threadIsRepartidor(tel) {
     if (!waRepartidorTel) return false;
     return telWa(tel) === waRepartidorTel;
@@ -214,9 +285,11 @@
     var th = threads[tel];
     if (!th) return false;
     if (threadIsRepartidor(tel)) return tab === 'repartidores';
+    if (threadHasOpenReclamo(tel)) return tab === 'reclamos';
     if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(th)) return false;
     var hasOrder = threadHasActiveOrder(th);
     if (tab === 'pedidos') return hasOrder;
+    if (tab === 'reclamos') return false;
     if (tab === 'repartidores') return false;
     return !hasOrder && !threadIsTurnoOrderTel(tel) && th.msgs && th.msgs.length > 0;
   }
@@ -258,8 +331,7 @@
   }
 
   function setWaInboxTab(tab) {
-    waInboxTab =
-      tab === 'consultas' ? 'consultas' : tab === 'repartidores' ? 'repartidores' : 'pedidos';
+    waInboxTab = normalizeWaInboxTab(tab);
     document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
       var isActive = btn.getAttribute('data-wa-tab') === waInboxTab;
       btn.classList.toggle('is-active', isActive);
@@ -269,6 +341,9 @@
     if (hint) {
       if (waInboxTab === 'pedidos') {
         hint.textContent = 'Clientes con pedido en curso (pendiente → en camino).';
+      } else if (waInboxTab === 'reclamos') {
+        hint.textContent =
+          'Reclamos confirmados por el bot (motivo + descripción + foto). Resolvé acá o usá Gratificar en Entregados.';
       } else if (waInboxTab === 'repartidores') {
         hint.textContent = waRepartidorTel
           ? 'Repartidor asignado en Reparto. Rutas y mensajes del delivery van acá.'
@@ -284,6 +359,7 @@
 
   function waTabForTel(tel) {
     if (threadIsRepartidor(tel)) return 'repartidores';
+    if (threadHasOpenReclamo(tel)) return 'reclamos';
     if (threads[tel] && threadHasActiveOrder(threads[tel])) return 'pedidos';
     return 'consultas';
   }
@@ -525,6 +601,18 @@
         return String(a.at || '').localeCompare(String(b.at || ''));
       });
       if (m.direction === 'in' && tel !== waActiveTel) th.unread = true;
+      if (m.direction === 'out') {
+        var bodyCheck = String(m.body || previewText || '');
+        if (/Recibimos tu reclamo/i.test(bodyCheck)) {
+          var idMatch = bodyCheck.match(/RCL-[A-Z0-9-]+/i);
+          markReclamoOpen(tel, {
+            reclamoId: idMatch ? idMatch[0] : '',
+            orn: th.orn || '',
+            name: th.name,
+            phone: th.phone,
+          });
+        }
+      }
       if (m.created_at && (!waPollSince || m.created_at > waPollSince)) {
         waPollSince = m.created_at;
       }
@@ -773,6 +861,7 @@
 
   function threadIsConsultaDeletable(tel) {
     if (!tel || threadIsRepartidor(tel)) return false;
+    if (threadHasOpenReclamo(tel)) return false;
     var th = threads[tel];
     if (!th) return false;
     if (threadHasActiveOrder(th)) return false;
@@ -804,6 +893,11 @@
     delete threads[tel];
     delete waPinnedTels[tel];
     delete waTurnoPurgaTels[tel];
+    var key = telWa(tel);
+    if (key && waReclamos[key]) {
+      delete waReclamos[key];
+      saveWaReclamos();
+    }
     if (waActiveTel === tel) {
       waActiveTel = null;
       activeOrn = null;
@@ -833,10 +927,15 @@
   function updateWaDeleteChrome() {
     var clearBtn = $('wa-clear-consultas');
     var delBtn = $('wa-delete-chat');
+    var resolveBtn = $('wa-resolve-reclamo');
     var consultas = listConsultaDeletableTels();
     if (clearBtn) {
       clearBtn.classList.toggle('hidden', waInboxTab !== 'consultas' || !consultas.length);
       clearBtn.disabled = !consultas.length;
+    }
+    if (resolveBtn) {
+      var canResolve = waActiveTel && threadHasOpenReclamo(waActiveTel);
+      resolveBtn.classList.toggle('hidden', !canResolve);
     }
     if (delBtn) {
       var canDel = waActiveTel && threadIsConsultaDeletable(waActiveTel);
@@ -916,6 +1015,9 @@
       var emptyMsg = 'Sin chats en esta pestaña.';
       if (waInboxTab === 'pedidos') {
         emptyMsg = 'Sin chats con pedido activo. Aparecen cuando hay un turno en curso.';
+      } else if (waInboxTab === 'reclamos') {
+        emptyMsg =
+          'Sin reclamos abiertos. Aparecen cuando el bot confirma reclamo (descripción + foto) post-entrega.';
       } else if (waInboxTab === 'repartidores') {
         emptyMsg = waRepartidorTel
           ? 'Repartidor asignado — aparece acá cuando haya mensajes o envíes una ruta.'
@@ -957,7 +1059,9 @@
         '</span>' +
         '<span class="wa-inbox-bottom">' +
         '<span class="wa-inbox-preview">' +
-        escapeHtml(waLastPreview(th).slice(0, 48)) +
+        escapeHtml(
+          (threadHasOpenReclamo(tel) ? '🚨 ' : '') + waLastPreview(th).slice(0, 48)
+        ) +
         '</span>' +
         (th.unread ? '<span class="wa-unread-dot" aria-label="Nuevo"></span>' : '') +
         '</span>' +
@@ -1022,7 +1126,24 @@
       '</div></span>';
 
     chip.classList.remove('hidden');
-    if (th.orn) {
+    if (threadHasOpenReclamo(waActiveTel)) {
+      var rec = getReclamoRecord(waActiveTel) || {};
+      var parts = ['<span class="wa-chip-reclamo">Reclamo abierto</span>'];
+      if (rec.reclamoId) parts.push('<strong>ID:</strong> ' + escapeHtml(rec.reclamoId));
+      if (rec.orn || th.orn) {
+        parts.push('<strong>ORN:</strong> ' + escapeHtml(rec.orn || th.orn));
+      }
+      if (rec.motivo) parts.push('<strong>Motivo:</strong> ' + escapeHtml(rec.motivo));
+      if (rec.descripcion) {
+        parts.push(
+          '<div class="wa-reclamo-detail">' + escapeHtml(rec.descripcion.slice(0, 200)) + '</div>'
+        );
+      }
+      parts.push(
+        '<div class="wa-reclamo-detail">Revisá fotos en el chat. Compensación: Entregados → Gratificar.</div>'
+      );
+      chip.innerHTML = parts.join('<br>');
+    } else if (th.orn) {
       chip.innerHTML =
         '<span class="orn">' +
         escapeHtml(th.orn) +
@@ -1419,6 +1540,7 @@
 
   function init() {
     if (!$('wa-aside')) return;
+    loadWaReclamos();
     loadRepartidorTel();
     try {
       var rawInit = sessionStorage.getItem(REPARTIDOR_TEL_KEY);
@@ -1436,6 +1558,16 @@
     }
     if ($('wa-clear-consultas')) {
       $('wa-clear-consultas').addEventListener('click', clearConsultaChats);
+    }
+    if ($('wa-resolve-reclamo')) {
+      $('wa-resolve-reclamo').addEventListener('click', function () {
+        if (!waActiveTel || !threadHasOpenReclamo(waActiveTel)) return;
+        if (!confirm('¿Marcar este reclamo como resuelto?\n\nDesaparece de la pestaña Reclamos (el chat queda en Consultas).')) {
+          return;
+        }
+        resolveReclamo(waActiveTel);
+        setWaInboxTab('consultas');
+      });
     }
     document.querySelectorAll('.wa-inbox-tab').forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -1482,6 +1614,9 @@
       return waRepartidorTel;
     },
     ingestInboxRows: ingestInboxRows,
+    markReclamoOpen: markReclamoOpen,
+    resolveReclamo: resolveReclamo,
+    threadHasOpenReclamo: threadHasOpenReclamo,
     setWaInboxRealtimeLive: setWaInboxRealtimeLive,
     attachSupabaseRealtime: attachSupabaseRealtime,
     detachSupabaseRealtime: detachSupabaseRealtime,

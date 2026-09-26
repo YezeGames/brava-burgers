@@ -12,7 +12,7 @@ Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Última actu
 | Webhook Vercel `/api/whatsapp-webhook` | ✅ |
 | Inbox Supabase `wa_messages` | ✅ |
 | Panel lateral: lista, hilo, snippets | ✅ |
-| Pestañas **Pedidos activos** / **Consultas** | ✅ |
+| Pestañas **Pedidos activos** / **Consultas** / **Reclamos** / **Repartidor** | ✅ (Reclamos: UI + local hasta bot) |
 | Badges de no leídos por pestaña | ✅ |
 | Imágenes entrantes / salientes | ✅ |
 | Bienvenida automática (1× por teléfono) | ✅ |
