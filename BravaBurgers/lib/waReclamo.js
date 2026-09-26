@@ -5,7 +5,14 @@ const {
   normalizeWaRecipient,
 } = require('./whatsappMeta');
 const { insertWaMessage, encodeWaMediaBody } = require('./waInbox');
-const { getReclamoSession, upsertReclamoSession, insertReclamo } = require('./waReclamoStore');
+const {
+  getReclamoSession,
+  upsertReclamoSession,
+  insertReclamo,
+  getReclamoByOrn,
+} = require('./waReclamoStore');
+const { reclamoAccionTomadaForOrn } = require('./reclamoCompensacion');
+const { buildAlreadyCompensatedWaText } = require('./bravaCoupons');
 const { ensureWaReclamoSchema } = require('./waReclamoSchema');
 
 const DESC_MIN = 8;
@@ -88,6 +95,44 @@ async function replyText(from, text) {
   const sent = await sendTextMessage(from, text);
   if (sent.ok) await saveOutbound(from, text, sent);
   return sent;
+}
+
+async function maybeStartReclamo(from, session) {
+  const orn = String(session && session.orn ? session.orn : '').trim();
+  if (orn) {
+    const taken = await reclamoAccionTomadaForOrn(orn);
+    if (taken.gratificado) {
+      await replyText(
+        from,
+        buildAlreadyCompensatedWaText(session && session.cliente, orn, taken.codigo, taken.compensation)
+      );
+      return { handled: true, kind: 'reclamo_already_compensated' };
+    }
+    if (taken.reenvioOrn) {
+      await replyText(
+        from,
+        'Para el pedido *' +
+          orn +
+          '* ya gestionamos un *reenvío* (' +
+          taken.reenvioOrn +
+          '). Si necesitás algo más, escribinos.'
+      );
+      return { handled: true, kind: 'reclamo_already_reenvio' };
+    }
+    const row = await getReclamoByOrn(orn);
+    if (row && String(row.estado || '').toLowerCase() === 'abierto') {
+      await replyText(
+        from,
+        'Ya tenemos tu reclamo *' +
+          (row.reclamo_id || '') +
+          '* para el pedido *' +
+          orn +
+          '*. Lo estamos revisando 🙏'
+      );
+      return { handled: true, kind: 'reclamo_already_open' };
+    }
+  }
+  return startReclamoFlow(from, session);
 }
 
 async function startReclamoFlow(from, session) {
@@ -251,7 +296,7 @@ async function handleReclamoInbound(ctx) {
 
   if (interactiveId === 'reclamo') {
     const session = (await getReclamoSession(from)) || {};
-    return startReclamoFlow(from, session);
+    return maybeStartReclamo(from, session);
   }
   if (interactiveId === 'calificar') {
     return showRating(from);
@@ -272,7 +317,7 @@ async function handleReclamoInbound(ctx) {
     const kw = matchPostEntregaKeyword(text);
     if (kw) {
       sessionEarly = sessionEarly || {};
-      if (kw === 'reclamo') return startReclamoFlow(from, sessionEarly);
+      if (kw === 'reclamo') return maybeStartReclamo(from, sessionEarly);
       if (kw === 'calificar') return showRating(from);
       if (kw === 'pedir') return onPedirDeNuevo(from);
     }
@@ -285,7 +330,7 @@ async function handleReclamoInbound(ctx) {
 
   if (step === 'menu' && text && !interactiveId) {
     const kwMenu = matchPostEntregaKeyword(text);
-    if (kwMenu === 'reclamo') return startReclamoFlow(from, session);
+    if (kwMenu === 'reclamo') return maybeStartReclamo(from, session);
     if (kwMenu === 'calificar') return showRating(from);
     if (kwMenu === 'pedir') return onPedirDeNuevo(from);
   }

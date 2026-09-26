@@ -55,7 +55,7 @@ function effectiveEnvio(c, envio) {
 
 function buildCompensationWaText(cliente, orn, codigo, c) {
   const nombre = String(cliente || 'Hola').split(/\s+/)[0];
-  const beneficio = couponLabel(c);
+  const beneficio = couponLabelComanda(c);
   return (
     '¡' +
     nombre +
@@ -70,6 +70,34 @@ function buildCompensationWaText(cliente, orn, codigo, c) {
     '\n' +
     'Pedí acá: https://linktr.ee/bravaburgers\n\n' +
     'Válido 1 uso · próximo sábado. 🍔'
+  );
+}
+
+function buildCompensationFarewellWaText(cliente) {
+  const nombre = String(cliente || 'Hola').split(/\s+/)[0];
+  return (
+    'Gracias por tu paciencia, ' +
+    nombre +
+    ' 💛\n' +
+    'Cualquier duda respondé por acá. ¡Nos vemos en el próximo pedido!'
+  );
+}
+
+function buildAlreadyCompensatedWaText(cliente, orn, codigo, c) {
+  const nombre = String(cliente || 'Hola').split(/\s+/)[0];
+  const beneficio = couponLabelComanda(c || {});
+  return (
+    '¡' +
+    nombre +
+    '! Para el pedido *' +
+    orn +
+    '* ya te enviamos compensación: *' +
+    beneficio +
+    '*.\n' +
+    'Código: *' +
+    codigo +
+    '* (1 uso en la tienda).\n\n' +
+    'Si es *otro pedido*, pedí de nuevo y usá la tarjeta de ese delivery.'
   );
 }
 
@@ -105,6 +133,8 @@ module.exports = {
   calcDiscount,
   effectiveEnvio,
   buildCompensationWaText,
+  buildCompensationFarewellWaText,
+  buildAlreadyCompensatedWaText,
   buildReenvioWaText,
   orderTotalsWithCoupon,
 };

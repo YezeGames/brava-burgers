@@ -8,9 +8,12 @@ const {
   calcDiscount,
   effectiveEnvio,
   buildCompensationWaText,
+  buildCompensationFarewellWaText,
   buildReenvioWaText,
   orderTotalsWithCoupon,
 } = require('./bravaCoupons');
+const { markReclamosCompensadoForOrn } = require('./waReclamoStore');
+const { sendCompensationWaPair, reclamoAccionTomadaForOrn } = require('./reclamoCompensacion');
 
 
 
@@ -1226,37 +1229,6 @@ async function redeemCoupon(codigo, telefono, orn) {
 
 }
 
-
-
-async function reclamoAccionTomadaForOrn(origOrn) {
-  const orn = String(origOrn || '').trim();
-  if (!orn) return { gratificado: false, reenvioOrn: null, codigo: null };
-
-  const comp = await restSelect(
-    'compensaciones',
-    'select=codigo&orn_origen=eq.' + encodeURIComponent(orn) + '&limit=1'
-  );
-  if (comp.ok && comp.data && comp.data[0]) {
-    return { gratificado: true, reenvioOrn: null, codigo: comp.data[0].codigo };
-  }
-
-  const reenv = await restSelect(
-    'orders',
-    'select=orn,estado&reenvio_de=eq.' + encodeURIComponent(orn) + '&limit=5'
-  );
-  if (reenv.ok && reenv.data) {
-    for (let i = 0; i < reenv.data.length; i++) {
-      const row = reenv.data[i];
-      const est = String(row.estado || '').toLowerCase();
-      if (est !== 'cancelada' && est !== 'rechazado') {
-        return { gratificado: false, reenvioOrn: row.orn, codigo: null };
-      }
-    }
-  }
-
-  return { gratificado: false, reenvioOrn: null, codigo: null };
-}
-
 async function createCompensacion(body) {
 
   const orn = String(body.orn_origen || body.orn || '').trim();
@@ -1326,11 +1298,20 @@ async function createCompensacion(body) {
     const ins = await restInsert('compensaciones', row);
 
     if (ins.ok) {
-
       const waText = buildCompensationWaText(cliente, orn, codigo, row);
-
-      return { ok: true, compensacion: row, waText: waText };
-
+      const waFarewell = buildCompensationFarewellWaText(cliente);
+      await markReclamosCompensadoForOrn(orn);
+      const wa = await sendCompensationWaPair(tel, waText, waFarewell);
+      return {
+        ok: true,
+        compensacion: row,
+        waText: waText,
+        waFarewellText: waFarewell,
+        waSent: wa.waSent,
+        waFarewellSent: wa.waFarewellSent,
+        waError: wa.waError || null,
+        waHint: wa.waHint || null,
+      };
     }
 
     if (ins.error !== 'insert_failed' && ins.status !== 409) return supabaseFail(ins, 'insert_failed');
@@ -1588,6 +1569,8 @@ module.exports = {
   redeemCoupon,
 
   createCompensacion,
+
+  reclamoAccionTomadaForOrn,
 
   listCompensaciones,
 

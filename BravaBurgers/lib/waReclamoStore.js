@@ -39,8 +39,29 @@ async function insertReclamo(row) {
   return restInsert('wa_reclamos', row);
 }
 
+async function getReclamoByOrn(orn) {
+  const o = String(orn || '').trim();
+  if (!o || !isSupabaseConfigured()) return null;
+  const r = await restSelect(
+    'wa_reclamos',
+    'select=*&orn=eq.' + encodeURIComponent(o) + '&order=created_at.desc&limit=1'
+  );
+  if (!r.ok || !r.data || !r.data.length) return null;
+  return r.data[0];
+}
+
+async function markReclamosCompensadoForOrn(orn) {
+  const o = String(orn || '').trim();
+  if (!o || !isSupabaseConfigured()) return { ok: false, error: 'not_configured' };
+  return restPatch('wa_reclamos', 'orn=eq.' + encodeURIComponent(o), {
+    estado: 'compensado',
+  });
+}
+
 module.exports = {
   getReclamoSession,
   upsertReclamoSession,
   insertReclamo,
+  getReclamoByOrn,
+  markReclamosCompensadoForOrn,
 };

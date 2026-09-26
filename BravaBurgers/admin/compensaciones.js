@@ -32,10 +32,10 @@
     return { tipo: 'pct', valor: 10 };
   }
 
-  function couponLabel(c) {
+  function couponLabelComanda(c) {
     if (!c) return '';
-    if (c.tipo === 'pct') return (c.valor || 0) + '% off';
-    if (c.tipo === 'monto') return '$' + Number(c.valor || 0).toLocaleString('es-AR') + ' off';
+    if (c.tipo === 'pct') return (c.valor || 0) + '% de descuento';
+    if (c.tipo === 'monto') return '$' + Number(c.valor || 0).toLocaleString('es-AR') + ' de descuento';
     if (c.tipo === 'envio') return 'Envío gratis';
     if (c.tipo === 'item') return 'Papas Brava gratis';
     return c.tipo;
@@ -43,8 +43,8 @@
 
   function buildPreview(order, tipo, valor) {
     var nombre = (order && order.cliente ? order.cliente : 'Cliente').split(/\s+/)[0];
-    var beneficio = couponLabel({ tipo: tipo, valor: valor });
-    return (
+    var beneficio = couponLabelComanda({ tipo: tipo, valor: valor });
+    var msg1 =
       '¡' +
       nombre +
       '! Lamentamos lo de tu pedido ' +
@@ -55,8 +55,12 @@
       ' en tu próximo pedido.\n' +
       'Código: BRAVA-XXXX\n' +
       'Pedí acá: https://linktr.ee/bravaburgers\n\n' +
-      'Válido 1 uso · próximo sábado. 🍔'
-    );
+      'Válido 1 uso · próximo sábado. 🍔';
+    var msg2 =
+      'Gracias por tu paciencia, ' +
+      nombre +
+      ' 💛\nCualquier duda respondé por acá. ¡Nos vemos en el próximo pedido!';
+    return msg1 + '\n\n---\n\n' + msg2;
   }
 
   function updateValorField() {
@@ -162,25 +166,36 @@
           return;
         }
         if (global.markCompensacionOrigen) global.markCompensacionOrigen(modalOrn);
-        var waTo = telWa(modalOrder.telefono);
-        if (!waTo) {
-          alert('Cupón ' + data.compensacion.codigo + ' creado (sin teléfono para WA).');
+        var codigo = data.compensacion.codigo;
+        if (data.waSent && data.waFarewellSent) {
+          alert('Cupón ' + codigo + ' creado. WhatsApp enviado (cupón + despedida).');
+          closeModal();
+          if (global.BravaWaPanel && typeof BravaWaPanel.refreshInbox === 'function') {
+            BravaWaPanel.refreshInbox();
+          }
+          return;
+        }
+        if (data.waSent && !data.waFarewellSent) {
+          alert(
+            'Cupón ' +
+              codigo +
+              ' creado. Llegó el mensaje del cupón; falló la despedida: ' +
+              (data.waError || 'error')
+          );
           closeModal();
           return;
         }
-        return sendWa(waTo, data.waText).then(function (waRes) {
-          if (!waRes.ok) {
-            alert(
-              'Cupón ' +
-                data.compensacion.codigo +
-                ' creado, pero falló el envío por WhatsApp: ' +
-                (waRes.error || 'error')
-            );
-          } else {
-            alert('Cupón ' + data.compensacion.codigo + ' creado y enviado por WhatsApp.');
-          }
-          closeModal();
-        });
+        if (!telWa(modalOrder.telefono)) {
+          alert('Cupón ' + codigo + ' creado (sin teléfono para WA).');
+        } else {
+          alert(
+            'Cupón ' +
+              codigo +
+              ' creado, pero no se pudo mandar WhatsApp: ' +
+              (data.waError || data.waHint || 'error')
+          );
+        }
+        closeModal();
       })
       .catch(function () {
         alert('Error de red al crear cupón.');
