@@ -4020,6 +4020,7 @@
     ensureIngresosSchemaOnce();
     ensurePendOrnDelOnce();
     ensureWaMessagesOnce();
+    ensureWaReclamosOnce();
     ensureCompensacionesOnce();
     ensureManualOrderSchemaOnce();
     ensureStoreCatalogOnce();
@@ -4073,6 +4074,24 @@
       if (res.data && res.data.ok) {
         try {
           sessionStorage.setItem('brava_compensaciones_ok', '1');
+        } catch (e2) {}
+      }
+    });
+  }
+
+  /** Una vez por sesión: tablas wa_reclamos / sesiones bot (Vercel: SUPABASE_DB_PASSWORD). */
+  function ensureWaReclamosOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_wa_reclamos_try_v1') === '1') return;
+      sessionStorage.setItem('brava_wa_reclamos_try_v1', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migrateWaReclamos', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_wa_reclamos_ok', '1');
         } catch (e2) {}
       }
     });

@@ -22,7 +22,7 @@ Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Última actu
 | Realtime inbox (entrantes ~instantáneos) | ✅ |
 | Dedup mensajes al enviar | ✅ |
 | **Post-entrega** al marcar ✓ Entregado (interactivo + 3 botones) | ✅ |
-| **Bot reclamo** (motivo → texto → foto → confirmación) | ✅ (requiere SQL `supabase/wa_reclamos.sql`) |
+| **Bot reclamo** (motivo → texto → foto → confirmación) | ✅ (tablas vía `migrateWaReclamos` al entrar al admin) |
 
 Variables: ver `WHATSAPP_VERCEL_ENV.txt` y `.env.example` (`WHATSAPP_WELCOME_MESSAGE` opcional).
 

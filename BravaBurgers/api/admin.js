@@ -23,7 +23,7 @@ const {
   saveCliente,
   createManualOrder,
 } = require('../lib/bravaSupabase');
-const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateCompensacionesSchema, migrateManualOrderSchema, migrateStoreCatalogSchema } = require('../lib/dbMigrate');
+const { migrateEnCaminoColumn, migrateIngresosSchema, migratePendOrnDel, migrateWaMessages, migrateWaReclamos, migrateCompensacionesSchema, migrateManualOrderSchema, migrateStoreCatalogSchema } = require('../lib/dbMigrate');
 const {
   getStoreMenuDraft,
   saveStoreMenuDraft,
@@ -149,6 +149,10 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateWaMessages') {
     return migrateWaMessages();
+  }
+
+  if (action === 'migrateWaReclamos') {
+    return migrateWaReclamos();
   }
 
   if (action === 'migrateCompensaciones') {

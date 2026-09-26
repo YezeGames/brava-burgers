@@ -226,6 +226,74 @@ async function migrateWaMessages() {
   }
 }
 
+async function migrateWaReclamos() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL.',
+    };
+  }
+  const client = createPgClient(conn);
+  try {
+    await client.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wa_reclamo_sessions (
+        tel text PRIMARY KEY,
+        orn text,
+        step text,
+        motivo text,
+        descripcion text,
+        reclamo_id text,
+        photo_media_id text,
+        open boolean DEFAULT false,
+        updated_at timestamptz DEFAULT now()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wa_reclamos (
+        reclamo_id text PRIMARY KEY,
+        orn text NOT NULL,
+        tel text NOT NULL,
+        motivo text,
+        descripcion text,
+        photo_media_id text,
+        estado text DEFAULT 'abierto',
+        created_at timestamptz DEFAULT now()
+      );
+    `);
+    await client.query(
+      'CREATE INDEX IF NOT EXISTS wa_reclamos_tel_idx ON wa_reclamos (tel, created_at DESC);'
+    );
+    await client.query(
+      'CREATE INDEX IF NOT EXISTS wa_reclamos_estado_idx ON wa_reclamos (estado, created_at DESC);'
+    );
+    await client.query('ALTER TABLE wa_reclamo_sessions ENABLE ROW LEVEL SECURITY;');
+    await client.query('ALTER TABLE wa_reclamos ENABLE ROW LEVEL SECURITY;');
+    await client.query('DROP POLICY IF EXISTS "service_all_wa_reclamo_sessions" ON wa_reclamo_sessions;');
+    await client.query(`
+      CREATE POLICY "service_all_wa_reclamo_sessions" ON wa_reclamo_sessions
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
+    `);
+    await client.query('DROP POLICY IF EXISTS "service_all_wa_reclamos" ON wa_reclamos;');
+    await client.query(`
+      CREATE POLICY "service_all_wa_reclamos" ON wa_reclamos
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
+    `);
+    await client.query('GRANT ALL ON TABLE wa_reclamo_sessions TO service_role;');
+    await client.query('GRANT ALL ON TABLE wa_reclamos TO service_role;');
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
 async function migrateCompensacionesSchema() {
   const conn = postgresConnectionString();
   if (!conn) {
@@ -397,6 +465,7 @@ module.exports = {
   migrateIngresosSchema,
   migratePendOrnDel,
   migrateWaMessages,
+  migrateWaReclamos,
   migrateCompensacionesSchema,
   migrateManualOrderSchema,
   migrateStoreCatalogSchema,
