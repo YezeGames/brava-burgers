@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-login-fullscreen -->
+	<!-- repartidor-app v=20260326-mapbox-reroute -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
@@ -662,7 +662,12 @@
 		var navOverviewTimer = null;
 		var lastNavPos = null;
 		var routeMetaLine = '';
-		/** Tras entregar: origen OSRM hacia la siguiente parada (o GPS si Seguir GPS está ON). */
+		/** Recálculo Mapbox si te alejás de la ruta (m). */
+		var REROUTE_OFF_ROUTE_M = 55;
+		var REROUTE_MIN_INTERVAL_MS = 15000;
+		var lastRerouteAt = 0;
+		var rerouteInFlight = false;
+		/** Tras entregar: origen hacia la siguiente parada (Mapbox; GPS si Seguir GPS está ON). */
 		var lastRouteOrigin = null;
 		var deliveredStopOrigins = {};
 		var currentRouteFrom = null;
@@ -1217,10 +1222,29 @@
 			if (map.getSource('dest')) map.removeSource('dest');
 		}
 
-		function drawRoute(geojson, dest, fromPt) {
+		function routeAsFeature(geojson) {
+			if (geojson && geojson.type === 'Feature') return geojson;
+			if (geojson && geojson.type === 'LineString') {
+				return { type: 'Feature', properties: {}, geometry: geojson };
+			}
+			return { type: 'Feature', properties: {}, geometry: geojson || { type: 'LineString', coordinates: [] } };
+		}
+
+		function routeLineCoords(geojson) {
+			var g = geojson && geojson.type === 'Feature' ? geojson.geometry : geojson;
+			return (g && g.coordinates) || [];
+		}
+
+		function drawRoute(geojson, dest, fromPt, opts) {
+			opts = opts || {};
 			fromPt = fromPt || currentRouteFrom || { lng: KITCHEN.lng, lat: KITCHEN.lat, label: KITCHEN.label };
 			if (!map.isStyleLoaded()) {
-				map.once('load', function () { drawRoute(geojson, dest, fromPt); });
+				map.once('load', function () { drawRoute(geojson, dest, fromPt, opts); });
+				return;
+			}
+			var feat = routeAsFeature(geojson);
+			if (opts.lightUpdate && map.getSource('route')) {
+				map.getSource('route').setData(feat);
 				return;
 			}
 			clearRouteLayers();
@@ -1231,7 +1255,7 @@
 				markerKitchen.remove();
 				markerKitchen = null;
 			}
-			map.addSource('route', { type: 'geojson', data: geojson });
+			map.addSource('route', { type: 'geojson', data: feat });
 			map.addLayer({
 				id: 'route-line',
 				type: 'line',
@@ -1248,7 +1272,7 @@
 				source: 'dest',
 				paint: { 'circle-radius': 11, 'circle-color': '#43a047', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' },
 			});
-			showRoutePreview(geojson, dest, fromPt);
+			if (!opts.skipFit && !navCameraActive) showRoutePreview(feat.geometry, dest, fromPt);
 		}
 
 		function showRoutePreview(geojson, dest, fromPt) {
@@ -1257,7 +1281,7 @@
 			map.setPitch(0);
 			map.setBearing(0);
 			var bounds = new mapboxgl.LngLatBounds();
-			geojson.coordinates.forEach(function (c) { bounds.extend(c); });
+			routeLineCoords(geojson).forEach(function (c) { bounds.extend(c); });
 			bounds.extend([dest.lng, dest.lat]);
 			bounds.extend([fromPt.lng, fromPt.lat]);
 			map.fitBounds(bounds, {
@@ -1455,6 +1479,63 @@
 					}
 				}
 			}
+			maybeRerouteFromGps();
+		}
+
+		function pointToSegmentDistanceM(p, a, b) {
+			var x = p.lng;
+			var y = p.lat;
+			var x1 = a.lng;
+			var y1 = a.lat;
+			var x2 = b.lng;
+			var y2 = b.lat;
+			var dx = x2 - x1;
+			var dy = y2 - y1;
+			if (dx === 0 && dy === 0) return haversineM(p, a);
+			var t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+			if (t < 0) return haversineM(p, a);
+			if (t > 1) return haversineM(p, b);
+			var proj = { lng: x1 + t * dx, lat: y1 + t * dy };
+			return haversineM(p, proj);
+		}
+
+		function distanceToRouteM(pos) {
+			if (!routeCoords || routeCoords.length < 2) return Infinity;
+			var minD = Infinity;
+			for (var i = 0; i < routeCoords.length - 1; i++) {
+				var a = { lng: routeCoords[i][0], lat: routeCoords[i][1] };
+				var b = { lng: routeCoords[i + 1][0], lat: routeCoords[i + 1][1] };
+				var d = pointToSegmentDistanceM(pos, a, b);
+				if (d < minD) minD = d;
+			}
+			return minD;
+		}
+
+		function maybeRerouteFromGps() {
+			if (!currentOrder || !$('screen-nav').classList.contains('is-active')) return;
+			if (!userPos || rerouteInFlight || simOn) return;
+			if (!navCameraActive && !followGps) return;
+			if (distanceToRouteM(userPos) < REROUTE_OFF_ROUTE_M) return;
+			var now = Date.now();
+			if (now - lastRerouteAt < REROUTE_MIN_INTERVAL_MS) return;
+			rerouteFromCurrentPosition();
+		}
+
+		function rerouteFromCurrentPosition() {
+			if (!currentOrder || !userPos) return;
+			rerouteInFlight = true;
+			lastRerouteAt = Date.now();
+			var dest = { lng: currentOrder.lng, lat: currentOrder.lat };
+			var fromPt = { lng: userPos.lng, lat: userPos.lat, label: 'Tu ubicación (GPS)' };
+			$('nav-meta').textContent = 'Recalculando ruta desde tu posición…';
+			fetchRoute(fromPt, dest)
+				.then(function (route) {
+					applyRouteFromFetch(route, fromPt, { lightDraw: true, announceReroute: true });
+				})
+				.catch(function () {})
+				.finally(function () {
+					rerouteInFlight = false;
+				});
 		}
 
 		function startGps() {
@@ -1534,7 +1615,7 @@
 			return { lng: KITCHEN.lng, lat: KITCHEN.lat, label: KITCHEN.label };
 		}
 
-		function fetchRoute(from, to) {
+		function fetchRouteOsrm(from, to) {
 			var url =
 				OSRM +
 				from.lng +
@@ -1546,13 +1627,80 @@
 				to.lat +
 				'?steps=true&geometries=geojson&overview=full';
 			return fetch(url)
-				.then(function (r) { return r.json(); })
+				.then(function (r) {
+					return r.json();
+				})
 				.then(function (data) {
 					if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
 						throw new Error((data && data.message) || 'Sin ruta OSRM');
 					}
 					return data.routes[0];
 				});
+		}
+
+		function fetchRouteMapbox(from, to, token) {
+			var url =
+				'https://api.mapbox.com/directions/v5/mapbox/driving/' +
+				from.lng +
+				',' +
+				from.lat +
+				';' +
+				to.lng +
+				',' +
+				to.lat +
+				'?steps=true&geometries=geojson&overview=full&language=es&access_token=' +
+				encodeURIComponent(token);
+			return fetch(url)
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (data) {
+					if (!data.routes || !data.routes[0]) {
+						throw new Error((data && data.message) || 'Sin ruta Mapbox');
+					}
+					return data.routes[0];
+				});
+		}
+
+		function fetchRoute(from, to) {
+			return ensureMapboxToken()
+				.then(function (token) {
+					if (token) return fetchRouteMapbox(from, to, token);
+					return fetchRouteOsrm(from, to);
+				})
+				.catch(function () {
+					return fetchRouteOsrm(from, to);
+				});
+		}
+
+		function applyRouteFromFetch(route, fromPt, opts) {
+			opts = opts || {};
+			if (!currentOrder || !route) return;
+			var geom = route.geometry;
+			routeCoords = geom.coordinates || [];
+			currentRouteFrom = fromPt;
+			stepAnnounced = {};
+			lastSpokenStep = -1;
+			steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
+			var totalKm = (route.distance / 1000).toFixed(1);
+			var totalMin = Math.round(route.duration / 60);
+			routeMetaLine = 'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min · Mapbox';
+			var dest = { lng: currentOrder.lng, lat: currentOrder.lat };
+			if (opts.lightDraw) {
+				drawRoute(geom, dest, fromPt, { lightUpdate: true, skipFit: true });
+			} else {
+				drawRoute(geom, dest, fromPt);
+			}
+			resizeMapHard();
+			if (steps[0]) {
+				var instr = maneuverText(steps[0]);
+				$('nav-instruction').textContent = instr;
+				if (opts.announceReroute) {
+					speak('Recalculamos la ruta. ' + instr);
+				}
+			}
+			$('nav-meta').textContent =
+				routeMetaLine + (navCameraActive ? '' : ' · Vista previa');
 		}
 
 		function openNav(orn) {
@@ -1598,23 +1746,13 @@
 		function loadRouteForOrder() {
 			var dest = { lng: currentOrder.lng, lat: currentOrder.lat };
 			var fromPt = pickRouteOrigin(currentOrder);
-			currentRouteFrom = fromPt;
 			var from = { lng: fromPt.lng, lat: fromPt.lat };
+			lastRerouteAt = 0;
 			fetchRoute(from, dest)
 				.then(function (route) {
-					var geom = route.geometry;
-					routeCoords = geom.coordinates || [];
-					drawRoute(geom, dest, fromPt);
-					steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
-					var totalKm = (route.distance / 1000).toFixed(1);
-					var totalMin = Math.round(route.duration / 60);
-					routeMetaLine =
-						'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min';
-					$('nav-meta').textContent = routeMetaLine + ' · Vista previa';
-					resizeMapHard();
+					applyRouteFromFetch(route, fromPt);
 					scheduleNavigationHandoff();
 					if (steps[0]) {
-						$('nav-instruction').textContent = maneuverText(steps[0]);
 						speak('Parada ' + currentOrder.parada + '. ' + maneuverText(steps[0]));
 					}
 				})
