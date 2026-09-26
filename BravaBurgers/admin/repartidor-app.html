@@ -576,8 +576,10 @@
 		var navOverviewTimer = null;
 		var lastNavPos = null;
 		var routeMetaLine = '';
-		/** Tras entregar: origen OSRM hacia la siguiente parada (o GPS si está activo). */
+		/** Tras entregar: origen OSRM hacia la siguiente parada (o GPS si Seguir GPS está ON). */
 		var lastRouteOrigin = null;
+		var deliveredStopOrigins = {};
+		var currentRouteFrom = null;
 		var NAV_PITCH = 58;
 		var NAV_ZOOM = 17.2;
 		var pushToastTimer = null;
@@ -831,6 +833,7 @@
 		function startRecorrido() {
 			ensureNotifyPermission();
 			lastRouteOrigin = null;
+			deliveredStopOrigins = {};
 			var list = myAssignments();
 			if (!list.length) {
 				alert('No hay paradas en camino. Tocá «Cargar mis entregas» primero.');
@@ -1078,14 +1081,20 @@
 			if (map.getSource('dest')) map.removeSource('dest');
 		}
 
-		function drawRoute(geojson, dest) {
+		function drawRoute(geojson, dest, fromPt) {
+			fromPt = fromPt || currentRouteFrom || { lng: KITCHEN.lng, lat: KITCHEN.lat, label: KITCHEN.label };
 			if (!map.isStyleLoaded()) {
-				map.once('load', function () { drawRoute(geojson, dest); });
+				map.once('load', function () { drawRoute(geojson, dest, fromPt); });
 				return;
 			}
 			clearRouteLayers();
-			addKitchenMarker();
-			if (markerKitchen) markerKitchen.setLngLat([KITCHEN.lng, KITCHEN.lat]);
+			if (isNearKitchen(fromPt)) {
+				addKitchenMarker();
+				if (markerKitchen) markerKitchen.setLngLat([KITCHEN.lng, KITCHEN.lat]);
+			} else if (markerKitchen) {
+				markerKitchen.remove();
+				markerKitchen = null;
+			}
 			map.addSource('route', { type: 'geojson', data: geojson });
 			map.addLayer({
 				id: 'route-line',
@@ -1103,17 +1112,18 @@
 				source: 'dest',
 				paint: { 'circle-radius': 11, 'circle-color': '#43a047', 'circle-stroke-width': 3, 'circle-stroke-color': '#fff' },
 			});
-			showRoutePreview(geojson, dest);
+			showRoutePreview(geojson, dest, fromPt);
 		}
 
-		function showRoutePreview(geojson, dest) {
+		function showRoutePreview(geojson, dest, fromPt) {
+			fromPt = fromPt || currentRouteFrom || { lng: KITCHEN.lng, lat: KITCHEN.lat };
 			map.stop();
 			map.setPitch(0);
 			map.setBearing(0);
 			var bounds = new mapboxgl.LngLatBounds();
 			geojson.coordinates.forEach(function (c) { bounds.extend(c); });
 			bounds.extend([dest.lng, dest.lat]);
-			bounds.extend([KITCHEN.lng, KITCHEN.lat]);
+			bounds.extend([fromPt.lng, fromPt.lat]);
 			map.fitBounds(bounds, {
 				padding: { top: 48, bottom: 220, left: 28, right: 28 },
 				maxZoom: 15,
@@ -1161,7 +1171,10 @@
 			$('btn-nav-start').classList.add('hidden');
 
 			var center = { lng: KITCHEN.lng, lat: KITCHEN.lat };
-			if (userPos && haversineM(userPos, { lng: KITCHEN.lng, lat: KITCHEN.lat }) < 800) {
+			if (routeCoords.length >= 1) {
+				center = { lng: routeCoords[0][0], lat: routeCoords[0][1] };
+			}
+			if (followGps && userPos) {
 				center = { lng: userPos.lng, lat: userPos.lat };
 			}
 			var brg = routeBearingAtStart();
@@ -1347,6 +1360,11 @@
 			}, 350);
 		}
 
+		function isNearKitchen(pt) {
+			if (!pt || pt.lat == null || pt.lng == null) return false;
+			return haversineM(pt, { lng: KITCHEN.lng, lat: KITCHEN.lat }) < 120;
+		}
+
 		function setLastRouteOriginFromOrder(o) {
 			if (!o || o.lat == null || o.lng == null || isNaN(o.lat) || isNaN(o.lng)) return;
 			lastRouteOrigin = {
@@ -1354,27 +1372,28 @@
 				lng: o.lng,
 				label: 'Parada ' + (o.parada || '?') + ' · ' + (o.direccion || 'entrega'),
 			};
+			if (o.parada != null) deliveredStopOrigins[Number(o.parada)] = lastRouteOrigin;
 		}
 
 		function pickRouteOrigin(forOrder) {
-			if (userPos && userPos.lng != null && userPos.lat != null) {
-				return { lng: userPos.lng, lat: userPos.lat, label: 'Tu ubicación (GPS)' };
-			}
-			if (lastRouteOrigin && lastRouteOrigin.lng != null && lastRouteOrigin.lat != null) {
-				return lastRouteOrigin;
-			}
-			if (forOrder && forOrder.parada > 1) {
-				var prevN = forOrder.parada - 1;
+			var parada = forOrder && forOrder.parada != null ? Number(forOrder.parada) : 1;
+			if (parada > 1) {
+				if (lastRouteOrigin && lastRouteOrigin.lng != null) return lastRouteOrigin;
+				var prevFromDelivered = deliveredStopOrigins[parada - 1];
+				if (prevFromDelivered && prevFromDelivered.lng != null) return prevFromDelivered;
 				var prev = assignments.find(function (a) {
-					return a.parada === prevN && a.lat != null && a.lng != null;
+					return Number(a.parada) === parada - 1 && a.lat != null && a.lng != null;
 				});
 				if (prev) {
 					return {
 						lng: prev.lng,
 						lat: prev.lat,
-						label: 'Parada ' + prevN + ' · ' + (prev.direccion || ''),
+						label: 'Parada ' + (parada - 1) + ' · ' + (prev.direccion || ''),
 					};
 				}
+			}
+			if (followGps && userPos && userPos.lng != null && userPos.lat != null) {
+				return { lng: userPos.lng, lat: userPos.lat, label: 'Tu ubicación (GPS)' };
 			}
 			return { lng: KITCHEN.lng, lat: KITCHEN.lat, label: KITCHEN.label };
 		}
@@ -1443,12 +1462,13 @@
 		function loadRouteForOrder() {
 			var dest = { lng: currentOrder.lng, lat: currentOrder.lat };
 			var fromPt = pickRouteOrigin(currentOrder);
+			currentRouteFrom = fromPt;
 			var from = { lng: fromPt.lng, lat: fromPt.lat };
 			fetchRoute(from, dest)
 				.then(function (route) {
 					var geom = route.geometry;
 					routeCoords = geom.coordinates || [];
-					drawRoute(geom, dest);
+					drawRoute(geom, dest, fromPt);
 					steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
 					var totalKm = (route.distance / 1000).toFixed(1);
 					var totalMin = Math.round(route.duration / 60);
@@ -1493,6 +1513,7 @@
 			resetNavigationCamera();
 			currentOrder = null;
 			lastRouteOrigin = null;
+			deliveredStopOrigins = {};
 			speak('Pedido entregado. Ruta completa');
 			showScreen('screen-list');
 			window.setTimeout(function () {
@@ -1561,6 +1582,7 @@
 		} catch (eDemo) {}
 		$('btn-load-ruta').addEventListener('click', function () {
 			lastRouteOrigin = null;
+			deliveredStopOrigins = {};
 			fetchRutaLive(true);
 			startRefreshPoll();
 		});
