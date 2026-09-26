@@ -274,6 +274,60 @@
 			color: #fff;
 			border-radius: 12px;
 		}
+		.push-toast {
+			position: absolute;
+			top: calc(8px + env(safe-area-inset-top, 0px));
+			left: 12px;
+			right: 12px;
+			z-index: 50;
+			display: flex;
+			align-items: flex-start;
+			gap: 12px;
+			padding: 14px 14px;
+			border-radius: 16px;
+			background: rgba(21, 32, 40, 0.96);
+			border: 1px solid rgba(67, 160, 71, 0.55);
+			box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+			transform: translateY(-120%);
+			opacity: 0;
+			transition: transform 0.45s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.35s ease;
+			pointer-events: none;
+		}
+		.push-toast.is-visible {
+			transform: translateY(0);
+			opacity: 1;
+			pointer-events: auto;
+		}
+		.push-toast-icon {
+			width: 40px;
+			height: 40px;
+			border-radius: 12px;
+			background: rgba(67, 160, 71, 0.25);
+			color: var(--ok);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 1.25rem;
+			font-weight: 800;
+			flex-shrink: 0;
+		}
+		.push-toast-text strong {
+			display: block;
+			font-size: 0.88rem;
+			margin-bottom: 2px;
+		}
+		.push-toast-text span {
+			font-size: 0.76rem;
+			color: var(--muted);
+			line-height: 1.35;
+		}
+		.push-toast-meta {
+			font-size: 0.65rem;
+			color: var(--muted);
+			margin-top: 6px;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+		}
 		.btn {
 			border: 1px solid var(--line);
 			background: var(--surface);
@@ -314,6 +368,14 @@
 	<div class="phone-shell" id="phone-shell">
 		<div class="phone-notch" aria-hidden="true">Brava repartidor · demo</div>
 		<div class="app-viewport">
+			<div class="push-toast" id="push-toast" role="status" aria-live="polite">
+				<div class="push-toast-icon" aria-hidden="true">✓</div>
+				<div class="push-toast-text">
+					<strong id="push-toast-title">Entrega confirmada</strong>
+					<span id="push-toast-body">—</span>
+					<div class="push-toast-meta">Brava Repartidor · ahora</div>
+				</div>
+			</div>
 			<section class="screen is-active" id="screen-list">
 				<header class="topbar">
 					<div class="app-brand" aria-hidden="true">B</div>
@@ -429,6 +491,8 @@
 		var routeMetaLine = '';
 		var NAV_PITCH = 58;
 		var NAV_ZOOM = 17.2;
+		var pushToastTimer = null;
+		var NOTIFY_ICON = 'https://brava-burgers.vercel.app/logoweb.png';
 
 		function $(id) { return document.getElementById(id); }
 
@@ -543,7 +607,64 @@
 			});
 		}
 
+		function ensureNotifyPermission() {
+			if (!('Notification' in window)) return Promise.resolve('unsupported');
+			if (Notification.permission === 'granted') return Promise.resolve('granted');
+			if (Notification.permission === 'denied') return Promise.resolve('denied');
+			return Notification.requestPermission();
+		}
+
+		function hidePushToast() {
+			var el = $('push-toast');
+			if (!el) return;
+			el.classList.remove('is-visible');
+			if (pushToastTimer) clearTimeout(pushToastTimer);
+			pushToastTimer = null;
+		}
+
+		function showPushToast(title, body) {
+			var el = $('push-toast');
+			if (!el) return;
+			$('push-toast-title').textContent = title;
+			$('push-toast-body').textContent = body;
+			el.classList.add('is-visible');
+			if (pushToastTimer) clearTimeout(pushToastTimer);
+			pushToastTimer = setTimeout(hidePushToast, 5200);
+		}
+
+		function notifyDeliveryConfirmed(order) {
+			var title = 'Entrega confirmada';
+			var body =
+				'Parada ' +
+				order.parada +
+				' · ' +
+				order.orn +
+				' · ' +
+				(order.cliente || 'Cliente');
+			var remaining = myAssignments().length;
+			if (remaining === 0) {
+				title = 'Ruta completa';
+				body = 'Entregaste todos los pedidos asignados. Volvé a cocina o esperá nuevas asignaciones.';
+			} else if (remaining > 0) {
+				body += ' · Quedan ' + remaining + ' parada' + (remaining === 1 ? '' : 's');
+			}
+			showPushToast(title, body);
+			if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
+			if ('Notification' in window && Notification.permission === 'granted') {
+				try {
+					new Notification(title, {
+						body: body,
+						icon: NOTIFY_ICON,
+						badge: NOTIFY_ICON,
+						tag: 'brava-delivery-' + order.orn,
+						renotify: true,
+					});
+				} catch (e) {}
+			}
+		}
+
 		function simAssignFromKitchen() {
+			ensureNotifyPermission();
 			assignments = catalog.map(function (o, i) {
 				return Object.assign({}, o, {
 					repartidor_id: REPARTIDOR_ID,
@@ -997,16 +1118,21 @@
 
 		function markDelivered() {
 			if (!currentOrder) return;
-			if (!confirm('¿Confirmás entrega de parada ' + currentOrder.parada + '?')) return;
-			var orn = currentOrder.orn;
+			var order = currentOrder;
+			if (!confirm('¿Confirmás entrega de parada ' + order.parada + '?')) return;
+			var orn = order.orn;
 			assignments.forEach(function (a) {
 				if (a.orn === orn) a.estado = 'entregada';
 			});
 			stopSim();
-			speak('Entregado');
+			resetNavigationCamera();
+			speak('Pedido entregado');
 			currentOrder = null;
 			showScreen('screen-list');
 			renderList();
+			window.setTimeout(function () {
+				notifyDeliveryConfirmed(order);
+			}, 320);
 		}
 
 		$('btn-back').addEventListener('click', function () {
@@ -1045,6 +1171,14 @@
 		renderList();
 		startGps();
 		geocodeKitchen();
+		document.body.addEventListener(
+			'click',
+			function onceNotify() {
+				ensureNotifyPermission();
+				document.body.removeEventListener('click', onceNotify);
+			},
+			{ once: true }
+		);
 	})();
 	</script>
 </body>
