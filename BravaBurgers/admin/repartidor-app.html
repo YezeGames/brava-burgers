@@ -448,19 +448,25 @@
 					<div class="app-brand" aria-hidden="true">B</div>
 					<div class="topbar-text">
 						<h1 id="driver-name">App repartidor</h1>
-						<div class="sub" id="assign-summary">Ingresá tu celular abajo → Cargar mis entregas</div>
+						<div class="sub" id="assign-summary">Entrá con usuario y contraseña de cocina</div>
 					</div>
+					<button type="button" class="btn btn-sm hidden" id="btn-logout-top" title="Cerrar sesión">Salir</button>
 					<span class="status-dot" id="gps-dot-list" title="GPS"></span>
 				</header>
 				<div class="sync-strip" id="sync-strip">
-					Ingresá tu celular abajo y cargá entregas.
+					Entrá con tu cuenta de repartidor.
 				</div>
 				<div class="repartidor-login-panel" id="repartidor-login-panel">
-					<div class="repartidor-tel-row">
-						<label for="repartidor-tel">Tu celular (mismo que en Reparto admin)</label>
-						<input type="tel" id="repartidor-tel" inputmode="tel" autocomplete="tel" placeholder="54911…">
-						<button type="button" class="btn btn-load" id="btn-load-ruta">Cargar mis entregas</button>
-						<p class="repartidor-tel-hint">Pedidos <strong>en camino</strong> publicados con «Publicar en app repartidor».</p>
+					<div class="repartidor-tel-row" id="repartidor-login-form">
+						<label for="repartidor-login">Usuario</label>
+						<input type="text" id="repartidor-login" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="tomas">
+						<label for="repartidor-password">Contraseña</label>
+						<input type="password" id="repartidor-password" autocomplete="current-password" placeholder="••••••••">
+						<button type="button" class="btn btn-load" id="btn-login">Entrar</button>
+						<p class="repartidor-tel-hint">La crea cocina en Admin → Reparto → <strong>Cuentas app repartidor</strong>.</p>
+					</div>
+					<div class="repartidor-tel-row hidden" id="repartidor-session-bar">
+						<button type="button" class="btn btn-load" id="btn-load-ruta">Actualizar entregas</button>
 					</div>
 				</div>
 				<div class="order-list" id="order-list"></div>
@@ -507,7 +513,9 @@
 	(function () {
 		'use strict';
 
-		var TEL_STORAGE_KEY = 'brava_repartidor_tel_v1';
+		var TOKEN_STORAGE_KEY = 'brava_repartidor_token_v1';
+		var SESSION_META_KEY = 'brava_repartidor_session_v1';
+		var session = { token: '', login: '', nombre: '', telefono: '' };
 		var REPARTIDOR_NOMBRE = 'Repartidor';
 		var API_KEY = (function () {
 			try {
@@ -614,32 +622,82 @@
 			return String(t || '').replace(/\D/g, '').slice(-10);
 		}
 
-		function driverTelRaw() {
-			var el = $('repartidor-tel');
-			return el ? String(el.value || '').trim() : '';
+		function isLoggedIn() {
+			return !!(session.token && String(session.token).trim());
 		}
 
 		function driverTel() {
-			return telNorm(driverTelRaw());
+			return telNorm(session.telefono);
 		}
 
-		function saveDriverTel() {
-			var raw = driverTelRaw();
+		function persistSession() {
 			try {
-				if (raw) localStorage.setItem(TEL_STORAGE_KEY, raw);
+				if (session.token) localStorage.setItem(TOKEN_STORAGE_KEY, session.token);
+				else localStorage.removeItem(TOKEN_STORAGE_KEY);
+				localStorage.setItem(
+					SESSION_META_KEY,
+					JSON.stringify({
+						login: session.login || '',
+						nombre: session.nombre || '',
+						telefono: session.telefono || '',
+					})
+				);
 			} catch (e) {}
 		}
 
-		function loadDriverTel() {
+		function loadSessionFromStorage() {
 			try {
-				var saved = localStorage.getItem(TEL_STORAGE_KEY);
-				if (saved && $('repartidor-tel')) $('repartidor-tel').value = saved;
+				var tok = localStorage.getItem(TOKEN_STORAGE_KEY);
+				if (tok) session.token = tok;
+				var raw = localStorage.getItem(SESSION_META_KEY);
+				if (raw) {
+					var meta = JSON.parse(raw);
+					if (meta && typeof meta === 'object') {
+						session.login = meta.login || session.login;
+						session.nombre = meta.nombre || session.nombre;
+						session.telefono = meta.telefono || session.telefono;
+					}
+				}
 			} catch (e2) {}
+		}
+
+		function clearSession() {
+			session = { token: '', login: '', nombre: '', telefono: '' };
+			liveFromSupabase = false;
+			assignments = [];
+			try {
+				localStorage.removeItem(TOKEN_STORAGE_KEY);
+				localStorage.removeItem(SESSION_META_KEY);
+			} catch (e3) {}
+			updateLoginUi();
+			updateSyncStrip();
+			renderList();
+		}
+
+		function updateLoginUi() {
+			var form = $('repartidor-login-form');
+			var bar = $('repartidor-session-bar');
+			var logoutTop = $('btn-logout-top');
+			if (isLoggedIn()) {
+				if (form) form.classList.add('hidden');
+				if (bar) bar.classList.remove('hidden');
+				if (logoutTop) logoutTop.classList.remove('hidden');
+				var label = session.nombre || session.login || 'Repartidor';
+				$('driver-name').textContent = label;
+			} else {
+				if (form) form.classList.remove('hidden');
+				if (bar) bar.classList.add('hidden');
+				if (logoutTop) logoutTop.classList.add('hidden');
+				$('driver-name').textContent = 'Brava repartidor';
+			}
 		}
 
 		function repartidorApi(body) {
 			body.action = body.action || 'listRuta';
 			if (API_KEY) body.key = API_KEY;
+			if (isLoggedIn() && body.action !== 'repartidorLogin') {
+				body.repartidorToken = session.token;
+			}
 			return fetch('/api/repartidor', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -663,18 +721,22 @@
 			var list = myAssignments();
 			var el = $('sync-strip');
 			var tel = driverTel();
+			if (!isLoggedIn()) {
+				el.innerHTML = 'Entrá con <strong>usuario y contraseña</strong> que te dio cocina.';
+				$('assign-summary').textContent = 'Mis entregas asignadas';
+				return;
+			}
 			if (!tel) {
 				el.innerHTML =
-					'Ingresá tu celular y tocá <strong>Cargar mis entregas</strong>.' +
-					'<em>Mismo número que cargás en Admin → Reparto.</em>';
-				$('assign-summary').textContent = 'Mis entregas asignadas';
+					'Sesión activa pero falta teléfono en la cuenta. Pedile a cocina que revise la cuenta en Reparto.';
+				$('assign-summary').textContent = session.login ? '@' + session.login : 'Mis entregas';
 				return;
 			}
 			if (lastFetchError && !list.length) {
 				el.innerHTML =
 					'<strong>Sin pedidos o error</strong> · ' +
 					lastFetchError +
-					'<em>¿Publicaste la ruta en Reparto con este teléfono?</em>';
+					'<em>¿Publicaste la ruta en Reparto con este repartidor?</em>';
 				$('assign-summary').textContent = liveFromSupabase ? 'Conectado · 0 en camino' : 'Mis entregas';
 				return;
 			}
@@ -693,24 +755,28 @@
 				(list.length === 1 ? '' : 's') +
 				'</strong> desde Supabase · en camino.' +
 				(liveFromSupabase ? '<em>Se actualiza cada 45 s.</em>' : '<em>Modo demo local.</em>');
-			$('assign-summary').textContent = list.length + ' en ruta · ' + tel.slice(-4);
+			$('assign-summary').textContent = list.length + ' en ruta · ' + (session.nombre || session.login);
 		}
 
 		function fetchRutaLive(showToast) {
-			var tel = driverTel();
-			if (!tel) {
+			if (!isLoggedIn()) {
 				updateSyncStrip();
 				renderList();
 				return Promise.resolve();
 			}
-			saveDriverTel();
+			var tel = driverTel();
 			lastFetchError = '';
 			var btn = $('btn-load-ruta');
 			if (btn) btn.disabled = true;
-			return repartidorApi({ action: 'listRuta', telefono: tel })
+			return repartidorApi({ action: 'listRuta', telefono: tel || undefined })
 				.then(function (data) {
 					if (!data.ok) {
 						lastFetchError = data.error || data.hint || 'error';
+						if (data.error === 'invalid_token' || data.error === 'unauthorized' || data.error === 'missing_auth') {
+							clearSession();
+							if (showToast) alert('Sesión vencida. Volvé a entrar.');
+							return;
+						}
 						if (data.error === 'repartidor_schema_missing') {
 							lastFetchError = 'Falta migración repartidor en Supabase';
 						}
@@ -758,7 +824,7 @@
 		function startRefreshPoll() {
 			if (refreshPoll) clearInterval(refreshPoll);
 			refreshPoll = setInterval(function () {
-				if (liveFromSupabase && driverTel() && !$('screen-nav').classList.contains('is-active')) {
+				if (liveFromSupabase && isLoggedIn() && !$('screen-nav').classList.contains('is-active')) {
 					fetchRutaLive(false);
 				}
 			}, 45000);
@@ -1537,10 +1603,10 @@
 				afterDeliverySuccess(order);
 			}
 
-			if (liveFromSupabase && driverTel()) {
+			if (liveFromSupabase && isLoggedIn()) {
 				var btn = $('btn-delivered');
 				if (btn) btn.disabled = true;
-				repartidorApi({ action: 'markEntregada', telefono: driverTel(), orn: orn })
+				repartidorApi({ action: 'markEntregada', orn: orn })
 					.then(function (data) {
 						if (!data.ok) {
 							alert('No se pudo marcar entregado: ' + (data.error || 'error'));
@@ -1580,13 +1646,66 @@
 				$('btn-sim-assign').classList.remove('hidden');
 			}
 		} catch (eDemo) {}
+		function doLogin() {
+			var loginEl = $('repartidor-login');
+			var passEl = $('repartidor-password');
+			var login = loginEl ? String(loginEl.value || '').trim() : '';
+			var password = passEl ? String(passEl.value || '') : '';
+			if (!login || !password) {
+				alert('Completá usuario y contraseña.');
+				return;
+			}
+			var btn = $('btn-login');
+			if (btn) btn.disabled = true;
+			repartidorApi({ action: 'repartidorLogin', login: login, password: password })
+				.then(function (data) {
+					if (!data.ok) {
+						var msg =
+							data.error === 'invalid_credentials'
+								? 'Usuario o contraseña incorrectos.'
+								: data.error === 'user_inactive'
+									? 'Cuenta desactivada. Pedile a cocina.'
+									: data.error || 'error';
+						alert('No se pudo entrar: ' + msg);
+						return;
+					}
+					session.token = data.token || '';
+					session.login = data.login || login;
+					session.nombre = data.nombre || login;
+					session.telefono = data.telefono || '';
+					persistSession();
+					updateLoginUi();
+					lastRouteOrigin = null;
+					deliveredStopOrigins = {};
+					return fetchRutaLive(true).then(function () {
+						startRefreshPoll();
+					});
+				})
+				.catch(function () {
+					alert('Error de red al entrar.');
+				})
+				.finally(function () {
+					if (btn) btn.disabled = false;
+				});
+		}
+
+		function doLogout() {
+			if (refreshPoll) clearInterval(refreshPoll);
+			refreshPoll = null;
+			clearSession();
+		}
+
+		$('btn-login').addEventListener('click', doLogin);
+		$('repartidor-password').addEventListener('keydown', function (ev) {
+			if (ev.key === 'Enter') doLogin();
+		});
 		$('btn-load-ruta').addEventListener('click', function () {
 			lastRouteOrigin = null;
 			deliveredStopOrigins = {};
 			fetchRutaLive(true);
 			startRefreshPoll();
 		});
-		$('repartidor-tel').addEventListener('change', saveDriverTel);
+		$('btn-logout-top').addEventListener('click', doLogout);
 		$('chip-follow').addEventListener('click', function () {
 			followGps = !followGps;
 			$('chip-follow').classList.toggle('on', followGps);
@@ -1608,14 +1727,16 @@
 			else startSim();
 		});
 
-		$('driver-name').textContent = 'Brava repartidor';
-		loadDriverTel();
+		loadSessionFromStorage();
+		updateLoginUi();
 		renderList();
 		startGps();
 		ensureMapboxToken();
 		geocodeKitchen();
-		startRefreshPoll();
-		if (driverTel()) fetchRutaLive(false);
+		if (isLoggedIn()) {
+			fetchRutaLive(false);
+			startRefreshPoll();
+		}
 		document.body.addEventListener(
 			'click',
 			function onceNotify() {

@@ -12,6 +12,7 @@ const {
   migrateWaMessageStatus,
   migrateWaReclamos,
   migrateRepartidorAssignSchema,
+  migrateRepartidorUsersSchema,
 } = require('../lib/dbMigrate');
 const { getWaMessageStatuses, waitForWaMessageStatuses, summarizeDelivery } = require('../lib/waMessageStatus');
 
@@ -135,6 +136,22 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       ok: !!migrateResult.ok,
       kind: 'wa_reclamos',
+      migrated: !!migrateResult.migrated,
+      error: migrateResult.ok ? null : migrateResult.error,
+      detail: migrateResult.ok ? null : (migrateResult.detail || migrateResult.hint || '').slice(0, 300),
+    });
+  }
+
+  if (migrateKind === 'repartidor_users') {
+    const key = String(req.query.key || '').trim();
+    const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();
+    if (!expected || key !== expected) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    const migrateResult = await migrateRepartidorUsersSchema();
+    return res.status(200).json({
+      ok: !!migrateResult.ok,
+      kind: 'repartidor_users',
       migrated: !!migrateResult.migrated,
       error: migrateResult.ok ? null : migrateResult.error,
       detail: migrateResult.ok ? null : (migrateResult.detail || migrateResult.hint || '').slice(0, 300),

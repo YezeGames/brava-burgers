@@ -6,6 +6,9 @@ const {
   listRepartidorRuta,
   repartidorMarkEntregada,
 } = require('../lib/bravaSupabase');
+const { validateRepartidorToken } = require('../lib/repartidorAuth');
+const { repartidorLogin } = require('../lib/repartidorUsers');
+const { telNorm } = require('../lib/bravaCoupons');
 
 function parseBody(req) {
   let body = req.body;
@@ -26,22 +29,50 @@ function repartidorKeyOk(body, req) {
   return got === required;
 }
 
+function resolveRepartidorTel(body, req) {
+  const tok = String(
+    body.repartidorToken || body.repartidor_token || body.token || req.headers['x-repartidor-token'] || ''
+  ).trim();
+  if (tok) {
+    const v = validateRepartidorToken(tok);
+    if (v.ok) return { ok: true, tel: v.telefono, session: v };
+    return { ok: false, error: v.error || 'invalid_token' };
+  }
+  const tel = telNorm(body.telefono || body.tel || body.repartidor_tel);
+  if (tel) return { ok: true, tel: tel, legacy: true };
+  return { ok: false, error: 'missing_auth' };
+}
+
 async function handleRepartidor(body, req, res) {
   if (!isSupabaseConfigured()) {
     return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
   }
+  const action = String(body.action || '').trim();
+  if (action === 'repartidorLogin') {
+    if (!repartidorKeyOk(body, req)) {
+      return res.status(401).json({ ok: false, error: 'invalid_key' });
+    }
+    const out = await repartidorLogin(body.login || body.user, body.password);
+    return res.status(out.ok ? 200 : 401).json(out);
+  }
   if (!repartidorKeyOk(body, req)) {
     return res.status(401).json({ ok: false, error: 'invalid_key' });
   }
-  const action = String(body.action || '').trim();
   try {
+    const auth = resolveRepartidorTel(body, req);
+    if (!auth.ok) {
+      return res.status(401).json({ ok: false, error: auth.error || 'unauthorized' });
+    }
     if (action === 'listRuta') {
-      const tel = body.telefono || body.tel || body.repartidor_tel;
-      const out = await listRepartidorRuta(tel);
+      const out = await listRepartidorRuta(auth.tel);
       return res.status(out.ok ? 200 : 400).json(out);
     }
     if (action === 'markEntregada') {
-      const out = await repartidorMarkEntregada(body);
+      const payload = Object.assign({}, body, {
+        telefono: auth.tel,
+        repartidor_tel: auth.tel,
+      });
+      const out = await repartidorMarkEntregada(payload);
       return res.status(out.ok ? 200 : 400).json(out);
     }
     return res.status(400).json({ ok: false, error: 'unknown_action' });
@@ -88,7 +119,7 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   const body = parseBody(req);
-  if (body.action === 'listRuta' || body.action === 'markEntregada') {
+  if (body.action === 'repartidorLogin' || body.action === 'listRuta' || body.action === 'markEntregada') {
     return handleRepartidor(body, req, res);
   }
   if (body.action === 'validateCupon' || (body.codigo && !body.cliente)) {

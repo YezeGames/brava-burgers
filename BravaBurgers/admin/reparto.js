@@ -621,11 +621,143 @@
 
   function onViewShow() {
     ensureMapInit();
+    loadRepartidorUsersUi();
     if (map && mapReady) {
       setTimeout(function () {
         map.resize();
       }, 120);
     }
+  }
+
+  function loadRepartidorUsersUi() {
+    if (!window.getAdminToken) return;
+    fetch('/api/admin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'listRepartidorUsers', token: window.getAdminToken() }),
+    })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data.ok && data.error === 'repartidor_users_schema_missing') {
+          fetch('/api/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'migrateRepartidorUsers', token: window.getAdminToken() }),
+          })
+            .then(function () {
+              loadRepartidorUsersUi();
+            })
+            .catch(function () {});
+          return;
+        }
+        if (!data.ok) return;
+        renderRepartidorUsersSelect(data.users || []);
+        renderRepartidorCuentasList(data.users || []);
+      })
+      .catch(function () {});
+  }
+
+  function renderRepartidorUsersSelect(users) {
+    var sel = $('reparto-deli-user');
+    var waEl = $('reparto-deli-wa');
+    if (!sel) return;
+    var prev = sel.value;
+    var active = (users || []).filter(function (u) {
+      return u.activo !== false;
+    });
+    sel.innerHTML =
+      '<option value="">— Elegí repartidor —</option>' +
+      active
+        .map(function (u) {
+          var tel = normalizeWaPhone(u.telefono);
+          var label = (u.nombre || u.login) + ' (@' + u.login + ')';
+          return (
+            '<option value="' +
+            tel +
+            '" data-login="' +
+            u.login +
+            '">' +
+            label +
+            '</option>'
+          );
+        })
+        .join('');
+    if (prev) sel.value = prev;
+    else {
+      try {
+        var savedWa = sessionStorage.getItem(DELI_WA_KEY);
+        if (savedWa) sel.value = savedWa;
+      } catch (eSave) {}
+    }
+    syncRepartidorDeliFromSelect();
+  }
+
+  function syncRepartidorDeliFromSelect() {
+    var sel = $('reparto-deli-user');
+    var waEl = $('reparto-deli-wa');
+    if (!sel || !waEl) return;
+    var tel = sel.value || '';
+    waEl.value = tel;
+    try {
+      if (tel) sessionStorage.setItem(DELI_WA_KEY, tel);
+    } catch (e) {}
+    if (window.BravaWaPanel && typeof window.BravaWaPanel.setRepartidorTel === 'function') {
+      window.BravaWaPanel.setRepartidorTel(tel);
+    }
+  }
+
+  function renderRepartidorCuentasList(users) {
+    var ul = $('reparto-cuentas-list');
+    if (!ul) return;
+    if (!users || !users.length) {
+      ul.innerHTML = '<li class="reparto-cuentas-empty">Todavía no hay cuentas. Creá una abajo.</li>';
+      return;
+    }
+    ul.innerHTML = users
+      .map(function (u) {
+        var off = u.activo === false ? ' · <em>inactivo</em>' : '';
+        return (
+          '<li><strong>' +
+          (u.nombre || u.login) +
+          '</strong> @' +
+          u.login +
+          ' · ' +
+          u.telefono +
+          off +
+          ' <button type="button" class="btn-sm reparto-reset-pw" data-login="' +
+          u.login +
+          '">Nueva clave</button></li>'
+        );
+      })
+      .join('');
+    ul.querySelectorAll('.reparto-reset-pw').forEach(function (btn) {
+      btn.onclick = function () {
+        var login = btn.getAttribute('data-login');
+        if (!login || !window.getAdminToken) return;
+        if (!confirm('¿Generar nueva contraseña para ' + login + '?')) return;
+        fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'resetRepartidorUserPassword',
+            token: window.getAdminToken(),
+            login: login,
+          }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (data.ok && data.password) {
+              alert('Nueva contraseña para ' + login + ':\n\n' + data.password + '\n\nCopiala y dásela al repartidor.');
+            } else {
+              alert('No se pudo resetear: ' + (data.error || 'error'));
+            }
+          });
+      };
+    });
   }
 
   function bindUi() {
@@ -653,20 +785,49 @@
         } catch (e3) {}
       });
     }
-    var waEl = $('reparto-deli-wa');
-    if (waEl) {
-      try {
-        var savedWa = sessionStorage.getItem(DELI_WA_KEY);
-        if (savedWa) waEl.value = savedWa;
-      } catch (eWa) {}
-      function syncRepartidorWa() {
-        if (window.BravaWaPanel && typeof window.BravaWaPanel.setRepartidorTel === 'function') {
-          window.BravaWaPanel.setRepartidorTel(waEl.value);
-        }
-      }
-      waEl.addEventListener('change', syncRepartidorWa);
-      waEl.addEventListener('blur', syncRepartidorWa);
-      if (waEl.value) syncRepartidorWa();
+    var selUser = $('reparto-deli-user');
+    if (selUser) {
+      selUser.addEventListener('change', syncRepartidorDeliFromSelect);
+    }
+    var btnNewCuenta = $('reparto-btn-new-cuenta');
+    if (btnNewCuenta) {
+      btnNewCuenta.onclick = function () {
+        if (!window.getAdminToken) return;
+        var login = ($('reparto-new-login') && $('reparto-new-login').value) || '';
+        var nombre = ($('reparto-new-nombre') && $('reparto-new-nombre').value) || '';
+        var tel = ($('reparto-new-tel') && $('reparto-new-tel').value) || '';
+        fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'createRepartidorUser',
+            token: window.getAdminToken(),
+            login: login,
+            nombre: nombre,
+            telefono: tel,
+          }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (!data.ok) {
+              alert('No se pudo crear: ' + (data.error || 'error'));
+              return;
+            }
+            alert(
+              'Cuenta creada\n\nUsuario: ' +
+                data.user.login +
+                '\nContraseña: ' +
+                data.password +
+                '\n\nEl repartidor entra en la app con esos datos.'
+            );
+            if ($('reparto-new-login')) $('reparto-new-login').value = '';
+            if ($('reparto-new-nombre')) $('reparto-new-nombre').value = '';
+            if ($('reparto-new-tel')) $('reparto-new-tel').value = '';
+            loadRepartidorUsersUi();
+          });
+      };
     }
     $('reparto-btn-gmaps').onclick = function () {
       var u = gmapsUrl(stops());
@@ -709,8 +870,8 @@
       var waEl = $('reparto-deli-wa');
       var phone = waEl ? waEl.value : '';
       if (!normalizeWaPhone(phone)) {
-        setStatus('Completá el teléfono del repartidor (app).', true);
-        if (waEl) waEl.focus();
+        setStatus('Elegí un repartidor (cuenta app) arriba o creá una en «Cuentas app repartidor».', true);
+        if ($('reparto-deli-user')) $('reparto-deli-user').focus();
         return;
       }
       try {

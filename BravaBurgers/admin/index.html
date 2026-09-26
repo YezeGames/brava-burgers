@@ -1596,8 +1596,11 @@
 										<input type="text" id="reparto-origin" autocomplete="off" placeholder="Diaz Velez 3231, Olivos" value="Diaz Velez 3231, Olivos">
 									</div>
 									<div class="reparto-field">
-										<label for="reparto-deli-wa">Repartidor (teléfono app)</label>
-										<input type="tel" id="reparto-deli-wa" autocomplete="off" placeholder="54911…" title="Mismo número con el que entra a la app repartidor">
+										<label for="reparto-deli-user">Repartidor (cuenta app)</label>
+										<select id="reparto-deli-user" title="Cuentas creadas abajo en «Cuentas app repartidor»">
+											<option value="">— Elegí repartidor —</option>
+										</select>
+										<input type="hidden" id="reparto-deli-wa" value="">
 									</div>
 								</div>
 							</div>
@@ -1624,6 +1627,26 @@
 								</div>
 							</div>
 							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
+							<details class="reparto-cuentas" id="reparto-cuentas-wrap">
+								<summary>Cuentas app repartidor</summary>
+								<p class="reparto-route-status">Creá usuario y contraseña. Cocina asigna la ruta al repartidor elegido arriba (usa su teléfono interno).</p>
+								<ul id="reparto-cuentas-list" class="reparto-cuentas-list"></ul>
+								<div class="reparto-fields-row reparto-cuenta-form">
+									<div class="reparto-field">
+										<label for="reparto-new-login">Usuario</label>
+										<input type="text" id="reparto-new-login" autocomplete="off" placeholder="tomas">
+									</div>
+									<div class="reparto-field">
+										<label for="reparto-new-nombre">Nombre</label>
+										<input type="text" id="reparto-new-nombre" autocomplete="off" placeholder="Tomás">
+									</div>
+									<div class="reparto-field">
+										<label for="reparto-new-tel">Teléfono (asignación)</label>
+										<input type="tel" id="reparto-new-tel" autocomplete="off" placeholder="54911…">
+									</div>
+								</div>
+								<button type="button" class="btn-sm btn-accent" id="reparto-btn-new-cuenta"><i class="fas fa-user-plus" aria-hidden="true"></i> Crear cuenta</button>
+							</details>
 							<div class="reparto-actions">
 								<button type="button" class="btn-sm btn-accent" id="reparto-btn-app" disabled><i class="fas fa-mobile-screen" aria-hidden="true"></i> Publicar en app repartidor</button>
 								<button type="button" class="btn-sm" id="reparto-btn-dispatch" disabled><i class="fas fa-motorcycle" aria-hidden="true"></i> Solo marcar en camino</button>
@@ -2292,10 +2315,10 @@
 	<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 	<script src="/admin/comanda.js?v=20"></script>
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
-	<script src="/admin/reparto.js?v=15"></script>
+	<script src="/admin/reparto.js?v=16"></script>
 	<script src="/admin/wa-panel.js?v=30"></script>
 	<script src="/admin/compensaciones.js?v=7"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
-	<script src="/admin/admin.js?v=144"></script>
+	<script src="/admin/admin.js?v=145"></script>
 </body>
 </html>

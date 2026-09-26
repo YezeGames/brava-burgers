@@ -36,7 +36,14 @@ const {
   migrateManualOrderSchema,
   migrateStoreCatalogSchema,
   migrateRepartidorAssignSchema,
+  migrateRepartidorUsersSchema,
 } = require('../lib/dbMigrate');
+const {
+  listRepartidorUsers,
+  createRepartidorUser,
+  resetRepartidorUserPassword,
+  setRepartidorUserActive,
+} = require('../lib/repartidorUsers');
 const {
   getStoreMenuDraft,
   saveStoreMenuDraft,
@@ -190,6 +197,26 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateRepartidorAssign') {
     return migrateRepartidorAssignSchema();
+  }
+
+  if (action === 'migrateRepartidorUsers') {
+    return migrateRepartidorUsersSchema();
+  }
+
+  if (action === 'listRepartidorUsers') {
+    return listRepartidorUsers();
+  }
+
+  if (action === 'createRepartidorUser') {
+    return createRepartidorUser(body);
+  }
+
+  if (action === 'resetRepartidorUserPassword') {
+    return resetRepartidorUserPassword(body.login);
+  }
+
+  if (action === 'setRepartidorUserActive') {
+    return setRepartidorUserActive(body.login, body.activo);
   }
 
   if (action === 'assignRepartidorRuta') {

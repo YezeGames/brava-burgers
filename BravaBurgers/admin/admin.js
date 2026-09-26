@@ -4024,6 +4024,7 @@
     ensureCompensacionesOnce();
     ensureManualOrderSchemaOnce();
     ensureRepartidorAssignOnce();
+    ensureRepartidorUsersOnce();
     ensureStoreCatalogOnce();
     syncTiendaIframeToken();
     initDefaultAlertSound();
@@ -4129,6 +4130,24 @@
       if (res.data && res.data.ok) {
         try {
           sessionStorage.setItem('brava_repartidor_assign_ok_v1', '1');
+        } catch (e2) {}
+      }
+    });
+  }
+
+  /** Una vez por sesión: tabla repartidor_users (cuentas app). */
+  function ensureRepartidorUsersOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_repartidor_users_try_v1') === '1') return;
+      sessionStorage.setItem('brava_repartidor_users_try_v1', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migrateRepartidorUsers', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_repartidor_users_ok_v1', '1');
         } catch (e2) {}
       }
     });
