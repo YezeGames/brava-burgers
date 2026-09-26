@@ -8,9 +8,9 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-app2 -->
+	<!-- repartidor-app v=20260326-mapbox -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
+	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
 		:root {
 			--brava: #ff6b35;
@@ -239,8 +239,8 @@
 			z-index: 2;
 		}
 		.map-loading.hidden { display: none; }
-		.maplibregl-ctrl-attrib { font-size: 8px !important; max-width: 140px; }
-		.maplibregl-ctrl-group button { width: 36px; height: 36px; }
+		.mapboxgl-ctrl-attrib { font-size: 8px !important; max-width: 140px; }
+		.mapboxgl-ctrl-group button { width: 36px; height: 36px; }
 		.nav-sheet {
 			flex-shrink: 0;
 			background: var(--surface);
@@ -479,7 +479,7 @@
 		</div>
 	</div>
 
-	<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script>
 	(function () {
 		'use strict';
@@ -503,7 +503,9 @@
 			label: 'Díaz Vélez 3231, Olivos',
 		};
 		var OSRM = 'https://router.project-osrm.org/route/v1/driving/';
-		var MAP_STYLE = 'https://demotiles.maplibre.org/style.json';
+		var MAP_STYLE_FALLBACK = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+		var mapboxToken = '';
+		var mapboxTokenPromise = null;
 
 		var catalog = [
 			{
@@ -905,15 +907,40 @@
 				'color:#fff;font-weight:800;font-size:0.85rem;display:flex;align-items:center;justify-content:center;' +
 				'border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35)';
 			el.title = KITCHEN.label;
-			markerKitchen = new maplibregl.Marker({ element: el })
+			markerKitchen = new mapboxgl.Marker({ element: el })
 				.setLngLat([KITCHEN.lng, KITCHEN.lat])
 				.addTo(map);
 		}
 
+		function ensureMapboxToken() {
+			if (mapboxToken) return Promise.resolve(mapboxToken);
+			if (mapboxTokenPromise) return mapboxTokenPromise;
+			mapboxTokenPromise = fetch('/api/mapbox-config', { cache: 'no-store' })
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (data) {
+					if (data.ok && data.token) {
+						mapboxToken = data.token;
+						return mapboxToken;
+					}
+					return '';
+				})
+				.catch(function () {
+					return '';
+				});
+			return mapboxTokenPromise;
+		}
+
+		function mapStyleForToken(token) {
+			if (token) return 'mapbox://styles/mapbox/streets-v12';
+			return MAP_STYLE_FALLBACK;
+		}
+
 		function ensureMap(callback) {
-			if (!window.maplibregl) {
-				setMapLoading(true, 'No cargó MapLibre. Revisá conexión.');
-				if (callback) callback(new Error('maplibre_missing'));
+			if (!window.mapboxgl) {
+				setMapLoading(true, 'No cargó el mapa. Revisá conexión.');
+				if (callback) callback(new Error('mapbox_missing'));
 				return;
 			}
 			function done() {
@@ -922,33 +949,39 @@
 				resizeMapHard();
 				if (callback) callback(null);
 			}
-			if (map) {
-				resizeMapHard();
-				if (map.isStyleLoaded()) done();
-				else map.once('load', done);
-				return;
+			function bootMap(token) {
+				if (token) mapboxgl.accessToken = token;
+				if (map) {
+					resizeMapHard();
+					if (map.isStyleLoaded()) done();
+					else map.once('load', done);
+					return;
+				}
+				if (mapBooting) {
+					map.once('load', function () {
+						if (callback) callback(null);
+					});
+					return;
+				}
+				mapBooting = true;
+				setMapLoading(true, 'Cargando mapa…');
+				map = new mapboxgl.Map({
+					container: 'map',
+					style: mapStyleForToken(token),
+					center: [KITCHEN.lng, KITCHEN.lat],
+					zoom: 14,
+					attributionControl: { compact: true },
+				});
+				map.addControl(new mapboxgl.NavigationControl({ showCompass: true }), 'top-right');
+				map.on('error', function (e) {
+					console.warn('[repartidor-map]', e && e.error ? e.error : e);
+				});
+				map.once('load', function () {
+					mapBooting = false;
+					done();
+				});
 			}
-			if (mapBooting) {
-				map.once('load', function () { if (callback) callback(null); });
-				return;
-			}
-			mapBooting = true;
-			setMapLoading(true, 'Cargando mapa…');
-			map = new maplibregl.Map({
-				container: 'map',
-				style: MAP_STYLE,
-				center: [KITCHEN.lng, KITCHEN.lat],
-				zoom: 14,
-				attributionControl: { compact: true },
-			});
-			map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
-			map.on('error', function (e) {
-				console.warn('[demo-map]', e && e.error ? e.error : e);
-			});
-			map.once('load', function () {
-				mapBooting = false;
-				done();
-			});
+			ensureMapboxToken().then(bootMap);
 		}
 
 		function geocodeKitchen() {
@@ -1011,7 +1044,7 @@
 			map.stop();
 			map.setPitch(0);
 			map.setBearing(0);
-			var bounds = new maplibregl.LngLatBounds();
+			var bounds = new mapboxgl.LngLatBounds();
 			geojson.coordinates.forEach(function (c) { bounds.extend(c); });
 			bounds.extend([dest.lng, dest.lat]);
 			bounds.extend([KITCHEN.lng, KITCHEN.lat]);
@@ -1137,7 +1170,7 @@
 				el.style.background = '#29b6f6';
 				el.style.border = '3px solid #fff';
 				el.style.boxShadow = '0 0 0 3px rgba(41,182,246,0.45)';
-				markerUser = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
+				markerUser = new mapboxgl.Marker({ element: el }).setLngLat([lng, lat]).addTo(map);
 			} else {
 				markerUser.setLngLat([lng, lat]);
 			}
@@ -1435,6 +1468,7 @@
 		loadDriverTel();
 		renderList();
 		startGps();
+		ensureMapboxToken();
 		geocodeKitchen();
 		startRefreshPoll();
 		if (driverTel()) fetchRutaLive(false);
