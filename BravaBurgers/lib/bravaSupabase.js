@@ -767,13 +767,7 @@ async function updateOrder(body) {
 
   var waPostEntrega = null;
   if (patch.estado === 'entregada') {
-    try {
-      const { sendPostEntregaForOrn } = require('./waPostEntrega');
-      waPostEntrega = await sendPostEntregaForOrn(outOrn);
-    } catch (e) {
-      console.warn('[updateOrder] wa post-entrega error', outOrn, e.message || e);
-      waPostEntrega = { ok: false, error: String(e.message || e) };
-    }
+    waPostEntrega = await ensureWaPostEntrega(outOrn);
   }
 
   return { ok: true, orn: outOrn, waPostEntrega: waPostEntrega };
@@ -783,6 +777,31 @@ async function updateOrder(body) {
 async function migrateRepartidorSchemaAuto() {
   const { migrateRepartidorAssignSchema } = require('./dbMigrate');
   return migrateRepartidorAssignSchema();
+}
+
+/** Post-entrega WA tras marcar entregada (evita fallo si el read de Supabase va atrasado). */
+async function ensureWaPostEntrega(orn) {
+  const { sendPostEntregaForOrn } = require('./waPostEntrega');
+  var last = { ok: false, error: 'not_attempted' };
+  for (var attempt = 0; attempt < 4; attempt++) {
+    try {
+      last = await sendPostEntregaForOrn(orn, { trustEntregada: true });
+      if (last.ok || (last.skipped && last.reason === 'already_sent')) {
+        return last;
+      }
+      if (last.error !== 'order_not_found' && last.error !== 'not_entregada') {
+        return last;
+      }
+    } catch (e) {
+      last = { ok: false, error: String(e.message || e) };
+      console.warn('[ensureWaPostEntrega]', orn, attempt, last.error);
+    }
+    await new Promise(function (resolve) {
+      setTimeout(resolve, 200 + attempt * 150);
+    });
+  }
+  console.warn('[ensureWaPostEntrega] gave up', orn, last.error || last.reason);
+  return last;
 }
 
 async function listRepartidorRuta(telefono, _retried) {
@@ -864,9 +883,16 @@ async function repartidorMarkEntregada(body) {
     return { ok: false, error: 'order_not_assigned_to_repartidor' };
   }
   if (String(row.estado || '').toLowerCase() === 'entregada') {
-    return { ok: true, orn: orn, already: true };
+    const waPostEntrega = await ensureWaPostEntrega(orn);
+    return { ok: true, orn: orn, already: true, waPostEntrega: waPostEntrega };
   }
-  return updateOrder({ orn: orn, estado: 'entregada' });
+  const out = await updateOrder({ orn: orn, estado: 'entregada' });
+  if (!out.ok) return out;
+  if (!out.waPostEntrega || (!out.waPostEntrega.ok && !(out.waPostEntrega.skipped && out.waPostEntrega.reason === 'already_sent'))) {
+    const retryWa = await ensureWaPostEntrega(orn);
+    out.waPostEntrega = retryWa;
+  }
+  return out;
 }
 
 async function repartidorConfirmarLlegada(body, _retried) {

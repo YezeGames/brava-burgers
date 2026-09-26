@@ -203,12 +203,18 @@ async function probePostEntregaInteractive(to) {
 }
 
 async function sendPostEntregaForOrn(orn, opts) {
+  opts = opts || {};
   const order = await fetchOrderByOrn(orn);
   if (!order) {
     return { ok: false, error: 'order_not_found' };
   }
-  if (String(order.estado || '').toLowerCase() !== 'entregada') {
-    return { ok: false, error: 'not_entregada' };
+  const est = String(order.estado || '').toLowerCase();
+  if (est !== 'entregada') {
+    if (opts.trustEntregada) {
+      order.estado = 'entregada';
+    } else {
+      return { ok: false, error: 'not_entregada', estado: est };
+    }
   }
   return sendPostEntregaForOrder(order, opts);
 }
