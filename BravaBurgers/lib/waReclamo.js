@@ -120,17 +120,34 @@ async function maybeStartReclamo(from, session) {
       return { handled: true, kind: 'reclamo_already_reenvio' };
     }
     const row = await getReclamoByOrn(orn);
-    if (row && String(row.estado || '').toLowerCase() === 'abierto') {
-      await replyText(
-        from,
-        'Ya tenemos tu reclamo *' +
-          (row.reclamo_id || '') +
-          '* para el pedido *' +
-          orn +
-          '*. Lo estamos revisando 🙏'
-      );
-      return { handled: true, kind: 'reclamo_already_open' };
+    if (row) {
+      const est = String(row.estado || '').toLowerCase();
+      if (est === 'abierto') {
+        await replyText(
+          from,
+          'Ya tenemos tu reclamo *' +
+            (row.reclamo_id || '') +
+            '* para el pedido *' +
+            orn +
+            '*. Lo estamos revisando 🙏'
+        );
+        return { handled: true, kind: 'reclamo_already_open' };
+      }
+      if (est === 'compensado' || est === 'cerrado') {
+        await replyText(
+          from,
+          'El reclamo del pedido *' +
+            orn +
+            '* ya fue *atendido* por Brava. Si es otro pedido, pedí de nuevo y usá la tarjeta de ese delivery.'
+        );
+        return { handled: true, kind: 'reclamo_already_closed' };
+      }
     }
+  }
+  const inProgress = session && reclamoStepInProgress(session.step);
+  if (inProgress) {
+    const busy = await replyReclamoFlowBusy(from, session);
+    if (busy) return busy;
   }
   return startReclamoFlow(from, session);
 }
@@ -161,6 +178,18 @@ async function startReclamoFlow(from, session) {
 }
 
 async function onMotivoChosen(from, motivoId, session) {
+  session = session || {};
+  const step = String(session.step || '').trim();
+  if (step && step !== 'motivo' && step !== 'motivo_text') {
+    const busy = await replyReclamoFlowBusy(from, session);
+    if (busy) return busy;
+  }
+  if (step === 'motivo' || step === 'motivo_text') {
+    if (session.motivo && String(session.motivo).trim()) {
+      const busy2 = await replyReclamoFlowBusy(from, Object.assign({}, session, { step: 'need_description' }));
+      if (busy2) return busy2;
+    }
+  }
   const motivo = String(motivoId || '').trim();
   const orn = session && session.orn ? session.orn : '';
   await upsertReclamoSession(from, {
@@ -280,6 +309,56 @@ function isMotivoId(id) {
   return MOTIVO_ROWS.some(function (r) {
     return r.id === id;
   });
+}
+
+function reclamoStepInProgress(step) {
+  const s = String(step || '').trim();
+  return s === 'motivo' || s === 'motivo_text' || s === 'need_description' || s === 'need_photo';
+}
+
+async function replyReclamoFlowBusy(from, session) {
+  const step = String(session && session.step ? session.step : '').trim();
+  const orn = session && session.orn ? String(session.orn).trim() : 'tu pedido';
+  if (step === 'need_description') {
+    await replyText(
+      from,
+      'Ya registramos el *motivo* del pedido *' +
+        orn +
+        '*.\n\n' +
+        'Seguí con un mensaje contando *qué pasó* (obligatorio antes de la foto). No hace falta elegir motivo otra vez 🙏'
+    );
+    return { handled: true, kind: 'reclamo_busy_need_desc' };
+  }
+  if (step === 'need_photo') {
+    await replyText(
+      from,
+      'Tu reclamo de *' +
+        orn +
+        '* ya tiene motivo y descripción.\n\n' +
+        'Mandá la *foto del pedido* 📷 para confirmarlo. No podés cambiar el motivo ahora.'
+    );
+    return { handled: true, kind: 'reclamo_busy_need_photo' };
+  }
+  if (step === 'motivo' || step === 'motivo_text') {
+    await replyText(
+      from,
+      'Tenés la lista *Elegir motivo* en el mensaje de arriba 👆\n\n' +
+        'Elegí una opción (solo una). Si no la ves, escribí el número del 1 al 5.'
+    );
+    return { handled: true, kind: 'reclamo_motivo_pending' };
+  }
+  if (step === 'done' && session && session.reclamo_id) {
+    await replyText(
+      from,
+      'Ya recibimos tu reclamo *' +
+        session.reclamo_id +
+        '* del pedido *' +
+        orn +
+        '*. Brava lo está revisando 🙏'
+    );
+    return { handled: true, kind: 'reclamo_already_submitted' };
+  }
+  return null;
 }
 
 /**
