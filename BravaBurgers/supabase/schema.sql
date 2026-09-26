@@ -230,6 +230,13 @@ END $$;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_camino_at timestamptz;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS en_preparacion_at timestamptz;
 
+-- App repartidor (asignación de ruta desde Admin → Reparto)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS repartidor_tel text;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_parada integer;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_asignado_at timestamptz;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_ruta_id text;
+CREATE INDEX IF NOT EXISTS orders_repartidor_tel_idx ON orders (repartidor_tel, estado);
+
 -- WhatsApp inbox (ver supabase/wa_messages.sql)
 CREATE TABLE IF NOT EXISTS wa_messages (
   id bigserial PRIMARY KEY,

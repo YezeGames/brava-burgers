@@ -193,12 +193,30 @@ async function handleSupabaseAdmin(body) {
   }
 
   if (action === 'assignRepartidorRuta') {
-    return assignRepartidorRuta({
+    let out = await assignRepartidorRuta({
       repartidor_tel: body.repartidor_tel,
       stops: body.stops,
       markEnCamino: body.markEnCamino,
       ruta_id: body.ruta_id,
     });
+    if (!out.ok && out.error === 'repartidor_schema_missing') {
+      const mig = await migrateRepartidorAssignSchema();
+      if (mig.ok) {
+        out = await assignRepartidorRuta({
+          repartidor_tel: body.repartidor_tel,
+          stops: body.stops,
+          markEnCamino: body.markEnCamino,
+          ruta_id: body.ruta_id,
+        });
+      } else {
+        out.migrate = mig;
+        if (!out.hint) {
+          out.hint =
+            'En Supabase → SQL Editor pegá el archivo supabase/repartidor-asignacion.sql y Run. O agregá SUPABASE_DB_PASSWORD en Vercel y volvé a publicar.';
+        }
+      }
+    }
+    return out;
   }
 
   if (action === 'getStoreMenuDraft') {

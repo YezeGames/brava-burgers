@@ -686,10 +686,19 @@
 
     function ensureRepartidorAssignSchemaOnce() {
       try {
-        if (sessionStorage.getItem('brava_repartidor_assign_try_v1') === '1') return;
-        sessionStorage.setItem('brava_repartidor_assign_try_v1', '1');
+        if (sessionStorage.getItem('brava_repartidor_assign_try_v2') === '1') return;
+        sessionStorage.setItem('brava_repartidor_assign_try_v2', '1');
       } catch (e) {}
       repartoAdminApi({ action: 'migrateRepartidorAssign' }).catch(function () {});
+    }
+
+    function repartidorSchemaHint(data) {
+      if (data && data.hint) return data.hint;
+      if (data && data.migrate && data.migrate.hint) return data.migrate.hint;
+      if (data && data.migrate && data.migrate.error === 'no_postgres_url') {
+        return 'Falta SUPABASE_DB_PASSWORD en Vercel. Mientras tanto: Supabase → SQL Editor → pegá supabase/repartidor-asignacion.sql → Run.';
+      }
+      return 'Supabase → SQL Editor → ejecutá supabase/repartidor-asignacion.sql (columnas repartidor_tel, reparto_parada…).';
     }
 
     ensureRepartidorAssignSchemaOnce();
@@ -715,18 +724,25 @@
       });
       var btn = $('reparto-btn-app');
       if (btn) btn.disabled = true;
-      setStatus('Publicando ruta en la app…');
-      repartoAdminApi({
-        action: 'assignRepartidorRuta',
-        repartidor_tel: phone,
-        stops: stopsPayload,
-        markEnCamino: true,
-      })
+      setStatus('Preparando Supabase (repartidor)…');
+      repartoAdminApi({ action: 'migrateRepartidorAssign' })
+        .catch(function () {
+          return { ok: false };
+        })
+        .then(function () {
+          setStatus('Publicando ruta en la app…');
+          return repartoAdminApi({
+            action: 'assignRepartidorRuta',
+            repartidor_tel: phone,
+            stops: stopsPayload,
+            markEnCamino: true,
+          });
+        })
         .then(function (data) {
           if (!data.ok) {
             var msg = data.error || 'error';
-            if (/column|repartidor|schema/i.test(String(data.detail || ''))) {
-              msg += ' — recargá el admin (migración repartidor).';
+            if (msg === 'repartidor_schema_missing' || msg === 'assign_failed') {
+              msg = repartidorSchemaHint(data);
             }
             setStatus('No se pudo publicar: ' + msg, true);
             return;

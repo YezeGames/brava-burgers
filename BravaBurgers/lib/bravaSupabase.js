@@ -816,7 +816,10 @@ async function listRepartidorRuta(telefono) {
 function isRepartidorColumnsMissing(r) {
   if (!r || r.ok) return false;
   const blob = restErrorBlob(r);
-  return blob.indexOf('repartidor_tel') >= 0 || blob.indexOf('reparto_parada') >= 0;
+  if (blob.indexOf('repartidor_tel') >= 0 || blob.indexOf('reparto_parada') >= 0) return true;
+  if (blob.indexOf('reparto_asignado_at') >= 0 || blob.indexOf('reparto_ruta_id') >= 0) return true;
+  if (blob.indexOf('pgrst204') >= 0 && blob.indexOf('repart') >= 0) return true;
+  return false;
 }
 
 async function repartidorMarkEntregada(body) {
@@ -876,12 +879,22 @@ async function assignRepartidorRuta(body) {
       r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), retry);
     }
     if (r.ok) assigned++;
-    else failed.push({ orn: orn, error: r.error || 'patch_failed' });
+    else {
+      if (isRepartidorColumnsMissing(r)) {
+        return {
+          ok: false,
+          error: 'repartidor_schema_missing',
+          hint: 'Ejecutá supabase/repartidor-asignacion.sql en Supabase o configurá SUPABASE_DB_PASSWORD en Vercel.',
+          detail: r.detail || r.error,
+        };
+      }
+      failed.push({ orn: orn, error: r.error || 'patch_failed', detail: r.detail });
+    }
   }
   if (!assigned) {
     return {
       ok: false,
-      error: failed[0] && failed[0].error === 'patch_failed' ? 'assign_failed' : 'assign_failed',
+      error: 'assign_failed',
       detail: failed,
     };
   }

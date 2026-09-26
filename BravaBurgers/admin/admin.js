@@ -4023,6 +4023,7 @@
     ensureWaReclamosOnce();
     ensureCompensacionesOnce();
     ensureManualOrderSchemaOnce();
+    ensureRepartidorAssignOnce();
     ensureStoreCatalogOnce();
     syncTiendaIframeToken();
     initDefaultAlertSound();
@@ -4110,6 +4111,24 @@
       if (res.data && res.data.ok) {
         try {
           sessionStorage.setItem('brava_wa_messages_ok', '1');
+        } catch (e2) {}
+      }
+    });
+  }
+
+  /** Una vez por sesión: columnas app repartidor en orders (Vercel: SUPABASE_DB_PASSWORD). */
+  function ensureRepartidorAssignOnce() {
+    if (!token) return;
+    try {
+      if (sessionStorage.getItem('brava_repartidor_assign_try_v2') === '1') return;
+      sessionStorage.setItem('brava_repartidor_assign_try_v2', '1');
+    } catch (e) {
+      return;
+    }
+    api({ action: 'migrateRepartidorAssign', token: token }).then(function (res) {
+      if (res.data && res.data.ok) {
+        try {
+          sessionStorage.setItem('brava_repartidor_assign_ok_v1', '1');
         } catch (e2) {}
       }
     });
