@@ -735,26 +735,36 @@
 			}, 45000);
 		}
 
-		function geocodeOrder(o) {
-			if (o.lat != null && o.lng != null && !isNaN(o.lat) && !isNaN(o.lng)) {
-				return Promise.resolve(o);
-			}
+		function fullDeliveryAddr(o) {
 			var parts = [o.direccion || ''];
 			if (o.piso) parts.push('Piso ' + o.piso);
 			if (o.localidad) parts.push(o.localidad);
 			parts.push('Provincia de Buenos Aires', 'Argentina');
-			var q = encodeURIComponent(parts.filter(Boolean).join(', '));
-			return fetch('https://nominatim.openstreetmap.org/search?q=' + q + '&format=json&limit=1', {
-				headers: { Accept: 'application/json' },
-			})
+			return parts.filter(Boolean).join(', ');
+		}
+
+		function geocodeOrder(o) {
+			if (o.lat != null && o.lng != null && !isNaN(o.lat) && !isNaN(o.lng)) {
+				return Promise.resolve(o);
+			}
+			var q = fullDeliveryAddr(o);
+			var url =
+				'/api/geocode?q=' +
+				encodeURIComponent(q) +
+				(o.localidad ? '&loc=' + encodeURIComponent(o.localidad) : '');
+			return fetch(url)
 				.then(function (r) {
-					return r.json();
-				})
-				.then(function (data) {
-					if (!data || !data[0]) throw new Error('No ubicamos la dirección en el mapa');
-					o.lat = parseFloat(data[0].lat);
-					o.lng = parseFloat(data[0].lon);
-					return o;
+					return r.json().then(function (data) {
+						if (!r.ok || !data.ok) {
+							if (data && data.error === 'geocoder_not_configured') {
+								throw new Error('Geocodificador no configurado (Mapbox/Google en Vercel)');
+							}
+							throw new Error('No ubicamos la dirección en el mapa');
+						}
+						o.lat = parseFloat(data.lat);
+						o.lng = parseFloat(data.lng);
+						return o;
+					});
 				});
 		}
 
@@ -942,15 +952,15 @@
 		}
 
 		function geocodeKitchen() {
-			var q = encodeURIComponent('Díaz Vélez 3231, Olivos, Buenos Aires, Argentina');
-			fetch('https://nominatim.openstreetmap.org/search?q=' + q + '&format=json&limit=1', {
-				headers: { Accept: 'application/json' },
-			})
-				.then(function (r) { return r.json(); })
+			var q = 'Díaz Vélez 3231, Olivos, Buenos Aires, Argentina';
+			fetch('/api/geocode?q=' + encodeURIComponent(q) + '&loc=Olivos')
+				.then(function (r) {
+					return r.json();
+				})
 				.then(function (data) {
-					if (!data || !data[0]) return;
-					KITCHEN.lng = parseFloat(data[0].lon);
-					KITCHEN.lat = parseFloat(data[0].lat);
+					if (!data || !data.ok) return;
+					KITCHEN.lng = parseFloat(data.lng);
+					KITCHEN.lat = parseFloat(data.lat);
 					if (markerKitchen) {
 						markerKitchen.setLngLat([KITCHEN.lng, KITCHEN.lat]);
 					}
