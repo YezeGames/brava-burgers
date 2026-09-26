@@ -256,7 +256,62 @@ async function graphSendMessage(payload) {
     return {};
   });
   if (!res.ok) return graphErrorFromResponse(res, data);
-  return { ok: true, data: data };
+  const messages = data && data.messages;
+  const messageId =
+    messages && messages[0] && messages[0].id ? String(messages[0].id) : '';
+  if (!messageId) {
+    return {
+      ok: false,
+      error: 'graph_missing_message_id',
+      detail: data,
+      message: 'Graph 200 but no messages[0].id',
+    };
+  }
+  const contacts = data && data.contacts;
+  const contactWaId =
+    contacts && contacts[0] && contacts[0].wa_id ? String(contacts[0].wa_id) : '';
+  const contactInput =
+    contacts && contacts[0] && contacts[0].input ? String(contacts[0].input) : '';
+  return {
+    ok: true,
+    data: data,
+    messageId: messageId,
+    contactWaId: contactWaId,
+    contactInput: contactInput,
+  };
+}
+
+async function fetchPhoneNumberProfile() {
+  const cfg = getWhatsAppConfig();
+  if (!cfg.accessToken || !cfg.phoneNumberId) {
+    return { ok: false, error: 'whatsapp_not_configured' };
+  }
+  const url =
+    'https://graph.facebook.com/' +
+    encodeURIComponent(cfg.graphVersion) +
+    '/' +
+    encodeURIComponent(cfg.phoneNumberId) +
+    '?fields=display_phone_number,verified_name,quality_rating,platform_type,code_verification_status';
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + cfg.accessToken },
+      signal: AbortSignal.timeout(15000),
+    });
+    const data = await res.json().catch(function () {
+      return {};
+    });
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: 'graph_error',
+        status: res.status,
+        detail: data.error || data,
+      };
+    }
+    return { ok: true, profile: data };
+  } catch (e) {
+    return { ok: false, error: String(e.message || e) };
+  }
 }
 
 async function sendTextMessage(to, text) {
@@ -568,4 +623,5 @@ module.exports = {
   normalizeWaRecipient,
   fetchWabaSubscribedApps,
   subscribeWabaToApp,
+  fetchPhoneNumberProfile,
 };

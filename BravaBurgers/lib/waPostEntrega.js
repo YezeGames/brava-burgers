@@ -124,7 +124,8 @@ async function sendPostEntregaForOrder(order) {
     ok: true,
     sent: true,
     tel: tel,
-    messageId: graphId || null,
+    messageId: graphId || sent.messageId || null,
+    contactWaId: sent.contactWaId || '',
     mode: sent.fallback === 'text' ? 'text_fallback' : 'interactive',
   };
 }
@@ -139,7 +140,15 @@ async function probePostEntregaInteractive(to) {
   }
   const body = buildPostEntregaBody('Cliente', 'ORN-DEL-TEST');
   const sent = await sendPostEntregaInteractive(tel, body);
-  return Object.assign({ probe: true, to: tel }, sent);
+  return Object.assign(
+    {
+      probe: true,
+      to: tel,
+      messageId: sent.messageId || '',
+      contactWaId: sent.contactWaId || '',
+    },
+    sent
+  );
 }
 
 async function sendPostEntregaForOrn(orn) {

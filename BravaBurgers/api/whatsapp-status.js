@@ -18,6 +18,23 @@ module.exports = async function handler(req, res) {
   }
 
   const migrateKind = String(req.query.migrate || '').trim();
+
+  if (req.query.diagnose === '1') {
+    const key = String(req.query.key || '').trim();
+    const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();
+    const to = String(req.query.to || '').trim();
+    if (!expected || key !== expected) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    if (!to) {
+      return res.status(400).json({ ok: false, error: 'missing_to' });
+    }
+    const { diagnoseWhatsAppDelivery } = require('../lib/waDiagnose');
+    const interactive = String(req.query.interactive || '') === '1';
+    const diag = await diagnoseWhatsAppDelivery(to, { interactive: interactive });
+    return res.status(200).json(diag);
+  }
+
   if (req.query.probe_post_entrega === '1') {
     const key = String(req.query.key || '').trim();
     const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();
@@ -34,10 +51,16 @@ module.exports = async function handler(req, res) {
       probe.detail && probe.detail.message
         ? String(probe.detail.message)
         : probe.interactiveDetail || probe.message || '';
+    const msgId =
+      probe.messageId ||
+      (probe.data && probe.data.messages && probe.data.messages[0] && probe.data.messages[0].id) ||
+      '';
     return res.status(200).json({
       ok: !!probe.ok,
       probe: true,
       to: probe.to,
+      waMessageId: msgId,
+      contactWaId: probe.contactWaId || '',
       mode: probe.mode || probe.fallback || null,
       hint: probe.hint || probe.interactiveHint || null,
       error: probe.ok ? null : probe.error,
