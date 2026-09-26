@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-next-stop -->
+	<!-- repartidor-app v=20260326-recorrido -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
@@ -163,6 +163,14 @@
 			cursor: pointer;
 			min-height: 88px;
 		}
+		.order-card.is-preview { cursor: default; pointer-events: none; }
+		.order-card.is-next { border-color: var(--brava); box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.4); }
+		.order-card-hint {
+			font-size: 0.68rem;
+			color: var(--muted);
+			margin: 0 16px 8px;
+			line-height: 1.35;
+		}
 		.order-card:active { transform: scale(0.98); border-color: var(--brava); }
 		.stop-num {
 			display: inline-flex;
@@ -212,6 +220,20 @@
 			background: var(--bg);
 		}
 		.app-dock .btn { width: 100%; min-height: 44px; font-size: 0.78rem; }
+		.app-dock .btn-recorrido {
+			min-height: 52px;
+			font-size: 0.95rem;
+			font-weight: 700;
+			background: linear-gradient(135deg, #ff6b35, #e65100);
+			border: none;
+			color: #fff;
+			border-radius: 14px;
+		}
+		.app-dock .btn-recorrido:disabled {
+			opacity: 0.45;
+			background: var(--surface);
+			color: var(--muted);
+		}
 		#map-wrap {
 			flex: 1 1 auto;
 			position: relative;
@@ -443,7 +465,8 @@
 				</div>
 				<div class="order-list" id="order-list"></div>
 				<div class="app-dock" id="list-dock">
-					<button type="button" class="btn" id="btn-sim-assign">Modo demo (datos falsos, sin Supabase)</button>
+					<button type="button" class="btn btn-recorrido" id="btn-start-recorrido" disabled>Iniciar recorrido</button>
+					<button type="button" class="btn hidden" id="btn-sim-assign" title="Solo pruebas internas">Modo demo</button>
 				</div>
 			</section>
 
@@ -783,8 +806,42 @@
 			}
 		}
 
+		function canOpenStop(orn) {
+			var list = myAssignments();
+			if (!list.length) return false;
+			return list[0].orn === orn;
+		}
+
+		function updateRecorridoButton() {
+			var btn = $('btn-start-recorrido');
+			if (!btn) return;
+			var list = myAssignments();
+			btn.disabled = !list.length;
+			if (!list.length) {
+				btn.textContent = 'Iniciar recorrido';
+				return;
+			}
+			btn.textContent =
+				'Iniciar recorrido · parada ' +
+				list[0].parada +
+				' de ' +
+				list.length;
+		}
+
+		function startRecorrido() {
+			ensureNotifyPermission();
+			lastRouteOrigin = null;
+			var list = myAssignments();
+			if (!list.length) {
+				alert('No hay paradas en camino. Tocá «Cargar mis entregas» primero.');
+				return;
+			}
+			openNav(list[0].orn);
+		}
+
 		function renderList() {
 			updateSyncStrip();
+			updateRecorridoButton();
 			var box = $('order-list');
 			var active = myAssignments();
 			if (!active.length) {
@@ -795,38 +852,41 @@
 					'</div>';
 				return;
 			}
-			box.innerHTML = active
-				.map(function (o) {
-					return (
-						'<button type="button" class="order-card" data-orn="' +
-						o.orn +
-						'">' +
-						'<div class="order-head">' +
-						'<span class="stop-num">' +
-						o.parada +
-						'</span>' +
-						'<span class="orn">' +
-						o.orn +
-						'</span>' +
-						payBadge(o) +
-						'</div>' +
-						'<div class="order-addr">' +
-						(o.direccion || '') +
-						(o.piso ? ' · Piso ' + o.piso : '') +
-						'</div>' +
-						'<div class="order-meta">' +
-						o.cliente +
-						' · ' +
-						(/efectivo/i.test(o.pago) ? 'Cobrar ' + fmt(o.total) : 'MP pagado') +
-						'</div></button>'
-					);
-				})
-				.join('');
-			box.querySelectorAll('.order-card').forEach(function (btn) {
-				btn.addEventListener('click', function () {
-					openNav(btn.getAttribute('data-orn'));
-				});
-			});
+			var hint =
+				'<p class="order-card-hint">Orden fijo de cocina. Tocá <strong>Iniciar recorrido</strong> abajo; después cada <strong>Entregado</strong> abre la siguiente parada.</p>';
+			box.innerHTML =
+				hint +
+				active
+					.map(function (o, idx) {
+						var cls = 'order-card is-preview' + (idx === 0 ? ' is-next' : '');
+						return (
+							'<div class="' +
+							cls +
+							'" data-orn="' +
+							o.orn +
+							'">' +
+							'<div class="order-head">' +
+							'<span class="stop-num">' +
+							o.parada +
+							'</span>' +
+							'<span class="orn">' +
+							o.orn +
+							'</span>' +
+							payBadge(o) +
+							(idx === 0 ? '<span class="badge" style="background:rgba(255,107,53,0.2);color:var(--brava)">Siguiente</span>' : '') +
+							'</div>' +
+							'<div class="order-addr">' +
+							(o.direccion || '') +
+							(o.piso ? ' · Piso ' + o.piso : '') +
+							'</div>' +
+							'<div class="order-meta">' +
+							o.cliente +
+							' · ' +
+							(/efectivo/i.test(o.pago) ? 'Cobrar ' + fmt(o.total) : 'MP pagado') +
+							'</div></div>'
+						);
+					})
+					.join('');
 		}
 
 		function ensureNotifyPermission() {
@@ -1341,6 +1401,10 @@
 		}
 
 		function openNav(orn) {
+			if (!canOpenStop(orn)) {
+				showPushToast('Orden de ruta', 'No podés saltear paradas. Usá Iniciar recorrido o confirmá Entregado.');
+				return;
+			}
 			var base = myAssignments().find(function (o) { return o.orn === orn; });
 			if (!base) return;
 			stepAnnounced = {};
@@ -1488,7 +1552,13 @@
 		});
 		$('btn-delivered').addEventListener('click', markDelivered);
 		$('btn-ext-maps').addEventListener('click', gmapsExternal);
+		$('btn-start-recorrido').addEventListener('click', startRecorrido);
 		$('btn-sim-assign').addEventListener('click', simAssignFromKitchen);
+		try {
+			if (new URLSearchParams(window.location.search).get('demo') === '1') {
+				$('btn-sim-assign').classList.remove('hidden');
+			}
+		} catch (eDemo) {}
 		$('btn-load-ruta').addEventListener('click', function () {
 			lastRouteOrigin = null;
 			fetchRutaLive(true);
