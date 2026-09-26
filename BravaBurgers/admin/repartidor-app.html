@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-wa-llegada -->
+	<!-- repartidor-app v=20260326-auto-ruta-alert -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
@@ -737,6 +737,8 @@
 		})();
 		var liveFromSupabase = false;
 		var refreshPoll = null;
+		var routePollReady = false;
+		var ROUTE_POLL_MS = 18000;
 		var lastFetchError = '';
 		/** Misma salida que Admin → Reparto (Diaz Velez 3231, Olivos). */
 		var KITCHEN = {
@@ -984,7 +986,7 @@
 				prepN > 0
 					? '<em>Tocá <strong>Iniciar recorrido</strong> → en camino + WhatsApp a clientes.</em>'
 					: liveFromSupabase
-						? '<em>Se actualiza cada 45 s.</em>'
+						? '<em>Se actualiza sola · aviso con sonido si entra una parada nueva.</em>'
 						: '<em>Modo demo local.</em>';
 			el.innerHTML =
 				'<strong>' +
@@ -1024,6 +1026,10 @@
 						if (!liveFromSupabase) assignments = [];
 					} else {
 						liveFromSupabase = true;
+						var prevOrns = {};
+						assignments.forEach(function (a) {
+							if (a && a.orn) prevOrns[a.orn] = true;
+						});
 						assignments = (data.pedidos || []).map(function (p) {
 							return {
 								orn: p.orn,
@@ -1043,6 +1049,13 @@
 								llegada_at: p.llegada_at || '',
 							};
 						});
+						if (routePollReady && !showToast) {
+							var added = assignments.filter(function (a) {
+								return a.orn && !prevOrns[a.orn];
+							});
+							if (added.length) notifyNewAssignments(added);
+						}
+						routePollReady = true;
 					}
 					renderList();
 					if (showToast && data.ok) {
@@ -1067,10 +1080,60 @@
 		function startRefreshPoll() {
 			if (refreshPoll) clearInterval(refreshPoll);
 			refreshPoll = setInterval(function () {
-				if (liveFromSupabase && isLoggedIn() && !$('screen-nav').classList.contains('is-active')) {
-					fetchRutaLive(false);
+				if (isLoggedIn()) fetchRutaLive(false);
+			}, ROUTE_POLL_MS);
+		}
+
+		function playNewOrderAlert() {
+			try {
+				var Ctx = window.AudioContext || window.webkitAudioContext;
+				if (Ctx) {
+					var ctx = new Ctx();
+					function tone(freq, start, dur) {
+						var o = ctx.createOscillator();
+						var g = ctx.createGain();
+						o.type = 'sine';
+						o.frequency.value = freq;
+						g.gain.setValueAtTime(0.0001, start);
+						g.gain.exponentialRampToValueAtTime(0.22, start + 0.02);
+						g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+						o.connect(g);
+						g.connect(ctx.destination);
+						o.start(start);
+						o.stop(start + dur + 0.02);
+					}
+					var t0 = ctx.currentTime;
+					tone(880, t0, 0.12);
+					tone(1175, t0 + 0.14, 0.16);
+					window.setTimeout(function () {
+						ctx.close().catch(function () {});
+					}, 500);
 				}
-			}, 45000);
+			} catch (eAudio) {}
+			if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 180]);
+		}
+
+		function notifyNewAssignments(newStops) {
+			if (!newStops || !newStops.length) return;
+			var title = newStops.length === 1 ? 'Nueva parada en tu ruta' : newStops.length + ' paradas nuevas';
+			var body = newStops
+				.map(function (o) {
+					return 'Parada ' + (o.parada || '?') + ' · ' + (o.cliente || 'Cliente');
+				})
+				.join(' · ');
+			showPushToast(title, body);
+			playNewOrderAlert();
+			if (ttsOn) speak('Nueva entrega asignada. ' + newStops.length + ' parada' + (newStops.length === 1 ? '' : 's'));
+			if ('Notification' in window && Notification.permission === 'granted') {
+				try {
+					new Notification(title, {
+						body: body,
+						icon: NOTIFY_ICON,
+						tag: 'brava-new-route-' + Date.now(),
+						renotify: true,
+					});
+				} catch (eN) {}
+			}
 		}
 
 		function fullDeliveryAddr(o) {
@@ -2247,6 +2310,7 @@
 					updateLoginUi();
 					lastRouteOrigin = null;
 					deliveredStopOrigins = {};
+					ensureNotifyPermission();
 					return fetchRutaLive(true).then(function () {
 						startRefreshPoll();
 					});
@@ -2263,6 +2327,7 @@
 			if (refreshPoll) clearInterval(refreshPoll);
 			refreshPoll = null;
 			stopSim();
+			routePollReady = false;
 			clearSession();
 			var passEl = $('repartidor-password');
 			if (passEl) passEl.value = '';
@@ -2310,6 +2375,11 @@
 			fetchRutaLive(false);
 			startRefreshPoll();
 		}
+		document.addEventListener('visibilitychange', function () {
+			if (document.visibilityState === 'visible' && isLoggedIn()) {
+				fetchRutaLive(false);
+			}
+		});
 		document.body.addEventListener(
 			'click',
 			function onceNotify() {
