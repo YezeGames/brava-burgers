@@ -220,6 +220,8 @@ function graphErrorFromResponse(res, data) {
   if (code === 190 || code === 102) hint = 'token_invalid';
   else if (code === 131047 || code === 131026) hint = 'needs_template_or_session';
   else if (code === 131030) hint = 'recipient_not_allowed';
+  else if (code === 100 || code === 131009) hint = 'invalid_interactive_payload';
+  else if (code === 131053) hint = 'media_download_failed';
   return {
     ok: false,
     error: 'graph_error',
@@ -264,6 +266,7 @@ async function sendTextMessage(to, text) {
   }
   return graphSendMessage({
     messaging_product: 'whatsapp',
+    recipient_type: 'individual',
     to: digits,
     type: 'text',
     text: { body: String(text).trim() },
@@ -295,12 +298,16 @@ async function sendInteractiveButtons(opts) {
   };
   const footer = String(opts.footerText || '').trim();
   if (footer) interactive.footer = { text: footer.slice(0, 60) };
+  const imageMediaId = String(opts.imageMediaId || '').trim();
   const imageUrl = String(opts.imageUrl || '').trim();
-  if (imageUrl) {
+  if (imageMediaId) {
+    interactive.header = { type: 'image', image: { id: imageMediaId } };
+  } else if (imageUrl) {
     interactive.header = { type: 'image', image: { link: imageUrl } };
   }
   return graphSendMessage({
     messaging_product: 'whatsapp',
+    recipient_type: 'individual',
     to: digits,
     type: 'interactive',
     interactive: interactive,
@@ -330,6 +337,7 @@ async function sendInteractiveList(opts) {
   }
   return graphSendMessage({
     messaging_product: 'whatsapp',
+    recipient_type: 'individual',
     to: digits,
     type: 'interactive',
     interactive: interactive,

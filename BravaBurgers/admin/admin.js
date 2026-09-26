@@ -6848,7 +6848,24 @@
           var wpe = res.data.waPostEntrega;
           if (wpe.ok && wpe.sent) syncWaPanelOrders();
           else if (!wpe.skipped && !wpe.ok) {
-            console.warn('[Brava] WhatsApp post-entrega no enviado:', wpe.error || wpe.message || wpe.hint || wpe.reason || '');
+            var wpeMsg =
+              wpe.hint === 'needs_template_or_session'
+                ? 'WhatsApp post-entrega: el cliente debe haber escrito en las últimas 24 h (ventana Meta).'
+                : 'WhatsApp post-entrega no enviado: ' +
+                  (wpe.message || wpe.interactiveDetail || wpe.error || wpe.hint || wpe.reason || 'error');
+            console.warn('[Brava]', wpeMsg);
+            var appErr = $('app-err');
+            if (appErr) {
+              appErr.textContent = wpeMsg;
+              appErr.hidden = false;
+            }
+          } else if (wpe.ok && wpe.sent && wpe.mode === 'text_fallback') {
+            var appWarn = $('app-err');
+            if (appWarn) {
+              appWarn.textContent =
+                'Post-entrega enviado como texto (Meta rechazó la tarjeta). Revisá WHATSAPP_OPERACION.md.';
+              appWarn.hidden = false;
+            }
           }
         }
         updateCajaUI();

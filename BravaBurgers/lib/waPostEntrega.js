@@ -1,9 +1,6 @@
 const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
-const {
-  normalizeWaRecipient,
-  sendInteractiveButtons,
-  getWhatsAppConfig,
-} = require('./whatsappMeta');
+const { normalizeWaRecipient, getWhatsAppConfig } = require('./whatsappMeta');
+const { sendPostEntregaInteractive, plainWaBody } = require('./waPostEntregaSend');
 const { insertWaMessage } = require('./waInbox');
 const { upsertReclamoSession } = require('./waReclamoStore');
 const { ensureWaReclamoSchema } = require('./waReclamoSchema');
@@ -12,12 +9,6 @@ const POST_ENTREGA_MARKER = '__post_entrega__:';
 
 function postEntregaDisabled() {
   return String(process.env.WHATSAPP_POST_ENTREGA_DISABLE || '').trim() === '1';
-}
-
-function postEntregaImageUrl() {
-  const custom = (process.env.WHATSAPP_POST_ENTREGA_IMAGE_URL || '').trim();
-  if (custom) return custom;
-  return 'https://brava-burgers.vercel.app/logoweb.png';
 }
 
 function waFirstName(cliente) {
@@ -64,14 +55,6 @@ function buildPostEntregaBody(nombre, orn) {
   );
 }
 
-function postEntregaButtons() {
-  return [
-    { id: 'reclamo', title: 'Iniciar un reclamo' },
-    { id: 'calificar', title: 'Calificar servicio' },
-    { id: 'pedir', title: 'Pedir de nuevo' },
-  ];
-}
-
 async function fetchOrderByOrn(orn) {
   if (!isSupabaseConfigured() || !orn) return null;
   const r = await restSelect(
@@ -100,21 +83,24 @@ async function sendPostEntregaForOrder(order) {
   }
   const tel = normalizeWaRecipient(phoneRaw);
   const orn = String(order.orn).trim();
-  if (await postEntregaAlreadySent(orn)) {
+  const force =
+    String(process.env.WHATSAPP_POST_ENTREGA_FORCE || '').trim() === '1';
+  if (!force && (await postEntregaAlreadySent(orn))) {
     return { ok: true, skipped: true, reason: 'already_sent' };
   }
 
   const nombre = waFirstName(order.cliente);
   const bodyText = buildPostEntregaBody(nombre, orn);
-  const sent = await sendInteractiveButtons({
-    to: tel,
-    bodyText: bodyText,
-    footerText: 'Brava Burgers · mensaje automático',
-    imageUrl: postEntregaImageUrl(),
-    buttons: postEntregaButtons(),
-  });
+  const sent = await sendPostEntregaInteractive(tel, bodyText);
   if (!sent.ok) {
-    console.warn('[wa-post-entrega] send failed', orn, tel, sent.message || sent.error, sent.hint || '');
+    console.warn(
+      '[wa-post-entrega] send failed',
+      orn,
+      tel,
+      sent.message || sent.error,
+      sent.hint || '',
+      sent.interactiveDetail || ''
+    );
     return sent;
   }
 
@@ -124,13 +110,36 @@ async function sendPostEntregaForOrder(order) {
     messageId: graphId || 'post-entrega-out-' + orn,
     tel: tel,
     direction: 'out',
-    body: bodyText + '\n\n[Botones: reclamo · calificar · pedir de nuevo]',
+    body:
+      plainWaBody(bodyText) +
+      (sent.fallback === 'text'
+        ? '\n\n[Post-entrega: fallback texto — interactivo falló]'
+        : '\n\n[Botones: reclamo · calificar · pedir de nuevo]'),
   });
   await markPostEntregaSent(orn, tel);
   await upsertReclamoSession(tel, { orn: orn, step: '', open: false });
 
   console.log('[wa-post-entrega] sent', orn, tel);
-  return { ok: true, sent: true, tel: tel, messageId: graphId || null };
+  return {
+    ok: true,
+    sent: true,
+    tel: tel,
+    messageId: graphId || null,
+    mode: sent.fallback === 'text' ? 'text_fallback' : 'interactive',
+  };
+}
+
+/** Prueba de tarjeta (no marca ORN enviado). */
+async function probePostEntregaInteractive(to) {
+  const tel = normalizeWaRecipient(to);
+  if (!tel) return { ok: false, error: 'invalid_phone' };
+  const cfg = getWhatsAppConfig();
+  if (!cfg.accessToken || !cfg.phoneNumberId) {
+    return { ok: false, error: 'whatsapp_not_configured' };
+  }
+  const body = buildPostEntregaBody('Cliente', 'ORN-DEL-TEST');
+  const sent = await sendPostEntregaInteractive(tel, body);
+  return Object.assign({ probe: true, to: tel }, sent);
 }
 
 async function sendPostEntregaForOrn(orn) {
@@ -149,4 +158,5 @@ module.exports = {
   sendPostEntregaForOrn,
   sendPostEntregaForOrder,
   buildPostEntregaBody,
+  probePostEntregaInteractive,
 };

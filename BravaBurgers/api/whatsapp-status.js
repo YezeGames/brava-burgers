@@ -18,6 +18,34 @@ module.exports = async function handler(req, res) {
   }
 
   const migrateKind = String(req.query.migrate || '').trim();
+  if (req.query.probe_post_entrega === '1') {
+    const key = String(req.query.key || '').trim();
+    const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();
+    const to = String(req.query.to || '').trim();
+    if (!expected || key !== expected) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    if (!to) {
+      return res.status(400).json({ ok: false, error: 'missing_to' });
+    }
+    const { probePostEntregaInteractive } = require('../lib/waPostEntrega');
+    const probe = await probePostEntregaInteractive(to);
+    const detail =
+      probe.detail && probe.detail.message
+        ? String(probe.detail.message)
+        : probe.interactiveDetail || probe.message || '';
+    return res.status(200).json({
+      ok: !!probe.ok,
+      probe: true,
+      to: probe.to,
+      mode: probe.mode || probe.fallback || null,
+      hint: probe.hint || probe.interactiveHint || null,
+      error: probe.ok ? null : probe.error,
+      detail: detail.slice(0, 400),
+      graphCode: probe.detail && probe.detail.code != null ? probe.detail.code : null,
+    });
+  }
+
   if (migrateKind === 'wa_reclamos') {
     const key = String(req.query.key || '').trim();
     const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();

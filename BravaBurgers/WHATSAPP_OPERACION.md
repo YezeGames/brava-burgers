@@ -30,6 +30,22 @@ Número producción: **+54 9 11 7372-1945** (Phone ID `1335204069669693`, WABA `
 
 > **Pendiente planificado:** más adelante se **cambiará el número de WhatsApp** público de Brava. Hoy todo (API, webhook, inbox, tienda) opera con **7372-1945** hasta ese cambio. Ver sección [Cambio de número (pendiente)](#cambio-de-número-pendiente).
 
+### Post-entrega (tarjeta con botones) — si no llega
+
+| Síntoma | Causa habitual | Qué hacer |
+|---------|----------------|-----------|
+| Nada en el celu al marcar Entregado | Sin teléfono en el pedido | Completar tel en comanda |
+| Error **24 h** / `needs_template_or_session` | Cliente no escribió al WA hace días | Que mande un **hola** al número Brava y reintentar |
+| **#131030** | Modo prueba / número no permitido | App **Live**, WABA producción, token System User (ver `WHATSAPP_VERCEL_ENV.txt`) |
+| Solo texto, sin botones | Meta rechazó interactivo (imagen/header) | El servidor reintenta sin imagen; revisar logs / probe abajo |
+| “Ya enviado” (`already_sent`) | Mismo ORN ya tuvo post-entrega OK | Probar con **otro ORN** o `WHATSAPP_POST_ENTREGA_FORCE=1` en Vercel (temporal) |
+
+**Probe (operación):**  
+`GET /api/whatsapp-status?probe_post_entrega=1&key=BRAVA_ORDER_SECRET&to=54911XXXXXXXX`  
+Devuelve `hint`, `detail` y `graphCode` de Meta sin marcar un pedido entregado.
+
+Variables opcionales: `WHATSAPP_POST_ENTREGA_IMAGE_URL`, `WHATSAPP_POST_ENTREGA_MEDIA_ID` (media id fijo en Meta), `WHATSAPP_POST_ENTREGA_DISABLE=1` (apaga envío).
+
 ---
 
 ## Cambio de número (pendiente)
