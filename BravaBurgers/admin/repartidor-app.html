@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-mapbox -->
+	<!-- repartidor-app v=20260326-next-stop -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
@@ -553,6 +553,8 @@
 		var navOverviewTimer = null;
 		var lastNavPos = null;
 		var routeMetaLine = '';
+		/** Tras entregar: origen OSRM hacia la siguiente parada (o GPS si está activo). */
+		var lastRouteOrigin = null;
 		var NAV_PITCH = 58;
 		var NAV_ZOOM = 17.2;
 		var pushToastTimer = null;
@@ -852,7 +854,7 @@
 			pushToastTimer = setTimeout(hidePushToast, 5200);
 		}
 
-		function notifyDeliveryConfirmed(order) {
+		function notifyDeliveryConfirmed(order, nextStop) {
 			var title = 'Entrega confirmada';
 			var body =
 				'Parada ' +
@@ -861,12 +863,16 @@
 				order.orn +
 				' · ' +
 				(order.cliente || 'Cliente');
-			var remaining = myAssignments().length;
-			if (remaining === 0) {
+			if (nextStop) {
+				body +=
+					' · Siguiente: parada ' +
+					nextStop.parada +
+					' · ' +
+					(nextStop.cliente || '');
+				title = 'Parada ' + order.parada + ' entregada';
+			} else {
 				title = 'Ruta completa';
 				body = 'Entregaste todos los pedidos asignados. Volvé a cocina o esperá nuevas asignaciones.';
-			} else if (remaining > 0) {
-				body += ' · Quedan ' + remaining + ' parada' + (remaining === 1 ? '' : 's');
 			}
 			showPushToast(title, body);
 			if (navigator.vibrate) navigator.vibrate([40, 60, 40]);
@@ -1281,6 +1287,38 @@
 			}, 350);
 		}
 
+		function setLastRouteOriginFromOrder(o) {
+			if (!o || o.lat == null || o.lng == null || isNaN(o.lat) || isNaN(o.lng)) return;
+			lastRouteOrigin = {
+				lat: o.lat,
+				lng: o.lng,
+				label: 'Parada ' + (o.parada || '?') + ' · ' + (o.direccion || 'entrega'),
+			};
+		}
+
+		function pickRouteOrigin(forOrder) {
+			if (userPos && userPos.lng != null && userPos.lat != null) {
+				return { lng: userPos.lng, lat: userPos.lat, label: 'Tu ubicación (GPS)' };
+			}
+			if (lastRouteOrigin && lastRouteOrigin.lng != null && lastRouteOrigin.lat != null) {
+				return lastRouteOrigin;
+			}
+			if (forOrder && forOrder.parada > 1) {
+				var prevN = forOrder.parada - 1;
+				var prev = assignments.find(function (a) {
+					return a.parada === prevN && a.lat != null && a.lng != null;
+				});
+				if (prev) {
+					return {
+						lng: prev.lng,
+						lat: prev.lat,
+						label: 'Parada ' + prevN + ' · ' + (prev.direccion || ''),
+					};
+				}
+			}
+			return { lng: KITCHEN.lng, lat: KITCHEN.lat, label: KITCHEN.label };
+		}
+
 		function fetchRoute(from, to) {
 			var url =
 				OSRM +
@@ -1315,7 +1353,8 @@
 			$('nav-stop').textContent = 'Parada ' + base.parada;
 			$('nav-cliente').textContent = base.cliente + ' · ' + (base.direccion || '').toUpperCase();
 			$('nav-instruction').textContent = 'Ubicando dirección…';
-			$('nav-meta').textContent = 'Salida: ' + KITCHEN.label + ' (Brava)';
+			var originHint = pickRouteOrigin(base);
+			$('nav-meta').textContent = 'Desde: ' + originHint.label;
 			showScreen('screen-nav');
 			geocodeOrder(base)
 				.then(function (o) {
@@ -1339,8 +1378,8 @@
 
 		function loadRouteForOrder() {
 			var dest = { lng: currentOrder.lng, lat: currentOrder.lat };
-			/** Siempre desde cocina Brava, igual que Reparto admin. */
-			var from = { lng: KITCHEN.lng, lat: KITCHEN.lat };
+			var fromPt = pickRouteOrigin(currentOrder);
+			var from = { lng: fromPt.lng, lat: fromPt.lat };
 			fetchRoute(from, dest)
 				.then(function (route) {
 					var geom = route.geometry;
@@ -1350,7 +1389,7 @@
 					var totalKm = (route.distance / 1000).toFixed(1);
 					var totalMin = Math.round(route.duration / 60);
 					routeMetaLine =
-						'Desde ' + KITCHEN.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min';
+						'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min';
 					$('nav-meta').textContent = routeMetaLine + ' · Vista previa';
 					resizeMapHard();
 					scheduleNavigationHandoff();
@@ -1375,11 +1414,34 @@
 			window.open('https://www.google.com/maps/dir/?api=1&destination=' + q + '&travelmode=driving', '_blank');
 		}
 
+		function afterDeliverySuccess(order) {
+			renderList();
+			var next = myAssignments()[0];
+			if (next) {
+				speak('Pedido entregado. Siguiente parada ' + next.parada);
+				window.setTimeout(function () {
+					notifyDeliveryConfirmed(order, next);
+				}, 280);
+				openNav(next.orn);
+				return;
+			}
+			stopSim();
+			resetNavigationCamera();
+			currentOrder = null;
+			lastRouteOrigin = null;
+			speak('Pedido entregado. Ruta completa');
+			showScreen('screen-list');
+			window.setTimeout(function () {
+				notifyDeliveryConfirmed(order, null);
+			}, 320);
+		}
+
 		function markDelivered() {
 			if (!currentOrder) return;
 			var order = currentOrder;
 			if (!confirm('¿Confirmás entrega de parada ' + order.parada + '?')) return;
 			var orn = order.orn;
+			setLastRouteOriginFromOrder(order);
 
 			function doneLocal() {
 				assignments.forEach(function (a) {
@@ -1387,13 +1449,7 @@
 				});
 				stopSim();
 				resetNavigationCamera();
-				speak('Pedido entregado');
-				currentOrder = null;
-				showScreen('screen-list');
-				renderList();
-				window.setTimeout(function () {
-					notifyDeliveryConfirmed(order);
-				}, 320);
+				afterDeliverySuccess(order);
 			}
 
 			if (liveFromSupabase && driverTel()) {
@@ -1408,12 +1464,7 @@
 						return fetchRutaLive(false).then(function () {
 							stopSim();
 							resetNavigationCamera();
-							speak('Pedido entregado');
-							currentOrder = null;
-							showScreen('screen-list');
-							window.setTimeout(function () {
-								notifyDeliveryConfirmed(order);
-							}, 320);
+							afterDeliverySuccess(order);
 						});
 					})
 					.catch(function () {
@@ -1439,6 +1490,7 @@
 		$('btn-ext-maps').addEventListener('click', gmapsExternal);
 		$('btn-sim-assign').addEventListener('click', simAssignFromKitchen);
 		$('btn-load-ruta').addEventListener('click', function () {
+			lastRouteOrigin = null;
 			fetchRutaLive(true);
 			startRefreshPoll();
 		});
