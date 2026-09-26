@@ -6831,7 +6831,7 @@
         msg =
           'Post-entrega enviado al celu' +
           (wpe.tel ? ' ' + wpe.tel : '') +
-          ': menú por texto (RECLAMO / CALIFICAR / PEDIR).';
+          ': menú por texto (respondé 1, 2 o 3).';
         if (wpe.mode === 'text_menu_plus_interactive') {
           msg += ' También se intentó la tarjeta con botones (puede no llegar en algunos celus).';
         }
@@ -6839,11 +6839,11 @@
         msg =
           'Post-entrega enviado al celu' +
           (wpe.tel ? ' ' + wpe.tel : '') +
-          '. Tarjeta con botones (si no llega, el cliente puede escribir RECLAMO / CALIFICAR / PEDIR).';
+          '. Tarjeta con botones (si no llega, el cliente responde 1, 2 o 3).';
       }
       if (wpe.warn === 'interactive_not_delivered_try_text_keywords') {
         msg =
-          'Menú texto enviado; los botones no se entregaron. El cliente responde RECLAMO, CALIFICAR o PEDIR.';
+          'Menú texto enviado; los botones no se entregaron. El cliente responde 1, 2 o 3.';
       }
       appErr.textContent = msg;
       appErr.hidden = false;

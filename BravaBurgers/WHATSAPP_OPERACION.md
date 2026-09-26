@@ -32,7 +32,7 @@ Número producción: **+54 9 11 7372-1945** (Phone ID `1335204069669693`, WABA `
 
 ### Post-entrega — menú texto (default) vs botones
 
-Por defecto **`WHATSAPP_POST_ENTREGA_MODE=interactive`**: un mensaje con **3 botones** (sin imagen header; más estable). Respaldo por palabras **RECLAMO / CALIFICAR / PEDIR** sigue en el bot si el cliente escribe.
+Por defecto **`WHATSAPP_POST_ENTREGA_MODE=interactive`**: un mensaje con **3 botones** (sin imagen header; más estable). Si solo llega texto, el cliente responde **1**, **2** o **3** (sin atajos por palabra).
 
 | Modo (`WHATSAPP_POST_ENTREGA_MODE`) | Comportamiento |
 |-------------------------------------|----------------|
@@ -50,7 +50,7 @@ Por defecto **`WHATSAPP_POST_ENTREGA_MODE=interactive`**: un mensaje con **3 bot
 | Nada en el celu al marcar Entregado | Sin teléfono en el pedido | Completar tel en comanda |
 | Error **24 h** / `needs_template_or_session` | Cliente no escribió al WA hace días | Que mande un **hola** al número Brava y reintentar |
 | **#131030** | Modo prueba / número no permitido | App **Live**, WABA producción, token System User (ver `WHATSAPP_VERCEL_ENV.txt`) |
-| Llega texto pero no botones | Entrega interactiva inestable en algunos celus | Dejar `text` o usar `both`; cliente responde RECLAMO / CALIFICAR / PEDIR |
+| Llega texto pero no botones | Entrega interactiva inestable en algunos celus | Dejar `text` o usar `both`; cliente responde 1, 2 o 3 |
 | “Ya enviado” (`already_sent`) | Mismo ORN ya tuvo post-entrega OK | **Reenviar tarjeta WA** en Entregados o `WHATSAPP_POST_ENTREGA_FORCE=1` (temporal) |
 
 **Probe (operación):**  

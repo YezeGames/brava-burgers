@@ -37,11 +37,10 @@ function buildPostEntregaTextMenu(nombre, orn) {
     'Tu pedido ' +
     orn +
     ' fue entregado.\n\n' +
-    '¿Cómo te fue? Respondé con *una palabra*:\n\n' +
-    '• *RECLAMO* — algo salió mal\n' +
-    '• *CALIFICAR* — del 1 al 5\n' +
-    '• *PEDIR* — volver a pedir\n\n' +
-    'Escribí RECLAMO, CALIFICAR o PEDIR en un mensaje.'
+    '¿Cómo te fue? Si no ves botones, respondé con *un número*:\n\n' +
+    '1 — Iniciar reclamo\n' +
+    '2 — Calificar (1 a 5)\n' +
+    '3 — Pedir de nuevo'
   );
 }
 

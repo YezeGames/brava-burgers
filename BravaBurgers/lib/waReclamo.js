@@ -48,20 +48,22 @@ async function saveOutbound(from, text, graphResult) {
   return graphId;
 }
 
-function normalizeKeywordText(text) {
-  return String(text || '')
-    .trim()
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '');
+function postEntregaTextMenu() {
+  return (
+    'Respondé con *un número*:\n\n' +
+    '1 — Iniciar reclamo\n' +
+    '2 — Calificar\n' +
+    '3 — Pedir de nuevo'
+  );
 }
 
-function matchPostEntregaKeyword(text) {
-  const t = normalizeKeywordText(text);
-  if (!t || t.length > 28) return '';
-  if (t === 'reclamo' || t === 'reclamar' || t === 'reclamar pedido') return 'reclamo';
-  if (t === 'calificar' || t === 'calificacion' || t === 'valorar') return 'calificar';
-  if (t === 'pedir' || t === 'pedir de nuevo' || t === 'volver a pedir') return 'pedir';
+/** Solo 1/2/3 exactos en menú post-entrega (sin atajos por palabra). */
+function parsePostEntregaMenuNumber(text) {
+  const t = String(text || '').trim();
+  if (!/^([1-3])$/.test(t)) return '';
+  if (t === '1') return 'reclamo';
+  if (t === '2') return 'calificar';
+  if (t === '3') return 'pedir';
   return '';
 }
 
@@ -476,10 +478,15 @@ async function handleReclamoInbound(ctx) {
   }
 
   if (step === 'menu' && text && !interactiveId) {
-    const kwMenu = matchPostEntregaKeyword(text);
-    if (kwMenu === 'reclamo') return maybeStartReclamo(from, session);
-    if (kwMenu === 'calificar') return showRating(from);
-    if (kwMenu === 'pedir') return onPedirDeNuevo(from);
+    const menuChoice = parsePostEntregaMenuNumber(text);
+    if (menuChoice === 'reclamo') return maybeStartReclamo(from, session);
+    if (menuChoice === 'calificar') return showRating(from);
+    if (menuChoice === 'pedir') return onPedirDeNuevo(from);
+    await replyText(
+      from,
+      'Usá los *botones* del mensaje de arriba, o respondé solo con *1*, *2* o *3*:\n\n' + postEntregaTextMenu()
+    );
+    return { handled: true, kind: 'post_entrega_menu_hint' };
   }
 
   if (session.open && step === 'done') {
