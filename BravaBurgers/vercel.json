@@ -63,6 +63,16 @@
 
       "permanent": true
 
+    },
+
+    {
+
+      "source": "/demo-repartidor-navegacion.html",
+
+      "destination": "/repartidor/",
+
+      "permanent": false
+
     }
 
   ],
@@ -115,6 +125,18 @@
 
       ]
 
+    },
+
+    {
+
+      "source": "/repartidor/(.*)",
+
+      "headers": [
+
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+
+      ]
+
     }
 
   ],
@@ -142,6 +164,22 @@
       "source": "/admin/",
 
       "destination": "/admin/index.html"
+
+    },
+
+    {
+
+      "source": "/repartidor",
+
+      "destination": "/repartidor/index.html"
+
+    },
+
+    {
+
+      "source": "/api/repartidor",
+
+      "destination": "/api/pedido"
 
     }
 
