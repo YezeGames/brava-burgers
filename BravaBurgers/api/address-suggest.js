@@ -40,12 +40,34 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ ok: false, error: 'geocoder_not_configured' });
   }
 
-  let q = String(req.query.q || '')
-    .trim()
-    .slice(0, 120);
+  const mode = String(req.query.mode || '').trim();
   const locHint = String(req.query.loc || '')
     .trim()
     .slice(0, 60);
+
+  if (mode === 'geocode') {
+    const { geocodeDeliveryAddress } = require('../lib/geocodeAddress');
+    let gq = String(req.query.q || '')
+      .trim()
+      .slice(0, 220);
+    if (gq.length < 3) {
+      return res.status(400).json({ ok: false, error: 'missing_query' });
+    }
+    try {
+      const out = await geocodeDeliveryAddress(gq, { locHint: locHint });
+      if (!out.ok) {
+        const code = out.error === 'geocoder_not_configured' ? 503 : 404;
+        return res.status(code).json(out);
+      }
+      return res.status(200).json(out);
+    } catch (e) {
+      return res.status(502).json({ ok: false, error: 'geocode_failed', detail: String(e.message || e) });
+    }
+  }
+
+  let q = String(req.query.q || '')
+    .trim()
+    .slice(0, 120);
   if (q.length < 2) {
     return res.status(200).json({ ok: true, suggestions: [], outside_zone: false });
   }

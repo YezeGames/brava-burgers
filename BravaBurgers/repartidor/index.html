@@ -749,7 +749,7 @@
 			}
 			var q = fullDeliveryAddr(o);
 			var url =
-				'/api/geocode?q=' +
+				'/api/address-suggest?mode=geocode&q=' +
 				encodeURIComponent(q) +
 				(o.localidad ? '&loc=' + encodeURIComponent(o.localidad) : '');
 			return fetch(url)
@@ -953,7 +953,7 @@
 
 		function geocodeKitchen() {
 			var q = 'Díaz Vélez 3231, Olivos, Buenos Aires, Argentina';
-			fetch('/api/geocode?q=' + encodeURIComponent(q) + '&loc=Olivos')
+			fetch('/api/address-suggest?mode=geocode&q=' + encodeURIComponent(q) + '&loc=Olivos')
 				.then(function (r) {
 					return r.json();
 				})
