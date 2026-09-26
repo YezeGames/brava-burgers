@@ -6821,10 +6821,20 @@
     if (!appErr) return;
     var msg = '';
     if (wpe.ok && wpe.sent) {
+      if (!wpe.messageId && !wpe.preludeMessageId) {
+        appErr.textContent =
+          'Meta no devolvió ID de mensaje; puede que no haya salido. Probá «Reenviar tarjeta WA» o escribí hola al 7372-1945.';
+        appErr.hidden = false;
+        return;
+      }
       msg =
-        'Tarjeta post-entrega enviada al celu del cliente' +
-        (wpe.tel ? ' (' + wpe.tel + ').' : '.') +
-        ' No es un botón del chat del panel: va por WhatsApp al cliente. En el inbox verás texto + [Botones…].';
+        'Post-entrega enviado al celu' +
+        (wpe.tel ? ' ' + wpe.tel : '') +
+        '. Deberías ver 1–2 mensajes de Brava Burgers (7372-1945): texto + tarjeta con botones.';
+      if (wpe.mode === 'text_only_prelude' || wpe.warn === 'interactive_failed_after_text') {
+        msg =
+          'Llegó el texto de entrega; la tarjeta con botones falló. El cliente puede escribir RECLAMO / CALIFICAR / PEDIR.';
+      }
       if (wpe.mode === 'text_fallback') {
         msg =
           'Post-entrega enviado como texto (Meta rechazó la tarjeta). Revisá ventana 24 h o WHATSAPP_OPERACION.md.';

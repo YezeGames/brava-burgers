@@ -100,10 +100,12 @@ async function sendPostEntregaInteractive(to, bodyText) {
       '\n\n' +
       'Respondé tocando un botón arriba si lo ves; si no, escribí: RECLAMO · CALIFICAR · PEDIR';
     const textSent = await sendTextMessage(tel, fallbackText);
-    if (textSent.ok) {
+    if (textSent.ok && textSent.messageId) {
       return {
         ok: true,
         data: textSent.data,
+        messageId: textSent.messageId,
+        contactWaId: textSent.contactWaId || '',
         fallback: 'text',
         interactiveError: sent.error,
         interactiveHint: sent.hint || '',

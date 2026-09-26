@@ -187,6 +187,10 @@ function parseWebhookPayload(raw) {
       });
 
       (value.statuses || []).forEach(function (st) {
+        var errTitle = '';
+        if (st.errors && st.errors[0]) {
+          errTitle = String(st.errors[0].title || st.errors[0].message || st.errors[0].code || '');
+        }
         events.push({
           ...base,
           type: 'status',
@@ -194,6 +198,7 @@ function parseWebhookPayload(raw) {
           status: st.status,
           recipientId: st.recipient_id,
           timestamp: st.timestamp,
+          statusError: errTitle,
         });
       });
     });

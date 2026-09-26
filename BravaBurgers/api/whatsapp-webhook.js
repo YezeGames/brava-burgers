@@ -76,7 +76,15 @@ async function handler(req, res) {
             console.warn('[wa-webhook] message without body', ev.from, ev.messageType);
           }
         } else if (ev.type === 'status') {
-          console.log('[wa-webhook] status', ev.messageId, ev.status);
+          console.log('[wa-webhook] status', ev.messageId, ev.status, ev.statusError || '');
+          if (ev.status === 'failed') {
+            console.error(
+              '[wa-webhook] delivery FAILED',
+              ev.messageId,
+              ev.recipientId,
+              ev.statusError || ''
+            );
+          }
         }
       }
     }

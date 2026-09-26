@@ -1,5 +1,5 @@
 const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
-const { normalizeWaRecipient, getWhatsAppConfig } = require('./whatsappMeta');
+const { normalizeWaRecipient, getWhatsAppConfig, sendTextMessage } = require('./whatsappMeta');
 const { sendPostEntregaInteractive, plainWaBody } = require('./waPostEntregaSend');
 const { insertWaMessage } = require('./waInbox');
 const { upsertReclamoSession } = require('./waReclamoStore');
@@ -55,6 +55,14 @@ function buildPostEntregaBody(nombre, orn) {
   );
 }
 
+function buildPostEntregaPrelude(nombre, orn) {
+  return '¡Listo, ' + nombre + '! 🍔 Tu pedido ' + orn + ' fue entregado.';
+}
+
+function buildPostEntregaPrompt() {
+  return '¿Cómo te fue con el pedido? Elegí una opción:';
+}
+
 async function fetchOrderByOrn(orn) {
   if (!isSupabaseConfigured() || !orn) return null;
   const r = await restSelect(
@@ -91,29 +99,69 @@ async function sendPostEntregaForOrder(order, opts) {
   }
 
   const nombre = waFirstName(order.cliente);
-  const bodyText = buildPostEntregaBody(nombre, orn);
-  const sent = await sendPostEntregaInteractive(tel, bodyText);
+  const preludeText = buildPostEntregaPrelude(nombre, orn);
+  const prelude = await sendTextMessage(
+    tel,
+    preludeText + '\n\nEn el mensaje siguiente vas a ver botones (reclamo, calificar, pedir de nuevo).'
+  );
+  if (!prelude.ok || !prelude.messageId) {
+    console.warn('[wa-post-entrega] prelude text failed', orn, tel, prelude.message || prelude.error);
+    return prelude.ok
+      ? { ok: false, error: 'missing_message_id', hint: 'prelude_no_wamid', detail: prelude }
+      : prelude;
+  }
+
+  await insertWaMessage({
+    messageId: prelude.messageId,
+    tel: tel,
+    direction: 'out',
+    body: preludeText + '\n\n[Post-entrega · texto previo]',
+  });
+
+  const sent = await sendPostEntregaInteractive(tel, buildPostEntregaPrompt());
   if (!sent.ok) {
     console.warn(
-      '[wa-post-entrega] send failed',
+      '[wa-post-entrega] interactive failed after prelude',
       orn,
       tel,
       sent.message || sent.error,
       sent.hint || '',
       sent.interactiveDetail || ''
     );
-    return sent;
+    await markPostEntregaSent(orn, tel);
+    return {
+      ok: true,
+      sent: true,
+      tel: tel,
+      messageId: prelude.messageId,
+      interactiveMessageId: null,
+      contactWaId: prelude.contactWaId || '',
+      mode: 'text_only_prelude',
+      warn: 'interactive_failed_after_text',
+    };
   }
 
   const graphId =
     sent.messageId ||
     (sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id);
+  if (!graphId && sent.fallback !== 'text') {
+    await markPostEntregaSent(orn, tel);
+    return {
+      ok: true,
+      sent: true,
+      tel: tel,
+      messageId: prelude.messageId,
+      mode: 'text_only_prelude',
+      warn: 'interactive_missing_wamid',
+    };
+  }
+
   await insertWaMessage({
     messageId: graphId || 'post-entrega-out-' + orn,
     tel: tel,
     direction: 'out',
     body:
-      plainWaBody(bodyText) +
+      buildPostEntregaPrompt() +
       (sent.fallback === 'text'
         ? '\n\n[Post-entrega: fallback texto — interactivo falló]'
         : '\n\n[Botones: reclamo · calificar · pedir de nuevo]'),
@@ -121,14 +169,22 @@ async function sendPostEntregaForOrder(order, opts) {
   await markPostEntregaSent(orn, tel);
   await upsertReclamoSession(tel, { orn: orn, step: '', open: false });
 
-  console.log('[wa-post-entrega] sent', orn, tel);
+  console.log('[wa-post-entrega] sent', orn, tel, prelude.messageId, graphId || '');
   return {
     ok: true,
     sent: true,
     tel: tel,
-    messageId: graphId || sent.messageId || null,
-    contactWaId: sent.contactWaId || '',
-    mode: sent.fallback === 'text' ? 'text_fallback' : 'interactive',
+    messageId: graphId || sent.messageId || prelude.messageId,
+    preludeMessageId: prelude.messageId,
+    interactiveMessageId: graphId || sent.messageId || null,
+    contactWaId: sent.contactWaId || prelude.contactWaId || '',
+    mode:
+      sent.fallback === 'text'
+        ? 'text_fallback'
+        : graphId
+          ? 'prelude_plus_interactive'
+          : 'text_only_prelude',
+    warn: sent.fallback === 'text' ? 'interactive_used_text_fallback' : null,
   };
 }
 
