@@ -4931,6 +4931,17 @@
 
       if (panelEstado === 'entregada') {
 
+        if (orderHasWaPhone(o)) {
+          addActionBtn(
+            actions,
+            'Reenviar tarjeta WA',
+            'btn-sm btn-accent',
+            'wa-post-entrega',
+            o.orn,
+            'Volver a mandar tarjeta post-entrega al celu del cliente (no al chat del panel)'
+          );
+        }
+
         if (!o.reenvio_de && !orderReclamoResuelto(o.orn)) {
 
           addActionBtn(
@@ -6804,6 +6815,49 @@
 
 
 
+  function showWaPostEntregaFeedback(wpe) {
+    if (!wpe) return;
+    var appErr = $('app-err');
+    if (!appErr) return;
+    var msg = '';
+    if (wpe.ok && wpe.sent) {
+      msg =
+        'Tarjeta post-entrega enviada al celu del cliente' +
+        (wpe.tel ? ' (' + wpe.tel + ').' : '.') +
+        ' No es un botón del chat del panel: va por WhatsApp al cliente. En el inbox verás texto + [Botones…].';
+      if (wpe.mode === 'text_fallback') {
+        msg =
+          'Post-entrega enviado como texto (Meta rechazó la tarjeta). Revisá ventana 24 h o WHATSAPP_OPERACION.md.';
+      }
+      appErr.textContent = msg;
+      appErr.hidden = false;
+      if (window.BravaWaPanel && typeof BravaWaPanel.refreshInbox === 'function') {
+        BravaWaPanel.refreshInbox();
+      }
+      return;
+    }
+    if (wpe.skipped && wpe.reason === 'already_sent') {
+      appErr.textContent =
+        'Este ORN ya tuvo post-entrega. Usá «Reenviar tarjeta WA» en Entregados si hace falta mandarlo de nuevo.';
+      appErr.hidden = false;
+      return;
+    }
+    if (wpe.skipped && wpe.reason === 'no_phone') {
+      appErr.textContent = 'Post-entrega no enviado: el pedido no tiene teléfono válido en la comanda.';
+      appErr.hidden = false;
+      return;
+    }
+    if (!wpe.ok) {
+      msg =
+        wpe.hint === 'needs_template_or_session'
+          ? 'WhatsApp post-entrega: el cliente debe haber escrito al 7372-1945 en las últimas 24 h.'
+          : 'WhatsApp post-entrega no enviado: ' +
+            (wpe.message || wpe.interactiveDetail || wpe.error || wpe.hint || wpe.reason || 'error');
+      appErr.textContent = msg;
+      appErr.hidden = false;
+    }
+  }
+
   function sendOrderUpdate(orn, patch) {
 
     if (patch.estado && normalizeEstado(patch.estado) !== 'pendiente') dismissPendingAlert(orn);
@@ -6845,28 +6899,8 @@
         }
         if (patch.estado) maybeWaAutoNotify(serverOrn, patch.estado);
         if (normalizeEstado(patch.estado) === 'entregada' && res.data.waPostEntrega) {
-          var wpe = res.data.waPostEntrega;
-          if (wpe.ok && wpe.sent) syncWaPanelOrders();
-          else if (!wpe.skipped && !wpe.ok) {
-            var wpeMsg =
-              wpe.hint === 'needs_template_or_session'
-                ? 'WhatsApp post-entrega: el cliente debe haber escrito en las últimas 24 h (ventana Meta).'
-                : 'WhatsApp post-entrega no enviado: ' +
-                  (wpe.message || wpe.interactiveDetail || wpe.error || wpe.hint || wpe.reason || 'error');
-            console.warn('[Brava]', wpeMsg);
-            var appErr = $('app-err');
-            if (appErr) {
-              appErr.textContent = wpeMsg;
-              appErr.hidden = false;
-            }
-          } else if (wpe.ok && wpe.sent && wpe.mode === 'text_fallback') {
-            var appWarn = $('app-err');
-            if (appWarn) {
-              appWarn.textContent =
-                'Post-entrega enviado como texto (Meta rechazó la tarjeta). Revisá WHATSAPP_OPERACION.md.';
-              appWarn.hidden = false;
-            }
-          }
+          showWaPostEntregaFeedback(res.data.waPostEntrega);
+          if (res.data.waPostEntrega.ok && res.data.waPostEntrega.sent) syncWaPanelOrders();
         }
         updateCajaUI();
         return { ok: true, orn: serverOrn, waPostEntrega: res.data.waPostEntrega || null };
@@ -7378,6 +7412,16 @@
         return;
       }
       sendOrderUpdate(orn, { estado: 'entregada' });
+    }
+    if (action === 'wa-post-entrega') {
+      api({ action: 'resendPostEntrega', token: token, orn: orn }).then(function (res) {
+        if (res.data && res.data.ok && res.data.waPostEntrega) {
+          showWaPostEntregaFeedback(res.data.waPostEntrega);
+          if (res.data.waPostEntrega.ok && res.data.waPostEntrega.sent) syncWaPanelOrders();
+        } else if (res.data && res.data.error) {
+          showWaPostEntregaFeedback({ ok: false, error: res.data.error });
+        }
+      });
     }
     if (action === 'cancel') {
       if (confirm('¿Cancelar ' + orn + '?')) sendOrderUpdate(orn, { estado: 'cancelada' });

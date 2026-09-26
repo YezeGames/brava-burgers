@@ -83,6 +83,14 @@ async function handleSupabaseAdmin(body) {
     return updateOrder(body);
   }
 
+  if (action === 'resendPostEntrega') {
+    const orn = body.orn;
+    if (!orn) return { ok: false, error: 'missing_orn' };
+    const { resendPostEntregaForOrn } = require('../lib/waPostEntrega');
+    const waPostEntrega = await resendPostEntregaForOrn(String(orn).trim());
+    return { ok: true, orn: orn, waPostEntrega: waPostEntrega };
+  }
+
   if (action === 'listGastos') {
     return listGastos(body.desde || '', body.hasta || '');
   }

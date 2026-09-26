@@ -65,7 +65,8 @@ async function fetchOrderByOrn(orn) {
   return r.data[0];
 }
 
-async function sendPostEntregaForOrder(order) {
+async function sendPostEntregaForOrder(order, opts) {
+  opts = opts || {};
   await ensureWaReclamoSchema();
   if (postEntregaDisabled()) {
     return { ok: false, skipped: true, reason: 'disabled' };
@@ -84,9 +85,9 @@ async function sendPostEntregaForOrder(order) {
   const tel = normalizeWaRecipient(phoneRaw);
   const orn = String(order.orn).trim();
   const force =
-    String(process.env.WHATSAPP_POST_ENTREGA_FORCE || '').trim() === '1';
+    !!opts.force || String(process.env.WHATSAPP_POST_ENTREGA_FORCE || '').trim() === '1';
   if (!force && (await postEntregaAlreadySent(orn))) {
-    return { ok: true, skipped: true, reason: 'already_sent' };
+    return { ok: true, skipped: true, reason: 'already_sent', orn: orn, tel: tel };
   }
 
   const nombre = waFirstName(order.cliente);
@@ -105,7 +106,8 @@ async function sendPostEntregaForOrder(order) {
   }
 
   const graphId =
-    sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id;
+    sent.messageId ||
+    (sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id);
   await insertWaMessage({
     messageId: graphId || 'post-entrega-out-' + orn,
     tel: tel,
@@ -151,7 +153,7 @@ async function probePostEntregaInteractive(to) {
   );
 }
 
-async function sendPostEntregaForOrn(orn) {
+async function sendPostEntregaForOrn(orn, opts) {
   const order = await fetchOrderByOrn(orn);
   if (!order) {
     return { ok: false, error: 'order_not_found' };
@@ -159,13 +161,18 @@ async function sendPostEntregaForOrn(orn) {
   if (String(order.estado || '').toLowerCase() !== 'entregada') {
     return { ok: false, error: 'not_entregada' };
   }
-  return sendPostEntregaForOrder(order);
+  return sendPostEntregaForOrder(order, opts);
+}
+
+async function resendPostEntregaForOrn(orn) {
+  return sendPostEntregaForOrn(orn, { force: true });
 }
 
 module.exports = {
   POST_ENTREGA_MARKER,
   sendPostEntregaForOrn,
   sendPostEntregaForOrder,
+  resendPostEntregaForOrn,
   buildPostEntregaBody,
   probePostEntregaInteractive,
 };

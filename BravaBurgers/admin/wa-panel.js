@@ -1620,5 +1620,6 @@
     setWaInboxRealtimeLive: setWaInboxRealtimeLive,
     attachSupabaseRealtime: attachSupabaseRealtime,
     detachSupabaseRealtime: detachSupabaseRealtime,
+    refreshInbox: pollWaInbox,
   };
 })();

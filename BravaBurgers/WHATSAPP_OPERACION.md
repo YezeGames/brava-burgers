@@ -21,7 +21,7 @@ Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Última actu
 | Fallback `wa.me` si falla API | ✅ |
 | Realtime inbox (entrantes ~instantáneos) | ✅ |
 | Dedup mensajes al enviar | ✅ |
-| **Post-entrega** al marcar ✓ Entregado (interactivo + 3 botones) | ✅ |
+| **Post-entrega** al marcar ✓ Entregado (interactivo + 3 botones al **celu del cliente**) | ✅ |
 | **Bot reclamo** (motivo → texto → foto → confirmación) | ✅ (tablas vía `migrateWaReclamos` al entrar al admin) |
 
 Variables: ver `WHATSAPP_VERCEL_ENV.txt` y `.env.example` (`WHATSAPP_WELCOME_MESSAGE` opcional).
@@ -45,6 +45,8 @@ Número producción: **+54 9 11 7372-1945** (Phone ID `1335204069669693`, WABA `
 Devuelve `hint`, `detail` y `graphCode` de Meta sin marcar un pedido entregado.
 
 Variables opcionales: `WHATSAPP_POST_ENTREGA_IMAGE_URL`, `WHATSAPP_POST_ENTREGA_MEDIA_ID` (media id fijo en Meta), `WHATSAPP_POST_ENTREGA_DISABLE=1` (apaga envío).
+
+**Importante — panel vs cliente:** la tarjeta con botones **no** se manda con el botón verde «Enviar» del chat lateral (eso es solo texto/imagen). Post-entrega sale **automático al marcar Entregado** (API Cloud) al teléfono del pedido. En el inbox del admin ves una **copia en texto**, no la tarjeta renderizada. Reintento: **Reenviar tarjeta WA** en la pestaña Entregados.
 
 ---
 
