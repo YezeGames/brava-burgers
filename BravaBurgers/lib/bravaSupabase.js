@@ -736,7 +736,14 @@ async function updateOrder(body) {
 
   if (body.modificadoAt != null) patch.modificado_at = String(body.modificadoAt);
 
-
+  if (body.clearRepartidorAssign) {
+    patch.repartidor_tel = null;
+    patch.reparto_parada = null;
+    patch.reparto_asignado_at = null;
+    patch.reparto_ruta_id = null;
+  }
+  if (body.clearEntregadoAt) patch.entregado_at = null;
+  if (body.clearEnCaminoAt) patch.en_camino_at = null;
 
   let r = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
 

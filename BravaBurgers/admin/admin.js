@@ -4944,11 +4944,29 @@
           !cajaOk
         );
 
+        addActionBtn(
+          actions,
+          '← Preparación',
+          'btn-sm btn-edit',
+          'revert-prep',
+          o.orn,
+          'Devolver a En preparación (prueba — quita asignación repartidor)'
+        );
+
         addActionBtn(actions, 'Cancelar', 'btn-sm btn-x', 'cancel', o.orn, 'Cancelar pedido');
 
       }
 
       if (panelEstado === 'entregada') {
+
+        addActionBtn(
+          actions,
+          '← En camino',
+          'btn-sm btn-edit',
+          'revert-camino',
+          o.orn,
+          'Devolver a En camino (prueba — vuelve a la app repartidor si sigue asignado)'
+        );
 
         if (orderHasWaPhone(o)) {
           addActionBtn(
@@ -5516,7 +5534,7 @@
 
         if (est === 'rechazado' && !allOrdersCache[i].rechazado_at) allOrdersCache[i].rechazado_at = now;
 
-        if (est === 'en_preparacion' && prevEst !== 'en_preparacion') {
+        if (est === 'en_preparacion' && prevEst !== 'en_preparacion' && prevEst !== 'en_camino') {
           deductStockForPreparationOrder(allOrdersCache[i]);
         }
 
@@ -6895,11 +6913,34 @@
 
   function sendOrderUpdate(orn, patch) {
 
+    var skipWaNotify = !!patch.skipWaNotify;
+    delete patch.skipWaNotify;
+
+    var clearRepartidorAssign = !!patch.clearRepartidorAssign;
+    var clearEntregadoAt = !!patch.clearEntregadoAt;
+    var clearEnCaminoAt = !!patch.clearEnCaminoAt;
+    delete patch.clearRepartidorAssign;
+    delete patch.clearEntregadoAt;
+    delete patch.clearEnCaminoAt;
+
+    if (clearRepartidorAssign) {
+      patch.repartidor_tel = '';
+      patch.reparto_parada = null;
+      patch.reparto_asignado_at = '';
+      patch.reparto_ruta_id = '';
+    }
+    if (clearEntregadoAt) patch.entregado_at = null;
+    if (clearEnCaminoAt) patch.en_camino_at = null;
+
     if (patch.estado && normalizeEstado(patch.estado) !== 'pendiente') dismissPendingAlert(orn);
 
     patchOrderInCache(orn, patch);
 
     var body = { action: 'updateOrder', token: token, orn: orn };
+
+    if (clearRepartidorAssign) body.clearRepartidorAssign = true;
+    if (clearEntregadoAt) body.clearEntregadoAt = true;
+    if (clearEnCaminoAt) body.clearEnCaminoAt = true;
 
     if (patch.estado) body.estado = patch.estado;
 
@@ -6932,7 +6973,7 @@
         if (serverOrn !== orn) {
           patchOrderInCache(orn, { orn: serverOrn });
         }
-        if (patch.estado) maybeWaAutoNotify(serverOrn, patch.estado);
+        if (patch.estado && !skipWaNotify) maybeWaAutoNotify(serverOrn, patch.estado);
         if (normalizeEstado(patch.estado) === 'entregada' && res.data.waPostEntrega) {
           showWaPostEntregaFeedback(res.data.waPostEntrega);
           if (res.data.waPostEntrega.ok && res.data.waPostEntrega.sent) syncWaPanelOrders();
@@ -7447,6 +7488,39 @@
         return;
       }
       sendOrderUpdate(orn, { estado: 'entregada' });
+    }
+    if (action === 'revert-prep') {
+      if (
+        !confirm(
+          '¿Devolver ' +
+            orn +
+            ' a En preparación?\n\nPrueba: sale de la app repartidor y podés volver a publicar la ruta.'
+        )
+      ) {
+        return;
+      }
+      sendOrderUpdate(orn, {
+        estado: 'en_preparacion',
+        clearRepartidorAssign: true,
+        clearEnCaminoAt: true,
+        skipWaNotify: true,
+      });
+    }
+    if (action === 'revert-camino') {
+      if (
+        !confirm(
+          '¿Devolver ' +
+            orn +
+            ' a En camino?\n\nPrueba: vuelve a aparecer en la app repartidor si sigue asignado a un teléfono.'
+        )
+      ) {
+        return;
+      }
+      sendOrderUpdate(orn, {
+        estado: 'en_camino',
+        clearEntregadoAt: true,
+        skipWaNotify: true,
+      });
     }
     if (action === 'wa-post-entrega') {
       api({ action: 'resendPostEntrega', token: token, orn: orn }).then(function (res) {
