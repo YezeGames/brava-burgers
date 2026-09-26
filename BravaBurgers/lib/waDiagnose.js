@@ -83,6 +83,31 @@ async function diagnoseWhatsAppDelivery(to, opts) {
       error: card.ok ? null : card.error,
       detail: card.ok ? null : card.message || JSON.stringify(card.detail || '').slice(0, 200),
     };
+    if (card.ok && card.messageId) {
+      out.deliveryCheckUrl =
+        '/api/whatsapp-status?delivery=1&wait=1&key=BRAVA_ORDER_SECRET&wamid=' +
+        encodeURIComponent(card.messageId);
+      if (opts.waitDelivery) {
+        const { waitForWaMessageStatuses } = require('./waMessageStatus');
+        out.deliveryWebhook = await waitForWaMessageStatuses(card.messageId, {
+          attempts: 5,
+          delayMs: 1500,
+        });
+        if (out.deliveryWebhook.summary && out.deliveryWebhook.summary.failed) {
+          const f = out.deliveryWebhook.summary.failed;
+          out.hint =
+            'Meta reportó failed en webhook: código ' +
+            (f.error_code != null ? f.error_code : '?') +
+            ' — ' +
+            (f.error_title || 'sin título');
+        } else if (out.deliveryWebhook.summary && out.deliveryWebhook.summary.delivered) {
+          out.hint = 'Webhook: delivered/read OK para la tarjeta interactiva.';
+        } else if (out.deliveryWebhook.pending) {
+          out.hint =
+            'Aún no llegó status al webhook (sent/delivered/failed). Verificá suscripción messages en Meta o repetí delivery=1 con el wamid.';
+        }
+      }
+    }
   }
 
   if (out.textPing && out.textPing.contactWaId && out.textPing.contactWaId !== tel) {

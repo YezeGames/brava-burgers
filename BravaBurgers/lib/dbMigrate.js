@@ -226,6 +226,64 @@ async function migrateWaMessages() {
   }
 }
 
+async function migrateWaMessageStatus() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return {
+      ok: false,
+      error: 'no_postgres_url',
+      hint: 'En Vercel agregá SUPABASE_DB_PASSWORD (Database password en Supabase) o POSTGRES_URL.',
+    };
+  }
+  const client = createPgClient(conn);
+  try {
+    await client.connect();
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wa_message_status (
+        id bigserial PRIMARY KEY,
+        wa_message_id text NOT NULL,
+        tel text NOT NULL DEFAULT '',
+        status text NOT NULL,
+        error_code int,
+        error_title text,
+        error_details text,
+        meta_timestamp timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (wa_message_id, status)
+      );
+    `);
+    await client.query(
+      'CREATE INDEX IF NOT EXISTS wa_message_status_wamid_idx ON wa_message_status (wa_message_id);'
+    );
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS wa_message_status_failed_idx ON wa_message_status (status, created_at DESC)
+        WHERE status = 'failed';
+    `);
+    await client.query('GRANT ALL ON TABLE wa_message_status TO service_role;');
+    await client.query('GRANT ALL ON SEQUENCE wa_message_status_id_seq TO service_role;');
+    await client.query('ALTER TABLE wa_message_status ENABLE ROW LEVEL SECURITY;');
+    await client.query('DROP POLICY IF EXISTS "service_all_wa_message_status" ON wa_message_status;');
+    await client.query(`
+      CREATE POLICY "service_all_wa_message_status" ON wa_message_status
+        FOR ALL TO service_role USING (true) WITH CHECK (true);
+    `);
+    await client.query('DROP POLICY IF EXISTS "admin_read_wa_message_status" ON wa_message_status;');
+    await client.query(`
+      CREATE POLICY "admin_read_wa_message_status" ON wa_message_status
+        FOR SELECT TO authenticated USING (true);
+    `);
+    await client.query('GRANT SELECT ON TABLE wa_message_status TO authenticated;');
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
 async function migrateWaReclamos() {
   const conn = postgresConnectionString();
   if (!conn) {
@@ -465,6 +523,7 @@ module.exports = {
   migrateIngresosSchema,
   migratePendOrnDel,
   migrateWaMessages,
+  migrateWaMessageStatus,
   migrateWaReclamos,
   migrateCompensacionesSchema,
   migrateManualOrderSchema,

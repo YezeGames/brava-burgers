@@ -7,7 +7,8 @@ const {
   subscribeWabaToApp,
 } = require('../lib/whatsappMeta');
 const { listWaMessages, insertWaMessage } = require('../lib/waInbox');
-const { migrateWaMessages, migrateWaReclamos } = require('../lib/dbMigrate');
+const { migrateWaMessages, migrateWaMessageStatus, migrateWaReclamos } = require('../lib/dbMigrate');
+const { getWaMessageStatuses, waitForWaMessageStatuses, summarizeDelivery } = require('../lib/waMessageStatus');
 
 module.exports = async function handler(req, res) {
   cors(res);
@@ -31,7 +32,11 @@ module.exports = async function handler(req, res) {
     }
     const { diagnoseWhatsAppDelivery } = require('../lib/waDiagnose');
     const interactive = String(req.query.interactive || '') === '1';
-    const diag = await diagnoseWhatsAppDelivery(to, { interactive: interactive });
+    const waitDelivery = String(req.query.wait_delivery || '') === '1';
+    const diag = await diagnoseWhatsAppDelivery(to, {
+      interactive: interactive,
+      waitDelivery: waitDelivery,
+    });
     return res.status(200).json(diag);
   }
 
@@ -66,6 +71,52 @@ module.exports = async function handler(req, res) {
       error: probe.ok ? null : probe.error,
       detail: detail.slice(0, 400),
       graphCode: probe.detail && probe.detail.code != null ? probe.detail.code : null,
+    });
+  }
+
+  if (req.query.delivery === '1') {
+    const key = String(req.query.key || '').trim();
+    const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();
+    const wamid = String(req.query.wamid || req.query.wa_message_id || '').trim();
+    if (!expected || key !== expected) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    if (!wamid) {
+      return res.status(400).json({ ok: false, error: 'missing_wamid' });
+    }
+    const wait = String(req.query.wait || '') === '1';
+    const lookup = wait
+      ? await waitForWaMessageStatuses(wamid, {
+          attempts: Number(req.query.attempts) || 5,
+          delayMs: Number(req.query.delay_ms) || 1500,
+        })
+      : await getWaMessageStatuses(wamid);
+    const summary = lookup.summary || summarizeDelivery(lookup.statuses);
+    return res.status(200).json({
+      ok: !!lookup.ok,
+      wamid: wamid,
+      statuses: lookup.statuses || [],
+      summary: summary,
+      pending: !!lookup.pending,
+      attempts: lookup.attempts || null,
+      error: lookup.ok ? null : lookup.error,
+      detail: lookup.ok ? null : (lookup.detail || '').slice(0, 300),
+    });
+  }
+
+  if (migrateKind === 'wa_message_status') {
+    const key = String(req.query.key || '').trim();
+    const expected = (process.env.BRAVA_ORDER_SECRET || '').trim();
+    if (!expected || key !== expected) {
+      return res.status(401).json({ ok: false, error: 'unauthorized' });
+    }
+    const migrateResult = await migrateWaMessageStatus();
+    return res.status(200).json({
+      ok: !!migrateResult.ok,
+      kind: 'wa_message_status',
+      migrated: !!migrateResult.migrated,
+      error: migrateResult.ok ? null : migrateResult.error,
+      detail: migrateResult.ok ? null : (migrateResult.detail || migrateResult.hint || '').slice(0, 300),
     });
   }
 

@@ -7,6 +7,7 @@ const {
 } = require('../lib/whatsappMeta');
 const { insertWaMessage } = require('../lib/waInbox');
 const { handleInboundMessage } = require('../lib/waWelcome');
+const { recordWaMessageStatus } = require('../lib/waMessageStatus');
 
 async function handler(req, res) {
   if (req.method === 'GET') {
@@ -38,6 +39,7 @@ async function handler(req, res) {
 
     const parsed = parseWebhookPayload(rawBody);
     const saveResults = [];
+    const statusResults = [];
     if (parsed.events && parsed.events.length) {
       for (const ev of parsed.events) {
         if (ev.type === 'message') {
@@ -76,20 +78,40 @@ async function handler(req, res) {
             console.warn('[wa-webhook] message without body', ev.from, ev.messageType);
           }
         } else if (ev.type === 'status') {
-          console.log('[wa-webhook] status', ev.messageId, ev.status, ev.statusError || '');
+          console.log(
+            '[wa-webhook] status',
+            ev.messageId,
+            ev.status,
+            ev.statusErrorCode != null ? ev.statusErrorCode : '',
+            ev.statusError || ''
+          );
+          const stSaved = await recordWaMessageStatus(ev);
+          statusResults.push({
+            messageId: ev.messageId,
+            status: ev.status,
+            ok: stSaved.ok,
+            error: stSaved.ok ? null : stSaved.error,
+          });
           if (ev.status === 'failed') {
             console.error(
               '[wa-webhook] delivery FAILED',
               ev.messageId,
               ev.recipientId,
-              ev.statusError || ''
+              ev.statusErrorCode,
+              ev.statusError || '',
+              ev.statusErrorDetails || ''
             );
           }
         }
       }
     }
 
-    return res.status(200).json({ ok: true, events: (parsed.events || []).length, saved: saveResults });
+    return res.status(200).json({
+      ok: true,
+      events: (parsed.events || []).length,
+      saved: saveResults,
+      statuses: statusResults,
+    });
   }
 
   res.setHeader('Allow', 'GET, POST');

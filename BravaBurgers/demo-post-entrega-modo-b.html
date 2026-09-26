@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — Opción B · WHATSAPP_POST_ENTREGA_MODE · Brava</title>
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+	<style>
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			background: #0e0e0e;
+			color: #eee;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			line-height: 1.45;
+		}
+		.demo-banner {
+			background: linear-gradient(135deg, #2a1810, #1a1a1a);
+			border-bottom: 1px solid #443;
+			padding: 12px 16px;
+			font-size: 0.8rem;
+			color: #aaa;
+		}
+		.demo-banner strong { color: #ff6b35; }
+		.layout {
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 16px;
+			display: grid;
+			gap: 16px;
+		}
+		@media (min-width: 900px) {
+			.layout { grid-template-columns: minmax(280px, 400px) 1fr; align-items: start; }
+		}
+		.phone {
+			background: #0b141a;
+			border-radius: 28px;
+			border: 3px solid #333;
+			overflow: hidden;
+			box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+			max-width: 420px;
+			margin: 0 auto;
+		}
+		.wa-top {
+			background: #1f2c34;
+			padding: 10px 12px 12px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.wa-top .avatar {
+			width: 40px; height: 40px; border-radius: 50%;
+			background: #ff6b35; overflow: hidden;
+		}
+		.wa-top .avatar img { width: 100%; height: 100%; object-fit: cover; }
+		.wa-top .name { font-weight: 700; font-size: 0.95rem; }
+		.wa-top .sub { font-size: 0.72rem; color: #8696a0; }
+		.wa-chat {
+			min-height: 360px;
+			max-height: 440px;
+			overflow-y: auto;
+			padding: 12px 10px 8px;
+			background: #0b141a;
+		}
+		.wa-compose {
+			display: flex;
+			gap: 8px;
+			padding: 8px 10px 12px;
+			background: #1f2c34;
+			border-top: 1px solid #2a3942;
+		}
+		.wa-compose input {
+			flex: 1;
+			border: none;
+			border-radius: 20px;
+			padding: 10px 14px;
+			background: #2a3942;
+			color: #e9edef;
+			font: inherit;
+			font-size: 0.85rem;
+		}
+		.wa-compose button {
+			width: 42px; height: 42px;
+			border: none; border-radius: 50%;
+			background: #25d366;
+			color: #fff;
+			cursor: pointer;
+			font-size: 1rem;
+		}
+		.msg { max-width: 92%; margin-bottom: 8px; animation: msg-in 0.35s ease-out both; }
+		@keyframes msg-in {
+			from { opacity: 0; transform: translateY(8px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
+		.msg.out { margin-left: auto; }
+		.msg.in { margin-right: auto; }
+		.bubble {
+			border-radius: 8px;
+			padding: 6px 8px 4px;
+			font-size: 0.86rem;
+			box-shadow: 0 1px 0.5px rgba(0,0,0,0.2);
+		}
+		.msg.in .bubble { background: #1f2c34; color: #e9edef; }
+		.msg.out .bubble { background: #005c4b; color: #e9edef; }
+		.msg-time { font-size: 0.62rem; color: #8696a0; text-align: right; margin-top: 2px; padding-right: 4px; }
+		.interactive {
+			background: #1f2c34;
+			border-radius: 10px;
+			overflow: hidden;
+			max-width: 300px;
+			box-shadow: 0 1px 0.5px rgba(0,0,0,0.25);
+		}
+		.interactive-header img { display: block; width: 100%; height: 120px; object-fit: cover; background: #2a1810; }
+		.interactive-body { padding: 10px 12px 6px; font-size: 0.86rem; color: #e9edef; white-space: pre-wrap; }
+		.interactive-footer { padding: 0 12px 8px; font-size: 0.68rem; color: #8696a0; }
+		.wa-btn {
+			display: block; width: 100%;
+			border: none; border-top: 1px solid #2a3942;
+			background: transparent; color: #53bdeb;
+			font: inherit; font-size: 0.84rem; font-weight: 600;
+			padding: 12px 10px; cursor: pointer; text-align: center;
+		}
+		.wa-btn:hover { background: rgba(255,255,255,0.04); }
+		.side { display: flex; flex-direction: column; gap: 14px; }
+		.panel {
+			background: #1a1a1a;
+			border: 1px solid #333;
+			border-radius: 14px;
+			padding: 14px 16px;
+		}
+		.panel h2 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 1.35rem;
+			color: #ff6b35;
+			margin: 0 0 6px;
+			letter-spacing: 0.06em;
+		}
+		.panel .hint { margin: 0 0 12px; font-size: 0.78rem; color: #999; }
+		.badge-demo {
+			display: inline-block;
+			font-size: 0.65rem;
+			font-weight: 800;
+			text-transform: uppercase;
+			background: rgba(255,107,53,0.15);
+			border: 1px solid rgba(255,107,53,0.4);
+			color: #ff6b35;
+			padding: 3px 8px;
+			border-radius: 999px;
+			margin-bottom: 8px;
+		}
+		.env-row {
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			flex-wrap: wrap;
+			padding: 10px 12px;
+			border-radius: 10px;
+			background: #121212;
+			border: 1px solid #444;
+			font-family: 'JetBrains Mono', monospace;
+			font-size: 0.72rem;
+			color: #81c784;
+			margin-bottom: 12px;
+		}
+		.env-row span.key { color: #ffab91; }
+		.mode-group {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 8px;
+			margin-bottom: 12px;
+		}
+		.mode-group label {
+			display: block;
+			cursor: pointer;
+			border: 1px solid #444;
+			border-radius: 10px;
+			padding: 10px 8px;
+			text-align: center;
+			font-size: 0.78rem;
+			font-weight: 600;
+			background: #121212;
+			transition: border-color 0.15s, background 0.15s;
+		}
+		.mode-group label small { display: block; font-weight: 500; color: #888; margin-top: 4px; font-size: 0.65rem; }
+		.mode-group input { position: absolute; opacity: 0; pointer-events: none; }
+		.mode-group input:checked + span { color: #fff; }
+		.mode-group label:has(input:checked) {
+			border-color: #ff6b35;
+			background: rgba(255,107,53,0.12);
+		}
+		.toggle-row {
+			display: flex;
+			align-items: flex-start;
+			gap: 10px;
+			font-size: 0.78rem;
+			color: #bbb;
+			margin-bottom: 12px;
+			cursor: pointer;
+		}
+		.toggle-row input { margin-top: 3px; accent-color: #ff6b35; }
+		label.field { font-size: 0.75rem; color: #888; display: block; margin-bottom: 4px; }
+		.field-input {
+			width: 100%;
+			padding: 10px;
+			border-radius: 8px;
+			border: 1px solid #444;
+			background: #121212;
+			color: #eee;
+			font: inherit;
+			margin-bottom: 10px;
+		}
+		.btn-primary {
+			width: 100%;
+			padding: 12px;
+			border: none;
+			border-radius: 10px;
+			background: #25d366;
+			color: #fff;
+			font-weight: 800;
+			font-size: 0.9rem;
+			cursor: pointer;
+		}
+		.btn-secondary {
+			width: 100%;
+			margin-top: 8px;
+			padding: 10px;
+			border: 1px solid #555;
+			border-radius: 10px;
+			background: transparent;
+			color: #ccc;
+			font: inherit;
+			cursor: pointer;
+		}
+		.admin-toast {
+			padding: 12px 14px;
+			border-radius: 10px;
+			font-size: 0.82rem;
+			line-height: 1.45;
+			border: 1px solid #444;
+			background: #252015;
+			color: #ffcc80;
+			min-height: 52px;
+		}
+		.admin-toast.ok { border-color: #2e7d32; background: #1a2e1a; color: #a5d6a7; }
+		.admin-toast.warn { border-color: #ffb74d; background: #2e2418; color: #ffcc80; }
+		.admin-toast.err { border-color: #c62828; background: #2e1a1a; color: #ef9a9a; }
+		.flow {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 6px;
+			font-size: 0.68rem;
+			color: #888;
+			margin-top: 10px;
+		}
+		.flow .node {
+			padding: 4px 8px;
+			border-radius: 6px;
+			background: #222;
+			border: 1px solid #444;
+		}
+		.flow .node.on { border-color: #ff6b35; color: #ffab91; }
+		.flow i { color: #555; font-size: 0.6rem; }
+		.log {
+			font-size: 0.72rem;
+			color: #777;
+			max-height: 220px;
+			overflow-y: auto;
+			font-family: 'JetBrains Mono', monospace;
+			line-height: 1.5;
+		}
+		.log div { margin-top: 6px; }
+		.log .ok { color: #81c784; }
+		.log .warn { color: #ffb74d; }
+		.log .err { color: #ef5350; }
+		.ghost-note {
+			margin-top: 10px;
+			padding: 10px;
+			border-radius: 8px;
+			border: 1px dashed #444;
+			font-size: 0.72rem;
+			color: #666;
+		}
+		.ghost-note.visible {
+			border-color: #ff6b35;
+			color: #ffab91;
+			background: rgba(255,107,53,0.06);
+		}
+	</style>
+</head>
+<body>
+	<div class="demo-banner">
+		<strong>Demo opción B</strong> — Simula <code>WHATSAPP_POST_ENTREGA_MODE</code> (<strong>text</strong> · <strong>interactive</strong> · <strong>both</strong>) y el caso real: Graph devuelve OK pero el interactivo no aparece en el celu. No llama a Meta.
+	</div>
+
+	<div class="layout">
+		<div class="phone" aria-label="Vista celu cliente">
+			<div class="wa-top">
+				<div class="avatar"><img src="logoweb.png" alt="" width="40" height="40"></div>
+				<div class="meta">
+					<div class="name">Brava Burgers</div>
+					<div class="sub">+54 9 11 7372-1945</div>
+				</div>
+			</div>
+			<div class="wa-chat" id="chat"></div>
+			<div class="wa-compose">
+				<input type="text" id="client-msg" placeholder="Escribí RECLAMO, CALIFICAR o PEDIR…" autocomplete="off">
+				<button type="button" id="btn-send-client" title="Enviar"><i class="fas fa-paper-plane"></i></button>
+			</div>
+		</div>
+
+		<div class="side">
+			<div class="panel">
+				<span class="badge-demo">Vercel env</span>
+				<h2>Modo post-entrega</h2>
+				<p class="hint">Igual que en producción: una variable decide qué manda <code>sendPostEntregaForOrder</code> al marcar Entregado o Reenviar tarjeta WA.</p>
+
+				<div class="env-row" id="env-display">
+					<span class="key">WHATSAPP_POST_ENTREGA_MODE=</span><span id="env-value">text</span>
+				</div>
+
+				<div class="mode-group" role="radiogroup" aria-label="Modo">
+					<label><input type="radio" name="mode" value="text" checked><span>text<small>Menú 1 mensaje</small></span></label>
+					<label><input type="radio" name="mode" value="interactive"><span>interactive<small>Solo botones</small></span></label>
+					<label><input type="radio" name="mode" value="both"><span>both<small>Texto + botones</small></span></label>
+				</div>
+
+				<label class="toggle-row">
+					<input type="checkbox" id="chk-interactive-delivers">
+					<span><strong>Los interactivos sí llegan al celu</strong> (desmarcado = tu caso: API OK, botones invisibles)</span>
+				</label>
+
+				<label class="field" for="cliente">Nombre cliente</label>
+				<input class="field-input" type="text" id="cliente" value="Yezeg">
+
+				<label class="field" for="orn">ORN</label>
+				<input class="field-input" type="text" id="orn" value="PEND-DEL-0042">
+
+				<button type="button" class="btn-primary" id="btn-entregado">
+					<i class="fas fa-check"></i> Simular Entregado → post-entrega
+				</button>
+				<button type="button" class="btn-secondary" id="btn-reenviar">
+					<i class="fas fa-redo"></i> Reenviar (force, ignora dedup)
+				</button>
+				<button type="button" class="btn-secondary" id="btn-reset">Reiniciar chat</button>
+
+				<div class="flow" id="flow-diagram" aria-hidden="true"></div>
+			</div>
+
+			<div class="panel">
+				<h2>Admin (toast simulado)</h2>
+				<p class="hint">Copia de <code>showWaPostEntregaFeedback</code> en el panel al marcar entregado.</p>
+				<div class="admin-toast" id="admin-toast">Esperá simular entregado…</div>
+				<div class="ghost-note" id="ghost-interactive">
+					<i class="fas fa-ghost"></i> Hay un <code>wamid</code> en logs por la tarjeta interactiva, pero el cliente no la ve (Meta / entrega).
+				</div>
+			</div>
+
+			<div class="panel">
+				<h2>Backend log</h2>
+				<div class="log" id="log"><div>listo</div></div>
+			</div>
+		</div>
+	</div>
+
+	<script>
+	(function () {
+		var chat = document.getElementById('chat');
+		var logEl = document.getElementById('log');
+		var adminToast = document.getElementById('admin-toast');
+		var ghostNote = document.getElementById('ghost-interactive');
+		var sessionStep = null;
+		var postSentOnce = false;
+
+		function getMode() {
+			var r = document.querySelector('input[name="mode"]:checked');
+			return r ? r.value : 'text';
+		}
+
+		function interactiveDelivers() {
+			return document.getElementById('chk-interactive-delivers').checked;
+		}
+
+		function syncEnvDisplay() {
+			document.getElementById('env-value').textContent = getMode();
+			renderFlow();
+		}
+
+		document.querySelectorAll('input[name="mode"]').forEach(function (inp) {
+			inp.addEventListener('change', syncEnvDisplay);
+		});
+		document.getElementById('chk-interactive-delivers').addEventListener('change', syncEnvDisplay);
+
+		function timeNow() {
+			var d = new Date();
+			return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+		}
+
+		function escapeHtml(s) {
+			return String(s)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+		}
+
+		function formatWaBold(text) {
+			return escapeHtml(text).replace(/\*([^*]+)\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+		}
+
+		function log(line, cls) {
+			var p = document.createElement('div');
+			if (cls) p.className = cls;
+			p.innerHTML = line;
+			logEl.appendChild(p);
+			logEl.scrollTop = logEl.scrollHeight;
+		}
+
+		function setAdmin(msg, kind) {
+			adminToast.textContent = msg;
+			adminToast.className = 'admin-toast' + (kind ? ' ' + kind : '');
+		}
+
+		function addText(text, dir) {
+			dir = dir || 'in';
+			var wrap = document.createElement('div');
+			wrap.className = 'msg ' + dir;
+			wrap.innerHTML =
+				'<div class="bubble">' + formatWaBold(text) + '</div>' +
+				'<div class="msg-time">' + timeNow() + '</div>';
+			chat.appendChild(wrap);
+			chat.scrollTop = chat.scrollHeight;
+		}
+
+		function buildTextMenuBody() {
+			var nombre = (document.getElementById('cliente').value || 'Cliente').trim();
+			var orn = (document.getElementById('orn').value || 'PEND-DEL-0000').trim();
+			return (
+				'¡Listo, ' + nombre + '! 🍔\n' +
+				'Tu pedido ' + orn + ' fue entregado.\n\n' +
+				'¿Cómo te fue? Respondé con *una palabra*:\n\n' +
+				'• *RECLAMO* — algo salió mal\n' +
+				'• *CALIFICAR* — del 1 al 5\n' +
+				'• *PEDIR* — volver a pedir\n\n' +
+				'Escribí RECLAMO, CALIFICAR o PEDIR en un mensaje.'
+			);
+		}
+
+		function buildInteractiveBody() {
+			return '¿Cómo te fue con el pedido? Elegí una opción:';
+		}
+
+		function fakeWamid(prefix) {
+			return 'wamid.' + prefix + '.' + Math.random().toString(36).slice(2, 12);
+		}
+
+		function addInteractiveCard(bodyText) {
+			var wrap = document.createElement('div');
+			wrap.className = 'msg in';
+			wrap.innerHTML =
+				'<div class="interactive">' +
+				'<div class="interactive-header"><img src="logoweb.png" alt=""></div>' +
+				'<div class="interactive-body">' + formatWaBold(bodyText) + '</div>' +
+				'<div class="interactive-footer">Brava Burgers</div>' +
+				'<button type="button" class="wa-btn" data-action="reclamo"><i class="fas fa-life-ring"></i> Iniciar reclamo</button>' +
+				'<button type="button" class="wa-btn" data-action="calificar"><i class="fas fa-star"></i> Calificar</button>' +
+				'<button type="button" class="wa-btn" data-action="pedir"><i class="fas fa-burger"></i> Pedir de nuevo</button>' +
+				'</div>' +
+				'<div class="msg-time">' + timeNow() + '</div>';
+			chat.appendChild(wrap);
+			chat.scrollTop = chat.scrollHeight;
+			wrap.querySelectorAll('.wa-btn').forEach(function (btn) {
+				btn.addEventListener('click', function () {
+					var action = btn.getAttribute('data-action');
+					var labels = { reclamo: 'Iniciar reclamo', calificar: 'Calificar', pedir: 'Pedir de nuevo' };
+					addText(labels[action] || action, 'out');
+					handleClientChoice(action);
+				});
+			});
+		}
+
+		function simulateGraphInteractive() {
+			var id = fakeWamid('HBg');
+			log('Graph POST interactive → <span class="ok">200 OK</span> messageId=' + id, 'ok');
+			return { ok: true, messageId: id, delivered: interactiveDelivers() };
+		}
+
+		function simulateGraphText(body) {
+			var id = fakeWamid('HBgT');
+			log('Graph POST text → <span class="ok">200 OK</span> messageId=' + id, 'ok');
+			return { ok: true, messageId: id, body: body };
+		}
+
+		function sendPostEntrega(force) {
+			var mode = getMode();
+			var delivers = interactiveDelivers();
+			var tel = '5491123973487';
+			var orn = (document.getElementById('orn').value || '').trim();
+
+			if (!force && postSentOnce) {
+				setAdmin('Este ORN ya tuvo post-entrega. Usá «Reenviar» (force).', 'warn');
+				log('skip: already_sent (dedup __post_entrega__:' + orn + ')', 'warn');
+				return;
+			}
+
+			log('— sendPostEntregaForOrder mode=<strong>' + mode + '</strong> force=' + (force ? 'true' : 'false') + ' —');
+			ghostNote.classList.remove('visible');
+
+			var primary = null;
+			var interactiveResult = null;
+
+			if (mode === 'text' || mode === 'both') {
+				var body = buildTextMenuBody();
+				primary = simulateGraphText(body);
+				addText(body, 'in');
+				log('insertWaMessage: menú texto [Post-entrega · menú texto]');
+			}
+
+			if (mode === 'interactive' || mode === 'both') {
+				interactiveResult = simulateGraphInteractive();
+				if (interactiveResult.delivered) {
+					addInteractiveCard(buildInteractiveBody());
+					log('Cliente ve tarjeta con 3 botones');
+				} else {
+					log('Entrega interactiva: <span class="warn">no visible en celu</span> (Graph igual devolvió wamid)', 'warn');
+					ghostNote.classList.add('visible');
+				}
+			}
+
+			if (mode === 'interactive' && (!interactiveResult || !interactiveResult.ok)) {
+				setAdmin('Post-entrega falló: interactive_failed', 'err');
+				return;
+			}
+			if (mode === 'interactive' && interactiveResult.ok && !interactiveResult.delivered) {
+				setAdmin('Meta aceptó la tarjeta pero el celu no muestra botones. Cambiá a mode=text en Vercel.', 'err');
+				log('modo interactive-only sin entrega → error operativo', 'err');
+				return;
+			}
+			if (!primary && !(interactiveResult && interactiveResult.ok && interactiveResult.delivered)) {
+				if (mode === 'interactive' && interactiveResult && interactiveResult.ok && !interactiveResult.delivered) {
+					/* handled above */
+				} else if (!primary && mode === 'interactive') {
+					setAdmin('post_entrega_nothing_sent', 'err');
+					return;
+				}
+			}
+
+			postSentOnce = true;
+			log('markPostEntregaSent + upsertReclamoSession step=menu');
+			sessionStep = 'menu';
+
+			var outMode = 'text_menu';
+			var warn = null;
+			if (primary && interactiveResult && interactiveResult.ok && interactiveResult.delivered) {
+				outMode = 'text_menu_plus_interactive';
+			} else if (interactiveResult && interactiveResult.ok && interactiveResult.delivered) {
+				outMode = 'interactive';
+			} else if (primary) {
+				outMode = 'text_menu';
+			}
+			if (mode === 'both' && primary && interactiveResult && interactiveResult.ok && !interactiveResult.delivered) {
+				warn = 'interactive_not_delivered_try_text_keywords';
+			}
+
+			var adminMsg;
+			if (outMode === 'text_menu' || outMode === 'text_menu_plus_interactive') {
+				adminMsg = 'Post-entrega enviado al celu ' + tel + ': menú por texto (RECLAMO / CALIFICAR / PEDIR).';
+				if (outMode === 'text_menu_plus_interactive') {
+					adminMsg += ' También se envió la tarjeta con botones.';
+				}
+			} else {
+				adminMsg = 'Post-entrega enviado al celu ' + tel + '. Tarjeta con botones.';
+			}
+			if (warn) {
+				adminMsg = 'Menú texto enviado; los botones no se entregaron. El cliente responde RECLAMO, CALIFICAR o PEDIR.';
+			}
+
+			setAdmin(adminMsg, warn ? 'warn' : 'ok');
+			log('response: { ok: true, mode: "' + outMode + '", tel: "' + tel + '"' + (warn ? ', warn: "' + warn + '"' : '') + ' }', warn ? 'warn' : 'ok');
+		}
+
+		function normalizeKeyword(text) {
+			return String(text || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+		}
+
+		function matchKeyword(text) {
+			var t = normalizeKeyword(text);
+			if (!t) return '';
+			if (/\breclamo\b/.test(t)) return 'reclamo';
+			if (/\bcalificar\b/.test(t)) return 'calificar';
+			if (/\bpedir\b/.test(t)) return 'pedir';
+			return '';
+		}
+
+		function handleClientChoice(action) {
+			log('webhook: button_reply.id=' + action + ' → waReclamo.js');
+			if (action === 'reclamo') {
+				addText('Lamentamos el inconveniente 😔\nElegí motivo (demo): respondé *1* a *5* o usá la lista si llega.', 'in');
+				sessionStep = 'motivo_text';
+			} else if (action === 'calificar') {
+				addText('¿Cómo calificarías el delivery y las burgers?\nRespondé con un número del *1* al *5*.', 'in');
+				sessionStep = 'rating_text';
+			} else if (action === 'pedir') {
+				addText('¡Gracias por volver! 🔥\n\nhttps://linktr.ee/bravaburgers', 'in');
+			}
+		}
+
+		function onClientMessage() {
+			var raw = document.getElementById('client-msg').value;
+			var text = raw.trim();
+			if (!text) return;
+			addText(text, 'out');
+			document.getElementById('client-msg').value = '';
+
+			var kw = matchKeyword(text);
+			if (sessionStep === 'menu' || !sessionStep) {
+				if (kw) {
+					log('matchPostEntregaKeyword → ' + kw);
+					handleClientChoice(kw);
+					return;
+				}
+			}
+			if (sessionStep === 'menu' && !kw) {
+				addText('Escribí RECLAMO, CALIFICAR o PEDIR en un solo mensaje.', 'in');
+				return;
+			}
+			if (sessionStep === 'rating_text') {
+				var m = text.match(/^([1-5])/);
+				if (m) {
+					log('rating_text → rate_' + m[1]);
+					addText(m[1] >= 4 ? '¡Gracias! 💛 @bravaburgers.ok' : 'Gracias por contarlo. Seguimos por acá si hace falta.', 'in');
+					sessionStep = 'done';
+				} else {
+					addText('Escribí un número del *1* al *5*.', 'in');
+				}
+			}
+		}
+
+		function renderFlow() {
+			var mode = getMode();
+			var el = document.getElementById('flow-diagram');
+			var nodes = [
+				{ id: 'entregado', label: 'Entregado', on: true },
+				{ id: 'text', label: 'Menú texto', on: mode === 'text' || mode === 'both' },
+				{ id: 'int', label: 'Tarjeta API', on: mode === 'interactive' || mode === 'both' },
+				{ id: 'celu', label: 'Celu cliente', on: true },
+				{ id: 'bot', label: 'Bot keywords', on: mode === 'text' || mode === 'both' || !interactiveDelivers() }
+			];
+			el.innerHTML = nodes.map(function (n, i) {
+				var arrow = i < nodes.length - 1 ? ' <i class="fas fa-arrow-right"></i> ' : '';
+				return '<span class="node' + (n.on ? ' on' : '') + '">' + n.label + '</span>' + arrow;
+			}).join('');
+		}
+
+		function seedChat() {
+			chat.innerHTML = '';
+			logEl.innerHTML = '';
+			postSentOnce = false;
+			sessionStep = null;
+			ghostNote.classList.remove('visible');
+			setAdmin('Esperá simular entregado…');
+			log('chat seed: ventana 24h OK (cliente escribió hola)');
+			addText('Hola, pedí desde la web 🍔', 'out');
+			addText('¡Recibido! Te confirmamos en un ratito.', 'in');
+			renderFlow();
+		}
+
+		document.getElementById('btn-entregado').addEventListener('click', function () {
+			sendPostEntrega(false);
+		});
+		document.getElementById('btn-reenviar').addEventListener('click', function () {
+			sendPostEntrega(true);
+		});
+		document.getElementById('btn-reset').addEventListener('click', seedChat);
+		document.getElementById('btn-send-client').addEventListener('click', onClientMessage);
+		document.getElementById('client-msg').addEventListener('keydown', function (e) {
+			if (e.key === 'Enter') onClientMessage();
+		});
+
+		syncEnvDisplay();
+		seedChat();
+	})();
+	</script>
+</body>
+</html>

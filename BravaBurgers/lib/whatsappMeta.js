@@ -188,8 +188,16 @@ function parseWebhookPayload(raw) {
 
       (value.statuses || []).forEach(function (st) {
         var errTitle = '';
+        var errCode = null;
+        var errDetails = '';
         if (st.errors && st.errors[0]) {
-          errTitle = String(st.errors[0].title || st.errors[0].message || st.errors[0].code || '');
+          var er = st.errors[0];
+          errTitle = String(er.title || er.message || '');
+          if (er.code != null && er.code !== '') errCode = Number(er.code);
+          if (!errTitle && er.code != null) errTitle = String(er.code);
+          if (er.error_data && er.error_data.details) {
+            errDetails = String(er.error_data.details);
+          }
         }
         events.push({
           ...base,
@@ -199,6 +207,8 @@ function parseWebhookPayload(raw) {
           recipientId: st.recipient_id,
           timestamp: st.timestamp,
           statusError: errTitle,
+          statusErrorCode: errCode,
+          statusErrorDetails: errDetails,
         });
       });
     });

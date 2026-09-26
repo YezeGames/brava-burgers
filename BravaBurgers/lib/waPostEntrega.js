@@ -1,9 +1,13 @@
 const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
-const { normalizeWaRecipient, getWhatsAppConfig, sendTextMessage } = require('./whatsappMeta');
-const { sendPostEntregaInteractive, plainWaBody } = require('./waPostEntregaSend');
+const { normalizeWaRecipient, getWhatsAppConfig } = require('./whatsappMeta');
 const { insertWaMessage } = require('./waInbox');
 const { upsertReclamoSession } = require('./waReclamoStore');
 const { ensureWaReclamoSchema } = require('./waReclamoSchema');
+const {
+  postEntregaMode,
+  sendPostEntregaTextMenu,
+  sendPostEntregaInteractive,
+} = require('./waPostEntregaSend');
 
 const POST_ENTREGA_MARKER = '__post_entrega__:';
 
@@ -55,10 +59,6 @@ function buildPostEntregaBody(nombre, orn) {
   );
 }
 
-function buildPostEntregaPrelude(nombre, orn) {
-  return '¡Listo, ' + nombre + '! 🍔 Tu pedido ' + orn + ' fue entregado.';
-}
-
 function buildPostEntregaPrompt() {
   return '¿Cómo te fue con el pedido? Elegí una opción:';
 }
@@ -99,96 +99,75 @@ async function sendPostEntregaForOrder(order, opts) {
   }
 
   const nombre = waFirstName(order.cliente);
-  const preludeText = buildPostEntregaPrelude(nombre, orn);
-  const prelude = await sendTextMessage(
-    tel,
-    preludeText + '\n\nEn el mensaje siguiente vas a ver botones (reclamo, calificar, pedir de nuevo).'
-  );
-  if (!prelude.ok || !prelude.messageId) {
-    console.warn('[wa-post-entrega] prelude text failed', orn, tel, prelude.message || prelude.error);
-    return prelude.ok
-      ? { ok: false, error: 'missing_message_id', hint: 'prelude_no_wamid', detail: prelude }
-      : prelude;
-  }
+  const mode = postEntregaMode();
+  var primary = null;
+  var interactiveResult = null;
 
-  await insertWaMessage({
-    messageId: prelude.messageId,
-    tel: tel,
-    direction: 'out',
-    body: preludeText + '\n\n[Post-entrega · texto previo]',
-  });
-
-  const sent = await sendPostEntregaInteractive(tel, buildPostEntregaPrompt());
-  if (!sent.ok) {
-    console.warn(
-      '[wa-post-entrega] interactive failed after prelude',
-      orn,
-      tel,
-      sent.message || sent.error,
-      sent.hint || '',
-      sent.interactiveDetail || ''
-    );
-    await markPostEntregaSent(orn, tel);
-    return {
-      ok: true,
-      sent: true,
+  if (mode === 'text' || mode === 'both') {
+    primary = await sendPostEntregaTextMenu(tel, nombre, orn);
+    if (!primary.ok) {
+      console.warn('[wa-post-entrega] text menu failed', orn, tel, primary.message || primary.error);
+      return primary;
+    }
+    await insertWaMessage({
+      messageId: primary.messageId,
       tel: tel,
-      messageId: prelude.messageId,
-      interactiveMessageId: null,
-      contactWaId: prelude.contactWaId || '',
-      mode: 'text_only_prelude',
-      warn: 'interactive_failed_after_text',
-    };
+      direction: 'out',
+      body: primary.body + '\n\n[Post-entrega · menú texto]',
+    });
   }
 
-  const graphId =
-    sent.messageId ||
-    (sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id);
-  if (!graphId && sent.fallback !== 'text') {
-    await markPostEntregaSent(orn, tel);
-    return {
-      ok: true,
-      sent: true,
-      tel: tel,
-      messageId: prelude.messageId,
-      mode: 'text_only_prelude',
-      warn: 'interactive_missing_wamid',
-    };
+  if (mode === 'interactive' || mode === 'both') {
+    interactiveResult = await sendPostEntregaInteractive(tel, buildPostEntregaPrompt());
+    if (interactiveResult.ok) {
+      await insertWaMessage({
+        messageId: interactiveResult.messageId,
+        tel: tel,
+        direction: 'out',
+        body: buildPostEntregaPrompt() + '\n\n[Botones: reclamo · calificar · pedir de nuevo]',
+      });
+    } else if (mode === 'interactive') {
+      console.warn('[wa-post-entrega] interactive only failed', orn, interactiveResult);
+      return interactiveResult;
+    }
   }
 
-  await insertWaMessage({
-    messageId: graphId || 'post-entrega-out-' + orn,
-    tel: tel,
-    direction: 'out',
-    body:
-      buildPostEntregaPrompt() +
-      (sent.fallback === 'text'
-        ? '\n\n[Post-entrega: fallback texto — interactivo falló]'
-        : '\n\n[Botones: reclamo · calificar · pedir de nuevo]'),
-  });
+  if (!primary && !(interactiveResult && interactiveResult.ok)) {
+    return { ok: false, error: 'post_entrega_nothing_sent' };
+  }
+
   await markPostEntregaSent(orn, tel);
-  await upsertReclamoSession(tel, { orn: orn, step: '', open: false });
+  await upsertReclamoSession(tel, { orn: orn, step: 'menu', open: false });
 
-  console.log('[wa-post-entrega] sent', orn, tel, prelude.messageId, graphId || '');
+  var outMode = 'text_menu';
+  if (primary && interactiveResult && interactiveResult.ok) outMode = 'text_menu_plus_interactive';
+  else if (interactiveResult && interactiveResult.ok) outMode = 'interactive';
+  else if (primary) outMode = 'text_menu';
+
+  var checkWamid =
+    (interactiveResult && interactiveResult.ok && interactiveResult.messageId) ||
+    (primary && primary.messageId) ||
+    '';
   return {
     ok: true,
     sent: true,
     tel: tel,
-    messageId: graphId || sent.messageId || prelude.messageId,
-    preludeMessageId: prelude.messageId,
-    interactiveMessageId: graphId || sent.messageId || null,
-    contactWaId: sent.contactWaId || prelude.contactWaId || '',
-    mode:
-      sent.fallback === 'text'
-        ? 'text_fallback'
-        : graphId
-          ? 'prelude_plus_interactive'
-          : 'text_only_prelude',
-    warn: sent.fallback === 'text' ? 'interactive_used_text_fallback' : null,
+    messageId: (primary && primary.messageId) || (interactiveResult && interactiveResult.messageId),
+    preludeMessageId: primary ? primary.messageId : null,
+    interactiveMessageId: interactiveResult && interactiveResult.ok ? interactiveResult.messageId : null,
+    contactWaId: (primary && primary.contactWaId) || (interactiveResult && interactiveResult.contactWaId) || '',
+    mode: outMode,
+    deliveryCheckWamid: checkWamid,
+    deliveryCheckHint: checkWamid
+      ? 'Consultá entrega Meta: GET /api/whatsapp-status?delivery=1&wait=1&key=…&wamid=' + checkWamid
+      : null,
+    warn:
+      mode === 'both' && primary && interactiveResult && !interactiveResult.ok
+        ? 'interactive_not_delivered_try_text_keywords'
+        : null,
   };
 }
 
-/** Prueba de tarjeta (no marca ORN enviado). */
 async function probePostEntregaInteractive(to) {
   const tel = normalizeWaRecipient(to);
   if (!tel) return { ok: false, error: 'invalid_phone' };
@@ -196,17 +175,7 @@ async function probePostEntregaInteractive(to) {
   if (!cfg.accessToken || !cfg.phoneNumberId) {
     return { ok: false, error: 'whatsapp_not_configured' };
   }
-  const body = buildPostEntregaBody('Cliente', 'ORN-DEL-TEST');
-  const sent = await sendPostEntregaInteractive(tel, body);
-  return Object.assign(
-    {
-      probe: true,
-      to: tel,
-      messageId: sent.messageId || '',
-      contactWaId: sent.contactWaId || '',
-    },
-    sent
-  );
+  return sendPostEntregaTextMenu(tel, 'Cliente', 'ORN-DEL-TEST');
 }
 
 async function sendPostEntregaForOrn(orn, opts) {

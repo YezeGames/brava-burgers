@@ -7,6 +7,12 @@ const {
 
 let cachedHeaderMediaId = null;
 
+function postEntregaMode() {
+  const m = String(process.env.WHATSAPP_POST_ENTREGA_MODE || 'text').trim().toLowerCase();
+  if (m === 'interactive' || m === 'both') return m;
+  return 'text';
+}
+
 function postEntregaImageUrl() {
   const custom = (process.env.WHATSAPP_POST_ENTREGA_IMAGE_URL || '').trim();
   if (custom) return custom;
@@ -17,6 +23,22 @@ function plainWaBody(text) {
   return String(text || '')
     .replace(/\*([^*]+)\*/g, '$1')
     .trim();
+}
+
+function buildPostEntregaTextMenu(nombre, orn) {
+  return (
+    '¡Listo, ' +
+    nombre +
+    '! 🍔\n' +
+    'Tu pedido ' +
+    orn +
+    ' fue entregado.\n\n' +
+    '¿Cómo te fue? Respondé con *una palabra*:\n\n' +
+    '• *RECLAMO* — algo salió mal\n' +
+    '• *CALIFICAR* — del 1 al 5\n' +
+    '• *PEDIR* — volver a pedir\n\n' +
+    'Escribí RECLAMO, CALIFICAR o PEDIR en un mensaje.'
+  );
 }
 
 function postEntregaButtons() {
@@ -57,8 +79,24 @@ function graphDetail(sent) {
   return sent.error || '';
 }
 
+async function sendPostEntregaTextMenu(to, nombre, orn) {
+  const tel = normalizeWaRecipient(to);
+  const body = buildPostEntregaTextMenu(nombre, orn);
+  const sent = await sendTextMessage(tel, body);
+  if (!sent.ok || !sent.messageId) {
+    return sent.ok ? { ok: false, error: 'missing_message_id' } : sent;
+  }
+  return {
+    ok: true,
+    messageId: sent.messageId,
+    contactWaId: sent.contactWaId || '',
+    mode: 'text_menu',
+    body: body,
+  };
+}
+
 /**
- * Envía tarjeta interactiva post-entrega con reintentos (media id → sin imagen → texto).
+ * Tarjeta interactiva (botones). En algunos celus Meta acepta API pero no entrega.
  */
 async function sendPostEntregaInteractive(to, bodyText) {
   const tel = normalizeWaRecipient(to);
@@ -95,35 +133,26 @@ async function sendPostEntregaInteractive(to, bodyText) {
   }
 
   if (!sent.ok) {
-    const fallbackText =
-      plainBody +
-      '\n\n' +
-      'Respondé tocando un botón arriba si lo ves; si no, escribí: RECLAMO · CALIFICAR · PEDIR';
-    const textSent = await sendTextMessage(tel, fallbackText);
-    if (textSent.ok && textSent.messageId) {
-      return {
-        ok: true,
-        data: textSent.data,
-        messageId: textSent.messageId,
-        contactWaId: textSent.contactWaId || '',
-        fallback: 'text',
-        interactiveError: sent.error,
-        interactiveHint: sent.hint || '',
-        interactiveDetail: graphDetail(sent).slice(0, 200),
-      };
-    }
-    return Object.assign({}, sent, {
+    return {
+      ok: false,
+      error: sent.error || 'interactive_failed',
+      hint: sent.hint || '',
       interactiveDetail: graphDetail(sent).slice(0, 200),
-      textFallbackError: textSent.error,
-      textFallbackHint: textSent.hint || '',
-    });
+    };
   }
 
-  return sent;
+  if (!sent.messageId) {
+    return { ok: false, error: 'interactive_missing_wamid' };
+  }
+
+  return Object.assign({ mode: 'interactive' }, sent);
 }
 
 module.exports = {
+  postEntregaMode,
+  sendPostEntregaTextMenu,
   sendPostEntregaInteractive,
+  buildPostEntregaTextMenu,
   postEntregaButtons,
   plainWaBody,
   resolveHeaderMediaId,

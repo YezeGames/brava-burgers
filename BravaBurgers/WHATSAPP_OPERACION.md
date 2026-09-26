@@ -21,7 +21,7 @@ Documentación para Brava Burgers (Cloud API + inbox en `/admin/`). Última actu
 | Fallback `wa.me` si falla API | ✅ |
 | Realtime inbox (entrantes ~instantáneos) | ✅ |
 | Dedup mensajes al enviar | ✅ |
-| **Post-entrega** al marcar ✓ Entregado (interactivo + 3 botones al **celu del cliente**) | ✅ |
+| **Post-entrega** al marcar ✓ Entregado (menú **texto** RECLAMO/CALIFICAR/PEDIR al **celu del cliente**) | ✅ |
 | **Bot reclamo** (motivo → texto → foto → confirmación) | ✅ (tablas vía `migrateWaReclamos` al entrar al admin) |
 
 Variables: ver `WHATSAPP_VERCEL_ENV.txt` y `.env.example` (`WHATSAPP_WELCOME_MESSAGE` opcional).
@@ -30,21 +30,41 @@ Número producción: **+54 9 11 7372-1945** (Phone ID `1335204069669693`, WABA `
 
 > **Pendiente planificado:** más adelante se **cambiará el número de WhatsApp** público de Brava. Hoy todo (API, webhook, inbox, tienda) opera con **7372-1945** hasta ese cambio. Ver sección [Cambio de número (pendiente)](#cambio-de-número-pendiente).
 
-### Post-entrega (tarjeta con botones) — si no llega
+### Post-entrega — menú texto (default) vs botones
+
+Por defecto **`WHATSAPP_POST_ENTREGA_MODE=text`**: un solo mensaje al celu con instrucciones **RECLAMO**, **CALIFICAR**, **PEDIR**. El bot entiende esas palabras (y el flujo de reclamo/calificación sigue por **números 1–5** si las listas/botones de Meta no llegan).
+
+| Modo (`WHATSAPP_POST_ENTREGA_MODE`) | Comportamiento |
+|-------------------------------------|----------------|
+| **`text`** (default) | Solo menú texto |
+| **`interactive`** | Solo tarjeta con 3 botones (puede no entregarse aunque Graph responda OK) |
+| **`both`** | Menú texto + intento de tarjeta |
 
 | Síntoma | Causa habitual | Qué hacer |
 |---------|----------------|-----------|
 | Nada en el celu al marcar Entregado | Sin teléfono en el pedido | Completar tel en comanda |
 | Error **24 h** / `needs_template_or_session` | Cliente no escribió al WA hace días | Que mande un **hola** al número Brava y reintentar |
 | **#131030** | Modo prueba / número no permitido | App **Live**, WABA producción, token System User (ver `WHATSAPP_VERCEL_ENV.txt`) |
-| Solo texto, sin botones | Meta rechazó interactivo (imagen/header) | El servidor reintenta sin imagen; revisar logs / probe abajo |
-| “Ya enviado” (`already_sent`) | Mismo ORN ya tuvo post-entrega OK | Probar con **otro ORN** o `WHATSAPP_POST_ENTREGA_FORCE=1` en Vercel (temporal) |
+| Llega texto pero no botones | Entrega interactiva inestable en algunos celus | Dejar `text` o usar `both`; cliente responde RECLAMO / CALIFICAR / PEDIR |
+| “Ya enviado” (`already_sent`) | Mismo ORN ya tuvo post-entrega OK | **Reenviar tarjeta WA** en Entregados o `WHATSAPP_POST_ENTREGA_FORCE=1` (temporal) |
 
 **Probe (operación):**  
 `GET /api/whatsapp-status?probe_post_entrega=1&key=BRAVA_ORDER_SECRET&to=54911XXXXXXXX`  
-Devuelve `hint`, `detail` y `graphCode` de Meta sin marcar un pedido entregado.
+Envía el menú texto de prueba (ORN-DEL-TEST).
 
-Variables opcionales: `WHATSAPP_POST_ENTREGA_IMAGE_URL`, `WHATSAPP_POST_ENTREGA_MEDIA_ID` (media id fijo en Meta), `WHATSAPP_POST_ENTREGA_DISABLE=1` (apaga envío).
+Variables opcionales: `WHATSAPP_POST_ENTREGA_IMAGE_URL`, `WHATSAPP_POST_ENTREGA_MEDIA_ID`, `WHATSAPP_POST_ENTREGA_DISABLE=1` (apaga envío).
+
+### Estados de entrega (webhook → Supabase)
+
+Meta envía **status** aparte del envío (`sent`, `delivered`, `read`, **`failed`**). Se guardan en `wa_message_status` (migración: `GET /api/whatsapp-status?migrate=wa_message_status&key=BRAVA_ORDER_SECRET` o automática al primer webhook).
+
+| Consulta | Uso |
+|----------|-----|
+| `?delivery=1&key=…&wamid=wamid.xxx` | Filas guardadas para ese mensaje |
+| `&wait=1` | Espera ~7 s reintentando (webhook asíncrono) |
+| `?diagnose=1&…&interactive=1&wait_delivery=1` | Probe texto + tarjeta + lectura webhook |
+
+Si Graph devuelve OK pero no ves botones, mirá `summary.failed` (`error_code`, `error_title`) — ahí suele estar el motivo real de Meta.
 
 **Importante — panel vs cliente:** la tarjeta con botones **no** se manda con el botón verde «Enviar» del chat lateral (eso es solo texto/imagen). Post-entrega sale **automático al marcar Entregado** (API Cloud) al teléfono del pedido. En el inbox del admin ves una **copia en texto**, no la tarjeta renderizada. Reintento: **Reenviar tarjeta WA** en la pestaña Entregados.
 

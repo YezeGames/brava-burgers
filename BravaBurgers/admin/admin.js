@@ -6827,17 +6827,23 @@
         appErr.hidden = false;
         return;
       }
-      msg =
-        'Post-entrega enviado al celu' +
-        (wpe.tel ? ' ' + wpe.tel : '') +
-        '. Deberías ver 1–2 mensajes de Brava Burgers (7372-1945): texto + tarjeta con botones.';
-      if (wpe.mode === 'text_only_prelude' || wpe.warn === 'interactive_failed_after_text') {
+      if (wpe.mode === 'text_menu' || wpe.mode === 'text_menu_plus_interactive') {
         msg =
-          'Llegó el texto de entrega; la tarjeta con botones falló. El cliente puede escribir RECLAMO / CALIFICAR / PEDIR.';
+          'Post-entrega enviado al celu' +
+          (wpe.tel ? ' ' + wpe.tel : '') +
+          ': menú por texto (RECLAMO / CALIFICAR / PEDIR).';
+        if (wpe.mode === 'text_menu_plus_interactive') {
+          msg += ' También se intentó la tarjeta con botones (puede no llegar en algunos celus).';
+        }
+      } else {
+        msg =
+          'Post-entrega enviado al celu' +
+          (wpe.tel ? ' ' + wpe.tel : '') +
+          '. Tarjeta con botones (si no llega, el cliente puede escribir RECLAMO / CALIFICAR / PEDIR).';
       }
-      if (wpe.mode === 'text_fallback') {
+      if (wpe.warn === 'interactive_not_delivered_try_text_keywords') {
         msg =
-          'Post-entrega enviado como texto (Meta rechazó la tarjeta). Revisá ventana 24 h o WHATSAPP_OPERACION.md.';
+          'Menú texto enviado; los botones no se entregaron. El cliente responde RECLAMO, CALIFICAR o PEDIR.';
       }
       appErr.textContent = msg;
       appErr.hidden = false;
