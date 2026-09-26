@@ -63,16 +63,6 @@
 
       "permanent": true
 
-    },
-
-    {
-
-      "source": "/demo-repartidor-navegacion.html",
-
-      "destination": "/repartidor/",
-
-      "permanent": false
-
     }
 
   ],
@@ -170,6 +160,14 @@
     {
 
       "source": "/repartidor",
+
+      "destination": "/repartidor/index.html"
+
+    },
+
+    {
+
+      "source": "/repartidor/",
 
       "destination": "/repartidor/index.html"
 
