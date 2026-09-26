@@ -780,7 +780,12 @@ async function updateOrder(body) {
 
 }
 
-async function listRepartidorRuta(telefono) {
+async function migrateRepartidorSchemaAuto() {
+  const { migrateRepartidorAssignSchema } = require('./dbMigrate');
+  return migrateRepartidorAssignSchema();
+}
+
+async function listRepartidorRuta(telefono, _retried) {
   const tel = telNorm(telefono);
   if (!tel) return { ok: false, error: 'missing_telefono' };
   const r = await restSelect(
@@ -790,8 +795,16 @@ async function listRepartidorRuta(telefono) {
       '&estado=eq.en_camino&order=reparto_parada.asc.nullslast,fecha_creado.asc'
   );
   if (!r.ok) {
+    if (isRepartidorColumnsMissing(r) && !_retried) {
+      const mig = await migrateRepartidorSchemaAuto();
+      if (mig.ok) return listRepartidorRuta(telefono, true);
+    }
     if (isRepartidorColumnsMissing(r)) {
-      return { ok: false, error: 'repartidor_schema_missing', hint: 'Ejecutá migrateRepartidorAssign en admin o repartidor-asignacion.sql' };
+      return {
+        ok: false,
+        error: 'repartidor_schema_missing',
+        hint: 'Ejecutá migrateRepartidorAssign en admin o repartidor-asignacion.sql',
+      };
     }
     return supabaseFail(r, 'repartidor_list_failed');
   }
@@ -856,7 +869,7 @@ async function repartidorMarkEntregada(body) {
   return updateOrder({ orn: orn, estado: 'entregada' });
 }
 
-async function repartidorConfirmarLlegada(body) {
+async function repartidorConfirmarLlegada(body, _retried) {
   const { sendRepartidorLlegadaWhatsApp } = require('./waRepartidorLlegada');
   const tel = telNorm(body.telefono || body.repartidor_tel);
   const orn = String(body.orn || '').trim();
@@ -868,6 +881,10 @@ async function repartidorConfirmarLlegada(body) {
       '&limit=1'
   );
   if (!lookup.ok) {
+    if (isRepartidorLlegadaColumnMissing(lookup) && !_retried) {
+      const mig = await migrateRepartidorSchemaAuto();
+      if (mig.ok) return repartidorConfirmarLlegada(body, true);
+    }
     if (isRepartidorLlegadaColumnMissing(lookup)) {
       return {
         ok: false,
@@ -902,6 +919,10 @@ async function repartidorConfirmarLlegada(body) {
     repartidor_llegada_at: now,
   });
   if (!patch.ok) {
+    if (isRepartidorLlegadaColumnMissing(patch) && !_retried) {
+      const mig = await migrateRepartidorSchemaAuto();
+      if (mig.ok) return repartidorConfirmarLlegada(body, true);
+    }
     if (isRepartidorLlegadaColumnMissing(patch)) {
       return { ok: false, error: 'repartidor_llegada_schema_missing' };
     }
