@@ -6,6 +6,7 @@ const {
 } = require('./whatsappMeta');
 const { insertWaMessage } = require('./waInbox');
 const { upsertReclamoSession } = require('./waReclamoStore');
+const { ensureWaReclamoSchema } = require('./waReclamoSchema');
 
 const POST_ENTREGA_MARKER = '__post_entrega__:';
 
@@ -82,6 +83,7 @@ async function fetchOrderByOrn(orn) {
 }
 
 async function sendPostEntregaForOrder(order) {
+  await ensureWaReclamoSchema();
   if (postEntregaDisabled()) {
     return { ok: false, skipped: true, reason: 'disabled' };
   }

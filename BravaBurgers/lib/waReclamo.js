@@ -6,6 +6,7 @@ const {
 } = require('./whatsappMeta');
 const { insertWaMessage, encodeWaMediaBody } = require('./waInbox');
 const { getReclamoSession, upsertReclamoSession, insertReclamo } = require('./waReclamoStore');
+const { ensureWaReclamoSchema } = require('./waReclamoSchema');
 
 const DESC_MIN = 8;
 const MOTIVO_ROWS = [
@@ -188,6 +189,7 @@ function isMotivoId(id) {
  * Bot post-entrega / reclamo. Devuelve { handled: true } si consumió el mensaje (no mandar bienvenida).
  */
 async function handleReclamoInbound(ctx) {
+  await ensureWaReclamoSchema();
   const from = ctx.from;
   const interactiveId = String(ctx.interactiveReplyId || '').trim();
   const text = String(ctx.text || '').trim();

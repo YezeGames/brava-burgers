@@ -1,5 +1,6 @@
 -- Sesiones del bot de reclamo + reclamos confirmados (WhatsApp post-entrega).
--- Ejecutar en Supabase SQL Editor (una vez).
+-- En producción: migración automática (migrateWaReclamos / ensureWaReclamoSchema en Vercel).
+-- Este archivo es referencia manual si hiciera falta.
 
 CREATE TABLE IF NOT EXISTS wa_reclamo_sessions (
   tel text PRIMARY KEY,
