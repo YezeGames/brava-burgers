@@ -15,6 +15,8 @@ const {
   createCierre,
   deleteCierre,
   createCompensacion,
+  getActiveCompensacionForTelefono,
+  anularCompensacion,
   listCompensaciones,
   listCompensacionOrigenes,
   createReenvio,
@@ -229,6 +231,17 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'listCompensaciones') {
     return listCompensaciones(body.limit);
+  }
+
+  if (action === 'getCuponActivo') {
+    return getActiveCompensacionForTelefono(body.telefono);
+  }
+
+  if (action === 'anularCompensacion') {
+    return anularCompensacion({
+      codigo: body.codigo,
+      telefono: body.telefono,
+    });
   }
 
   if (action === 'listCompensacionOrigenes') {

@@ -587,6 +587,16 @@
 			max-height: 140px;
 			overflow-y: auto;
 		}
+		.comp-active-banner {
+			margin: 0 0 12px;
+			padding: 10px 12px;
+			border-radius: 6px;
+			border: 1px solid #e6a817;
+			background: rgba(230, 168, 23, 0.12);
+		}
+		.comp-active-banner.hidden { display: none !important; }
+		.comp-active-text { margin: 0 0 8px; font-size: 0.8rem; line-height: 1.35; color: var(--text); }
+		.comp-anular-btn { width: 100%; justify-content: center; border-color: #c62828; color: #c62828; }
 		.modal.modal-reenvio { max-width: 520px; }
 		.reenvio-hint {
 			font-size: 0.78rem;
@@ -2038,6 +2048,10 @@
 		<div class="modal">
 			<h2 id="comp-modal-title">Gratificar cliente</h2>
 			<p class="sub" id="comp-orn-ref"></p>
+			<div class="comp-active-banner hidden" id="comp-active-banner">
+				<p class="comp-active-text" id="comp-active-text"></p>
+				<button type="button" class="btn-sm comp-anular-btn" id="comp-anular">Anular cupón activo</button>
+			</div>
 			<label class="field" for="comp-motivo">Motivo del reclamo</label>
 			<select id="comp-motivo">
 				<option value="faltante">Faltante / olvidaron algo</option>
@@ -2279,7 +2293,7 @@
 	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
 	<script src="/admin/reparto.js?v=13"></script>
 	<script src="/admin/wa-panel.js?v=30"></script>
-	<script src="/admin/compensaciones.js?v=6"></script>
+	<script src="/admin/compensaciones.js?v=7"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
 	<script src="/admin/admin.js?v=143"></script>
 </body>

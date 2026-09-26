@@ -1324,7 +1324,52 @@ async function createCompensacion(body) {
 
 }
 
+async function getActiveCompensacionForTelefono(telefono) {
+  const tel = telNorm(telefono);
+  if (!tel) return { ok: false, error: 'missing_fields' };
+  const active = await restSelect(
+    'compensaciones',
+    'select=*&telefono=eq.' + encodeURIComponent(tel) + '&usado=eq.false&order=creado_at.desc&limit=1'
+  );
+  if (!active.ok) return supabaseFail(active, 'cupon_lookup_failed');
+  const row = active.data && active.data[0] ? active.data[0] : null;
+  if (!row) return { ok: true, compensacion: null };
+  return {
+    ok: true,
+    compensacion: Object.assign({}, row, { label: couponLabelComanda(row) }),
+  };
+}
 
+async function anularCompensacion(body) {
+  const codigoIn = String(body.codigo || '').trim().toUpperCase();
+  const tel = telNorm(body.telefono);
+  let codigo = codigoIn;
+  if (!codigo) {
+    if (!tel) return { ok: false, error: 'missing_fields' };
+    const active = await getActiveCompensacionForTelefono(tel);
+    if (!active.ok) return active;
+    if (!active.compensacion) return { ok: false, error: 'sin_cupon_activo' };
+    codigo = active.compensacion.codigo;
+  }
+  const lookup = await restSelect(
+    'compensaciones',
+    'select=codigo,telefono,usado&codigo=eq.' + encodeURIComponent(codigo) + '&limit=1'
+  );
+  if (!lookup.ok) return supabaseFail(lookup, 'cupon_lookup_failed');
+  if (!lookup.data || !lookup.data[0]) return { ok: false, error: 'codigo_invalido' };
+  const row = lookup.data[0];
+  if (row.usado) return { ok: false, error: 'codigo_ya_usado', codigo: codigo };
+  if (tel && telNorm(row.telefono) !== tel) {
+    return { ok: false, error: 'codigo_otro_telefono' };
+  }
+  const r = await restPatch(
+    'compensaciones',
+    'codigo=eq.' + encodeURIComponent(codigo) + '&usado=eq.false',
+    { usado: true, usado_orn: 'ADMIN-ANULADO', usado_at: new Date().toISOString() }
+  );
+  if (!r.ok) return supabaseFail(r, 'cupon_anular_failed');
+  return { ok: true, codigo: codigo };
+}
 
 async function listCompensaciones(limit) {
 
@@ -1569,6 +1614,10 @@ module.exports = {
   redeemCoupon,
 
   createCompensacion,
+
+  getActiveCompensacionForTelefono,
+
+  anularCompensacion,
 
   reclamoAccionTomadaForOrn,
 

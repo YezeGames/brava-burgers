@@ -6,6 +6,7 @@
 
   var modalOrn = null;
   var modalOrder = null;
+  var activeCuponCodigo = null;
   var reenvioOrn = null;
   var reenvioOrder = null;
   var reenvioItems = [];
@@ -99,12 +100,67 @@
     updateValorField();
     updatePreview();
     $('comp-modal').classList.remove('hidden');
+    refreshActiveCuponForModal();
   }
 
   function closeModal() {
     $('comp-modal').classList.add('hidden');
     modalOrn = null;
     modalOrder = null;
+    activeCuponCodigo = null;
+    setActiveCuponBanner(null);
+  }
+
+  function setActiveCuponBanner(c) {
+    var banner = $('comp-active-banner');
+    var textEl = $('comp-active-text');
+    if (!banner || !textEl) return;
+    if (!c || !c.codigo) {
+      banner.classList.add('hidden');
+      activeCuponCodigo = null;
+      textEl.textContent = '';
+      return;
+    }
+    activeCuponCodigo = c.codigo;
+    var parts = ['Cupón *' + c.codigo + '* pendiente (' + (c.label || couponLabelComanda(c)) + ')'];
+    if (c.orn_origen) parts.push('Pedido ' + c.orn_origen);
+    parts.push('Anulalo si fue de prueba o ya no aplica — así podés emitir otro.');
+    textEl.textContent = parts.join(' · ');
+    banner.classList.remove('hidden');
+  }
+
+  function refreshActiveCuponForModal() {
+    if (!modalOrder || !modalOrder.telefono) {
+      setActiveCuponBanner(null);
+      return Promise.resolve();
+    }
+    return adminApi({ action: 'getCuponActivo', telefono: modalOrder.telefono }).then(function (data) {
+      if (data.ok && data.compensacion) setActiveCuponBanner(data.compensacion);
+      else setActiveCuponBanner(null);
+    });
+  }
+
+  function anularCuponActivo(codigo) {
+    if (!modalOrder) return Promise.resolve({ ok: false });
+    var btn = $('comp-anular');
+    if (btn) btn.disabled = true;
+    return adminApi({
+      action: 'anularCompensacion',
+      telefono: modalOrder.telefono,
+      codigo: codigo || activeCuponCodigo || '',
+    })
+      .then(function (data) {
+        if (!data.ok) {
+          alert('No se pudo anular: ' + (data.error || 'error'));
+          return data;
+        }
+        setActiveCuponBanner(null);
+        alert('Cupón ' + (data.codigo || codigo) + ' anulado. Ya podés crear uno nuevo.');
+        return data;
+      })
+      .finally(function () {
+        if (btn) btn.disabled = false;
+      });
   }
 
   function adminApi(body) {
@@ -144,7 +200,18 @@
       .then(function (data) {
         if (!data.ok) {
           if (data.error === 'cupon_activo_existe') {
-            alert('Ya hay un cupón activo para este teléfono (' + (data.codigo || '') + ').');
+            setActiveCuponBanner({ codigo: data.codigo, label: '' });
+            if (
+              confirm(
+                'Ya hay un cupón activo (' +
+                  (data.codigo || '') +
+                  '). ¿Anularlo y crear uno nuevo para este pedido?'
+              )
+            ) {
+              return anularCuponActivo(data.codigo).then(function (an) {
+                if (an && an.ok) confirmGratificar();
+              });
+            }
             return;
           }
           if (data.error === 'reclamo_ya_gratificado') {
@@ -210,6 +277,22 @@
     if (!modal) return;
     $('comp-cancel').addEventListener('click', closeModal);
     $('comp-confirm').addEventListener('click', confirmGratificar);
+    var anularBtn = $('comp-anular');
+    if (anularBtn) {
+      anularBtn.addEventListener('click', function () {
+        if (!activeCuponCodigo) return;
+        if (
+          !confirm(
+            '¿Anular el cupón ' +
+              activeCuponCodigo +
+              '? No podrá usarse en la tienda (queda marcado como usado).'
+          )
+        ) {
+          return;
+        }
+        anularCuponActivo(activeCuponCodigo);
+      });
+    }
     $('comp-motivo').addEventListener('change', function () {
       var sug = suggestComp(this.value);
       $('comp-tipo').value = sug.tipo;
