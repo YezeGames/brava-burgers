@@ -54,7 +54,7 @@
       beneficio +
       ' en tu próximo pedido.\n' +
       'Código: BRAVA-XXXX\n' +
-      'Pedí acá: https://linktr.ee/bravaburgers\n\n' +
+      'Pedí acá: https://www.bravaburgers.com.ar\n\n' +
       'Válido 1 uso · próximo sábado. 🍔';
     var msg2 =
       'Gracias por tu paciencia, ' +

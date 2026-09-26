@@ -11,7 +11,7 @@ function getConsultaMessage() {
   if (custom) return custom;
   return (
     '¡Hola! ¿Cómo va? 🍔✨\n\n' +
-    'Para armar tu pedido y que salga tal cual te gusta, sumalo directo desde nuestra web: https://linktr.ee/bravaburgers\n' +
+    'Para armar tu pedido y que salga tal cual te gusta, sumalo directo desde nuestra web: https://www.bravaburgers.com.ar\n' +
     '(¡podés dejarnos las aclaraciones que quieras en cada hamburguesa!).\n\n' +
     'Apenas nos llegue, te confirmamos por acá.'
   );
@@ -28,7 +28,7 @@ function getClosedMessage() {
     hours +
     ').\n\n' +
     'Pedí cuando estemos abiertos acá:\n' +
-    'https://linktr.ee/bravaburgers\n\n' +
+    'https://www.bravaburgers.com.ar\n\n' +
     'Te leemos en cuanto arranque el turno. ¡Gracias!'
   );
 }

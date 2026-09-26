@@ -68,7 +68,7 @@ function buildCompensationWaText(cliente, orn, codigo, c) {
     'Código: ' +
     codigo +
     '\n' +
-    'Pedí acá: https://linktr.ee/bravaburgers\n\n' +
+    'Pedí acá: https://www.bravaburgers.com.ar\n\n' +
     'Válido 1 uso · próximo sábado. 🍔'
   );
 }

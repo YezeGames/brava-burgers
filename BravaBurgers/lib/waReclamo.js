@@ -292,7 +292,7 @@ async function onRating(from, starId) {
       '¡Gracias por contarlo! 💛 Nos ayuda un montón a seguir mejorando.\n\n' +
         'Seguinos en Instagram @bravaburgers.ok — ahí subimos novedades y promos 🍔\n' +
         'https://www.instagram.com/bravaburgers.ok/\n\n' +
-        'Cuando quieras pedir de nuevo: https://linktr.ee/bravaburgers'
+        'Cuando quieras pedir de nuevo: https://www.bravaburgers.com.ar'
     );
   } else {
     await replyText(from, 'Gracias por contarlo. Si querés, seguimos por acá para resolverlo.');
@@ -303,7 +303,7 @@ async function onRating(from, starId) {
 async function onPedirDeNuevo(from) {
   await replyText(
     from,
-    '¡Gracias por volver! 🔥\n\nPedí acá con aclaraciones en cada burger:\nhttps://linktr.ee/bravaburgers'
+    '¡Gracias por volver! 🔥\n\nPedí acá con aclaraciones en cada burger:\nhttps://www.bravaburgers.com.ar'
   );
   return { handled: true, kind: 'pedir_de_nuevo' };
 }
