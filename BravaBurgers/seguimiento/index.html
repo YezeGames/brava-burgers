@@ -428,11 +428,11 @@
 		}
 
 		function pollIntervalMs(data) {
-			if (!data || !data.ok) return 15000;
+			if (!data || !data.ok) return 12000;
 			if (data.status === 'entregada') return 90000;
-			if (data.tracking_live) return 8000;
-			if (data.status === 'en_cola') return 12000;
-			return 15000;
+			if (data.tracking_live) return 5000;
+			if (data.status === 'en_cola') return 10000;
+			return 12000;
 		}
 
 		function schedulePoll() {
@@ -488,7 +488,7 @@
 			else if (data.tracking_live && !map) renderShell(data);
 			var foot = document.getElementById('foot-live');
 			if (foot && data.tracking_live) {
-				foot.textContent = 'Mapa © OpenStreetMap · CARTO · Actualizando cada ~8 s';
+				foot.textContent = 'Mapa © OpenStreetMap · CARTO · Actualizando cada ~5 s';
 			}
 		}
 

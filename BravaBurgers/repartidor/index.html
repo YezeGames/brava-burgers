@@ -780,6 +780,8 @@
 		var refreshPoll = null;
 		var routePollReady = false;
 		var ROUTE_POLL_MS = 18000;
+		/** GPS → seguimiento cliente (Supabase). */
+		var TRACK_REPORT_MIN_MS = 16000;
 		var alertAudioCtx = null;
 		var lastFetchError = '';
 		/** Misma salida que Admin → Reparto (Diaz Velez 3231, Olivos). */
@@ -1879,7 +1881,7 @@
 					  })();
 			if (!orn) return;
 			var now = Date.now();
-			if (orn === lastTrackOrn && now - lastTrackSentAt < 22000) return;
+			if (orn === lastTrackOrn && now - lastTrackSentAt < TRACK_REPORT_MIN_MS) return;
 			lastTrackSentAt = now;
 			lastTrackOrn = orn;
 			repartidorApi({ action: 'reportTrack', orn: orn, lat: lat, lng: lng }).catch(function () {});

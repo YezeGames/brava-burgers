@@ -1040,7 +1040,7 @@ function packSeguimientoRow(row, id) {
   var driverLive = false;
   if (trackingLive && trackLat != null && trackLng != null && !isNaN(trackLat) && !isNaN(trackLng) && row.track_at) {
     var age = Date.now() - new Date(row.track_at).getTime();
-    driverLive = age >= 0 && age < 180000;
+    driverLive = age >= 0 && age < 120000;
   }
   return {
     ok: true,
