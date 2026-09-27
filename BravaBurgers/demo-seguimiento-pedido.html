@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — Seguimiento de pedido (cliente)</title>
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
+	<style>
+		:root {
+			--brava: #ff6b35;
+			--bg: #0f1214;
+			--surface: #1a2026;
+			--line: #2a343c;
+			--text: #e8eef2;
+			--muted: #8fa3b0;
+			--ok: #43a047;
+			--wait: #ffb300;
+			--mp: #29b6f6;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			background: #111;
+			color: var(--text);
+			min-height: 100dvh;
+		}
+		.demo-shell {
+			max-width: 1100px;
+			margin: 0 auto;
+			padding: 14px 16px 32px;
+		}
+		.demo-head {
+			text-align: center;
+			margin-bottom: 16px;
+		}
+		.demo-head h1 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 2.4rem;
+			letter-spacing: 0.05em;
+			color: var(--brava);
+			margin: 0;
+		}
+		.demo-head p {
+			margin: 8px auto 0;
+			max-width: 640px;
+			font-size: 0.88rem;
+			color: var(--muted);
+			line-height: 1.45;
+		}
+		.demo-grid {
+			display: grid;
+			grid-template-columns: 1fr;
+			gap: 16px;
+		}
+		@media (min-width: 900px) {
+			.demo-grid { grid-template-columns: 340px 1fr; align-items: start; }
+		}
+		.panel {
+			background: var(--surface);
+			border: 1px solid var(--line);
+			border-radius: 14px;
+			overflow: hidden;
+		}
+		.panel-title {
+			padding: 12px 14px;
+			font-size: 0.78rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.05em;
+			color: var(--brava);
+			border-bottom: 1px solid var(--line);
+		}
+		.panel-body { padding: 12px 14px 14px; }
+		.panel-body p {
+			margin: 0 0 10px;
+			font-size: 0.82rem;
+			color: var(--muted);
+			line-height: 1.4;
+		}
+		.wa-bubble {
+			background: #0b141a;
+			border: 1px solid var(--line);
+			border-radius: 12px 12px 12px 4px;
+			padding: 10px 12px;
+			font-size: 0.8rem;
+			line-height: 1.45;
+			margin-bottom: 10px;
+		}
+		.wa-bubble a {
+			color: var(--mp);
+			word-break: break-all;
+		}
+		.url-box {
+			font-size: 0.72rem;
+			background: #0b141a;
+			border: 1px dashed var(--line);
+			border-radius: 8px;
+			padding: 8px 10px;
+			color: #b0c4d0;
+			word-break: break-all;
+			margin-bottom: 12px;
+		}
+		.seg-btns { display: flex; flex-direction: column; gap: 6px; }
+		.seg-btns button {
+			text-align: left;
+			border: 1px solid var(--line);
+			background: #0b141a;
+			color: var(--text);
+			border-radius: 10px;
+			padding: 10px 12px;
+			font: inherit;
+			font-size: 0.82rem;
+			cursor: pointer;
+		}
+		.seg-btns button:hover { border-color: var(--brava); }
+		.seg-btns button.is-on {
+			border-color: var(--brava);
+			background: rgba(255, 107, 53, 0.12);
+		}
+		.seg-btns button small {
+			display: block;
+			color: var(--muted);
+			font-size: 0.72rem;
+			margin-top: 3px;
+		}
+		.role-row {
+			display: flex;
+			gap: 8px;
+			margin-bottom: 12px;
+		}
+		.role-row button {
+			flex: 1;
+			border: 1px solid var(--line);
+			background: #0b141a;
+			color: var(--text);
+			border-radius: 999px;
+			padding: 8px 10px;
+			font: inherit;
+			font-size: 0.78rem;
+			cursor: pointer;
+		}
+		.role-row button.is-on {
+			border-color: var(--brava);
+			background: rgba(255, 107, 53, 0.15);
+			font-weight: 600;
+		}
+		.phone-wrap {
+			display: flex;
+			justify-content: center;
+		}
+		.phone {
+			width: 100%;
+			max-width: 420px;
+			height: min(88dvh, 780px);
+			background: var(--bg);
+			border-radius: 28px;
+			border: 3px solid #2a2a2a;
+			overflow: hidden;
+			display: flex;
+			flex-direction: column;
+		}
+		@media (max-width: 520px) {
+			.phone { max-width: none; height: 92dvh; border: none; border-radius: 16px; }
+		}
+		.c-top {
+			padding: 14px 16px 10px;
+			background: var(--surface);
+			border-bottom: 1px solid var(--line);
+		}
+		.c-brand {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 1.35rem;
+			letter-spacing: 0.08em;
+			color: var(--brava);
+		}
+		.c-orn { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+		.c-scroll {
+			flex: 1;
+			overflow-y: auto;
+			display: flex;
+			flex-direction: column;
+		}
+		.timeline {
+			display: flex;
+			gap: 0;
+			padding: 12px 14px 8px;
+			overflow-x: auto;
+		}
+		.t-step {
+			flex: 1;
+			min-width: 72px;
+			text-align: center;
+			position: relative;
+		}
+		.t-step:not(:last-child)::after {
+			content: '';
+			position: absolute;
+			top: 11px;
+			left: 55%;
+			width: 90%;
+			height: 2px;
+			background: var(--line);
+			z-index: 0;
+		}
+		.t-step.done:not(:last-child)::after { background: var(--ok); }
+		.t-dot {
+			width: 22px;
+			height: 22px;
+			border-radius: 50%;
+			border: 2px solid var(--line);
+			background: var(--bg);
+			margin: 0 auto 6px;
+			position: relative;
+			z-index: 1;
+			font-size: 0.65rem;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.t-step.done .t-dot { border-color: var(--ok); background: rgba(67, 160, 71, 0.2); color: var(--ok); }
+		.t-step.active .t-dot { border-color: var(--brava); background: rgba(255, 107, 53, 0.25); box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.2); }
+		.t-label { font-size: 0.62rem; color: var(--muted); line-height: 1.2; }
+		.t-step.active .t-label { color: var(--text); font-weight: 600; }
+		.status-card {
+			margin: 0 14px 10px;
+			padding: 14px;
+			background: var(--surface);
+			border: 1px solid var(--line);
+			border-radius: 14px;
+		}
+		.status-card h2 {
+			margin: 0 0 4px;
+			font-size: 1.05rem;
+		}
+		.status-card p {
+			margin: 0;
+			font-size: 0.82rem;
+			color: var(--muted);
+			line-height: 1.4;
+		}
+		.status-card .eta {
+			margin-top: 10px;
+			font-size: 1.5rem;
+			font-weight: 800;
+			color: var(--brava);
+		}
+		.status-card.waiting h2 { color: var(--wait); }
+		#map {
+			flex: 1;
+			min-height: 220px;
+			margin: 0 14px 10px;
+			border-radius: 14px;
+			overflow: hidden;
+			border: 1px solid var(--line);
+			display: none;
+		}
+		#map.is-on { display: block; }
+		.map-placeholder {
+			margin: 0 14px 10px;
+			min-height: 200px;
+			border-radius: 14px;
+			border: 1px dashed var(--line);
+			display: none;
+			align-items: center;
+			justify-content: center;
+			text-align: center;
+			padding: 16px;
+			font-size: 0.8rem;
+			color: var(--muted);
+		}
+		.map-placeholder.is-on { display: flex; }
+		.privacy-note {
+			margin: 0 14px 14px;
+			font-size: 0.68rem;
+			color: var(--muted);
+			line-height: 1.35;
+			padding: 8px 10px;
+			background: rgba(41, 182, 246, 0.08);
+			border-radius: 8px;
+			border: 1px solid rgba(41, 182, 246, 0.2);
+		}
+		.c-foot {
+			padding: 10px 14px calc(12px + env(safe-area-inset-bottom));
+			border-top: 1px solid var(--line);
+			font-size: 0.75rem;
+			color: var(--muted);
+			text-align: center;
+		}
+		.c-foot a { color: var(--mp); }
+		.mapboxgl-ctrl-attrib { font-size: 8px !important; }
+	</style>
+</head>
+<body>
+	<div class="demo-shell">
+		<header class="demo-head">
+			<h1>Seguimiento · vista cliente</h1>
+			<p>
+				Propuesta: el cliente abre un <strong>link único</strong> (WhatsApp o confirmación de pedido).
+				El mapa con la moto solo se enciende en ventanas acotadas por parada — no todo el recorrido para todos.
+			</p>
+		</header>
+
+		<div class="demo-grid">
+			<aside class="panel">
+				<div class="panel-title">Cómo llega el link</div>
+				<div class="panel-body">
+					<div class="wa-bubble">
+						🍔 <strong>Brava Burgers</strong><br>
+						Tu pedido <strong>ORN-1042</strong> ya va en camino.<br>
+						Seguilo acá 👇<br>
+						<a id="demo-link" href="#">https://brava-burgers.vercel.app/seguimiento/t/demo-parada1</a>
+					</div>
+					<p>En producción: token opaco (<code>t=…</code>) ligado al ORN, sin login. Mismo link sirve para estado + mapa cuando corresponda.</p>
+					<div class="url-box" id="url-display"></div>
+
+					<div class="panel-title" style="margin: 0 -14px 10px; border-top: 1px solid var(--line);">Simular escenario</div>
+					<p style="margin-bottom: 8px;">¿Qué pedido sos en la ruta?</p>
+					<div class="role-row">
+						<button type="button" id="role-p1" class="is-on">Parada 1</button>
+						<button type="button" id="role-p2">Parada 2</button>
+					</div>
+					<div class="seg-btns" id="scenario-btns"></div>
+				</div>
+			</aside>
+
+			<div class="phone-wrap">
+				<div class="phone" aria-label="Vista cliente en celular">
+					<div class="c-top">
+						<div class="c-brand">BRAVA BURGERS</div>
+						<div class="c-orn" id="c-orn">Pedido ORN-1042 · Envío a domicilio</div>
+					</div>
+					<div class="c-scroll">
+						<div class="timeline" id="timeline"></div>
+						<div class="status-card" id="status-card">
+							<h2 id="status-title">—</h2>
+							<p id="status-desc">—</p>
+							<div class="eta" id="status-eta" hidden></div>
+						</div>
+						<div id="map"></div>
+						<div class="map-placeholder" id="map-off">
+							El mapa en vivo aparece solo cuando el repartidor va hacia <strong>tu</strong> parada.<br>
+							(Ahora no compartimos ubicación.)
+						</div>
+						<p class="privacy-note" id="privacy-note"></p>
+					</div>
+					<div class="c-foot">
+						¿Problemas? <a href="#">WhatsApp Brava</a> · Actualiza solo
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+	<script>
+	(function () {
+		var KITCHEN = { lng: -58.49435, lat: -34.50695, label: 'Brava · Olivos' };
+		var DEST_P1 = { lng: -58.4882, lat: -34.5098, label: 'Parada 1 · Maipú 1200' };
+		var DEST_P2 = { lng: -58.4725, lat: -34.5012, label: 'Parada 2 · Av. del Libertador 3500' };
+		var DEMO_URL = 'https://brava-burgers.vercel.app/seguimiento/t/demo-parada1';
+
+		var role = 'p1';
+		var scenarioId = 'p1_track';
+		var map = null;
+		var markerDriver = null;
+		var routeCoords = [];
+		var animTimer = null;
+		var animIdx = 0;
+		var mapboxToken = '';
+
+		var scenarios = [
+			{ id: 'prep', label: 'En preparación', sub: 'Sin mapa · cocina armando el pedido', role: 'both' },
+			{ id: 'p1_track', label: 'Parada 1 · en camino (tracking ON)', sub: 'Desde «Iniciar recorrido» hasta confirmar entrega', role: 'p1' },
+			{ id: 'p1_door', label: 'Parada 1 · repartidor cerca', sub: 'Últimos metros, mapa sigue activo', role: 'p1' },
+			{ id: 'p1_done', label: 'Parada 1 · entregada', sub: 'Mapa apagado para parada 1', role: 'p1' },
+			{ id: 'p2_wait', label: 'Parada 2 · en cola', sub: 'Todavía entregando parada 1 — sin ubicación', role: 'p2' },
+			{ id: 'p2_track', label: 'Parada 2 · en camino (tracking ON)', sub: 'Recién después de entregar parada 1', role: 'p2' },
+			{ id: 'done', label: 'Entregado', sub: 'Gracias · link deja de mostrar mapa', role: 'both' }
+		];
+
+		function $(id) { return document.getElementById(id); }
+
+		function buildScenarioButtons() {
+			var wrap = $('scenario-btns');
+			wrap.innerHTML = '';
+			scenarios.forEach(function (s) {
+				if (s.role !== 'both' && s.role !== role) return;
+				var btn = document.createElement('button');
+				btn.type = 'button';
+				btn.dataset.id = s.id;
+				btn.innerHTML = s.label + '<small>' + s.sub + '</small>';
+				if (s.id === scenarioId) btn.classList.add('is-on');
+				btn.onclick = function () {
+					scenarioId = s.id;
+					buildScenarioButtons();
+					renderCustomer();
+				};
+				wrap.appendChild(btn);
+			});
+		}
+
+		function timelineSteps() {
+			return [
+				{ key: 'prep', label: 'Preparación' },
+				{ key: 'way', label: 'En camino' },
+				{ key: 'yours', label: 'Hacia vos' },
+				{ key: 'ok', label: 'Entregado' }
+			];
+		}
+
+		function activeStepForScenario() {
+			switch (scenarioId) {
+				case 'prep': return 'prep';
+				case 'p1_track':
+				case 'p2_wait': return 'way';
+				case 'p1_door':
+				case 'p2_track': return 'yours';
+				case 'p1_done': return role === 'p1' ? 'ok' : 'way';
+				case 'done': return 'ok';
+				default: return 'prep';
+			}
+		}
+
+		function renderTimeline() {
+			var active = activeStepForScenario();
+			var order = ['prep', 'way', 'yours', 'ok'];
+			var activeIdx = order.indexOf(active);
+			var html = '';
+			timelineSteps().forEach(function (step, i) {
+				var cls = 't-step';
+				if (i < activeIdx) cls += ' done';
+				if (i === activeIdx) cls += ' active';
+				var icon = i < activeIdx ? '✓' : String(i + 1);
+				html +=
+					'<div class="' + cls + '"><div class="t-dot">' + icon + '</div><div class="t-label">' + step.label + '</div></div>';
+			});
+			$('timeline').innerHTML = html;
+		}
+
+		function trackingOn() {
+			if (scenarioId === 'p1_track' || scenarioId === 'p1_door' || scenarioId === 'p2_track') return true;
+			return false;
+		}
+
+		function destForRole() {
+			return role === 'p2' ? DEST_P2 : DEST_P1;
+		}
+
+		function renderCustomer() {
+			renderTimeline();
+			var card = $('status-card');
+			card.classList.remove('waiting');
+			var title = $('status-title');
+			var desc = $('status-desc');
+			var eta = $('status-eta');
+			eta.hidden = true;
+
+			if (scenarioId === 'prep') {
+				title.textContent = 'Estamos preparando tu pedido';
+				desc.textContent = 'Cuando el repartidor inicie el recorrido vas a poder seguirlo desde acá (solo en tu tramo).';
+			} else if (scenarioId === 'p1_track' && role === 'p1') {
+				title.textContent = 'Tu repartidor va en camino';
+				desc.textContent = 'Parada 1 de la ruta · ubicación en vivo hasta que te entreguemos.';
+				eta.hidden = false;
+				eta.textContent = '~12 min';
+			} else if (scenarioId === 'p1_door' && role === 'p1') {
+				title.textContent = 'Casi llegamos';
+				desc.textContent = 'El repartidor está cerca de tu dirección.';
+				eta.hidden = false;
+				eta.textContent = '~2 min';
+			} else if (scenarioId === 'p1_done' && role === 'p1') {
+				title.textContent = '¡Pedido entregado!';
+				desc.textContent = 'Gracias por elegir Brava. El seguimiento en mapa ya se apagó.';
+			} else if (scenarioId === 'p2_wait' && role === 'p2') {
+				card.classList.add('waiting');
+				title.textContent = 'Tu pedido va en la ruta';
+				desc.textContent =
+					'Primero entregamos otras paradas. Cuando salgamos hacia vos, acá vas a ver el mapa en vivo (no antes).';
+			} else if (scenarioId === 'p2_track' && role === 'p2') {
+				title.textContent = 'Vamos hacia tu domicilio';
+				desc.textContent = 'Parada 2 · tracking activo desde que terminamos la entrega anterior.';
+				eta.hidden = false;
+				eta.textContent = '~18 min';
+			} else if (scenarioId === 'done') {
+				title.textContent = '¡Listo!';
+				desc.textContent = 'Pedido entregado. Este link puede quedar solo como comprobante.';
+			} else {
+				title.textContent = 'Estado del pedido';
+				desc.textContent = 'Elegí otro escenario en el panel.';
+			}
+
+			var track = trackingOn();
+			$('map').classList.toggle('is-on', track && !!map);
+			$('map-off').classList.toggle('is-on', !track);
+
+			$('privacy-note').textContent = track
+				? 'Ubicación visible solo mientras entregamos tu parada. Se apaga al confirmar la entrega en la app del repartidor.'
+				: 'Privacidad: no mostramos al repartidor en el mapa fuera de tu ventana de entrega.';
+
+			$('demo-link').href = DEMO_URL.replace('parada1', role === 'p2' ? 'parada2' : 'parada1');
+			$('url-display').textContent = $('demo-link').href;
+
+			if (track) {
+				ensureMap(function () {
+					drawRouteAndAnimate();
+				});
+			} else {
+				stopAnim();
+			}
+		}
+
+		function ensureMap(cb) {
+			if (map) {
+				cb();
+				return;
+			}
+			fetch('/api/mapbox-config', { cache: 'no-store' })
+				.then(function (r) { return r.json(); })
+				.then(function (data) {
+					if (data && data.token) mapboxToken = data.token;
+				})
+				.catch(function () {})
+				.finally(function () {
+					if (!window.mapboxgl) {
+						$('map-off').innerHTML = 'Mapbox no cargó (abrí desde Vercel o con servidor). El flujo de estados sigue funcionando.';
+						return;
+					}
+					if (mapboxToken) mapboxgl.accessToken = mapboxToken;
+					map = new mapboxgl.Map({
+						container: 'map',
+						style: mapboxToken ? 'mapbox://styles/mapbox/streets-v12' : 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+						center: [KITCHEN.lng, KITCHEN.lat],
+						zoom: 13,
+						attributionControl: true
+					});
+					map.on('load', cb);
+				});
+		}
+
+		function stopAnim() {
+			if (animTimer) clearInterval(animTimer);
+			animTimer = null;
+		}
+
+		function fetchRoute(from, to, cb) {
+			if (mapboxToken) {
+				var url =
+					'https://api.mapbox.com/directions/v5/mapbox/driving/' +
+					from.lng + ',' + from.lat + ';' + to.lng + ',' + to.lat +
+					'?geometries=geojson&overview=full&access_token=' + encodeURIComponent(mapboxToken);
+				fetch(url)
+					.then(function (r) { return r.json(); })
+					.then(function (d) {
+						if (d.routes && d.routes[0]) cb(d.routes[0].geometry.coordinates);
+						else cb(fallbackLine(from, to));
+					})
+					.catch(function () { cb(fallbackLine(from, to)); });
+			} else {
+				cb(fallbackLine(from, to));
+			}
+		}
+
+		function fallbackLine(from, to) {
+			var n = 40;
+			var out = [];
+			for (var i = 0; i <= n; i++) {
+				var t = i / n;
+				out.push([
+					from.lng + (to.lng - from.lng) * t,
+					from.lat + (to.lat - from.lat) * t
+				]);
+			}
+			return out;
+		}
+
+		function drawRouteAndAnimate() {
+			if (!map) return;
+			stopAnim();
+			var dest = destForRole();
+			var from = scenarioId === 'p2_track' ? DEST_P1 : KITCHEN;
+			if (scenarioId === 'p1_door') {
+				from = { lng: dest.lng + 0.002, lat: dest.lat + 0.0015, label: '' };
+			}
+
+			fetchRoute(from, dest, function (coords) {
+				routeCoords = coords;
+				var geo = { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } };
+				if (map.getSource('route')) {
+					map.getSource('route').setData(geo);
+				} else {
+					map.addSource('route', { type: 'geojson', data: geo });
+					map.addLayer({
+						id: 'route-line',
+						type: 'line',
+						source: 'route',
+						paint: { 'line-color': '#ff6b35', 'line-width': 5, 'line-opacity': 0.85 }
+					});
+				}
+
+				if (!map.getSource('dest')) {
+					map.addSource('dest', {
+						type: 'geojson',
+						data: { type: 'Feature', geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] } }
+					});
+					map.addLayer({
+						id: 'dest-pin',
+						type: 'circle',
+						source: 'dest',
+						paint: { 'circle-radius': 8, 'circle-color': '#29b6f6', 'circle-stroke-width': 2, 'circle-stroke-color': '#fff' }
+					});
+				} else {
+					map.getSource('dest').setData({
+						type: 'Feature',
+						geometry: { type: 'Point', coordinates: [dest.lng, dest.lat] }
+					});
+				}
+
+				if (!markerDriver) {
+					var el = document.createElement('div');
+					el.style.width = '36px';
+					el.style.height = '36px';
+					el.style.background = 'url("data:image/svg+xml,' + encodeURIComponent(
+						'<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 64 64\"><circle cx=\"32\" cy=\"32\" r=\"28\" fill=\"#ff6b35\" stroke=\"#fff\" stroke-width=\"4\"/><text x=\"32\" y=\"40\" text-anchor=\"middle\" font-size=\"28\" fill=\"#fff\">🛵</text></svg>'
+					) + '") center/contain no-repeat';
+					markerDriver = new mapboxgl.Marker({ element: el }).setLngLat(coords[0]).addTo(map);
+				}
+
+				var bounds = new mapboxgl.LngLatBounds();
+				coords.forEach(function (c) { bounds.extend(c); });
+				map.fitBounds(bounds, { padding: 48, maxZoom: 14 });
+
+				animIdx = scenarioId === 'p1_door' ? Math.floor(coords.length * 0.85) : 0;
+				animTimer = setInterval(function () {
+					if (!routeCoords.length) return;
+					var c = routeCoords[Math.min(animIdx, routeCoords.length - 1)];
+					markerDriver.setLngLat(c);
+					animIdx += 1;
+					if (animIdx >= routeCoords.length) animIdx = Math.floor(routeCoords.length * 0.55);
+				}, 280);
+			});
+		}
+
+		$('role-p1').onclick = function () {
+			role = 'p1';
+			scenarioId = 'p1_track';
+			$('role-p1').classList.add('is-on');
+			$('role-p2').classList.remove('is-on');
+			buildScenarioButtons();
+			renderCustomer();
+		};
+		$('role-p2').onclick = function () {
+			role = 'p2';
+			scenarioId = 'p2_wait';
+			$('role-p2').classList.add('is-on');
+			$('role-p1').classList.remove('is-on');
+			buildScenarioButtons();
+			renderCustomer();
+		};
+
+		$('url-display').textContent = DEMO_URL;
+		buildScenarioButtons();
+		renderCustomer();
+	})();
+	</script>
+</body>
+</html>

@@ -175,6 +175,22 @@
 
     {
 
+      "source": "/seguimiento",
+
+      "destination": "/seguimiento/index.html"
+
+    },
+
+    {
+
+      "source": "/seguimiento/",
+
+      "destination": "/seguimiento/index.html"
+
+    },
+
+    {
+
       "source": "/api/repartidor",
 
       "destination": "/api/pedido"

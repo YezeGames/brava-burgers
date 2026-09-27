@@ -868,8 +868,65 @@ function isRepartidorColumnsMissing(r) {
   return false;
 }
 
+function resolveRepartoParada(row, fallbackIndex) {
+  var p = Number(row && row.reparto_parada);
+  if (isNaN(p) || p < 1) return fallbackIndex;
+  return p;
+}
+
+function minParadaAmong(rows) {
+  var m = null;
+  for (var i = 0; i < rows.length; i++) {
+    var p = resolveRepartoParada(rows[i], i + 1);
+    if (m == null || p < m) m = p;
+  }
+  return m;
+}
+
+async function repartidorSeguimientoNextStopAfterEntrega(repartidorTel) {
+  const { sendSeguimientoWhatsApp } = require('./waSeguimiento');
+  const tel = telNorm(repartidorTel);
+  if (!tel) return { ok: false, error: 'missing_telefono' };
+  const r = await restSelect(
+    'orders',
+    'select=orn,cliente,telefono,estado,reparto_parada,repartidor_tel&repartidor_tel=eq.' +
+      encodeURIComponent(tel) +
+      '&estado=eq.en_preparacion&order=reparto_parada.asc.nullslast,fecha_creado.asc'
+  );
+  if (!r.ok) return supabaseFail(r, 'next_stop_list_failed');
+  const prep = Array.isArray(r.data) ? r.data : [];
+  if (!prep.length) return { ok: true, activated: 0, wa: [] };
+  const minP = minParadaAmong(prep);
+  const waOut = [];
+  var activated = 0;
+  const now = new Date().toISOString();
+  for (var i = 0; i < prep.length; i++) {
+    const row = prep[i];
+    const parada = resolveRepartoParada(row, i + 1);
+    if (parada !== minP) continue;
+    const orn = String(row.orn || '').trim();
+    if (!orn) continue;
+    const patch = { estado: 'en_camino', en_camino_at: now };
+    let pr = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
+    if (!pr.ok && patch.en_camino_at) {
+      pr = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), { estado: 'en_camino' });
+    }
+    if (!pr.ok) {
+      waOut.push({ orn: orn, ok: false, error: pr.error || 'patch_failed' });
+      continue;
+    }
+    activated++;
+    const wa = await sendSeguimientoWhatsApp(row.telefono, row.cliente, orn, {
+      phase: 'next_stop',
+      parada: parada,
+    });
+    waOut.push({ orn: orn, wa: wa });
+  }
+  return { ok: true, activated: activated, wa: waOut, parada: minP };
+}
+
 async function repartidorIniciarRecorrido(body) {
-  const { sendEnCaminoWhatsApp } = require('./waEnCamino');
+  const { sendSeguimientoWhatsApp } = require('./waSeguimiento');
   const tel = telNorm(body.telefono || body.repartidor_tel);
   if (!tel) return { ok: false, error: 'missing_telefono' };
   const r = await restSelect(
@@ -886,11 +943,26 @@ async function repartidorIniciarRecorrido(body) {
     return supabaseFail(r, 'list_prep_failed');
   }
   const prepRows = Array.isArray(r.data) ? r.data : [];
+  if (!prepRows.length) {
+    const cam = await restSelect(
+      'orders',
+      'select=orn&repartidor_tel=eq.' +
+        encodeURIComponent(tel) +
+        '&estado=eq.en_camino&limit=1'
+    );
+    if (cam.ok && cam.data && cam.data.length) {
+      return { ok: true, already: true, moved: 0, en_camino: cam.data.length, wa: [] };
+    }
+    return { ok: false, error: 'no_stops_to_start' };
+  }
+  const minP = minParadaAmong(prepRows);
   const waOut = [];
   var moved = 0;
   const now = new Date().toISOString();
   for (var i = 0; i < prepRows.length; i++) {
     const row = prepRows[i];
+    const parada = resolveRepartoParada(row, i + 1);
+    if (parada !== minP) continue;
     const orn = String(row.orn || '').trim();
     if (!orn) continue;
     if (telNorm(row.repartidor_tel) !== tel) continue;
@@ -905,22 +977,16 @@ async function repartidorIniciarRecorrido(body) {
       continue;
     }
     moved++;
-    const wa = await sendEnCaminoWhatsApp(row.telefono, row.cliente, orn);
+    const wa = await sendSeguimientoWhatsApp(row.telefono, row.cliente, orn, {
+      phase: 'inicio',
+      parada: parada,
+    });
     waOut.push({ orn: orn, wa: wa });
   }
   if (!moved) {
-    const cam = await restSelect(
-      'orders',
-      'select=orn&repartidor_tel=eq.' +
-        encodeURIComponent(tel) +
-        '&estado=eq.en_camino&limit=1'
-    );
-    if (cam.ok && cam.data && cam.data.length) {
-      return { ok: true, already: true, moved: 0, en_camino: cam.data.length, wa: waOut };
-    }
     return { ok: false, error: 'no_stops_to_start' };
   }
-  return { ok: true, moved: moved, wa: waOut, repartidor_tel: tel };
+  return { ok: true, moved: moved, wa: waOut, repartidor_tel: tel, parada: minP };
 }
 
 async function repartidorMarkEntregada(body) {
@@ -947,7 +1013,43 @@ async function repartidorMarkEntregada(body) {
     const retryWa = await ensureWaPostEntrega(orn);
     out.waPostEntrega = retryWa;
   }
+  out.seguimientoNext = await repartidorSeguimientoNextStopAfterEntrega(tel);
   return out;
+}
+
+async function getPublicOrderSeguimiento(orn) {
+  const id = String(orn || '').trim();
+  if (!id) return { ok: false, error: 'missing_orn' };
+  const r = await restSelect(
+    'orders',
+    'select=orn,cliente,estado,reparto_parada,repartidor_tel,repartidor_llegada_at,entregado_at,en_camino_at,direccion,localidad,piso&orn=eq.' +
+      encodeURIComponent(id) +
+      '&limit=1'
+  );
+  if (!r.ok) return supabaseFail(r, 'order_lookup_failed');
+  if (!r.data || !r.data[0]) return { ok: false, error: 'order_not_found' };
+  const row = r.data[0];
+  const estado = String(row.estado || '').toLowerCase();
+  var trackingLive = estado === 'en_camino';
+  var status = 'preparacion';
+  if (estado === 'entregada') status = 'entregada';
+  else if (estado === 'en_camino') status = 'en_camino';
+  else if (estado === 'en_preparacion' && row.repartidor_tel) status = 'en_cola';
+  return {
+    ok: true,
+    orn: id,
+    estado: estado,
+    status: status,
+    tracking_live: trackingLive,
+    parada: row.reparto_parada != null ? Number(row.reparto_parada) : null,
+    cliente: String(row.cliente || '').trim(),
+    direccion: String(row.direccion || '').trim(),
+    localidad: String(row.localidad || '').trim(),
+    piso: String(row.piso || '').trim(),
+    repartidor_llegada_at: row.repartidor_llegada_at || null,
+    entregado_at: row.entregado_at || null,
+    en_camino_at: row.en_camino_at || null,
+  };
 }
 
 async function repartidorConfirmarLlegada(body, _retried) {
@@ -2030,6 +2132,8 @@ module.exports = {
   repartidorMarkEntregada,
 
   repartidorConfirmarLlegada,
+
+  getPublicOrderSeguimiento,
 
 };
 

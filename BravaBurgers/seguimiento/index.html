@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Seguimiento · Brava Burgers</title>
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--brava: #ff6b35;
+			--bg: #0f1214;
+			--surface: #1a2026;
+			--line: #2a343c;
+			--text: #e8eef2;
+			--muted: #8fa3b0;
+			--ok: #43a047;
+			--wait: #ffb300;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			min-height: 100dvh;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			background: var(--bg);
+			color: var(--text);
+			display: flex;
+			flex-direction: column;
+		}
+		.top {
+			padding: 16px 18px 12px;
+			background: var(--surface);
+			border-bottom: 1px solid var(--line);
+		}
+		.brand {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 1.5rem;
+			letter-spacing: 0.08em;
+			color: var(--brava);
+		}
+		.orn { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+		main { flex: 1; padding: 14px 16px 24px; max-width: 480px; width: 100%; margin: 0 auto; }
+		.card {
+			background: var(--surface);
+			border: 1px solid var(--line);
+			border-radius: 16px;
+			padding: 16px;
+			margin-bottom: 12px;
+		}
+		.card h1 { margin: 0 0 6px; font-size: 1.15rem; }
+		.card p { margin: 0; font-size: 0.88rem; color: var(--muted); line-height: 1.45; }
+		.card.wait h1 { color: var(--wait); }
+		.card.ok h1 { color: var(--ok); }
+		.steps {
+			display: flex;
+			gap: 4px;
+			margin-bottom: 14px;
+		}
+		.step {
+			flex: 1;
+			text-align: center;
+			font-size: 0.62rem;
+			color: var(--muted);
+		}
+		.step .dot {
+			width: 20px;
+			height: 20px;
+			border-radius: 50%;
+			border: 2px solid var(--line);
+			margin: 0 auto 4px;
+			font-size: 0.6rem;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+		}
+		.step.on .dot { border-color: var(--brava); background: rgba(255,107,53,0.2); }
+		.step.done .dot { border-color: var(--ok); color: var(--ok); }
+		.step.on { color: var(--text); font-weight: 600; }
+		.map-note {
+			font-size: 0.72rem;
+			color: var(--muted);
+			padding: 10px 12px;
+			border-radius: 10px;
+			background: rgba(41,182,246,0.08);
+			border: 1px solid rgba(41,182,246,0.2);
+			line-height: 1.35;
+		}
+		.err {
+			text-align: center;
+			padding: 40px 16px;
+			color: var(--muted);
+		}
+		.foot {
+			text-align: center;
+			font-size: 0.72rem;
+			color: var(--muted);
+			padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
+		}
+	</style>
+</head>
+<body>
+	<header class="top">
+		<div class="brand">BRAVA BURGERS</div>
+		<div class="orn" id="hdr-orn">Seguimiento de pedido</div>
+	</header>
+	<main id="main">
+		<p class="err">Cargando…</p>
+	</main>
+	<div class="foot">Se actualiza solo · Mapa en vivo próximamente</div>
+	<script>
+	(function () {
+		function qs(name) {
+			try {
+				return new URLSearchParams(window.location.search).get(name) || '';
+			} catch (e) {
+				return '';
+			}
+		}
+		var token = qs('t');
+		var main = document.getElementById('main');
+		var hdr = document.getElementById('hdr-orn');
+
+		function firstName(s) {
+			s = String(s || '').trim();
+			return s ? s.split(/\s+/)[0] : '';
+		}
+
+		function stepIndex(status) {
+			if (status === 'entregada') return 3;
+			if (status === 'en_camino') return 2;
+			if (status === 'en_cola') return 1;
+			return 0;
+		}
+
+		function renderSteps(active) {
+			var labels = ['Preparación', 'En ruta', 'Hacia vos', 'Entregado'];
+			var html = '<div class="steps">';
+			for (var i = 0; i < labels.length; i++) {
+				var cls = 'step';
+				if (i < active) cls += ' done';
+				if (i === active) cls += ' on';
+				var icon = i < active ? '✓' : String(i + 1);
+				html += '<div class="' + cls + '"><div class="dot">' + icon + '</div>' + labels[i] + '</div>';
+			}
+			html += '</div>';
+			return html;
+		}
+
+		function render(data) {
+			if (!data.ok) {
+				main.innerHTML = '<p class="err">Link inválido o vencido. Escribinos por WhatsApp si necesitás ayuda.</p>';
+				return;
+			}
+			hdr.textContent = 'Pedido ' + (data.orn || '') + (data.parada ? ' · Parada ' + data.parada : '');
+			var active = stepIndex(data.status);
+			var cardClass = 'card';
+			var title = 'Estado del pedido';
+			var desc = '';
+			if (data.status === 'entregada') {
+				cardClass += ' ok';
+				title = '¡Pedido entregado!';
+				desc = 'Gracias por elegir Brava.';
+			} else if (data.status === 'en_camino') {
+				title = 'Tu pedido va en camino';
+				desc = 'El repartidor está yendo hacia tu domicilio.';
+				if (data.repartidor_llegada_at) {
+					title = 'El repartidor está cerca';
+					desc = 'En unos minutos llega a tu puerta.';
+				}
+			} else if (data.status === 'en_cola') {
+				cardClass += ' wait';
+				title = 'Tu pedido va en la ruta';
+				desc =
+					'Primero entregamos otras paradas. Cuando salgamos hacia vos te avisamos por WhatsApp con el mapa.';
+			} else {
+				title = 'Estamos preparando tu pedido';
+				desc = 'Cuando el repartidor inicie el recorrido vas a poder seguirlo desde acá.';
+			}
+			var mapNote = '';
+			if (data.tracking_live) {
+				mapNote =
+					'<p class="map-note">Ubicación en vivo: visible solo mientras entregamos tu parada (se apaga al confirmar la entrega).</p>';
+			} else if (data.status !== 'entregada') {
+				mapNote =
+					'<p class="map-note">El mapa en vivo se activa cuando el repartidor va hacia tu parada.</p>';
+			}
+			var n = firstName(data.cliente);
+			var greet = n ? '<p style="margin:0 0 10px;font-size:0.85rem;color:var(--muted)">Hola, ' + n + '</p>' : '';
+			main.innerHTML =
+				renderSteps(active) +
+				'<div class="' +
+				cardClass +
+				'">' +
+				greet +
+				'<h1>' +
+				title +
+				'</h1><p>' +
+				desc +
+				'</p></div>' +
+				mapNote;
+		}
+
+		function load() {
+			if (!token) {
+				main.innerHTML = '<p class="err">Falta el link de seguimiento (abrilo desde el WhatsApp de Brava).</p>';
+				return;
+			}
+			fetch('/api/seguimiento?t=' + encodeURIComponent(token), { cache: 'no-store' })
+				.then(function (r) {
+					return r.json().then(function (j) {
+						return { status: r.status, body: j };
+					});
+				})
+				.then(function (pack) {
+					if (pack.status === 401 || pack.status === 410) {
+						main.innerHTML = '<p class="err">Este link venció. Pedinos uno nuevo por WhatsApp.</p>';
+						return;
+					}
+					render(pack.body);
+				})
+				.catch(function () {
+					main.innerHTML = '<p class="err">No pudimos cargar el seguimiento. Reintentá en unos segundos.</p>';
+				});
+		}
+
+		load();
+		setInterval(load, 18000);
+	})();
+	</script>
+</body>
+</html>
