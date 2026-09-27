@@ -135,6 +135,10 @@
 		var destGeocodePromise = null;
 		var mapReady = false;
 		var lastData = null;
+		var lastRouteKey = '';
+		var routeFetchInFlight = false;
+		var didFitRoute = false;
+		var OSRM = 'https://router.project-osrm.org/route/v1/driving/';
 
 		function firstName(s) {
 			s = String(s || '').trim();
@@ -252,6 +256,82 @@
 			return el;
 		}
 
+		function routeKey(from, to) {
+			return (
+				from.lng.toFixed(4) +
+				',' +
+				from.lat.toFixed(4) +
+				'>' +
+				to.lng.toFixed(4) +
+				',' +
+				to.lat.toFixed(4)
+			);
+		}
+
+		function drawRouteGeometry(geometry) {
+			if (!map || !mapReady || !geometry) return;
+			var feat = { type: 'Feature', geometry: geometry };
+			if (map.getSource('route')) {
+				map.getSource('route').setData(feat);
+			} else {
+				map.addSource('route', { type: 'geojson', data: feat });
+				map.addLayer({
+					id: 'route-line',
+					type: 'line',
+					source: 'route',
+					layout: { 'line-join': 'round', 'line-cap': 'round' },
+					paint: { 'line-color': '#ff6b35', 'line-width': 5, 'line-opacity': 0.88 },
+				});
+			}
+		}
+
+		function fetchOsrmRoute(from, to) {
+			var url =
+				OSRM +
+				from.lng +
+				',' +
+				from.lat +
+				';' +
+				to.lng +
+				',' +
+				to.lat +
+				'?overview=full&geometries=geojson&steps=false';
+			return fetch(url)
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (data) {
+					if (data.routes && data.routes[0] && data.routes[0].geometry) {
+						return data.routes[0].geometry;
+					}
+					throw new Error('no_route');
+				});
+		}
+
+		function maybeUpdateRoute(from, to) {
+			if (!from || !to) return;
+			var key = routeKey(from, to);
+			if (key === lastRouteKey || routeFetchInFlight) return;
+			lastRouteKey = key;
+			routeFetchInFlight = true;
+			fetchOsrmRoute(from, to)
+				.then(function (geom) {
+					drawRouteGeometry(geom);
+				})
+				.catch(function () {
+					drawRouteGeometry({
+						type: 'LineString',
+						coordinates: [
+							[from.lng, from.lat],
+							[to.lng, to.lat],
+						],
+					});
+				})
+				.finally(function () {
+					routeFetchInFlight = false;
+				});
+		}
+
 		function placeMarkers(data) {
 			geocodeDest(data).then(function (dest) {
 				if (dest && !markerHome) {
@@ -262,19 +342,27 @@
 					markerHome.setLngLat([dest.lng, dest.lat]);
 				}
 				if (data.driver_live && data.track_lng != null && data.track_lat != null) {
+					var from = { lng: data.track_lng, lat: data.track_lat };
 					if (!markerDriver) {
 						markerDriver = new maplibregl.Marker({ element: makeMarkerEl('pin-driver', '🛵') })
-							.setLngLat([data.track_lng, data.track_lat])
+							.setLngLat([from.lng, from.lat])
 							.addTo(map);
 					} else {
-						markerDriver.setLngLat([data.track_lng, data.track_lat]);
+						markerDriver.setLngLat([from.lng, from.lat]);
 					}
-					var bounds = new maplibregl.LngLatBounds();
-					if (dest) bounds.extend([dest.lng, dest.lat]);
-					bounds.extend([data.track_lng, data.track_lat]);
-					map.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 800 });
-				} else if (dest) {
+					if (dest) {
+						maybeUpdateRoute(from, dest);
+						if (!didFitRoute) {
+							var bounds = new maplibregl.LngLatBounds();
+							bounds.extend([dest.lng, dest.lat]);
+							bounds.extend([from.lng, from.lat]);
+							map.fitBounds(bounds, { padding: 52, maxZoom: 15, duration: 800 });
+							didFitRoute = true;
+						}
+					}
+				} else if (dest && !didFitRoute) {
 					map.flyTo({ center: [dest.lng, dest.lat], zoom: 14, duration: 600 });
+					didFitRoute = true;
 				}
 			});
 		}
