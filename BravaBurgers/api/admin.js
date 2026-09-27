@@ -37,7 +37,9 @@ const {
   migrateStoreCatalogSchema,
   migrateRepartidorAssignSchema,
   migrateRepartidorUsersSchema,
+  migrateRepartidorPushTokensSchema,
 } = require('../lib/dbMigrate');
+const { notifyRepartidorRouteAssigned } = require('../lib/repartidorRoutePush');
 const {
   listRepartidorUsers,
   createRepartidorUser,
@@ -203,6 +205,10 @@ async function handleSupabaseAdmin(body) {
     return migrateRepartidorUsersSchema();
   }
 
+  if (action === 'migrateRepartidorPush') {
+    return migrateRepartidorPushTokensSchema();
+  }
+
   if (action === 'listRepartidorUsers') {
     return listRepartidorUsers();
   }
@@ -241,6 +247,14 @@ async function handleSupabaseAdmin(body) {
           out.hint =
             'En Supabase → SQL Editor pegá el archivo supabase/repartidor-asignacion.sql y Run. O agregá SUPABASE_DB_PASSWORD en Vercel y volvé a publicar.';
         }
+      }
+    }
+    if (out.ok) {
+      try {
+        const pushOut = await notifyRepartidorRouteAssigned(out.repartidor_tel, out);
+        out.push_notify = pushOut;
+      } catch (ePush) {
+        out.push_notify = { ok: false, error: 'push_exception', detail: String(ePush.message || ePush) };
       }
     }
     return out;

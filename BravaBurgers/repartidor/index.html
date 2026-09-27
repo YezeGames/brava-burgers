@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260327-webview-perms -->
+	<!-- repartidor-app v=20260327-fcm-push -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -1007,6 +1007,73 @@
 			return Promise.resolve();
 		}
 
+		var repartidorFcmHooked = false;
+
+		function ensurePushNotificationsPlugin() {
+			try {
+				var cap = window.Capacitor;
+				if (!cap) return null;
+				if (cap.Plugins && cap.Plugins.PushNotifications) return cap.Plugins.PushNotifications;
+				if (typeof cap.registerPlugin === 'function') {
+					return cap.registerPlugin('PushNotifications');
+				}
+			} catch (ePn) {}
+			return null;
+		}
+
+		function saveFcmTokenToServer(fcmToken) {
+			var tok = String(fcmToken || '').trim();
+			if (!tok || !isLoggedIn()) return;
+			repartidorApi({
+				action: 'savePushToken',
+				fcm_token: tok,
+				platform: 'android',
+			}).catch(function () {});
+		}
+
+		function registerRepartidorFcm() {
+			if (repartidorFcmHooked || !useAppPermissionFlow() || !isLoggedIn()) return Promise.resolve();
+			var PN = ensurePushNotificationsPlugin();
+			if (!PN) return Promise.resolve();
+			repartidorFcmHooked = true;
+			var chain = Promise.resolve();
+			if (PN.addListener) {
+				chain = chain
+					.then(function () {
+						return PN.addListener('registration', function (ev) {
+							saveFcmTokenToServer(ev && (ev.value || ev.token));
+						});
+					})
+					.then(function () {
+						return PN.addListener('registrationError', function () {});
+					})
+					.then(function () {
+						return PN.addListener('pushNotificationReceived', function (n) {
+							var title = (n && n.title) || 'Brava Repartidor';
+							var body = (n && n.body) || 'Nueva actividad en tu ruta';
+							showPushToast(title, body);
+							playNewOrderAlert();
+							if (isLoggedIn()) fetchRutaLive(false);
+						});
+					});
+			}
+			return chain
+				.then(function () {
+					if (PN.requestPermissions) return PN.requestPermissions();
+					return capNativePromise('PushNotifications', 'requestPermissions', {});
+				})
+				.then(function (status) {
+					var granted =
+						!status ||
+						status.receive === 'granted' ||
+						status.receive === 'prompt' ||
+						status.granted === true;
+					if (granted && PN.register) return PN.register();
+					return capNativePromise('PushNotifications', 'register', {});
+				})
+				.catch(function () {});
+		}
+
 		function requestNativeShellPermissions() {
 			unlockAlertAudio();
 			var btn = $('btn-enable-notify');
@@ -1145,6 +1212,7 @@
 			unlockAlertAudio().then(function () {
 				playNewOrderAlert();
 			});
+			registerRepartidorFcm();
 			updateLoginUi();
 			if (!refreshPoll) startRefreshPoll();
 			fetchRutaLive(false);

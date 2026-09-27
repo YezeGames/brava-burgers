@@ -13,6 +13,8 @@ const {
 const { verifySeguimientoToken } = require('../lib/seguimientoToken');
 const { validateRepartidorToken } = require('../lib/repartidorAuth');
 const { repartidorLogin } = require('../lib/repartidorUsers');
+const { upsertRepartidorPushToken } = require('../lib/repartidorPushTokens');
+const { migrateRepartidorPushTokensSchema } = require('../lib/dbMigrate');
 const { telNorm } = require('../lib/bravaCoupons');
 
 function parseBody(req) {
@@ -104,6 +106,26 @@ async function handleRepartidor(body, req, res) {
         repartidor_tel: auth.tel,
       });
       const out = await repartidorReportTrack(payload);
+      return res.status(out.ok ? 200 : 400).json(out);
+    }
+    if (action === 'savePushToken') {
+      let out = await upsertRepartidorPushToken(
+        auth.tel,
+        body.fcm_token || body.fcmToken || body.token,
+        body.platform || 'android'
+      );
+      if (!out.ok && out.error === 'repartidor_push_schema_missing') {
+        const mig = await migrateRepartidorPushTokensSchema();
+        if (mig.ok) {
+          out = await upsertRepartidorPushToken(
+            auth.tel,
+            body.fcm_token || body.fcmToken || body.token,
+            body.platform || 'android'
+          );
+        } else {
+          out.migrate = mig;
+        }
+      }
       return res.status(out.ok ? 200 : 400).json(out);
     }
     return res.status(400).json({ ok: false, error: 'unknown_action' });

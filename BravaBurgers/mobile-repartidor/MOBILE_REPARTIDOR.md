@@ -33,8 +33,12 @@ APK debug: `android\app\build\outputs\apk\debug\app-debug.apk`
 
 Generar keystore una sola vez y guardarlo en lugar seguro. Configurar signing en `android/app/build.gradle` o Android Studio → Generate Signed Bundle/APK.
 
+## Push (FCM)
+
+Configuración paso a paso: **`FIREBASE_REPARTIDOR.md`** (`google-services.json` + `FIREBASE_SERVICE_ACCOUNT_JSON` en Vercel).
+
 ## Próximas fases
 
-- FCM: push al publicar ruta.
 - GPS en background.
 - Check de versión + URL del APK.
+- APK release firmado.
