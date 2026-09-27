@@ -1,6 +1,18 @@
 # Push FCM — app repartidor Android
 
-## 1. Firebase Console
+## Atajo (Windows, recomendado)
+
+En PowerShell, desde la carpeta `BravaBurgers`:
+
+```powershell
+.\scripts\setup-firebase-repartidor.ps1
+```
+
+Solo tenés que **iniciar sesión con Google** cuando se abre el navegador y **guardar un JSON** cuando el script te lo pida. Opcional: `$env:VERCEL_TOKEN = "..."` antes del script para subir la clave a Vercel solo.
+
+---
+
+## Manual — 1. Firebase Console
 
 1. [Firebase Console](https://console.firebase.google.com/) → **Agregar proyecto** (ej. `brava-repartidor`).
 2. **Agregar app** → **Android**.
