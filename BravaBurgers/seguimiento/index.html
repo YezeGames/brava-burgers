@@ -216,6 +216,16 @@
 						main.innerHTML = '<p class="err">Este link venció. Pedinos uno nuevo por WhatsApp.</p>';
 						return;
 					}
+					if (pack.status === 404 || (pack.body && pack.body.error === 'order_not_found')) {
+						main.innerHTML =
+							'<p class="err">No encontramos este pedido. Si acabás de hacerlo, esperá un minuto y recargá.</p>';
+						return;
+					}
+					if (pack.status >= 500) {
+						main.innerHTML =
+							'<p class="err">Seguimiento temporalmente no disponible. Recargá en unos segundos o escribinos por WhatsApp.</p>';
+						return;
+					}
 					render(pack.body);
 				})
 				.catch(function () {

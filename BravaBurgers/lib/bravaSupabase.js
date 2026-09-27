@@ -1022,11 +1022,48 @@ async function getPublicOrderSeguimiento(orn) {
   if (!id) return { ok: false, error: 'missing_orn' };
   const r = await restSelect(
     'orders',
-    'select=orn,cliente,estado,reparto_parada,repartidor_tel,repartidor_llegada_at,entregado_at,en_camino_at,direccion,localidad,piso&orn=eq.' +
+    'select=orn,cliente,estado,reparto_parada,repartidor_tel,repartidor_llegada_at,entregado_at,direccion,localidad,piso&orn=eq.' +
       encodeURIComponent(id) +
       '&limit=1'
   );
-  if (!r.ok) return supabaseFail(r, 'order_lookup_failed');
+  if (!r.ok) {
+    const blob = restErrorBlob(r);
+    if (blob.indexOf('repartidor_llegada_at') >= 0 || blob.indexOf('reparto_parada') >= 0) {
+      const r2 = await restSelect(
+        'orders',
+        'select=orn,cliente,estado,repartidor_tel,entregado_at,direccion,localidad,piso&orn=eq.' +
+          encodeURIComponent(id) +
+          '&limit=1'
+      );
+      if (!r2.ok) return supabaseFail(r2, 'order_lookup_failed');
+      if (!r2.data || !r2.data[0]) return { ok: false, error: 'order_not_found' };
+      const row2 = r2.data[0];
+      const estado2 = String(row2.estado || '').toLowerCase();
+      return {
+        ok: true,
+        orn: id,
+        estado: estado2,
+        status:
+          estado2 === 'entregada'
+            ? 'entregada'
+            : estado2 === 'en_camino'
+              ? 'en_camino'
+              : row2.repartidor_tel
+                ? 'en_cola'
+                : 'preparacion',
+        tracking_live: estado2 === 'en_camino',
+        parada: null,
+        cliente: String(row2.cliente || '').trim(),
+        direccion: String(row2.direccion || '').trim(),
+        localidad: String(row2.localidad || '').trim(),
+        piso: String(row2.piso || '').trim(),
+        repartidor_llegada_at: null,
+        entregado_at: row2.entregado_at || null,
+        en_camino_at: null,
+      };
+    }
+    return supabaseFail(r, 'order_lookup_failed');
+  }
   if (!r.data || !r.data[0]) return { ok: false, error: 'order_not_found' };
   const row = r.data[0];
   const estado = String(row.estado || '').toLowerCase();
@@ -1048,7 +1085,7 @@ async function getPublicOrderSeguimiento(orn) {
     piso: String(row.piso || '').trim(),
     repartidor_llegada_at: row.repartidor_llegada_at || null,
     entregado_at: row.entregado_at || null,
-    en_camino_at: row.en_camino_at || null,
+    en_camino_at: null,
   };
 }
 
