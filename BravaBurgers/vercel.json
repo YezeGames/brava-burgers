@@ -195,6 +195,14 @@
 
       "destination": "/api/pedido"
 
+    },
+
+    {
+
+      "source": "/api/seguimiento",
+
+      "destination": "/api/pedido?action=seguimientoPublic"
+
     }
 
   ]

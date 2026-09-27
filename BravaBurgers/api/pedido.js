@@ -7,7 +7,9 @@ const {
   repartidorMarkEntregada,
   repartidorConfirmarLlegada,
   repartidorIniciarRecorrido,
+  getPublicOrderSeguimiento,
 } = require('../lib/bravaSupabase');
+const { verifySeguimientoToken } = require('../lib/seguimientoToken');
 const { validateRepartidorToken } = require('../lib/repartidorAuth');
 const { repartidorLogin } = require('../lib/repartidorUsers');
 const { telNorm } = require('../lib/bravaCoupons');
@@ -101,6 +103,21 @@ async function handleRepartidor(body, req, res) {
   }
 }
 
+async function handleSeguimientoPublic(q, res) {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+  const token = String(q.t || q.token || '').trim();
+  const verified = verifySeguimientoToken(token);
+  if (!verified.ok) {
+    const code = verified.error === 'token_expired' ? 410 : 401;
+    return res.status(code).json(verified);
+  }
+  const out = await getPublicOrderSeguimiento(verified.orn);
+  if (!out.ok) {
+    return res.status(out.error === 'order_not_found' ? 404 : 502).json(out);
+  }
+  return res.status(200).json(out);
+}
+
 async function handleValidateCupon(body, res) {
   if (!isSupabaseConfigured()) {
     return res.status(503).json({ ok: false, error: 'cupones_not_configured' });
@@ -130,8 +147,15 @@ module.exports = async function handler(req, res) {
 
   if (req.method === 'GET') {
     const q = req.query || {};
-    if (String(q.action || '') === 'listRuta') {
+    const action = String(q.action || '').trim();
+    if (action === 'listRuta') {
       return handleRepartidor(q, req, res);
+    }
+    if (action === 'seguimientoPublic' || q.t || q.token) {
+      if (!isSupabaseConfigured()) {
+        return res.status(503).json({ ok: false, error: 'supabase_not_configured' });
+      }
+      return handleSeguimientoPublic(q, res);
     }
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   }
