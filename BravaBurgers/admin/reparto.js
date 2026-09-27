@@ -102,6 +102,16 @@
       .filter(Boolean);
   }
 
+  function repartidorAppPhoneReady() {
+    var waEl = $('reparto-deli-wa');
+    return !!(waEl && normalizeWaPhone(waEl.value));
+  }
+
+  function updateRepartoAppButton() {
+    var appBtn = $('reparto-btn-app');
+    if (appBtn) appBtn.disabled = !repartidorAppPhoneReady();
+  }
+
   function routeStopsSignature() {
     return routeOrder
       .map(function (orn) {
@@ -427,7 +437,7 @@
     var has = list.length > 0;
     $('reparto-btn-gmaps').disabled = !has;
     $('reparto-btn-wa').disabled = !has;
-    $('reparto-btn-app').disabled = !has;
+    updateRepartoAppButton();
     $('reparto-btn-copy').disabled = !has;
     updateDispatchButton();
     if (refreshMap) {
@@ -706,6 +716,7 @@
     if (window.BravaWaPanel && typeof window.BravaWaPanel.setRepartidorTel === 'function') {
       window.BravaWaPanel.setRepartidorTel(tel);
     }
+    updateRepartoAppButton();
   }
 
   function renderRepartidorCuentasList(users) {
@@ -866,13 +877,21 @@
 
     $('reparto-btn-app').onclick = function () {
       var list = stops();
-      if (!list.length) return;
       var waEl = $('reparto-deli-wa');
       var phone = waEl ? waEl.value : '';
       if (!normalizeWaPhone(phone)) {
         setStatus('Elegí un repartidor (cuenta app) arriba o creá una en «Cuentas app repartidor».', true);
         if ($('reparto-deli-user')) $('reparto-deli-user').focus();
         return;
+      }
+      if (!list.length) {
+        if (
+          !confirm(
+            'No hay paradas en la ruta. ¿Sacar todos los pedidos asignados a este repartidor de la app?'
+          )
+        ) {
+          return;
+        }
       }
       try {
         sessionStorage.setItem(DELI_WA_KEY, phone);
@@ -909,15 +928,26 @@
             return;
           }
           var extra = data.failed && data.failed.length ? ' (' + data.failed.length + ' fallaron)' : '';
-          setStatus(
-            'Ruta ' +
-              data.ruta_id +
-              ' → app del repartidor · ' +
-              data.assigned +
-              ' pedido(s)' +
-              extra +
-              '. El repartidor pone «Iniciar recorrido» → en camino + WhatsApp.'
-          );
+          if (data.empty_route) {
+            setStatus(
+              'App del repartidor limpia: ' +
+                (data.cleared || 0) +
+                ' pedido(s) quitados. Tildá la ruta correcta y volvé a publicar.'
+            );
+          } else {
+            var clearedMsg =
+              data.cleared > 0 ? ' · ' + data.cleared + ' quitado(s) de la app' : '';
+            setStatus(
+              'Ruta ' +
+                data.ruta_id +
+                ' → app del repartidor · ' +
+                data.assigned +
+                ' pedido(s)' +
+                clearedMsg +
+                extra +
+                '. El repartidor pone «Iniciar recorrido» → en camino + WhatsApp.'
+            );
+          }
           if (window.fetchOrdersFromServer) window.fetchOrdersFromServer(true);
         })
         .catch(function () {
@@ -925,8 +955,7 @@
         })
         .finally(function () {
           updateDispatchButton();
-          var has = stops().length > 0;
-          if ($('reparto-btn-app')) $('reparto-btn-app').disabled = !has;
+          updateRepartoAppButton();
         });
     };
 

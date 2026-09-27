@@ -1018,11 +1018,72 @@ function isRepartidorLlegadaColumnMissing(r) {
   return blob.indexOf('repartidor_llegada_at') >= 0 || (blob.indexOf('pgrst204') >= 0 && blob.indexOf('llegada') >= 0);
 }
 
+/** Quita de la app pedidos asignados a este tel que no están en la nueva ruta. */
+async function unassignRepartidorStopsNotInRoute(tel, keepOrns) {
+  const keep = {};
+  (keepOrns || []).forEach(function (orn) {
+    const id = String(orn || '').trim();
+    if (id) keep[id] = true;
+  });
+  const r = await restSelect(
+    'orders',
+    'select=orn,estado&repartidor_tel=eq.' +
+      encodeURIComponent(tel) +
+      '&estado=in.(en_preparacion,en_camino)'
+  );
+  if (!r.ok) return { ok: false, error: r.error, detail: r.detail, cleared: 0, errors: [] };
+  const rows = Array.isArray(r.data) ? r.data : [];
+  var cleared = 0;
+  var errors = [];
+  for (var i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const orn = String(row.orn || '').trim();
+    if (!orn || keep[orn]) continue;
+    const patch = {
+      repartidor_tel: null,
+      reparto_parada: null,
+      reparto_asignado_at: null,
+      reparto_ruta_id: null,
+      repartidor_llegada_at: null,
+    };
+    const est = String(row.estado || '').toLowerCase();
+    if (est === 'en_camino') {
+      patch.estado = 'en_preparacion';
+      patch.en_camino_at = null;
+    }
+    const pr = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
+    if (pr.ok) cleared++;
+    else errors.push({ orn: orn, error: pr.error, detail: pr.detail });
+  }
+  return { ok: true, cleared: cleared, errors: errors };
+}
+
 async function assignRepartidorRuta(body) {
   const tel = telNorm(body.repartidor_tel || body.telefono);
   const stopsIn = body.stops || body.orders || [];
   if (!tel) return { ok: false, error: 'missing_repartidor_tel' };
-  if (!Array.isArray(stopsIn) || !stopsIn.length) return { ok: false, error: 'missing_stops' };
+  if (!Array.isArray(stopsIn)) return { ok: false, error: 'missing_stops' };
+
+  const keepOrns = [];
+  for (var k = 0; k < stopsIn.length; k++) {
+    const rowK = stopsIn[k];
+    const ornK = String((rowK && rowK.orn) || rowK || '').trim();
+    if (ornK) keepOrns.push(ornK);
+  }
+  const unassign = await unassignRepartidorStopsNotInRoute(tel, keepOrns);
+  if (!unassign.ok) {
+    return { ok: false, error: unassign.error || 'unassign_failed', detail: unassign.detail };
+  }
+  if (!stopsIn.length) {
+    return {
+      ok: true,
+      assigned: 0,
+      cleared: unassign.cleared,
+      repartidor_tel: tel,
+      empty_route: true,
+      unassign_errors: unassign.errors,
+    };
+  }
 
   const markEnCamino = body.markEnCamino !== false;
   const now = new Date().toISOString();
@@ -1078,9 +1139,11 @@ async function assignRepartidorRuta(body) {
     ok: true,
     assigned: assigned,
     failed: failed,
+    cleared: unassign.cleared,
     ruta_id: rutaId,
     repartidor_tel: tel,
     markEnCamino: markEnCamino,
+    unassign_errors: unassign.errors,
   };
 }
 
