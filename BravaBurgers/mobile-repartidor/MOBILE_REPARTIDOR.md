@@ -37,8 +37,11 @@ Generar keystore una sola vez y guardarlo en lugar seguro. Configurar signing en
 
 Configuración paso a paso: **`FIREBASE_REPARTIDOR.md`** (`google-services.json` + `FIREBASE_SERVICE_ACCOUNT_JSON` en Vercel).
 
+## GPS en background (seguimiento al cliente)
+
+Con entregas **en camino**, el APK usa `@capacitor-community/background-geolocation`: notificación persistente en la barra y envío de posición a Supabase aunque minimices la app. Requiere **CapacitorHttp** (`useLegacyBridge: true` en `capacitor.config.json`).
+
 ## Próximas fases
 
-- GPS en background.
 - Check de versión + URL del APK.
 - APK release firmado.

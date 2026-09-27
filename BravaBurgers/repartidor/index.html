@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260327-native-notify-bar -->
+	<!-- repartidor-app v=20260327-bg-gps-track -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -832,6 +832,8 @@
 
 		var map = null;
 		var watchId = null;
+		var bgGeoWatcherId = null;
+		var bgGeoPlugin = null;
 		var lastTrackSentAt = 0;
 		var lastTrackOrn = '';
 		var simTimer = null;
@@ -941,6 +943,7 @@
 				localStorage.removeItem(TOKEN_STORAGE_KEY);
 				localStorage.removeItem(SESSION_META_KEY);
 			} catch (e3) {}
+			syncGpsMode();
 			updateLoginUi();
 			updateSyncStrip();
 			renderList();
@@ -1157,7 +1160,7 @@
 			if (lead) {
 				if (useAppPermissionFlow()) {
 					lead.innerHTML =
-						'App Brava Repartidor: tocá abajo y el celular va a pedir <strong>ubicación</strong> (mapa y seguimiento) y <strong>notificaciones</strong> (avisos de paradas).';
+						'Tocá abajo: el celular pide <strong>ubicación</strong> y <strong>notificaciones</strong>. Con entregas en camino queda un aviso en la barra mientras el cliente ve tu seguimiento.';
 				} else {
 					lead.innerHTML =
 						'Obligatorio para repartir: avisos con <strong>sonido</strong> cuando cocina te asigna paradas.';
@@ -1442,6 +1445,7 @@
 							if (added.length) notifyNewAssignments(added);
 						}
 						routePollReady = true;
+						syncGpsMode();
 					}
 					renderList();
 					if (showToast && data.ok) {
@@ -2200,9 +2204,53 @@
 				});
 		}
 
-		function startGps() {
+		function ensureBackgroundGeolocationPlugin() {
+			if (bgGeoPlugin) return bgGeoPlugin;
+			try {
+				var cap = window.Capacitor;
+				if (!cap || typeof cap.registerPlugin !== 'function') return null;
+				bgGeoPlugin = cap.registerPlugin('BackgroundGeolocation');
+				return bgGeoPlugin;
+			} catch (eBg) {
+				return null;
+			}
+		}
+
+		function needsBackgroundRouteTracking() {
+			return useAppPermissionFlow() && isLoggedIn() && myAssignments().length > 0;
+		}
+
+		function stopWebGpsWatch() {
+			if (watchId != null && navigator.geolocation) {
+				navigator.geolocation.clearWatch(watchId);
+				watchId = null;
+			}
+		}
+
+		function stopBackgroundGpsWatch() {
+			var BG = ensureBackgroundGeolocationPlugin();
+			if (!BG || bgGeoWatcherId == null) {
+				bgGeoWatcherId = null;
+				return Promise.resolve();
+			}
+			var id = bgGeoWatcherId;
+			bgGeoWatcherId = null;
+			return Promise.resolve(BG.removeWatcher({ id: id })).catch(function () {});
+		}
+
+		function stopGps() {
+			stopWebGpsWatch();
+			return stopBackgroundGpsWatch().then(function () {
+				var dotList = $('gps-dot-list');
+				var dotNav = $('gps-dot-nav');
+				if (dotList) dotList.classList.remove('live');
+				if (dotNav) dotNav.classList.remove('live');
+			});
+		}
+
+		function startWebGpsWatch() {
 			if (!navigator.geolocation) return;
-			if (watchId != null) navigator.geolocation.clearWatch(watchId);
+			stopWebGpsWatch();
 			watchId = navigator.geolocation.watchPosition(
 				function (p) {
 					onPosition(p.coords.longitude, p.coords.latitude, p.coords.heading);
@@ -2212,6 +2260,52 @@
 				},
 				{ enableHighAccuracy: true, maximumAge: 1500, timeout: 12000 }
 			);
+		}
+
+		function startBackgroundGpsWatch() {
+			var BG = ensureBackgroundGeolocationPlugin();
+			if (!BG || bgGeoWatcherId != null) return Promise.resolve();
+			stopWebGpsWatch();
+			return BG.addWatcher(
+				{
+					backgroundMessage:
+						'Compartimos tu ubicación con el cliente mientras tenés entregas en camino.',
+					backgroundTitle: 'Brava — seguimiento activo',
+					requestPermissions: true,
+					stale: false,
+					distanceFilter: 12,
+				},
+				function (location, error) {
+					if (error) {
+						if (error.code === 'NOT_AUTHORIZED') {
+							$('gps-dot-list').classList.remove('live');
+						}
+						return;
+					}
+					if (!location) return;
+					onPosition(location.longitude, location.latitude, location.bearing);
+				}
+			)
+				.then(function (watcherId) {
+					bgGeoWatcherId = watcherId;
+				})
+				.catch(function () {});
+		}
+
+		function syncGpsMode() {
+			if (!isLoggedIn() || !nativeAlertsReady()) {
+				return stopGps();
+			}
+			if (needsBackgroundRouteTracking()) {
+				return startBackgroundGpsWatch();
+			}
+			return stopBackgroundGpsWatch().then(function () {
+				startWebGpsWatch();
+			});
+		}
+
+		function startGps() {
+			syncGpsMode();
 		}
 
 		function stopSim() {

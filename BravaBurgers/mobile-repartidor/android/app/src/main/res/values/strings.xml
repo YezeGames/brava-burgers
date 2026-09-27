@@ -4,4 +4,7 @@
     <string name="title_activity_main">Brava Repartidor</string>
     <string name="package_name">app.bravaburgers.repartidor</string>
     <string name="custom_url_scheme">app.bravaburgers.repartidor</string>
+    <string name="capacitor_background_geolocation_notification_channel_name">Seguimiento en camino</string>
+    <string name="capacitor_background_geolocation_notification_icon">drawable/ic_tracking</string>
+    <string name="capacitor_background_geolocation_notification_color">#FF6B35</string>
 </resources>

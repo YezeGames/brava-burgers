@@ -9,9 +9,13 @@
   },
   "android": {
     "allowMixedContent": false,
-    "appendUserAgent": "BravaRepartidorNative/1"
+    "appendUserAgent": "BravaRepartidorNative/1",
+    "useLegacyBridge": true
   },
   "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    },
     "LocalNotifications": {
       "smallIcon": "ic_notification",
       "iconColor": "#FF6B35"
