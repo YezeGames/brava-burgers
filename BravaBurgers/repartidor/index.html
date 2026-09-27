@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-auto-ruta-alert -->
+	<!-- repartidor-app v=20260327-webview-perms -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -659,7 +659,7 @@
 					<div class="login-hero">
 						<div class="app-brand" aria-hidden="true">🔔</div>
 						<h1>Alertas de entrega</h1>
-						<p>Obligatorio para repartir: avisos con <strong>sonido</strong> cuando cocina te asigna paradas.</p>
+						<p id="notify-gate-lead">Obligatorio para repartir: avisos con <strong>sonido</strong> cuando cocina te asigna paradas.</p>
 					</div>
 					<div class="login-form notify-gate-actions">
 						<button type="button" class="btn btn-load" id="btn-enable-notify">Activar notificaciones</button>
@@ -946,18 +946,123 @@
 			renderList();
 		}
 
+		var NATIVE_ALERTS_KEY = 'brava_native_delivery_ready';
+
+		function isNativeShell() {
+			try {
+				if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
+			} catch (eCap) {}
+			return /BravaRepartidorNative/i.test(navigator.userAgent || '');
+		}
+
+		/** APK / WebView: no existe Notification del navegador; permisos van por Android. */
+		function useAppPermissionFlow() {
+			if (isNativeShell()) return true;
+			var ua = navigator.userAgent || '';
+			if (/Android/i.test(ua) && typeof window !== 'undefined' && !('Notification' in window)) return true;
+			if (/;\s*wv\)/i.test(ua)) return true;
+			try {
+				if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches && /Android/i.test(ua)) {
+					return true;
+				}
+			} catch (eDm) {}
+			return false;
+		}
+
+		function nativeAlertsReady() {
+			try {
+				return sessionStorage.getItem(NATIVE_ALERTS_KEY) === '1';
+			} catch (eSt) {
+				return false;
+			}
+		}
+
+		function setNativeAlertsReady() {
+			try {
+				sessionStorage.setItem(NATIVE_ALERTS_KEY, '1');
+			} catch (eSt2) {}
+		}
+
 		function notificationsSupported() {
+			if (useAppPermissionFlow()) return true;
 			return typeof window !== 'undefined' && 'Notification' in window;
 		}
 
 		function notificationsOk() {
+			if (useAppPermissionFlow()) return nativeAlertsReady();
 			return notificationsSupported() && Notification.permission === 'granted';
+		}
+
+		function capNativePromise(plugin, method, data) {
+			try {
+				var cap = window.Capacitor;
+				if (!cap) return Promise.resolve();
+				if (typeof cap.nativePromise === 'function') {
+					return cap.nativePromise(plugin, method, data || {}).catch(function () {});
+				}
+				if (cap.Plugins && cap.Plugins[plugin] && typeof cap.Plugins[plugin][method] === 'function') {
+					return Promise.resolve(cap.Plugins[plugin][method](data || {})).catch(function () {});
+				}
+			} catch (eNp) {}
+			return Promise.resolve();
+		}
+
+		function requestNativeShellPermissions() {
+			unlockAlertAudio();
+			var btn = $('btn-enable-notify');
+			if (btn) {
+				btn.disabled = true;
+				btn.textContent = 'Esperá al celular…';
+			}
+			return capNativePromise('Geolocation', 'requestPermissions', {})
+				.then(function () {
+					return capNativePromise('LocalNotifications', 'requestPermissions', {});
+				})
+				.then(function () {
+					return new Promise(function (resolve) {
+						if (!navigator.geolocation) {
+							resolve();
+							return;
+						}
+						navigator.geolocation.getCurrentPosition(
+							function () {
+								resolve();
+							},
+							function () {
+								alert(
+									'Sin ubicación no podemos mostrar el mapa ni el seguimiento al cliente. En Ajustes → Brava Repartidor → Permisos → Ubicación → Permitir.'
+								);
+								resolve();
+							},
+							{ enableHighAccuracy: true, timeout: 25000, maximumAge: 0 }
+						);
+					});
+				})
+				.finally(function () {
+					if (btn) btn.disabled = false;
+					updateNotifyGateUi();
+				});
 		}
 
 		function updateNotifyGateUi() {
 			var hint = $('notify-denied-hint');
 			var btn = $('btn-enable-notify');
+			var lead = $('notify-gate-lead');
+			if (lead) {
+				if (useAppPermissionFlow()) {
+					lead.innerHTML =
+						'App Brava Repartidor: tocá abajo y el celular va a pedir <strong>ubicación</strong> (mapa y seguimiento) y <strong>notificaciones</strong> (avisos de paradas).';
+				} else {
+					lead.innerHTML =
+						'Obligatorio para repartir: avisos con <strong>sonido</strong> cuando cocina te asigna paradas.';
+				}
+			}
 			if (!hint || !btn) return;
+			if (useAppPermissionFlow()) {
+				hint.classList.add('hidden');
+				btn.textContent = nativeAlertsReady() ? 'Continuar al panel' : 'Permitir ubicación y alertas';
+				return;
+			}
 			if (notificationsSupported() && Notification.permission === 'denied') {
 				hint.classList.remove('hidden');
 				btn.textContent = 'Ya las activé — continuar';
@@ -1046,7 +1151,19 @@
 		}
 
 		function requestNotificationsMandatory() {
-			if (!notificationsSupported()) {
+			if (useAppPermissionFlow()) {
+				if (nativeAlertsReady()) {
+					onNotificationsGranted();
+					return;
+				}
+				requestNativeShellPermissions().then(function () {
+					setNativeAlertsReady();
+					startGps();
+					onNotificationsGranted();
+				});
+				return;
+			}
+			if (!('Notification' in window)) {
 				alert('Tu navegador no soporta notificaciones. Usá Chrome o Safari actualizado en el celular.');
 				return;
 			}
@@ -2477,9 +2594,10 @@
 		});
 
 		loadSessionFromStorage();
+		updateNotifyGateUi();
 		updateLoginUi();
 		renderList();
-		startGps();
+		if (!useAppPermissionFlow() || nativeAlertsReady()) startGps();
 		geocodeKitchen();
 		if (isLoggedIn()) {
 			enterMainAppAfterAuth();

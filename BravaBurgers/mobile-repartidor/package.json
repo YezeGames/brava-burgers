@@ -1,0 +1,21 @@
+{
+  "name": "brava-repartidor-mobile",
+  "private": true,
+  "version": "1.0.0",
+  "description": "App Android Brava Repartidor (Capacitor)",
+  "scripts": {
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
+    "android:debug": "cd android && .\\gradlew assembleDebug"
+  },
+  "dependencies": {
+    "@capacitor/android": "^7.4.2",
+    "@capacitor/app": "^7.0.2",
+    "@capacitor/core": "^7.4.2",
+    "@capacitor/geolocation": "^7.1.5",
+    "@capacitor/local-notifications": "^7.0.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^7.4.2"
+  }
+}

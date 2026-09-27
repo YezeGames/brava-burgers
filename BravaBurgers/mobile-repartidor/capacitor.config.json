@@ -1,0 +1,14 @@
+{
+  "appId": "app.bravaburgers.repartidor",
+  "appName": "Brava Repartidor",
+  "webDir": "www",
+  "server": {
+    "url": "https://brava-burgers.vercel.app/repartidor/",
+    "cleartext": false,
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "appendUserAgent": "BravaRepartidorNative/1"
+  }
+}
