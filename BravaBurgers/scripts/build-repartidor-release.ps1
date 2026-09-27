@@ -45,8 +45,8 @@ if (-not (Test-Path (Join-Path $Android "app\google-services.json"))) {
 
 Write-Host "Capacitor sync..." -ForegroundColor Cyan
 Push-Location $Mobile
-npm install 2>&1 | Out-Null
-npx cap sync android 2>&1 | Out-Null
+cmd /c "npm install >nul 2>nul"
+cmd /c "npx cap sync android >nul 2>nul"
 Pop-Location
 
 if (Test-Path $EnvScript) { . $EnvScript }

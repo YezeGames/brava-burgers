@@ -6,7 +6,8 @@
   "scripts": {
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
-    "android:debug": "cd android && .\\gradlew assembleDebug"
+    "android:debug": "cd android && .\\gradlew assembleDebug",
+    "icons:android": "npx @capacitor/assets generate --android --iconBackgroundColor \"#FF6B35\" --splashBackgroundColor \"#0b141a\""
   },
   "dependencies": {
     "@capacitor-community/background-geolocation": "^1.2.26",
@@ -18,6 +19,10 @@
     "@capacitor/push-notifications": "^7.0.3"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^7.4.2"
+  },
+  "allowScripts": {
+    "sharp@0.32.6": true
   }
 }

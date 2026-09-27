@@ -29,6 +29,20 @@ En Android Studio: **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
 
 APK debug: `android\app\build\outputs\apk\debug\app-debug.apk`
 
+## Icono y splash
+
+1. Reemplazá el logo fuente: `mobile-repartidor/assets/logo.png` (cuadrado, ideal **1024×1024**, PNG).
+2. Regenerá iconos Android:
+
+```powershell
+cd mobile-repartidor
+npm run icons:android
+```
+
+3. Volvé a compilar el APK (`assembleDebug` o `build-repartidor-release.ps1`).
+
+Fondo del icono adaptativo: naranja Brava `#FF6B35`. Splash: fondo `#0b141a`.
+
 ## APK release firmado (WhatsApp)
 
 Desde `BravaBurgers` en PowerShell (JDK 21 + `ANDROID_HOME`; opcional `. .\scripts\env-android.ps1`):
