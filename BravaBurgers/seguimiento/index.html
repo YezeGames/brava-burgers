@@ -97,6 +97,28 @@
 			padding: 6px 16px calc(10px + env(safe-area-inset-bottom));
 			line-height: 1.35;
 		}
+		.live-toast {
+			position: fixed;
+			left: 16px;
+			right: 16px;
+			bottom: calc(52px + env(safe-area-inset-bottom));
+			max-width: 420px;
+			margin: 0 auto;
+			padding: 12px 14px;
+			border-radius: 12px;
+			background: rgba(67, 160, 71, 0.95);
+			color: #fff;
+			font-size: 0.88rem;
+			font-weight: 600;
+			text-align: center;
+			box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+			z-index: 20;
+			animation: toast-in 0.35s ease;
+		}
+		@keyframes toast-in {
+			from { opacity: 0; transform: translateY(12px); }
+			to { opacity: 1; transform: translateY(0); }
+		}
 		.maplibregl-ctrl-attrib { font-size: 8px !important; max-width: 100%; }
 		.pin-home, .pin-driver {
 			width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -114,7 +136,7 @@
 	<main id="main">
 		<p class="err">Cargando…</p>
 	</main>
-	<div class="foot">Mapa © OpenStreetMap · CARTO · Se actualiza solo</div>
+	<div class="foot" id="foot-live">Mapa © OpenStreetMap · CARTO · Actualización en vivo</div>
 	<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 	<script>
 	(function () {
@@ -139,6 +161,8 @@
 		var routeFetchInFlight = false;
 		var didFitRoute = false;
 		var OSRM = 'https://router.project-osrm.org/route/v1/driving/';
+		var pollTimer = null;
+		var loadInFlight = false;
 
 		function firstName(s) {
 			s = String(s || '').trim();
@@ -367,11 +391,62 @@
 			});
 		}
 
+		function teardownMap() {
+			if (map) {
+				try {
+					map.remove();
+				} catch (e) {}
+				map = null;
+			}
+			mapReady = false;
+			markerHome = null;
+			markerDriver = null;
+			lastRouteKey = '';
+			didFitRoute = false;
+		}
+
+		function uiSignature(data) {
+			if (!data || !data.ok) return '';
+			return [
+				data.status,
+				data.tracking_live ? '1' : '0',
+				data.repartidor_llegada_at ? '1' : '0',
+			].join('|');
+		}
+
+		function showDeliveredToast() {
+			var old = document.getElementById('live-toast');
+			if (old) old.remove();
+			var el = document.createElement('div');
+			el.id = 'live-toast';
+			el.className = 'live-toast';
+			el.textContent = '¡Pedido entregado! Gracias por elegir Brava.';
+			document.body.appendChild(el);
+			setTimeout(function () {
+				if (el.parentNode) el.parentNode.removeChild(el);
+			}, 5200);
+		}
+
+		function pollIntervalMs(data) {
+			if (!data || !data.ok) return 15000;
+			if (data.status === 'entregada') return 90000;
+			if (data.tracking_live) return 8000;
+			if (data.status === 'en_cola') return 12000;
+			return 15000;
+		}
+
+		function schedulePoll() {
+			if (pollTimer) clearInterval(pollTimer);
+			pollTimer = setInterval(load, pollIntervalMs(lastData));
+		}
+
 		function renderShell(data) {
 			if (!data.ok) {
+				teardownMap();
 				main.innerHTML = '<p class="err">Link inválido o vencido. Escribinos por WhatsApp si necesitás ayuda.</p>';
 				return;
 			}
+			teardownMap();
 			lastData = data;
 			hdr.textContent = 'Pedido ' + (data.orn || '') + (data.parada ? ' · Parada ' + data.parada : '');
 			var copy = statusCopy(data);
@@ -411,6 +486,31 @@
 			if (waitEl) waitEl.classList.toggle('is-on', data.tracking_live && !data.driver_live);
 			if (data.tracking_live && mapReady) placeMarkers(data);
 			else if (data.tracking_live && !map) renderShell(data);
+			var foot = document.getElementById('foot-live');
+			if (foot && data.tracking_live) {
+				foot.textContent = 'Mapa © OpenStreetMap · CARTO · Actualizando cada ~8 s';
+			}
+		}
+
+		function applySeguimientoData(data) {
+			if (!data || !data.ok) {
+				renderShell(data || { ok: false });
+				schedulePoll();
+				return;
+			}
+			var prev = lastData;
+			var uiChanged = !prev || !prev.ok || uiSignature(prev) !== uiSignature(data);
+			if (prev && prev.ok && prev.status !== 'entregada' && data.status === 'entregada') {
+				showDeliveredToast();
+			}
+			if (uiChanged) {
+				renderShell(data);
+			} else if (data.tracking_live) {
+				updateLive(data);
+			} else {
+				lastData = data;
+			}
+			schedulePoll();
 		}
 
 		function load() {
@@ -418,6 +518,8 @@
 				main.innerHTML = '<p class="err">Falta el link de seguimiento (abrilo desde el WhatsApp de Brava).</p>';
 				return;
 			}
+			if (loadInFlight) return;
+			loadInFlight = true;
 			fetch('/api/seguimiento?t=' + encodeURIComponent(token), { cache: 'no-store' })
 				.then(function (r) {
 					return r.json().then(function (j) {
@@ -439,18 +541,22 @@
 							'<p class="err">Seguimiento temporalmente no disponible. Recargá en unos segundos o escribinos por WhatsApp.</p>';
 						return;
 					}
-					if (!lastData || !document.getElementById('map-wrap')) renderShell(pack.body);
-					else updateLive(pack.body);
+					applySeguimientoData(pack.body);
 				})
 				.catch(function () {
 					if (!lastData) {
 						main.innerHTML = '<p class="err">No pudimos cargar el seguimiento. Reintentá en unos segundos.</p>';
 					}
+				})
+				.finally(function () {
+					loadInFlight = false;
 				});
 		}
 
 		load();
-		setInterval(load, 18000);
+		document.addEventListener('visibilitychange', function () {
+			if (document.visibilityState === 'visible') load();
+		});
 	})();
 	</script>
 </body>
