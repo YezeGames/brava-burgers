@@ -10,5 +10,14 @@
   "android": {
     "allowMixedContent": false,
     "appendUserAgent": "BravaRepartidorNative/1"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_notification",
+      "iconColor": "#FF6B35"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    }
   }
 }

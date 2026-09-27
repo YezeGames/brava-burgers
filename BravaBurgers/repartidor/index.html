@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260327-fcm-register-fix -->
+	<!-- repartidor-app v=20260327-native-notify-bar -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -1031,23 +1031,43 @@
 			}).catch(function () {});
 		}
 
+		var bravaNotifyChannelReady = false;
+
+		function ensureBravaNotifyChannel() {
+			if (!useAppPermissionFlow() || bravaNotifyChannelReady) return Promise.resolve();
+			return capNativePromise('LocalNotifications', 'createChannel', {
+				id: 'brava_entregas',
+				name: 'Entregas Brava',
+				description: 'Avisos cuando cocina te asigna paradas',
+				importance: 5,
+				visibility: 1,
+				vibration: true,
+				sound: 'default',
+			}).then(function () {
+				bravaNotifyChannelReady = true;
+			});
+		}
+
 		function postNativeSystemNotification(title, body) {
-			if (!useAppPermissionFlow() || !nativeAlertsReady()) return;
+			if (!useAppPermissionFlow() || !nativeAlertsReady()) return Promise.resolve();
 			var t = String(title || 'Brava Repartidor').slice(0, 120);
 			var b = String(body || '').slice(0, 240);
 			var nid = (Date.now() % 2147480000) + Math.floor(Math.random() * 1000);
-			capNativePromise('LocalNotifications', 'schedule', {
-				notifications: [
-					{
-						id: nid,
-						title: t,
-						body: b,
-						channelId: 'brava_entregas',
-						sound: 'default',
-						smallIcon: 'ic_notification',
-					},
-				],
-			}).catch(function () {});
+			return ensureBravaNotifyChannel().then(function () {
+				return capNativePromise('LocalNotifications', 'schedule', {
+					notifications: [
+						{
+							id: nid,
+							title: t,
+							body: b,
+							channelId: 'brava_entregas',
+							sound: 'default',
+							smallIcon: 'ic_notification',
+							iconColor: '#FF6B35',
+						},
+					],
+				});
+			});
 		}
 
 		function hookRepartidorFcmListeners(PN) {
@@ -1126,6 +1146,7 @@
 				.finally(function () {
 					if (btn) btn.disabled = false;
 					updateNotifyGateUi();
+					ensureBravaNotifyChannel();
 				});
 		}
 
@@ -1465,9 +1486,10 @@
 				})
 				.join(' · ');
 			showPushToast(title, body);
+			postNativeSystemNotification(title, body);
 			playNewOrderAlert();
 			if (ttsOn) speak('Nueva entrega asignada. ' + newStops.length + ' parada' + (newStops.length === 1 ? '' : 's'));
-			if ('Notification' in window && Notification.permission === 'granted') {
+			if (!useAppPermissionFlow() && 'Notification' in window && Notification.permission === 'granted') {
 				try {
 					new Notification(title, {
 						body: body,
