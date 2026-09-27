@@ -6,6 +6,7 @@
 	<meta name="robots" content="noindex,nofollow">
 	<title>Seguimiento · Brava Burgers</title>
 	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
 		:root {
 			--brava: #ff6b35;
@@ -39,7 +40,7 @@
 			color: var(--brava);
 		}
 		.orn { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
-		main { flex: 1; padding: 14px 16px 24px; max-width: 480px; width: 100%; margin: 0 auto; }
+		main { flex: 1; padding: 14px 16px 12px; max-width: 480px; width: 100%; margin: 0 auto; }
 		.card {
 			background: var(--surface);
 			border: 1px solid var(--line);
@@ -47,35 +48,29 @@
 			padding: 16px;
 			margin-bottom: 12px;
 		}
-		.card h1 { margin: 0 0 6px; font-size: 1.15rem; }
+		.card h1 { margin: 0 0 6px; font-size: 1.05rem; }
 		.card p { margin: 0; font-size: 0.88rem; color: var(--muted); line-height: 1.45; }
 		.card.wait h1 { color: var(--wait); }
 		.card.ok h1 { color: var(--ok); }
-		.steps {
-			display: flex;
-			gap: 4px;
-			margin-bottom: 14px;
-		}
-		.step {
-			flex: 1;
-			text-align: center;
-			font-size: 0.62rem;
-			color: var(--muted);
-		}
+		.steps { display: flex; gap: 4px; margin-bottom: 14px; }
+		.step { flex: 1; min-width: 72px; text-align: center; font-size: 0.62rem; color: var(--muted); }
 		.step .dot {
-			width: 20px;
-			height: 20px;
-			border-radius: 50%;
-			border: 2px solid var(--line);
-			margin: 0 auto 4px;
-			font-size: 0.6rem;
-			display: flex;
-			align-items: center;
-			justify-content: center;
+			width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--line);
+			margin: 0 auto 4px; font-size: 0.6rem; display: flex; align-items: center; justify-content: center;
 		}
 		.step.on .dot { border-color: var(--brava); background: rgba(255,107,53,0.2); }
 		.step.done .dot { border-color: var(--ok); color: var(--ok); }
 		.step.on { color: var(--text); font-weight: 600; }
+		#map-wrap {
+			display: none;
+			height: min(52vh, 340px);
+			border-radius: 14px;
+			overflow: hidden;
+			border: 1px solid var(--line);
+			margin-bottom: 10px;
+		}
+		#map-wrap.is-on { display: block; }
+		#map { width: 100%; height: 100%; }
 		.map-note {
 			font-size: 0.72rem;
 			color: var(--muted);
@@ -84,18 +79,31 @@
 			background: rgba(41,182,246,0.08);
 			border: 1px solid rgba(41,182,246,0.2);
 			line-height: 1.35;
+			margin-bottom: 8px;
 		}
-		.err {
-			text-align: center;
-			padding: 40px 16px;
+		.map-wait {
+			font-size: 0.78rem;
 			color: var(--muted);
+			text-align: center;
+			padding: 12px;
+			display: none;
 		}
+		.map-wait.is-on { display: block; }
+		.err { text-align: center; padding: 40px 16px; color: var(--muted); }
 		.foot {
 			text-align: center;
-			font-size: 0.72rem;
+			font-size: 0.68rem;
 			color: var(--muted);
-			padding: 8px 16px calc(12px + env(safe-area-inset-bottom));
+			padding: 6px 16px calc(10px + env(safe-area-inset-bottom));
+			line-height: 1.35;
 		}
+		.maplibregl-ctrl-attrib { font-size: 8px !important; max-width: 100%; }
+		.pin-home, .pin-driver {
+			width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+			font-size: 14px; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+		}
+		.pin-home { background: #29b6f6; }
+		.pin-driver { background: var(--brava); }
 	</style>
 </head>
 <body>
@@ -106,19 +114,27 @@
 	<main id="main">
 		<p class="err">Cargando…</p>
 	</main>
-	<div class="foot">Se actualiza solo · Mapa en vivo próximamente</div>
+	<div class="foot">Mapa © OpenStreetMap · CARTO · Se actualiza solo</div>
+	<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 	<script>
 	(function () {
-		function qs(name) {
+		var MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
+		var token = (function () {
 			try {
-				return new URLSearchParams(window.location.search).get(name) || '';
+				return new URLSearchParams(window.location.search).get('t') || '';
 			} catch (e) {
 				return '';
 			}
-		}
-		var token = qs('t');
+		})();
 		var main = document.getElementById('main');
 		var hdr = document.getElementById('hdr-orn');
+		var map = null;
+		var markerHome = null;
+		var markerDriver = null;
+		var destCoords = null;
+		var destGeocodePromise = null;
+		var mapReady = false;
+		var lastData = null;
 
 		function firstName(s) {
 			s = String(s || '').trim();
@@ -146,13 +162,7 @@
 			return html;
 		}
 
-		function render(data) {
-			if (!data.ok) {
-				main.innerHTML = '<p class="err">Link inválido o vencido. Escribinos por WhatsApp si necesitás ayuda.</p>';
-				return;
-			}
-			hdr.textContent = 'Pedido ' + (data.orn || '') + (data.parada ? ' · Parada ' + data.parada : '');
-			var active = stepIndex(data.status);
+		function statusCopy(data) {
 			var cardClass = 'card';
 			var title = 'Estado del pedido';
 			var desc = '';
@@ -161,43 +171,158 @@
 				title = '¡Pedido entregado!';
 				desc = 'Gracias por elegir Brava.';
 			} else if (data.status === 'en_camino') {
-				title = 'Tu pedido va en camino';
-				desc = 'El repartidor está yendo hacia tu domicilio.';
-				if (data.repartidor_llegada_at) {
-					title = 'El repartidor está cerca';
-					desc = 'En unos minutos llega a tu puerta.';
-				}
+				title = data.repartidor_llegada_at ? 'El repartidor está cerca' : 'Tu pedido va en camino';
+				desc = data.repartidor_llegada_at
+					? 'En unos minutos llega a tu puerta.'
+					: 'El repartidor está yendo hacia tu domicilio.';
 			} else if (data.status === 'en_cola') {
 				cardClass += ' wait';
 				title = 'Tu pedido va en la ruta';
 				desc =
-					'Primero entregamos otras paradas. Cuando salgamos hacia vos te avisamos por WhatsApp con el mapa.';
+					'Primero entregamos otras paradas. Cuando salgamos hacia vos te avisamos por WhatsApp.';
 			} else {
 				title = 'Estamos preparando tu pedido';
 				desc = 'Cuando el repartidor inicie el recorrido vas a poder seguirlo desde acá.';
 			}
+			return { cardClass: cardClass, title: title, desc: desc };
+		}
+
+		function fullAddr(data) {
+			var p = [data.direccion || ''];
+			if (data.piso) p.push('Piso ' + data.piso);
+			if (data.localidad) p.push(data.localidad);
+			p.push('Provincia de Buenos Aires', 'Argentina');
+			return p.filter(Boolean).join(', ');
+		}
+
+		function geocodeDest(data) {
+			if (destCoords) return Promise.resolve(destCoords);
+			if (destGeocodePromise) return destGeocodePromise;
+			destGeocodePromise = fetch(
+				'/api/address-suggest?mode=geocode&q=' +
+					encodeURIComponent(fullAddr(data)) +
+					(data.localidad ? '&loc=' + encodeURIComponent(data.localidad) : '')
+			)
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (j) {
+					if (j.ok && j.lat != null && j.lng != null) {
+						destCoords = { lat: Number(j.lat), lng: Number(j.lng) };
+						return destCoords;
+					}
+					return null;
+				})
+				.catch(function () {
+					return null;
+				});
+			return destGeocodePromise;
+		}
+
+		function ensureMap(data) {
+			if (!data.tracking_live || !window.maplibregl) return;
+			var wrap = document.getElementById('map-wrap');
+			var waitEl = document.getElementById('map-wait');
+			if (!wrap) return;
+			wrap.classList.add('is-on');
+			if (!map) {
+				map = new maplibregl.Map({
+					container: 'map',
+					style: MAP_STYLE,
+					center: [-58.49, -34.51],
+					zoom: 13,
+					attributionControl: true,
+				});
+				map.on('load', function () {
+					mapReady = true;
+					placeMarkers(data);
+				});
+			} else if (mapReady) {
+				placeMarkers(data);
+			}
+			if (waitEl) {
+				waitEl.classList.toggle('is-on', data.tracking_live && !data.driver_live);
+			}
+		}
+
+		function makeMarkerEl(cls, emoji) {
+			var el = document.createElement('div');
+			el.className = cls;
+			el.textContent = emoji;
+			return el;
+		}
+
+		function placeMarkers(data) {
+			geocodeDest(data).then(function (dest) {
+				if (dest && !markerHome) {
+					markerHome = new maplibregl.Marker({ element: makeMarkerEl('pin-home', '🏠') })
+						.setLngLat([dest.lng, dest.lat])
+						.addTo(map);
+				} else if (dest && markerHome) {
+					markerHome.setLngLat([dest.lng, dest.lat]);
+				}
+				if (data.driver_live && data.track_lng != null && data.track_lat != null) {
+					if (!markerDriver) {
+						markerDriver = new maplibregl.Marker({ element: makeMarkerEl('pin-driver', '🛵') })
+							.setLngLat([data.track_lng, data.track_lat])
+							.addTo(map);
+					} else {
+						markerDriver.setLngLat([data.track_lng, data.track_lat]);
+					}
+					var bounds = new maplibregl.LngLatBounds();
+					if (dest) bounds.extend([dest.lng, dest.lat]);
+					bounds.extend([data.track_lng, data.track_lat]);
+					map.fitBounds(bounds, { padding: 48, maxZoom: 15, duration: 800 });
+				} else if (dest) {
+					map.flyTo({ center: [dest.lng, dest.lat], zoom: 14, duration: 600 });
+				}
+			});
+		}
+
+		function renderShell(data) {
+			if (!data.ok) {
+				main.innerHTML = '<p class="err">Link inválido o vencido. Escribinos por WhatsApp si necesitás ayuda.</p>';
+				return;
+			}
+			lastData = data;
+			hdr.textContent = 'Pedido ' + (data.orn || '') + (data.parada ? ' · Parada ' + data.parada : '');
+			var copy = statusCopy(data);
+			var n = firstName(data.cliente);
+			var greet = n ? '<p style="margin:0 0 10px;font-size:0.85rem;color:var(--muted)">Hola, ' + n + '</p>' : '';
 			var mapNote = '';
 			if (data.tracking_live) {
 				mapNote =
-					'<p class="map-note">Ubicación en vivo: visible solo mientras entregamos tu parada (se apaga al confirmar la entrega).</p>';
-			} else if (data.status !== 'entregada') {
-				mapNote =
-					'<p class="map-note">El mapa en vivo se activa cuando el repartidor va hacia tu parada.</p>';
+					'<p class="map-note">Ubicación en vivo solo mientras entregamos tu parada. Se apaga al confirmar la entrega.</p>';
 			}
-			var n = firstName(data.cliente);
-			var greet = n ? '<p style="margin:0 0 10px;font-size:0.85rem;color:var(--muted)">Hola, ' + n + '</p>' : '';
+			var mapBlock =
+				data.tracking_live
+					? '<div id="map-wrap"><div id="map"></div></div><p class="map-wait" id="map-wait">Esperando señal GPS del repartidor…</p>'
+					: '';
 			main.innerHTML =
-				renderSteps(active) +
+				renderSteps(stepIndex(data.status)) +
 				'<div class="' +
-				cardClass +
+				copy.cardClass +
 				'">' +
 				greet +
 				'<h1>' +
-				title +
+				copy.title +
 				'</h1><p>' +
-				desc +
+				copy.desc +
 				'</p></div>' +
-				mapNote;
+				mapNote +
+				mapBlock;
+			if (data.tracking_live) {
+				ensureMap(data);
+			}
+		}
+
+		function updateLive(data) {
+			if (!data.ok) return;
+			lastData = data;
+			var waitEl = document.getElementById('map-wait');
+			if (waitEl) waitEl.classList.toggle('is-on', data.tracking_live && !data.driver_live);
+			if (data.tracking_live && mapReady) placeMarkers(data);
+			else if (data.tracking_live && !map) renderShell(data);
 		}
 
 		function load() {
@@ -226,10 +351,13 @@
 							'<p class="err">Seguimiento temporalmente no disponible. Recargá en unos segundos o escribinos por WhatsApp.</p>';
 						return;
 					}
-					render(pack.body);
+					if (!lastData || !document.getElementById('map-wrap')) renderShell(pack.body);
+					else updateLive(pack.body);
 				})
 				.catch(function () {
-					main.innerHTML = '<p class="err">No pudimos cargar el seguimiento. Reintentá en unos segundos.</p>';
+					if (!lastData) {
+						main.innerHTML = '<p class="err">No pudimos cargar el seguimiento. Reintentá en unos segundos.</p>';
+					}
 				});
 		}
 

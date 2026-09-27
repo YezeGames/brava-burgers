@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260326-auto-ruta-alert -->
+	<!-- repartidor-app v=20260326-notify-gate -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
 	<style>
@@ -831,6 +831,8 @@
 
 		var map = null;
 		var watchId = null;
+		var lastTrackSentAt = 0;
+		var lastTrackOrn = '';
 		var simTimer = null;
 		var followGps = false;
 		var ttsOn = true;
@@ -1891,8 +1893,28 @@
 			return best;
 		}
 
+		function maybeReportTrackPosition(lng, lat) {
+			if (!liveFromSupabase || !isLoggedIn()) return;
+			var orn =
+				currentOrder && currentOrder.orn
+					? currentOrder.orn
+					: (function () {
+							var cam = myAssignments().filter(function (a) {
+								return String(a.estado || '').toLowerCase() === 'en_camino';
+							});
+							return cam[0] && cam[0].orn;
+					  })();
+			if (!orn) return;
+			var now = Date.now();
+			if (orn === lastTrackOrn && now - lastTrackSentAt < 22000) return;
+			lastTrackSentAt = now;
+			lastTrackOrn = orn;
+			repartidorApi({ action: 'reportTrack', orn: orn, lat: lat, lng: lng }).catch(function () {});
+		}
+
 		function onPosition(lng, lat, heading) {
 			userPos = { lng: lng, lat: lat };
+			maybeReportTrackPosition(lng, lat);
 			$('gps-dot-list').classList.add('live');
 			$('gps-dot-nav').classList.add('live');
 			if ($('screen-nav').classList.contains('is-active')) {

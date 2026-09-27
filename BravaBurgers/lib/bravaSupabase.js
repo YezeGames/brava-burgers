@@ -1009,6 +1009,11 @@ async function repartidorMarkEntregada(body) {
   }
   const out = await updateOrder({ orn: orn, estado: 'entregada' });
   if (!out.ok) return out;
+  await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), {
+    track_lat: null,
+    track_lng: null,
+    track_at: null,
+  });
   if (!out.waPostEntrega || (!out.waPostEntrega.ok && !(out.waPostEntrega.skipped && out.waPostEntrega.reason === 'already_sent'))) {
     const retryWa = await ensureWaPostEntrega(orn);
     out.waPostEntrega = retryWa;
@@ -1017,12 +1022,88 @@ async function repartidorMarkEntregada(body) {
   return out;
 }
 
+function isTrackColumnMissing(r) {
+  if (!r || r.ok) return false;
+  const blob = restErrorBlob(r);
+  return blob.indexOf('track_lat') >= 0 || blob.indexOf('track_lng') >= 0 || blob.indexOf('track_at') >= 0;
+}
+
+function packSeguimientoRow(row, id) {
+  const estado = String(row.estado || '').toLowerCase();
+  var trackingLive = estado === 'en_camino';
+  var status = 'preparacion';
+  if (estado === 'entregada') status = 'entregada';
+  else if (estado === 'en_camino') status = 'en_camino';
+  else if (estado === 'en_preparacion' && row.repartidor_tel) status = 'en_cola';
+  var trackLat = row.track_lat != null ? Number(row.track_lat) : null;
+  var trackLng = row.track_lng != null ? Number(row.track_lng) : null;
+  var driverLive = false;
+  if (trackingLive && trackLat != null && trackLng != null && !isNaN(trackLat) && !isNaN(trackLng) && row.track_at) {
+    var age = Date.now() - new Date(row.track_at).getTime();
+    driverLive = age >= 0 && age < 180000;
+  }
+  return {
+    ok: true,
+    orn: id,
+    estado: estado,
+    status: status,
+    tracking_live: trackingLive,
+    driver_live: driverLive,
+    parada: row.reparto_parada != null ? Number(row.reparto_parada) : null,
+    cliente: String(row.cliente || '').trim(),
+    direccion: String(row.direccion || '').trim(),
+    localidad: String(row.localidad || '').trim(),
+    piso: String(row.piso || '').trim(),
+    repartidor_llegada_at: row.repartidor_llegada_at || null,
+    entregado_at: row.entregado_at || null,
+    en_camino_at: null,
+    track_lat: driverLive ? trackLat : null,
+    track_lng: driverLive ? trackLng : null,
+    track_at: driverLive ? row.track_at : null,
+  };
+}
+
+async function repartidorReportTrack(body, _retried) {
+  const tel = telNorm(body.telefono || body.repartidor_tel);
+  const orn = String(body.orn || '').trim();
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  if (!tel || !orn || isNaN(lat) || isNaN(lng)) return { ok: false, error: 'missing_fields' };
+  const lookup = await restSelect(
+    'orders',
+    'select=orn,repartidor_tel,estado&orn=eq.' + encodeURIComponent(orn) + '&limit=1'
+  );
+  if (!lookup.ok) return supabaseFail(lookup, 'order_lookup_failed');
+  if (!lookup.data || !lookup.data[0]) return { ok: false, error: 'order_not_found' };
+  const row = lookup.data[0];
+  if (telNorm(row.repartidor_tel) !== tel) {
+    return { ok: false, error: 'order_not_assigned_to_repartidor' };
+  }
+  if (String(row.estado || '').toLowerCase() !== 'en_camino') {
+    return { ok: false, error: 'invalid_state' };
+  }
+  const now = new Date().toISOString();
+  const patch = { track_lat: lat, track_lng: lng, track_at: now };
+  const pr = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), patch);
+  if (!pr.ok) {
+    if (isTrackColumnMissing(pr) && !_retried) {
+      const mig = await migrateRepartidorSchemaAuto();
+      if (mig.ok) return repartidorReportTrack(body, true);
+    }
+    if (isTrackColumnMissing(pr)) {
+      return { ok: true, skipped: true, reason: 'track_schema_missing' };
+    }
+    return supabaseFail(pr, 'track_patch_failed');
+  }
+  return { ok: true, orn: orn, track_at: now };
+}
+
 async function getPublicOrderSeguimiento(orn) {
   const id = String(orn || '').trim();
   if (!id) return { ok: false, error: 'missing_orn' };
   const r = await restSelect(
     'orders',
-    'select=orn,cliente,estado,reparto_parada,repartidor_tel,repartidor_llegada_at,entregado_at,direccion,localidad,piso&orn=eq.' +
+    'select=orn,cliente,estado,reparto_parada,repartidor_tel,repartidor_llegada_at,entregado_at,direccion,localidad,piso,track_lat,track_lng,track_at&orn=eq.' +
       encodeURIComponent(id) +
       '&limit=1'
   );
@@ -1037,56 +1118,23 @@ async function getPublicOrderSeguimiento(orn) {
       );
       if (!r2.ok) return supabaseFail(r2, 'order_lookup_failed');
       if (!r2.data || !r2.data[0]) return { ok: false, error: 'order_not_found' };
-      const row2 = r2.data[0];
-      const estado2 = String(row2.estado || '').toLowerCase();
-      return {
-        ok: true,
-        orn: id,
-        estado: estado2,
-        status:
-          estado2 === 'entregada'
-            ? 'entregada'
-            : estado2 === 'en_camino'
-              ? 'en_camino'
-              : row2.repartidor_tel
-                ? 'en_cola'
-                : 'preparacion',
-        tracking_live: estado2 === 'en_camino',
-        parada: null,
-        cliente: String(row2.cliente || '').trim(),
-        direccion: String(row2.direccion || '').trim(),
-        localidad: String(row2.localidad || '').trim(),
-        piso: String(row2.piso || '').trim(),
-        repartidor_llegada_at: null,
-        entregado_at: row2.entregado_at || null,
-        en_camino_at: null,
-      };
+      return packSeguimientoRow(r2.data[0], id);
+    }
+    if (isTrackColumnMissing(r)) {
+      const r3 = await restSelect(
+        'orders',
+        'select=orn,cliente,estado,reparto_parada,repartidor_tel,repartidor_llegada_at,entregado_at,direccion,localidad,piso&orn=eq.' +
+          encodeURIComponent(id) +
+          '&limit=1'
+      );
+      if (!r3.ok) return supabaseFail(r3, 'order_lookup_failed');
+      if (!r3.data || !r3.data[0]) return { ok: false, error: 'order_not_found' };
+      return packSeguimientoRow(r3.data[0], id);
     }
     return supabaseFail(r, 'order_lookup_failed');
   }
   if (!r.data || !r.data[0]) return { ok: false, error: 'order_not_found' };
-  const row = r.data[0];
-  const estado = String(row.estado || '').toLowerCase();
-  var trackingLive = estado === 'en_camino';
-  var status = 'preparacion';
-  if (estado === 'entregada') status = 'entregada';
-  else if (estado === 'en_camino') status = 'en_camino';
-  else if (estado === 'en_preparacion' && row.repartidor_tel) status = 'en_cola';
-  return {
-    ok: true,
-    orn: id,
-    estado: estado,
-    status: status,
-    tracking_live: trackingLive,
-    parada: row.reparto_parada != null ? Number(row.reparto_parada) : null,
-    cliente: String(row.cliente || '').trim(),
-    direccion: String(row.direccion || '').trim(),
-    localidad: String(row.localidad || '').trim(),
-    piso: String(row.piso || '').trim(),
-    repartidor_llegada_at: row.repartidor_llegada_at || null,
-    entregado_at: row.entregado_at || null,
-    en_camino_at: null,
-  };
+  return packSeguimientoRow(r.data[0], id);
 }
 
 async function repartidorConfirmarLlegada(body, _retried) {
@@ -2171,6 +2219,8 @@ module.exports = {
   repartidorConfirmarLlegada,
 
   getPublicOrderSeguimiento,
+
+  repartidorReportTrack,
 
 };
 

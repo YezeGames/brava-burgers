@@ -8,6 +8,7 @@ const {
   repartidorConfirmarLlegada,
   repartidorIniciarRecorrido,
   getPublicOrderSeguimiento,
+  repartidorReportTrack,
 } = require('../lib/bravaSupabase');
 const { verifySeguimientoToken } = require('../lib/seguimientoToken');
 const { validateRepartidorToken } = require('../lib/repartidorAuth');
@@ -97,6 +98,14 @@ async function handleRepartidor(body, req, res) {
         out.ok ? 200 : out.error === 'wa_failed' || out.error === 'whatsapp_not_configured' ? 502 : 400;
       return res.status(code).json(out);
     }
+    if (action === 'reportTrack') {
+      const payload = Object.assign({}, body, {
+        telefono: auth.tel,
+        repartidor_tel: auth.tel,
+      });
+      const out = await repartidorReportTrack(payload);
+      return res.status(out.ok ? 200 : 400).json(out);
+    }
     return res.status(400).json({ ok: false, error: 'unknown_action' });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'repartidor_failed', detail: String(e.message || e) });
@@ -168,7 +177,8 @@ module.exports = async function handler(req, res) {
     body.action === 'listRuta' ||
     body.action === 'markEntregada' ||
     body.action === 'confirmarLlegada' ||
-    body.action === 'iniciarRecorrido'
+    body.action === 'iniciarRecorrido' ||
+    body.action === 'reportTrack'
   ) {
     return handleRepartidor(body, req, res);
   }
