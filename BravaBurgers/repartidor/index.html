@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260327-fcm-push -->
+	<!-- repartidor-app v=20260327-fcm-register-fix -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -1007,7 +1007,7 @@
 			return Promise.resolve();
 		}
 
-		var repartidorFcmHooked = false;
+		var repartidorFcmListenersHooked = false;
 
 		function ensurePushNotificationsPlugin() {
 			try {
@@ -1031,33 +1031,51 @@
 			}).catch(function () {});
 		}
 
+		function postNativeSystemNotification(title, body) {
+			if (!useAppPermissionFlow() || !nativeAlertsReady()) return;
+			var t = String(title || 'Brava Repartidor').slice(0, 120);
+			var b = String(body || '').slice(0, 240);
+			var nid = (Date.now() % 2147480000) + Math.floor(Math.random() * 1000);
+			capNativePromise('LocalNotifications', 'schedule', {
+				notifications: [
+					{
+						id: nid,
+						title: t,
+						body: b,
+						channelId: 'brava_entregas',
+						sound: 'default',
+						smallIcon: 'ic_notification',
+					},
+				],
+			}).catch(function () {});
+		}
+
+		function hookRepartidorFcmListeners(PN) {
+			if (repartidorFcmListenersHooked || !PN || !PN.addListener) return;
+			repartidorFcmListenersHooked = true;
+			PN.addListener('registration', function (ev) {
+				saveFcmTokenToServer(ev && (ev.value || ev.token));
+			});
+			PN.addListener('registrationError', function () {});
+			PN.addListener('pushNotificationReceived', function (n) {
+				var title = (n && n.title) || 'Brava Repartidor';
+				var body = (n && n.body) || 'Nueva actividad en tu ruta';
+				showPushToast(title, body);
+				postNativeSystemNotification(title, body);
+				playNewOrderAlert();
+				if (isLoggedIn()) fetchRutaLive(false);
+			});
+			PN.addListener('pushNotificationActionPerformed', function () {
+				if (isLoggedIn()) fetchRutaLive(false);
+			});
+		}
+
 		function registerRepartidorFcm() {
-			if (repartidorFcmHooked || !useAppPermissionFlow() || !isLoggedIn()) return Promise.resolve();
+			if (!useAppPermissionFlow() || !isLoggedIn()) return Promise.resolve();
 			var PN = ensurePushNotificationsPlugin();
 			if (!PN) return Promise.resolve();
-			repartidorFcmHooked = true;
-			var chain = Promise.resolve();
-			if (PN.addListener) {
-				chain = chain
-					.then(function () {
-						return PN.addListener('registration', function (ev) {
-							saveFcmTokenToServer(ev && (ev.value || ev.token));
-						});
-					})
-					.then(function () {
-						return PN.addListener('registrationError', function () {});
-					})
-					.then(function () {
-						return PN.addListener('pushNotificationReceived', function (n) {
-							var title = (n && n.title) || 'Brava Repartidor';
-							var body = (n && n.body) || 'Nueva actividad en tu ruta';
-							showPushToast(title, body);
-							playNewOrderAlert();
-							if (isLoggedIn()) fetchRutaLive(false);
-						});
-					});
-			}
-			return chain
+			hookRepartidorFcmListeners(PN);
+			return Promise.resolve()
 				.then(function () {
 					if (PN.requestPermissions) return PN.requestPermissions();
 					return capNativePromise('PushNotifications', 'requestPermissions', {});
@@ -1184,6 +1202,7 @@
 				return;
 			}
 			updateLoginUi();
+			registerRepartidorFcm();
 			if (!refreshPoll) startRefreshPoll();
 			fetchRutaLive(false);
 		}
@@ -2677,6 +2696,7 @@
 				updateNotifyGateUi();
 				return;
 			}
+			registerRepartidorFcm();
 			fetchRutaLive(false);
 		});
 	})();

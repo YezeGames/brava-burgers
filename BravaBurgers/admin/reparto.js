@@ -923,6 +923,16 @@
           } else {
             var clearedMsg =
               data.cleared > 0 ? ' · ' + data.cleared + ' quitado(s) de la app' : '';
+            var pushHint = '';
+            if (data.push_notify) {
+              var pn = data.push_notify;
+              if (pn.ok && !pn.skipped) pushHint = ' · Push enviado al celular';
+              else if (pn.skipped && pn.reason === 'no_device_tokens') {
+                pushHint = ' · Sin push: repartidor sin token (abrí la app y permití alertas)';
+              } else if (pn.skipped && pn.error === 'firebase_not_configured') {
+                pushHint = ' · Push off: falta Firebase en Vercel';
+              } else if (pn.error) pushHint = ' · Push: ' + pn.error;
+            }
             setStatus(
               'Ruta ' +
                 data.ruta_id +
@@ -931,6 +941,7 @@
                 ' pedido(s)' +
                 clearedMsg +
                 extra +
+                pushHint +
                 '. El repartidor pone «Iniciar recorrido» → en camino + WhatsApp.'
             );
           }
