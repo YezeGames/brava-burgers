@@ -29,9 +29,19 @@ En Android Studio: **Build → Build Bundle(s) / APK(s) → Build APK(s)**.
 
 APK debug: `android\app\build\outputs\apk\debug\app-debug.apk`
 
-## Firma release (WhatsApp)
+## APK release firmado (WhatsApp)
 
-Generar keystore una sola vez y guardarlo en lugar seguro. Configurar signing en `android/app/build.gradle` o Android Studio → Generate Signed Bundle/APK.
+Desde `BravaBurgers` en PowerShell (JDK 21 + `ANDROID_HOME`; opcional `. .\scripts\env-android.ps1`):
+
+```powershell
+.\scripts\build-repartidor-release.ps1
+```
+
+- Crea **una vez** `secrets/brava-repartidor-release.jks` + contraseñas en `secrets/brava-repartidor-release.properties` (gitignored).
+- Salida: `mobile-repartidor/android/app/build/outputs/apk/release/app-release.apk` y copia en `secrets/brava-repartidor-release.apk`.
+- **Hacé backup del `.jks`** (OneDrive/USB): sin eso no podés publicar updates con la misma firma.
+
+Manual: copiá `android/keystore.properties.example` → `android/keystore.properties` y `assembleRelease`.
 
 ## Push (FCM)
 
