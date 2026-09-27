@@ -10,7 +10,7 @@
 	<title>Brava Repartidor — app</title>
 	<!-- repartidor-app v=20260326-auto-ruta-alert -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-	<link href="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css" rel="stylesheet">
+	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
 		:root {
 			--brava: #ff6b35;
@@ -759,7 +759,8 @@
 		</div>
 	</div>
 
-	<script src="https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js"></script>
+	<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+	<script>window.mapboxgl = window.maplibregl;</script>
 	<script>
 	(function () {
 		'use strict';
@@ -788,9 +789,7 @@
 			label: 'Díaz Vélez 3231, Olivos',
 		};
 		var OSRM = 'https://router.project-osrm.org/route/v1/driving/';
-		var MAP_STYLE_FALLBACK = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-		var mapboxToken = '';
-		var mapboxTokenPromise = null;
+		var MAP_STYLE = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
 
 		var catalog = [
 			{
@@ -1569,35 +1568,10 @@
 				.addTo(map);
 		}
 
-		function ensureMapboxToken() {
-			if (mapboxToken) return Promise.resolve(mapboxToken);
-			if (mapboxTokenPromise) return mapboxTokenPromise;
-			mapboxTokenPromise = fetch('/api/mapbox-config', { cache: 'no-store' })
-				.then(function (r) {
-					return r.json();
-				})
-				.then(function (data) {
-					if (data.ok && data.token) {
-						mapboxToken = data.token;
-						return mapboxToken;
-					}
-					return '';
-				})
-				.catch(function () {
-					return '';
-				});
-			return mapboxTokenPromise;
-		}
-
-		function mapStyleForToken(token) {
-			if (token) return 'mapbox://styles/mapbox/streets-v12';
-			return MAP_STYLE_FALLBACK;
-		}
-
 		function ensureMap(callback) {
 			if (!window.mapboxgl) {
 				setMapLoading(true, 'No cargó el mapa. Revisá conexión.');
-				if (callback) callback(new Error('mapbox_missing'));
+				if (callback) callback(new Error('map_missing'));
 				return;
 			}
 			function done() {
@@ -1606,8 +1580,7 @@
 				resizeMapHard();
 				if (callback) callback(null);
 			}
-			function bootMap(token) {
-				if (token) mapboxgl.accessToken = token;
+			function bootMap() {
 				if (map) {
 					resizeMapHard();
 					if (map.isStyleLoaded()) done();
@@ -1624,7 +1597,7 @@
 				setMapLoading(true, 'Cargando mapa…');
 				map = new mapboxgl.Map({
 					container: 'map',
-					style: mapStyleForToken(token),
+					style: MAP_STYLE,
 					center: [KITCHEN.lng, KITCHEN.lat],
 					zoom: 14,
 					attributionControl: { compact: true },
@@ -1638,7 +1611,7 @@
 					done();
 				});
 			}
-			ensureMapboxToken().then(bootMap);
+			bootMap();
 		}
 
 		function geocodeKitchen() {
@@ -2099,39 +2072,8 @@
 				});
 		}
 
-		function fetchRouteMapbox(from, to, token) {
-			var url =
-				'https://api.mapbox.com/directions/v5/mapbox/driving/' +
-				from.lng +
-				',' +
-				from.lat +
-				';' +
-				to.lng +
-				',' +
-				to.lat +
-				'?steps=true&geometries=geojson&overview=full&language=es&access_token=' +
-				encodeURIComponent(token);
-			return fetch(url)
-				.then(function (r) {
-					return r.json();
-				})
-				.then(function (data) {
-					if (!data.routes || !data.routes[0]) {
-						throw new Error((data && data.message) || 'Sin ruta Mapbox');
-					}
-					return data.routes[0];
-				});
-		}
-
 		function fetchRoute(from, to) {
-			return ensureMapboxToken()
-				.then(function (token) {
-					if (token) return fetchRouteMapbox(from, to, token);
-					return fetchRouteOsrm(from, to);
-				})
-				.catch(function () {
-					return fetchRouteOsrm(from, to);
-				});
+			return fetchRouteOsrm(from, to);
 		}
 
 		function applyRouteFromFetch(route, fromPt, opts) {
@@ -2145,7 +2087,7 @@
 			steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
 			var totalKm = (route.distance / 1000).toFixed(1);
 			var totalMin = Math.round(route.duration / 60);
-			routeMetaLine = 'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min · Mapbox';
+			routeMetaLine = 'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min · OSRM';
 			var dest = { lng: currentOrder.lng, lat: currentOrder.lat };
 			if (opts.lightDraw) {
 				drawRoute(geom, dest, fromPt, { lightUpdate: true, skipFit: true });
@@ -2536,7 +2478,6 @@
 		updateLoginUi();
 		renderList();
 		startGps();
-		ensureMapboxToken();
 		geocodeKitchen();
 		if (isLoggedIn()) {
 			enterMainAppAfterAuth();

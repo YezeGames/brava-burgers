@@ -11,8 +11,9 @@
   var routeOrder = [];
   var map = null;
   var mapReady = false;
-  var accessToken = '';
   var mapInitStarted = false;
+  var OSRM = 'https://router.project-osrm.org/route/v1/driving/';
+  var MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
   var refreshTimer = null;
   var lastRouteStopsSig = '';
   var mapViewInitialized = false;
@@ -182,22 +183,15 @@
     var q = String(query || '').trim();
     if (!q) return Promise.reject(new Error('Dirección vacía'));
     if (geocodeCache[q]) return Promise.resolve(geocodeCache[q]);
-    if (!accessToken) return Promise.reject(new Error('Sin token Mapbox'));
-    var url =
-      'https://api.mapbox.com/geocoding/v5/mapbox.places/' +
-      encodeURIComponent(q) +
-      '.json?country=ar&limit=1&language=es&access_token=' +
-      encodeURIComponent(accessToken);
-    return fetch(url)
+    return fetch('/api/address-suggest?mode=geocode&q=' + encodeURIComponent(q))
       .then(function (r) {
         return r.json();
       })
       .then(function (data) {
-        if (!data.features || !data.features.length) {
+        if (!data || !data.ok || data.lng == null || data.lat == null) {
           throw new Error('No se encontró: ' + q);
         }
-        var f = data.features[0];
-        var c = { lng: f.center[0], lat: f.center[1] };
+        var c = { lng: Number(data.lng), lat: Number(data.lat) };
         geocodeCache[q] = c;
         return c;
       });
@@ -230,7 +224,7 @@
   }
 
   function refreshRoute() {
-    if (!mapReady || !accessToken) return;
+    if (!mapReady) return;
     var list = stops();
     clearMapLayers();
     if (!list.length) {
@@ -257,18 +251,14 @@
         stopCoords.forEach(function (c) {
           pairs.push(coordPair(c.lng, c.lat));
         });
-        var url =
-          'https://api.mapbox.com/directions/v5/mapbox/driving/' +
-          encodeURIComponent(pairs.join(';')) +
-          '?geometries=geojson&overview=full&language=es&access_token=' +
-          encodeURIComponent(accessToken);
+        var url = OSRM + pairs.join(';') + '?geometries=geojson&overview=full';
         setStatus('Calculando ruta…');
         return fetch(url).then(function (r) {
           return r.json();
         });
       })
       .then(function (data) {
-        if (!data || !data.routes || !data.routes.length) {
+        if (!data || data.code !== 'Ok' || !data.routes || !data.routes.length) {
           setStatus((data && data.message) || 'Sin ruta' + (data && data.code ? ' (' + data.code + ')' : ''), true);
           return;
         }
@@ -297,7 +287,7 @@
         }
         var km = (route.distance / 1000).toFixed(1);
         var min = Math.round(route.duration / 60);
-        setStatus('Ruta ~' + km + ' km · ~' + min + ' min (Mapbox)');
+        setStatus('Ruta ~' + km + ' km · ~' + min + ' min · OSM/OSRM');
       })
       .catch(function (e) {
         setStatus(e.message || String(e), true);
@@ -573,9 +563,7 @@
     }
   }
 
-  function initMap(token) {
-    accessToken = token;
-    mapboxgl.accessToken = token;
+  function initMap() {
     if (map) {
       mapReady = true;
       showMapContainer();
@@ -585,7 +573,7 @@
     showMapContainer();
     map = new mapboxgl.Map({
       container: 'reparto-map',
-      style: 'mapbox://styles/mapbox/dark-v11',
+      style: MAP_STYLE,
       center: [-58.49, -34.51],
       zoom: 12
     });
@@ -605,17 +593,15 @@
       setMapShellVisible(true, 'Mapa disponible con el admin en HTTPS (Vercel).');
       return;
     }
-    fetch('/api/mapbox-config', { cache: 'no-store' })
-      .then(function (r) {
-        return r.json();
-      })
-      .then(function (data) {
-        if (data.ok && data.token) initMap(data.token);
-        else setMapShellVisible(true, 'Falta MAPBOX_ACCESS_TOKEN en Vercel.');
-      })
-      .catch(function () {
-        setMapShellVisible(true, 'No se pudo cargar Mapbox.');
-      });
+    if (!window.mapboxgl) {
+      setMapShellVisible(true, 'No cargó el mapa (MapLibre). Revisá conexión.');
+      return;
+    }
+    try {
+      initMap();
+    } catch (e) {
+      setMapShellVisible(true, 'No se pudo iniciar el mapa.');
+    }
   }
 
   function onOrdersUpdated(orders) {
