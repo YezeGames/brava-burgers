@@ -1,4 +1,4 @@
-const { sendTextMessage, getWhatsAppConfig } = require('./whatsappMeta');
+const { sendTextMessage, sendInteractiveCtaUrl, getWhatsAppConfig } = require('./whatsappMeta');
 const { insertWaMessage } = require('./waInbox');
 const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
 const { createSeguimientoToken } = require('./seguimientoToken');
@@ -18,20 +18,29 @@ function buildSeguimientoUrl(orn) {
   return getPublicSiteUrl() + '/seguimiento/?t=' + encodeURIComponent(token);
 }
 
-function buildSeguimientoMessage(cliente, orn, phase) {
+function buildSeguimientoBody(cliente, phase) {
   var n = firstName(cliente);
   var nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : 'Hola';
-  var url = buildSeguimientoUrl(orn);
-  var link = url ? '\n\nSeguilo acá 👇\n\n' + url : '';
   if (phase === 'next_stop') {
     return (
       '¡' +
       nombre +
-      ', ya entregamos los pedidos anteriores y vamos hacia vos! 🛵🍔' +
-      link
+      ', ya entregamos los pedidos anteriores y vamos hacia vos! 🛵🍔\n\n' +
+      'Seguilo en el mapa con el botón de abajo 👇'
     );
   }
-  return '¡' + nombre + ', tu pedido ya está en camino! 🛵🍔' + link;
+  return (
+    '¡' +
+    nombre +
+    ', tu pedido ya está en camino! 🛵🍔\n\n' +
+    'Seguilo en el mapa con el botón de abajo 👇'
+  );
+}
+
+function buildSeguimientoMessage(cliente, orn, phase) {
+  var body = buildSeguimientoBody(cliente, phase === 'next_stop' ? 'next_stop' : 'inicio');
+  var url = buildSeguimientoUrl(orn);
+  return body + (url ? '\n' + url : '');
 }
 
 async function seguimientoAlreadySent(orn, parada) {
@@ -84,9 +93,23 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
   if (!createSeguimientoToken(id)) {
     return { ok: false, error: 'tracking_not_configured' };
   }
-  const text = buildSeguimientoMessage(cliente, id, phase === 'next_stop' ? 'next_stop' : 'inicio');
-  const sent = await sendTextMessage(to, text, { previewUrl: true });
+  const phaseKey = phase === 'next_stop' ? 'next_stop' : 'inicio';
+  const body = buildSeguimientoBody(cliente, phaseKey);
+  const url = buildSeguimientoUrl(id);
+  const logoUrl = getPublicSiteUrl() + '/logoweb.png';
+  let sent = await sendInteractiveCtaUrl({
+    to: to,
+    bodyText: body,
+    url: url,
+    displayText: 'Ver seguimiento',
+    imageUrl: logoUrl,
+  });
+  if (!sent.ok) {
+    const text = buildSeguimientoMessage(cliente, id, phaseKey);
+    sent = await sendTextMessage(to, text, { previewUrl: true });
+  }
   if (!sent.ok) return sent;
+  const text = buildSeguimientoMessage(cliente, id, phaseKey);
   const graphId =
     sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id;
   await insertWaMessage({
@@ -101,6 +124,7 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
 
 module.exports = {
   buildSeguimientoUrl,
+  buildSeguimientoBody,
   buildSeguimientoMessage,
   sendSeguimientoWhatsApp,
   SEGUIMIENTO_MARKER,

@@ -389,6 +389,42 @@ async function sendInteractiveButtons(opts) {
   });
 }
 
+/** Botón URL + header imagen: sin link largo visible en el chat. */
+async function sendInteractiveCtaUrl(opts) {
+  opts = opts || {};
+  const digits = normalizeWaRecipient(opts.to);
+  const bodyText = String(opts.bodyText || '').trim();
+  const url = String(opts.url || '').trim();
+  const displayText = String(opts.displayText || 'Ver seguimiento').slice(0, 20);
+  if (!digits || !bodyText || !url) {
+    return { ok: false, error: 'invalid_params' };
+  }
+  const interactive = {
+    type: 'cta_url',
+    body: { text: bodyText.slice(0, 1024) },
+    action: {
+      name: 'cta_url',
+      parameters: {
+        display_text: displayText,
+        url: url,
+      },
+    },
+  };
+  const footer = String(opts.footerText || '').trim();
+  if (footer) interactive.footer = { text: footer.slice(0, 60) };
+  const imageUrl = String(opts.imageUrl || '').trim();
+  if (imageUrl) {
+    interactive.header = { type: 'image', image: { link: imageUrl } };
+  }
+  return graphSendMessage({
+    messaging_product: 'whatsapp',
+    recipient_type: 'individual',
+    to: digits,
+    type: 'interactive',
+    interactive: interactive,
+  });
+}
+
 async function sendInteractiveList(opts) {
   opts = opts || {};
   const digits = normalizeWaRecipient(opts.to);
@@ -636,6 +672,7 @@ module.exports = {
   extractInboundMedia,
   sendTextMessage,
   sendInteractiveButtons,
+  sendInteractiveCtaUrl,
   sendInteractiveList,
   sendImageMessage,
   uploadMediaBuffer,
