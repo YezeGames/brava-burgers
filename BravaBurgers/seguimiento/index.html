@@ -163,6 +163,31 @@
 		var OSRM = 'https://router.project-osrm.org/route/v1/driving/';
 		var pollTimer = null;
 		var loadInFlight = false;
+		/** Distancia GPS repartidor → domicilio para mostrar "está cerca" (no confirmar llegada). */
+		var NEAR_DEST_M = 180;
+		var lastDistToDestM = null;
+		var lastEtaMin = null;
+
+		function haversineM(a, b) {
+			var R = 6371000;
+			var toRad = Math.PI / 180;
+			var dLat = (b.lat - a.lat) * toRad;
+			var dLng = (b.lng - a.lng) * toRad;
+			var x =
+				Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+				Math.cos(a.lat * toRad) * Math.cos(b.lat * toRad) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+			return 2 * R * Math.asin(Math.sqrt(x));
+		}
+
+		function driverDistToDestM(data, dest) {
+			if (!dest || !data || !data.driver_live || data.track_lat == null || data.track_lng == null) {
+				return null;
+			}
+			return haversineM(
+				{ lat: Number(data.track_lat), lng: Number(data.track_lng) },
+				{ lat: dest.lat, lng: dest.lng }
+			);
+		}
 
 		function firstName(s) {
 			s = String(s || '').trim();
@@ -190,7 +215,10 @@
 			return html;
 		}
 
-		function statusCopy(data) {
+		function statusCopy(data, opts) {
+			opts = opts || {};
+			var distM = opts.distToDestM != null ? opts.distToDestM : lastDistToDestM;
+			var etaMin = opts.etaMin != null ? opts.etaMin : lastEtaMin;
 			var cardClass = 'card';
 			var title = 'Estado del pedido';
 			var desc = '';
@@ -199,10 +227,20 @@
 				title = '¡Pedido entregado!';
 				desc = 'Gracias por elegir Brava.';
 			} else if (data.status === 'en_camino') {
-				title = data.repartidor_llegada_at ? 'El repartidor está cerca' : 'Tu pedido va en camino';
-				desc = data.repartidor_llegada_at
-					? 'En unos minutos llega a tu puerta.'
-					: 'El repartidor está yendo hacia tu domicilio.';
+				if (data.repartidor_llegada_at) {
+					title = 'El repartidor está en la puerta';
+					desc = 'Te lo entregamos en unos minutos.';
+				} else if (distM != null && distM <= NEAR_DEST_M) {
+					title = 'El repartidor está cerca';
+					desc = etaMin
+						? 'Llegada estimada: ~' + etaMin + ' min.'
+						: 'En unos minutos llega a tu puerta.';
+				} else {
+					title = 'Tu pedido va en camino';
+					desc = etaMin
+						? 'Llegada estimada: ~' + etaMin + ' min.'
+						: 'El repartidor está yendo hacia tu domicilio.';
+				}
 			} else if (data.status === 'en_cola') {
 				cardClass += ' wait';
 				title = 'Tu pedido va en la ruta';
@@ -326,6 +364,10 @@
 				})
 				.then(function (data) {
 					if (data.routes && data.routes[0] && data.routes[0].geometry) {
+						var dur = Number(data.routes[0].duration);
+						if (!isNaN(dur) && dur > 0) {
+							lastEtaMin = Math.max(1, Math.round(dur / 60));
+						}
 						return data.routes[0].geometry;
 					}
 					throw new Error('no_route');
@@ -341,6 +383,7 @@
 			fetchOsrmRoute(from, to)
 				.then(function (geom) {
 					drawRouteGeometry(geom);
+					if (lastData && lastData.ok) refreshTrackingUi(lastData);
 				})
 				.catch(function () {
 					drawRouteGeometry({
@@ -356,8 +399,24 @@
 				});
 		}
 
+		function refreshTrackingUi(data) {
+			if (!data || !data.ok || !data.tracking_live) return;
+			geocodeDest(data).then(function (dest) {
+				lastDistToDestM = driverDistToDestM(data, dest);
+				var copy = statusCopy(data, { distToDestM: lastDistToDestM, etaMin: lastEtaMin });
+				var card = main.querySelector('.card');
+				if (card) {
+					var h1 = card.querySelector('h1');
+					var p = card.querySelector('p.status-desc');
+					if (h1) h1.textContent = copy.title;
+					if (p) p.textContent = copy.desc;
+				}
+			});
+		}
+
 		function placeMarkers(data) {
 			geocodeDest(data).then(function (dest) {
+				lastDistToDestM = driverDistToDestM(data, dest);
 				if (dest && !markerHome) {
 					markerHome = new maplibregl.Marker({ element: makeMarkerEl('pin-home', '🏠') })
 						.setLngLat([dest.lng, dest.lat])
@@ -376,6 +435,7 @@
 					}
 					if (dest) {
 						maybeUpdateRoute(from, dest);
+						refreshTrackingUi(data);
 						if (!didFitRoute) {
 							var bounds = new maplibregl.LngLatBounds();
 							bounds.extend([dest.lng, dest.lat]);
@@ -407,10 +467,15 @@
 
 		function uiSignature(data) {
 			if (!data || !data.ok) return '';
+			var phase = 'road';
+			if (data.repartidor_llegada_at) phase = 'door';
+			else if (lastDistToDestM != null && lastDistToDestM <= NEAR_DEST_M) phase = 'near';
 			return [
 				data.status,
 				data.tracking_live ? '1' : '0',
 				data.repartidor_llegada_at ? '1' : '0',
+				phase,
+				lastEtaMin != null ? String(lastEtaMin) : '',
 			].join('|');
 		}
 
@@ -446,10 +511,8 @@
 				main.innerHTML = '<p class="err">Link inválido o vencido. Escribinos por WhatsApp si necesitás ayuda.</p>';
 				return;
 			}
-			teardownMap();
 			lastData = data;
 			hdr.textContent = 'Pedido ' + (data.orn || '') + (data.parada ? ' · Parada ' + data.parada : '');
-			var copy = statusCopy(data);
 			var n = firstName(data.cliente);
 			var greet = n ? '<p style="margin:0 0 10px;font-size:0.85rem;color:var(--muted)">Hola, ' + n + '</p>' : '';
 			var mapNote = '';
@@ -461,21 +524,36 @@
 				data.tracking_live
 					? '<div id="map-wrap"><div id="map"></div></div><p class="map-wait" id="map-wait">Esperando señal GPS del repartidor…</p>'
 					: '';
-			main.innerHTML =
-				renderSteps(stepIndex(data.status)) +
-				'<div class="' +
-				copy.cardClass +
-				'">' +
-				greet +
-				'<h1>' +
-				copy.title +
-				'</h1><p>' +
-				copy.desc +
-				'</p></div>' +
-				mapNote +
-				mapBlock;
+
+			function paintShell(copy) {
+				teardownMap();
+				main.innerHTML =
+					renderSteps(stepIndex(data.status)) +
+					'<div class="' +
+					copy.cardClass +
+					'">' +
+					greet +
+					'<h1>' +
+					copy.title +
+					'</h1><p class="status-desc">' +
+					copy.desc +
+					'</p></div>' +
+					mapNote +
+					mapBlock;
+				if (data.tracking_live) {
+					ensureMap(data);
+				}
+			}
+
 			if (data.tracking_live) {
-				ensureMap(data);
+				geocodeDest(data).then(function (dest) {
+					lastDistToDestM = driverDistToDestM(data, dest);
+					paintShell(statusCopy(data, { distToDestM: lastDistToDestM, etaMin: lastEtaMin }));
+				});
+			} else {
+				lastDistToDestM = null;
+				lastEtaMin = null;
+				paintShell(statusCopy(data));
 			}
 		}
 
@@ -484,8 +562,10 @@
 			lastData = data;
 			var waitEl = document.getElementById('map-wait');
 			if (waitEl) waitEl.classList.toggle('is-on', data.tracking_live && !data.driver_live);
-			if (data.tracking_live && mapReady) placeMarkers(data);
-			else if (data.tracking_live && !map) renderShell(data);
+			if (data.tracking_live && mapReady) {
+				placeMarkers(data);
+				refreshTrackingUi(data);
+			} else if (data.tracking_live && !map) renderShell(data);
 			var foot = document.getElementById('foot-live');
 			if (foot && data.tracking_live) {
 				foot.textContent = 'Mapa © OpenStreetMap · CARTO · Actualizando cada ~5 s';
