@@ -19,6 +19,7 @@ public class MainActivity extends BridgeActivity {
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		registerPlugin(BravaRepartoSessionPlugin.class);
 		super.onCreate(savedInstanceState);
 		createPushNotificationChannel();
 		requestBravaRuntimePermissions();

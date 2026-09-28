@@ -63,7 +63,7 @@ Configuración paso a paso: **`FIREBASE_REPARTIDOR.md`** (`google-services.json`
 
 ## GPS en background (seguimiento al cliente)
 
-Con entregas **en camino**, el APK usa `@capacitor-community/background-geolocation`: notificación persistente en la barra y envío de posición a Supabase aunque minimices la app. Requiere **CapacitorHttp** (`useLegacyBridge: true` en `capacitor.config.json`).
+Con entregas **en camino**, el APK usa `@capacitor-community/background-geolocation`: notificación persistente en la barra. Desde **1.3.3**, el plugin nativo **`BravaRepartoSession`** escucha ese GPS y manda `reportTrack` al API **sin pasar por el WebView**; al prender la pantalla, `getLastPosition` actualiza el mapa del repartidor. Requiere **CapacitorHttp** (`useLegacyBridge: true` en `capacitor.config.json`). Tras `npm install`, el script `scripts/patch-bg-geo-service.ps1` aplica el parche FGS (también en `build-repartidor-release.ps1`).
 
 ## Próximas fases
 

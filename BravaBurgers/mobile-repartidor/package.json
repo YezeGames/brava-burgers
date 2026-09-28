@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "App Android Brava Repartidor (Capacitor)",
   "scripts": {
-    "cap:sync": "npx cap sync android",
+    "cap:sync": "powershell -ExecutionPolicy Bypass -File scripts/patch-bg-geo-service.ps1 && npx cap sync android && powershell -ExecutionPolicy Bypass -File scripts/patch-bg-geo-service.ps1",
     "cap:open": "npx cap open android",
     "android:debug": "cd android && .\\gradlew assembleDebug",
     "icons:android": "npx @capacitor/assets generate --android --iconBackgroundColor \"#FF6B35\" --splashBackgroundColor \"#0b141a\""

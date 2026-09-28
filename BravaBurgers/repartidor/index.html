@@ -831,7 +831,12 @@
 		var map = null;
 		var watchId = null;
 		var bgGeoWatcherId = null;
+		var bgGeoStarting = false;
+		var nativeAppLifecycleBound = false;
 		var bgGeoPlugin = null;
+		var repartoSessionPlugin = null;
+		var nativeRepartoSessionOn = false;
+		var repartoSessionListenerBound = false;
 		var lastTrackSentAt = 0;
 		var lastTrackOrn = '';
 		var simTimer = null;
@@ -1159,6 +1164,8 @@
 			if (nativeSetupPromise) return nativeSetupPromise;
 			nativeSetupPromise = requestNativeShellPermissions()
 				.then(function () {
+					bindNativeAppLifecycle();
+					bindRepartoSessionLocationListener();
 					return requestAndroidBatteryUnrestricted();
 				})
 				.then(function () {
@@ -1685,6 +1692,10 @@
 							return;
 						}
 						return fetchRutaLive(false).then(function () {
+							return requestAndroidBatteryUnrestricted().then(function () {
+								return ensureBackgroundGpsRunning(true);
+							});
+						}).then(function () {
 							openFirstCamino();
 							var n = data.moved != null ? data.moved : 0;
 							if (n > 0) {
@@ -2385,6 +2396,7 @@
 		}
 
 		function maybeReportTrackPosition(lng, lat) {
+			if (nativeRepartoSessionOn && useAppPermissionFlow()) return;
 			if (!liveFromSupabase || !isLoggedIn()) return;
 			var orn =
 				currentOrder && currentOrder.orn
@@ -2493,6 +2505,91 @@
 				});
 		}
 
+		function ensureRepartoSessionPlugin() {
+			if (repartoSessionPlugin) return repartoSessionPlugin;
+			try {
+				var cap = window.Capacitor;
+				if (!cap || typeof cap.registerPlugin !== 'function') return null;
+				repartoSessionPlugin = cap.registerPlugin('BravaRepartoSession');
+				return repartoSessionPlugin;
+			} catch (eRs) {
+				return null;
+			}
+		}
+
+		function resolveActiveTrackOrn() {
+			if (currentOrder && currentOrder.orn) return String(currentOrder.orn).trim();
+			var cam = myAssignments().filter(function (a) {
+				return String(a.estado || '').toLowerCase() === 'en_camino';
+			});
+			return cam[0] && cam[0].orn ? String(cam[0].orn).trim() : '';
+		}
+
+		function stopNativeRepartoSession() {
+			nativeRepartoSessionOn = false;
+			var S = ensureRepartoSessionPlugin();
+			if (S && S.stopSession) {
+				return Promise.resolve(S.stopSession()).catch(function () {});
+			}
+			return Promise.resolve();
+		}
+
+		function syncNativeRepartoSession() {
+			if (!useAppPermissionFlow() || !isLoggedIn() || !needsBackgroundRouteTracking()) {
+				return stopNativeRepartoSession();
+			}
+			var orn = resolveActiveTrackOrn();
+			if (!orn) return stopNativeRepartoSession();
+			var S = ensureRepartoSessionPlugin();
+			if (!S || !S.startSession) return Promise.resolve();
+			return Promise.resolve(
+				S.startSession({
+					apiUrl: repartidorApiUrl(),
+					repartidorToken: session.token || '',
+					apiKey: API_KEY || '',
+					orn: orn,
+				})
+			)
+				.then(function () {
+					nativeRepartoSessionOn = true;
+				})
+				.catch(function () {
+					nativeRepartoSessionOn = false;
+				});
+		}
+
+		function updateNativeRepartoOrn(orn) {
+			if (!nativeRepartoSessionOn) return;
+			var S = ensureRepartoSessionPlugin();
+			if (S && S.setOrn && orn) {
+				S.setOrn({ orn: String(orn).trim() }).catch(function () {});
+			}
+		}
+
+		function flushLastNativePosition() {
+			if (!useAppPermissionFlow()) return Promise.resolve();
+			var S = ensureRepartoSessionPlugin();
+			if (!S || !S.getLastPosition) return Promise.resolve();
+			return Promise.resolve(S.getLastPosition())
+				.then(function (p) {
+					if (p && p.ok && p.latitude != null && p.longitude != null) {
+						onPosition(p.longitude, p.latitude, p.bearing != null ? p.bearing : null);
+					}
+				})
+				.catch(function () {});
+		}
+
+		function bindRepartoSessionLocationListener() {
+			if (repartoSessionListenerBound || !useAppPermissionFlow()) return;
+			var S = ensureRepartoSessionPlugin();
+			if (!S || !S.addListener) return;
+			repartoSessionListenerBound = true;
+			S.addListener('location', function (loc) {
+				if (!loc || loc.latitude == null || loc.longitude == null) return;
+				onPosition(loc.longitude, loc.latitude, loc.bearing != null ? loc.bearing : null);
+			});
+		}
+
 		function ensureBackgroundGeolocationPlugin() {
 			if (bgGeoPlugin) return bgGeoPlugin;
 			try {
@@ -2529,12 +2626,16 @@
 
 		function stopGps() {
 			stopWebGpsWatch();
-			return stopBackgroundGpsWatch().then(function () {
-				var dotList = $('gps-dot-list');
-				var dotNav = $('gps-dot-nav');
-				if (dotList) dotList.classList.remove('live');
-				if (dotNav) dotNav.classList.remove('live');
-			});
+			return stopBackgroundGpsWatch()
+				.then(function () {
+					return stopNativeRepartoSession();
+				})
+				.then(function () {
+					var dotList = $('gps-dot-list');
+					var dotNav = $('gps-dot-nav');
+					if (dotList) dotList.classList.remove('live');
+					if (dotNav) dotNav.classList.remove('live');
+				});
 		}
 
 		function startWebGpsWatch() {
@@ -2551,34 +2652,85 @@
 			);
 		}
 
-		function startBackgroundGpsWatch() {
-			var BG = ensureBackgroundGeolocationPlugin();
-			if (!BG || bgGeoWatcherId != null) return Promise.resolve();
-			stopWebGpsWatch();
-			return BG.addWatcher(
-				{
-					backgroundMessage:
-						'Compartimos tu ubicación con el cliente mientras tenés entregas en camino.',
-					backgroundTitle: 'Brava — seguimiento activo',
-					requestPermissions: true,
-					stale: false,
-					distanceFilter: 12,
-				},
-				function (location, error) {
-					if (error) {
-						if (error.code === 'NOT_AUTHORIZED') {
-							$('gps-dot-list').classList.remove('live');
-						}
-						return;
-					}
-					if (!location) return;
-					onPosition(location.longitude, location.latitude, location.bearing);
+		function backgroundGeoWatcherOptions() {
+			return {
+				backgroundMessage:
+					'Compartimos tu ubicación con el cliente mientras tenés entregas en camino.',
+				backgroundTitle: 'Brava — seguimiento activo',
+				requestPermissions: true,
+				stale: false,
+				distanceFilter: 12,
+			};
+		}
+
+		function onBackgroundGeoLocation(location, error) {
+			if (error) {
+				if (error.code === 'NOT_AUTHORIZED') {
+					$('gps-dot-list').classList.remove('live');
 				}
-			)
-				.then(function (watcherId) {
-					bgGeoWatcherId = watcherId;
-				})
-				.catch(function () {});
+				return;
+			}
+			if (!location) return;
+			onPosition(location.longitude, location.latitude, location.bearing);
+		}
+
+		function ensureBackgroundGpsRunning(forceRestart) {
+			if (!needsBackgroundRouteTracking()) return Promise.resolve();
+			var BG = ensureBackgroundGeolocationPlugin();
+			if (!BG) return Promise.resolve();
+			if (bgGeoStarting) return Promise.resolve();
+			if (bgGeoWatcherId != null && !forceRestart) return Promise.resolve();
+			bgGeoStarting = true;
+			stopWebGpsWatch();
+			var attempt = 0;
+			function tryAdd() {
+				attempt++;
+				return Promise.resolve(
+					BG.addWatcher(backgroundGeoWatcherOptions(), onBackgroundGeoLocation)
+				)
+					.then(function (watcherId) {
+						bgGeoWatcherId = watcherId;
+						bgGeoStarting = false;
+					})
+					.catch(function () {
+						if (attempt < 10) {
+							return new Promise(function (resolve) {
+								setTimeout(resolve, 450);
+							}).then(tryAdd);
+						}
+						bgGeoStarting = false;
+						startWebGpsWatch();
+					});
+			}
+			if (forceRestart && bgGeoWatcherId != null) {
+				return stopBackgroundGpsWatch().then(tryAdd);
+			}
+			return tryAdd();
+		}
+
+		function startBackgroundGpsWatch() {
+			return ensureBackgroundGpsRunning(false);
+		}
+
+		function bindNativeAppLifecycle() {
+			if (!useAppPermissionFlow() || nativeAppLifecycleBound) return;
+			var App = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.App;
+			if (!App || !App.addListener) return;
+			nativeAppLifecycleBound = true;
+			App.addListener('appStateChange', function (state) {
+				if (state.isActive) {
+					syncGpsMode().then(function () {
+						return syncNativeRepartoSession();
+					}).then(function () {
+						return flushLastNativePosition();
+					});
+					return;
+				}
+				if (needsBackgroundRouteTracking()) {
+					ensureBackgroundGpsRunning(true);
+					syncNativeRepartoSession();
+				}
+			});
 		}
 
 		function syncGpsMode() {
@@ -2586,11 +2738,17 @@
 				return stopGps();
 			}
 			if (needsBackgroundRouteTracking()) {
-				return startBackgroundGpsWatch();
+				return startBackgroundGpsWatch().then(function () {
+					return syncNativeRepartoSession();
+				});
 			}
-			return stopBackgroundGpsWatch().then(function () {
-				startWebGpsWatch();
-			});
+			return stopBackgroundGpsWatch()
+				.then(function () {
+					return stopNativeRepartoSession();
+				})
+				.then(function () {
+					startWebGpsWatch();
+				});
 		}
 
 		function startGps() {
@@ -2751,6 +2909,8 @@
 			var originHint = pickRouteOrigin(base);
 			$('nav-meta').textContent = 'Desde: ' + originHint.label;
 			showScreen('screen-nav');
+			updateNativeRepartoOrn(base.orn);
+			syncNativeRepartoSession();
 			geocodeOrder(base)
 				.then(function (o) {
 					currentOrder = o;
