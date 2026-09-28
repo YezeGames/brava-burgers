@@ -9,6 +9,12 @@ const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
 const { createSeguimientoToken } = require('./seguimientoToken');
 const { getPublicSiteUrl } = require('./bravaSiteUrl');
 
+function seguimientoSendMode() {
+  const m = String(process.env.WHATSAPP_SEGUIMIENTO_MODE || 'link_preview').trim().toLowerCase();
+  if (m === 'cta' || m === 'button') return 'cta';
+  return 'link_preview';
+}
+
 const SEGUIMIENTO_MARKER = '__seguimiento__:';
 
 let cachedLogoMediaId = '';
@@ -33,15 +39,33 @@ function buildSeguimientoBody(cliente, phase) {
       '¡' +
       nombre +
       ', ya entregamos los pedidos anteriores y vamos hacia vos! 🛵🍔\n\n' +
-      'Seguilo en el mapa con el botón de abajo 👇'
+      'Seguilo acá 👇'
     );
   }
   return (
     '¡' +
     nombre +
     ', tu pedido ya está en camino! 🛵🍔\n\n' +
-    'Seguilo en el mapa con el botón de abajo 👇'
+    'Seguilo acá 👇'
   );
+}
+
+/** Tarjeta estilo Google Maps: 2º mensaje solo con URL + preview_url (Open Graph). */
+async function sendSeguimientoLinkPreview(to, body, url) {
+  const intro = await sendTextMessage(to, body);
+  if (!intro.ok) return Object.assign({ mode: 'link_preview_intro_failed' }, intro);
+  const link = await sendTextMessage(to, url, { previewUrl: true });
+  if (!link.ok) {
+    return Object.assign({ mode: 'link_preview_card_failed', introMessageId: intro.messageId }, link);
+  }
+  return {
+    ok: true,
+    mode: 'link_preview',
+    messageId: link.messageId,
+    introMessageId: intro.messageId,
+    data: link.data,
+    contactWaId: link.contactWaId || intro.contactWaId,
+  };
 }
 
 function buildSeguimientoMessage(cliente, orn, phase) {
@@ -176,20 +200,30 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
   const url = buildSeguimientoUrl(id);
   if (!url) return { ok: false, error: 'missing_url' };
 
-  let sent = await sendSeguimientoCtaCard(to, body, url);
-  let deliveryMode = sent.mode || 'cta';
+  const mode = seguimientoSendMode();
+  let sent;
+  let deliveryMode;
 
-  if (!sent.ok) {
-    const intro = await sendTextMessage(to, body);
-    if (intro.ok) {
-      sent = await sendSeguimientoCtaCard(to, 'Mapa en vivo del repartidor 🗺️', url);
-      deliveryMode = sent.ok ? 'text_then_cta' : 'text_only_partial';
+  if (mode === 'link_preview') {
+    sent = await sendSeguimientoLinkPreview(to, body, url);
+    deliveryMode = sent.mode || 'link_preview';
+    if (!sent.ok) {
+      sent = await sendSeguimientoCtaCard(to, body, url);
+      deliveryMode = sent.ok ? 'cta_fallback' : sent.mode || 'cta_failed';
     }
+  } else {
+    sent = await sendSeguimientoCtaCard(to, body, url);
+    deliveryMode = sent.mode || 'cta';
   }
 
   if (!sent.ok) {
-    sent = await sendTextMessage(to, body + '\n' + url, { previewUrl: false });
-    deliveryMode = 'text_url_no_preview';
+    sent = await sendSeguimientoLinkPreview(to, body, url);
+    deliveryMode = sent.ok ? 'link_preview_fallback' : 'send_failed';
+  }
+
+  if (!sent.ok) {
+    sent = await sendTextMessage(to, body + '\n' + url, { previewUrl: true });
+    deliveryMode = 'text_single_preview';
   }
 
   if (!sent.ok) return sent;
@@ -202,6 +236,14 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
       tel: to,
       direction: 'out',
       body: text,
+    });
+  }
+  if (sent.introMessageId) {
+    await insertWaMessage({
+      messageId: sent.introMessageId,
+      tel: to,
+      direction: 'out',
+      body: body,
     });
   }
   await markSeguimientoSent(id, parada, to, null);

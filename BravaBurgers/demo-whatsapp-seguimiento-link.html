@@ -260,15 +260,18 @@
 				id: 'hoy',
 				tag: 'Hoy',
 				tagClass: '',
-				title: 'Texto + link (actual)',
-				desc: 'Lo que manda la app ahora. WhatsApp a veces muestra preview chica del dominio.',
-				tech: 'Solo API de texto. Cero config extra. Preview depende de Meta cacheando la URL.',
+				title: 'Texto + tarjeta link (estilo Google Maps)',
+				desc: 'Dos mensajes: saludo y después solo el link con preview grande (Open Graph).',
+				tech: 'API texto + preview_url. Imagen og-share.jpg 1200×630 en /seguimiento/.',
 				rec: false,
 				render: function () {
-					return bubbleText(
-						SAMPLE.textInicio +
-							'\n\nSeguilo acá 👇\n' +
-							DEMO_URL
+					return (
+						bubbleText(SAMPLE.textInicio + '\n\nSeguilo acá 👇') +
+						linkCard(
+							'Seguí tu pedido · Brava Burgers',
+							'Mapa en vivo del repartidor, horario estimado de llegada y aviso cuando estemos en tu puerta.',
+							'www.bravaburgers.com.ar'
+						)
 					);
 				},
 				after:

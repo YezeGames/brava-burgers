@@ -8,4 +8,10 @@ function getPublicSiteUrl() {
   return DEFAULT_PUBLIC_SITE;
 }
 
-module.exports = { getPublicSiteUrl, DEFAULT_PUBLIC_SITE };
+function getSeguimientoOgImageUrl() {
+  const custom = String(process.env.BRAVA_SEGUIMIENTO_OG_IMAGE || '').trim();
+  if (custom) return custom.replace(/\/$/, '');
+  return getPublicSiteUrl() + '/seguimiento/og-share.jpg';
+}
+
+module.exports = { getPublicSiteUrl, getSeguimientoOgImageUrl, DEFAULT_PUBLIC_SITE };
