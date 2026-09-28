@@ -260,9 +260,9 @@
 				id: 'hoy',
 				tag: 'Hoy',
 				tagClass: '',
-				title: 'Texto + tarjeta link (estilo Google Maps)',
-				desc: 'Dos mensajes: saludo y después solo el link con preview grande (Open Graph).',
-				tech: 'preview_url + og:image → /seguimiento/wa-og.jpg (logo, ≤300 KB, 1200×630).',
+				title: 'Saludo + botón Ver seguimiento (actual)',
+				desc: 'Dos mensajes: saludo y tarjeta con botón; el link no se ve en verde.',
+				tech: 'Interactive cta_url; fallback preview_url si Meta rechaza el botón.',
 				rec: false,
 				render: function () {
 					return (

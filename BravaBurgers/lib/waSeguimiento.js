@@ -10,9 +10,13 @@ const { createSeguimientoToken } = require('./seguimientoToken');
 const { getPublicSiteUrl } = require('./bravaSiteUrl');
 
 function seguimientoSendMode() {
-  const m = String(process.env.WHATSAPP_SEGUIMIENTO_MODE || 'link_preview').trim().toLowerCase();
-  if (m === 'cta' || m === 'button') return 'cta';
-  return 'link_preview';
+  const m = String(process.env.WHATSAPP_SEGUIMIENTO_MODE || 'greeting_button').trim().toLowerCase();
+  if (m === 'link_preview' || m === 'preview') return 'link_preview';
+  return 'greeting_button';
+}
+
+function seguimientoCtaBody() {
+  return 'Mapa en vivo del repartidor, horario estimado de llegada y aviso cuando estemos en tu puerta.';
 }
 
 const SEGUIMIENTO_MARKER = '__seguimiento__:';
@@ -50,6 +54,24 @@ function buildSeguimientoBody(cliente, phase) {
   );
 }
 
+/** Saludo + botón URL (sin link largo visible). */
+async function sendSeguimientoGreetingPlusButton(to, body, url) {
+  const intro = await sendTextMessage(to, body);
+  if (!intro.ok) return Object.assign({ mode: 'greeting_failed' }, intro);
+  const cta = await sendSeguimientoCtaCard(to, seguimientoCtaBody(), url);
+  if (!cta.ok) {
+    return Object.assign({ mode: 'cta_failed', introMessageId: intro.messageId }, cta);
+  }
+  return {
+    ok: true,
+    mode: cta.mode === 'cta_plain' ? 'greeting_button' : 'greeting_button_' + cta.mode,
+    messageId: cta.messageId,
+    introMessageId: intro.messageId,
+    data: cta.data,
+    contactWaId: cta.contactWaId || intro.contactWaId,
+  };
+}
+
 /** Tarjeta estilo Google Maps: 2º mensaje solo con URL + preview_url (Open Graph). */
 async function sendSeguimientoLinkPreview(to, body, url) {
   const intro = await sendTextMessage(to, body);
@@ -85,7 +107,7 @@ function graphDetail(sent) {
 function seguimientoLogoUrl() {
   const custom = String(process.env.WHATSAPP_SEGUIMIENTO_IMAGE_URL || '').trim();
   if (custom) return custom;
-  return getPublicSiteUrl() + '/logoweb.png';
+  return getPublicSiteUrl() + '/seguimiento/wa-og.jpg?v=full';
 }
 
 async function resolveSeguimientoLogoMediaId() {
@@ -126,20 +148,25 @@ async function sendSeguimientoCtaCard(to, bodyText, url, opts) {
     footerText: footerText,
   };
 
-  let sent = await sendInteractiveCtaUrl(base);
-  if (sent.ok) return Object.assign({ mode: 'cta_plain' }, sent);
-
-  const firstErr = graphDetail(sent).slice(0, 200);
-  const firstHint = sent.hint || '';
-
+  let firstErr = '';
+  let firstHint = '';
   const mediaId = await resolveSeguimientoLogoMediaId();
   if (mediaId) {
-    sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: mediaId }));
+    let sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: mediaId }));
     if (sent.ok) return Object.assign({ mode: 'cta_logo_upload' }, sent);
+    firstErr = graphDetail(sent).slice(0, 200);
+    firstHint = sent.hint || '';
   }
 
-  sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageUrl: logoUrl }));
+  let sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageUrl: logoUrl }));
   if (sent.ok) return Object.assign({ mode: 'cta_logo_link' }, sent);
+  if (!firstErr) {
+    firstErr = graphDetail(sent).slice(0, 200);
+    firstHint = sent.hint || '';
+  }
+
+  sent = await sendInteractiveCtaUrl(base);
+  if (sent.ok) return Object.assign({ mode: 'cta_plain' }, sent);
 
   console.warn('[wa-seguimiento] cta_url failed', firstHint, firstErr, graphDetail(sent).slice(0, 200));
   return Object.assign({ mode: 'cta_failed', ctaFirstError: firstErr, ctaHint: firstHint }, sent);
@@ -208,17 +235,24 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
     sent = await sendSeguimientoLinkPreview(to, body, url);
     deliveryMode = sent.mode || 'link_preview';
     if (!sent.ok) {
-      sent = await sendSeguimientoCtaCard(to, body, url);
-      deliveryMode = sent.ok ? 'cta_fallback' : sent.mode || 'cta_failed';
+      sent = await sendSeguimientoGreetingPlusButton(to, body, url);
+      deliveryMode = sent.ok ? 'greeting_button_fallback' : sent.mode || 'send_failed';
     }
   } else {
-    sent = await sendSeguimientoCtaCard(to, body, url);
-    deliveryMode = sent.mode || 'cta';
-  }
-
-  if (!sent.ok) {
-    sent = await sendSeguimientoLinkPreview(to, body, url);
-    deliveryMode = sent.ok ? 'link_preview_fallback' : 'send_failed';
+    sent = await sendSeguimientoGreetingPlusButton(to, body, url);
+    deliveryMode = sent.mode || 'greeting_button';
+    if (!sent.ok) {
+      if (sent.introMessageId) {
+        const link = await sendTextMessage(to, url, { previewUrl: true });
+        if (link.ok) {
+          sent = Object.assign({ mode: 'link_preview_after_greeting', introMessageId: sent.introMessageId }, link);
+          deliveryMode = 'link_preview_after_greeting';
+        }
+      } else {
+        sent = await sendSeguimientoLinkPreview(to, body, url);
+        deliveryMode = sent.ok ? 'link_preview_fallback' : 'send_failed';
+      }
+    }
   }
 
   if (!sent.ok) {
