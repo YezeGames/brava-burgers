@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260328-native-perms -->
+	<!-- repartidor-app v=20260328-tts-copy -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -1688,7 +1688,7 @@
 							openFirstCamino();
 							var n = data.moved != null ? data.moved : 0;
 							if (n > 0) {
-								speak('Recorrido iniciado. Avisamos a ' + n + ' clientes por WhatsApp.');
+								speak('Recorrido iniciado.');
 							} else if (data.already) {
 								speak('Recorrido en curso.');
 							}
@@ -2847,7 +2847,13 @@
 						});
 						stopSim();
 						openHandoffScreen();
-						if (data.wa) speak('Avisamos al cliente por WhatsApp');
+						if (data.wa) {
+							var avisoTitle = 'Cliente avisado';
+							var avisoBody =
+								'Ya le avisamos al cliente que llegaste con su pedido.';
+							showPushToast(avisoTitle, avisoBody);
+							postNativeSystemNotification(avisoTitle, avisoBody);
+						}
 					})
 					.catch(function () {
 						alert('Error de red al confirmar llegada.');
