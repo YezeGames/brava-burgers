@@ -915,10 +915,20 @@
           }
           var extra = data.failed && data.failed.length ? ' (' + data.failed.length + ' fallaron)' : '';
           if (data.empty_route) {
+            var pushClear = '';
+            if (data.push_notify) {
+              var pc = data.push_notify;
+              if (pc.ok && !pc.skipped) pushClear = ' · Push «ruta vacía» enviado';
+              else if (pc.skipped && pc.reason === 'no_device_tokens') {
+                pushClear = ' · Sin push (repartidor sin token en el celular)';
+              }
+            }
             setStatus(
               'App del repartidor limpia: ' +
                 (data.cleared || 0) +
-                ' pedido(s) quitados. Tildá la ruta correcta y volvé a publicar.'
+                ' pedido(s) quitados' +
+                pushClear +
+                '. Tildá la ruta correcta y volvé a publicar.'
             );
           } else {
             var clearedMsg =
@@ -926,7 +936,12 @@
             var pushHint = '';
             if (data.push_notify) {
               var pn = data.push_notify;
-              if (pn.ok && !pn.skipped) pushHint = ' · Push enviado al celular';
+              if (pn.ok && !pn.skipped) {
+                var mt = pn.message && pn.message.data && pn.message.data.type;
+                if (mt === 'route_modified') pushHint = ' · Push «ruta modificada»';
+                else if (mt === 'route_clear') pushHint = ' · Push «ruta vacía»';
+                else pushHint = ' · Push enviado al celular';
+              }
               else if (pn.skipped && pn.reason === 'no_device_tokens') {
                 pushHint = ' · Sin push: repartidor sin token (abrí la app y permití alertas)';
               } else if (pn.skipped && pn.error === 'firebase_not_configured') {

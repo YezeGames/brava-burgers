@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260327-bg-gps-track -->
+	<!-- repartidor-app v=20260328-cap-pro -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -664,6 +664,7 @@
 					<div class="login-form notify-gate-actions">
 						<button type="button" class="btn btn-load" id="btn-enable-notify">Activar notificaciones</button>
 						<button type="button" class="btn-notify-secondary" id="btn-test-alert-sound">Probar sonido de alerta</button>
+						<button type="button" class="btn-notify-secondary hidden" id="btn-battery-settings">Batería: sin restricciones (recomendado)</button>
 						<p class="repartidor-tel-hint">Si el celular pregunta, elegí <strong>Permitir</strong>. Sin esto no podés usar el panel de entregas.</p>
 						<p class="notify-denied-hint hidden" id="notify-denied-hint">
 							Las notificaciones están bloqueadas. En iPhone: Ajustes → Apps → Safari (o Chrome) → Notificaciones → activar para este sitio. En Android: candado en la barra de dirección → Notificaciones. Después recargá esta página.
@@ -779,7 +780,7 @@
 		var liveFromSupabase = false;
 		var refreshPoll = null;
 		var routePollReady = false;
-		var ROUTE_POLL_MS = 18000;
+		var ROUTE_POLL_MS = 8000;
 		/** GPS → seguimiento cliente (Supabase). */
 		var TRACK_REPORT_MIN_MS = 16000;
 		var alertAudioCtx = null;
@@ -1083,9 +1084,14 @@
 			PN.addListener('pushNotificationReceived', function (n) {
 				var title = (n && n.title) || 'Brava Repartidor';
 				var body = (n && n.body) || 'Nueva actividad en tu ruta';
+				var dtype = (n && n.data && n.data.type) || '';
 				showPushToast(title, body);
 				postNativeSystemNotification(title, body);
 				playNewOrderAlert();
+				if (dtype === 'route_clear' && ttsOn) speak('Cocina limpió tu ruta.');
+				else if (dtype === 'route_modified' && ttsOn) speak('Cocina modificó tu ruta.');
+				else if (dtype === 'route_removed' && ttsOn) speak('Te quitaron paradas de la ruta.');
+				else if (dtype === 'route_assign' && ttsOn) speak('Nueva actividad en tu ruta.');
 				if (isLoggedIn()) fetchRutaLive(false);
 			});
 			PN.addListener('pushNotificationActionPerformed', function () {
@@ -1170,6 +1176,8 @@
 			if (useAppPermissionFlow()) {
 				hint.classList.add('hidden');
 				btn.textContent = nativeAlertsReady() ? 'Continuar al panel' : 'Permitir ubicación y alertas';
+				var batBtn = $('btn-battery-settings');
+				if (batBtn) batBtn.classList.remove('hidden');
 				return;
 			}
 			if (notificationsSupported() && Notification.permission === 'denied') {
@@ -1305,12 +1313,50 @@
 			});
 		}
 
+		function repartidorApiUrl() {
+			try {
+				return new URL('/api/repartidor', window.location.href).href;
+			} catch (eUrl) {
+				return 'https://brava-burgers.vercel.app/api/repartidor';
+			}
+		}
+
+		function repartidorApiNativePost(body) {
+			try {
+				var cap = window.Capacitor;
+				if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return null;
+				var http = cap.Plugins && cap.Plugins.CapacitorHttp;
+				if (!http || typeof http.post !== 'function') return null;
+				return http
+					.post({
+						url: repartidorApiUrl(),
+						headers: { 'Content-Type': 'application/json' },
+						data: body,
+					})
+					.then(function (res) {
+						var d = res && res.data;
+						if (typeof d === 'string') {
+							try {
+								return JSON.parse(d);
+							} catch (eJson) {
+								return { ok: false, error: 'bad_json' };
+							}
+						}
+						return d || { ok: false, error: 'empty_response' };
+					});
+			} catch (eHttp) {
+				return null;
+			}
+		}
+
 		function repartidorApi(body) {
 			body.action = body.action || 'listRuta';
 			if (API_KEY) body.key = API_KEY;
 			if (isLoggedIn() && body.action !== 'repartidorLogin') {
 				body.repartidorToken = session.token;
 			}
+			var native = repartidorApiNativePost(body);
+			if (native) return native;
 			return fetch('/api/repartidor', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -1415,8 +1461,9 @@
 						if (!liveFromSupabase) assignments = [];
 					} else {
 						liveFromSupabase = true;
+						var prevAssignments = assignments.slice();
 						var prevOrns = {};
-						assignments.forEach(function (a) {
+						prevAssignments.forEach(function (a) {
 							if (a && a.orn) prevOrns[a.orn] = true;
 						});
 						assignments = (data.pedidos || []).map(function (p) {
@@ -1442,7 +1489,18 @@
 							var added = assignments.filter(function (a) {
 								return a.orn && !prevOrns[a.orn];
 							});
-							if (added.length) notifyNewAssignments(added);
+							var removed = prevAssignments.filter(function (p) {
+								if (!p || !p.orn) return false;
+								return !assignments.some(function (a) {
+									return a && a.orn === p.orn;
+								});
+							});
+							if (!assignments.length && prevAssignments.length) {
+								notifyRouteClearedLocal();
+							} else {
+								if (removed.length) notifyRemovedFromRoute(removed);
+								if (added.length) notifyNewAssignments(added);
+							}
 						}
 						routePollReady = true;
 						syncGpsMode();
@@ -1481,6 +1539,23 @@
 			if (navigator.vibrate) navigator.vibrate([100, 60, 100, 60, 180]);
 		}
 
+		function alertRouteEvent(title, body, speakLine) {
+			showPushToast(title, body);
+			postNativeSystemNotification(title, body);
+			playNewOrderAlert();
+			if (ttsOn && speakLine) speak(speakLine);
+			if (!useAppPermissionFlow() && 'Notification' in window && Notification.permission === 'granted') {
+				try {
+					new Notification(title, {
+						body: body,
+						icon: NOTIFY_ICON,
+						tag: 'brava-route-' + Date.now(),
+						renotify: true,
+					});
+				} catch (eN) {}
+			}
+		}
+
 		function notifyNewAssignments(newStops) {
 			if (!newStops || !newStops.length) return;
 			var title = newStops.length === 1 ? 'Nueva parada en tu ruta' : newStops.length + ' paradas nuevas';
@@ -1489,20 +1564,26 @@
 					return 'Parada ' + (o.parada || '?') + ' · ' + (o.cliente || 'Cliente');
 				})
 				.join(' · ');
-			showPushToast(title, body);
-			postNativeSystemNotification(title, body);
-			playNewOrderAlert();
-			if (ttsOn) speak('Nueva entrega asignada. ' + newStops.length + ' parada' + (newStops.length === 1 ? '' : 's'));
-			if (!useAppPermissionFlow() && 'Notification' in window && Notification.permission === 'granted') {
-				try {
-					new Notification(title, {
-						body: body,
-						icon: NOTIFY_ICON,
-						tag: 'brava-new-route-' + Date.now(),
-						renotify: true,
-					});
-				} catch (eN) {}
-			}
+			alertRouteEvent(
+				title,
+				body,
+				'Nueva entrega asignada. ' + newStops.length + ' parada' + (newStops.length === 1 ? '' : 's')
+			);
+		}
+
+		function notifyRemovedFromRoute(removedStops) {
+			if (!removedStops || !removedStops.length) return;
+			var title = removedStops.length === 1 ? 'Te quitaron una parada' : 'Te quitaron ' + removedStops.length + ' paradas';
+			var body = removedStops
+				.map(function (o) {
+					return 'Parada ' + (o.parada || '?') + ' · ' + (o.cliente || 'Cliente');
+				})
+				.join(' · ');
+			alertRouteEvent(title, body, 'Cocina te quitó paradas de la ruta.');
+		}
+
+		function notifyRouteClearedLocal() {
+			alertRouteEvent('Ruta vacía', 'Cocina limpió tu ruta en la app.', 'Cocina limpió tu ruta.');
 		}
 
 		function fullDeliveryAddr(o) {
@@ -2035,14 +2116,52 @@
 			return 2 * R * Math.asin(Math.sqrt(x));
 		}
 
+		var ttsNativePlugin = null;
+
+		function ensureNativeTts() {
+			if (ttsNativePlugin) return ttsNativePlugin;
+			try {
+				var cap = window.Capacitor;
+				if (!cap || typeof cap.registerPlugin !== 'function') return null;
+				ttsNativePlugin = cap.registerPlugin('TextToSpeech');
+				return ttsNativePlugin;
+			} catch (eTts) {
+				return null;
+			}
+		}
+
 		function speak(text) {
 			if (!ttsOn || !text) return;
+			var line = String(text).trim();
+			if (!line) return;
+			if (useAppPermissionFlow()) {
+				var TTS = ensureNativeTts();
+				if (TTS && TTS.speak) {
+					TTS.stop().catch(function () {});
+					TTS.speak({ text: line, lang: 'es-AR', rate: 0.92, category: 'navigation' }).catch(function () {
+						speakWeb(line);
+					});
+					return;
+				}
+			}
+			speakWeb(line);
+		}
+
+		function speakWeb(text) {
 			if (!window.speechSynthesis) return;
 			window.speechSynthesis.cancel();
 			var u = new SpeechSynthesisUtterance(text);
 			u.lang = 'es-AR';
 			u.rate = 0.92;
 			window.speechSynthesis.speak(u);
+		}
+
+		function openAndroidBatteryAndAppSettings() {
+			if (!useAppPermissionFlow()) return;
+			try {
+				window.location.href =
+					'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:app.bravaburgers.repartidor;end';
+			} catch (eInt) {}
 		}
 
 		function updateUserMarker(lng, lat, heading) {
@@ -2763,6 +2882,12 @@
 			unlockAlertAudio().then(function () {
 				playNewOrderAlert();
 			});
+		});
+		$('btn-battery-settings').addEventListener('click', function () {
+			alert(
+				'En la pantalla siguiente: Batería → Sin restricciones (o No optimizar). Así el cliente ve tu ubicación y llegan los avisos con la app en el bolsillo.'
+			);
+			openAndroidBatteryAndAppSettings();
 		});
 		$('btn-login').addEventListener('click', doLogin);
 		$('repartidor-password').addEventListener('keydown', function (ev) {

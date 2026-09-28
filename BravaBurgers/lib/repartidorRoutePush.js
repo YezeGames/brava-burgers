@@ -5,11 +5,33 @@ const { listPushTokensForTelefono, deleteInvalidPushToken } = require('./reparti
 
 function buildRoutePushMessage(assignOut) {
   const n = Number(assignOut.assigned) || 0;
+  const cleared = Number(assignOut.cleared) || 0;
   if (assignOut.empty_route && n === 0) {
     return {
-      title: 'Ruta actualizada',
+      title: 'Ruta vacía',
       body: 'Cocina limpió tu ruta en la app.',
-      data: { type: 'route_clear' },
+      data: { type: 'route_clear', cleared: String(cleared) },
+    };
+  }
+  if (cleared > 0 && n > 0) {
+    return {
+      title: 'Ruta modificada',
+      body:
+        'Cocina actualizó tu ruta: ' +
+        n +
+        ' parada' +
+        (n === 1 ? '' : 's') +
+        ', quitó ' +
+        cleared +
+        '. Abrí Brava Repartidor.',
+      data: { type: 'route_modified', count: String(n), cleared: String(cleared) },
+    };
+  }
+  if (cleared > 0 && n === 0) {
+    return {
+      title: 'Paradas quitadas',
+      body: 'Cocina te sacó ' + cleared + ' parada' + (cleared === 1 ? '' : 's') + ' de la ruta.',
+      data: { type: 'route_removed', cleared: String(cleared) },
     };
   }
   if (n === 1) {
@@ -39,7 +61,8 @@ async function notifyRepartidorRouteAssigned(repartidorTel, assignOut) {
   if (!tel) return { ok: false, error: 'missing_telefono' };
 
   const assigned = Number(assignOut.assigned) || 0;
-  if (!assigned && !assignOut.empty_route) {
+  const cleared = Number(assignOut.cleared) || 0;
+  if (!assigned && !assignOut.empty_route && cleared === 0) {
     return { ok: true, skipped: true, reason: 'nothing_to_notify' };
   }
 
