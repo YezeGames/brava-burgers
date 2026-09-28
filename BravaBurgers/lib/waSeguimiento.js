@@ -1,10 +1,17 @@
-const { sendTextMessage, sendInteractiveCtaUrl, getWhatsAppConfig } = require('./whatsappMeta');
+const {
+  sendTextMessage,
+  sendInteractiveCtaUrl,
+  getWhatsAppConfig,
+  uploadMediaBuffer,
+} = require('./whatsappMeta');
 const { insertWaMessage } = require('./waInbox');
 const { isSupabaseConfigured, restSelect } = require('./supabaseServer');
 const { createSeguimientoToken } = require('./seguimientoToken');
 const { getPublicSiteUrl } = require('./bravaSiteUrl');
 
 const SEGUIMIENTO_MARKER = '__seguimiento__:';
+
+let cachedLogoMediaId = '';
 
 function firstName(cliente) {
   var s = String(cliente || '').trim();
@@ -41,6 +48,77 @@ function buildSeguimientoMessage(cliente, orn, phase) {
   var body = buildSeguimientoBody(cliente, phase === 'next_stop' ? 'next_stop' : 'inicio');
   var url = buildSeguimientoUrl(orn);
   return body + (url ? '\n' + url : '');
+}
+
+function graphDetail(sent) {
+  if (!sent || sent.ok) return '';
+  const d = sent.detail;
+  if (d && d.message) return String(d.message);
+  if (sent.message) return String(sent.message);
+  return sent.error || '';
+}
+
+function seguimientoLogoUrl() {
+  const custom = String(process.env.WHATSAPP_SEGUIMIENTO_IMAGE_URL || '').trim();
+  if (custom) return custom;
+  return getPublicSiteUrl() + '/logoweb.png';
+}
+
+async function resolveSeguimientoLogoMediaId() {
+  const fromEnv = String(process.env.WHATSAPP_SEGUIMIENTO_MEDIA_ID || '').trim();
+  if (fromEnv) return fromEnv;
+  if (cachedLogoMediaId) return cachedLogoMediaId;
+  const url = seguimientoLogoUrl();
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!res.ok) return '';
+    const buf = await res.arrayBuffer();
+    const ct = String(res.headers.get('content-type') || 'image/png').toLowerCase();
+    const mime = ct.indexOf('jpeg') >= 0 || ct.indexOf('jpg') >= 0 ? 'image/jpeg' : 'image/png';
+    const uploaded = await uploadMediaBuffer(buf, mime);
+    if (uploaded.ok && uploaded.mediaId) {
+      cachedLogoMediaId = uploaded.mediaId;
+      return cachedLogoMediaId;
+    }
+  } catch (e) {
+    console.warn('[wa-seguimiento] logo upload failed', e.message || e);
+  }
+  return '';
+}
+
+/**
+ * Tarjeta CTA (botón URL). Sin imagen primero — Meta suele fallar si no puede bajar el header.
+ */
+async function sendSeguimientoCtaCard(to, bodyText, url, opts) {
+  opts = opts || {};
+  const displayText = String(opts.displayText || 'Ver seguimiento').slice(0, 20);
+  const footerText = String(opts.footerText || 'Brava Burgers').trim();
+  const logoUrl = seguimientoLogoUrl();
+  const base = {
+    to: to,
+    bodyText: bodyText,
+    url: url,
+    displayText: displayText,
+    footerText: footerText,
+  };
+
+  let sent = await sendInteractiveCtaUrl(base);
+  if (sent.ok) return Object.assign({ mode: 'cta_plain' }, sent);
+
+  const firstErr = graphDetail(sent).slice(0, 200);
+  const firstHint = sent.hint || '';
+
+  const mediaId = await resolveSeguimientoLogoMediaId();
+  if (mediaId) {
+    sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: mediaId }));
+    if (sent.ok) return Object.assign({ mode: 'cta_logo_upload' }, sent);
+  }
+
+  sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageUrl: logoUrl }));
+  if (sent.ok) return Object.assign({ mode: 'cta_logo_link' }, sent);
+
+  console.warn('[wa-seguimiento] cta_url failed', firstHint, firstErr, graphDetail(sent).slice(0, 200));
+  return Object.assign({ mode: 'cta_failed', ctaFirstError: firstErr, ctaHint: firstHint }, sent);
 }
 
 async function seguimientoAlreadySent(orn, parada) {
@@ -96,30 +174,52 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
   const phaseKey = phase === 'next_stop' ? 'next_stop' : 'inicio';
   const body = buildSeguimientoBody(cliente, phaseKey);
   const url = buildSeguimientoUrl(id);
-  const logoUrl = getPublicSiteUrl() + '/logoweb.png';
-  let sent = await sendInteractiveCtaUrl({
-    to: to,
-    bodyText: body,
-    url: url,
-    displayText: 'Ver seguimiento',
-    imageUrl: logoUrl,
-  });
+  if (!url) return { ok: false, error: 'missing_url' };
+
+  let sent = await sendSeguimientoCtaCard(to, body, url);
+  let deliveryMode = sent.mode || 'cta';
+
   if (!sent.ok) {
-    const text = buildSeguimientoMessage(cliente, id, phaseKey);
-    sent = await sendTextMessage(to, text, { previewUrl: true });
+    const intro = await sendTextMessage(to, body);
+    if (intro.ok) {
+      sent = await sendSeguimientoCtaCard(to, 'Mapa en vivo del repartidor 🗺️', url);
+      deliveryMode = sent.ok ? 'text_then_cta' : 'text_only_partial';
+    }
   }
+
+  if (!sent.ok) {
+    sent = await sendTextMessage(to, body + '\n' + url, { previewUrl: false });
+    deliveryMode = 'text_url_no_preview';
+  }
+
   if (!sent.ok) return sent;
+
   const text = buildSeguimientoMessage(cliente, id, phaseKey);
-  const graphId =
-    sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id;
-  await insertWaMessage({
-    messageId: graphId,
-    tel: to,
-    direction: 'out',
-    body: text,
-  });
+  const graphId = sent.messageId || (sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id);
+  if (graphId) {
+    await insertWaMessage({
+      messageId: graphId,
+      tel: to,
+      direction: 'out',
+      body: text,
+    });
+  }
   await markSeguimientoSent(id, parada, to, null);
-  return { ok: true, sent: true, orn: id, parada: parada, url: buildSeguimientoUrl(id), text: text };
+  return {
+    ok: true,
+    sent: true,
+    orn: id,
+    parada: parada,
+    url: url,
+    text: text,
+    deliveryMode: deliveryMode,
+    ctaHint: sent.ctaHint || null,
+  };
+}
+
+async function probeSeguimientoCta(to) {
+  const url = getPublicSiteUrl() + '/seguimiento/?t=probe';
+  return sendSeguimientoCtaCard(to, 'Probe Brava — ¿ves logo, texto y botón Ver seguimiento?', url);
 }
 
 module.exports = {
@@ -127,5 +227,6 @@ module.exports = {
   buildSeguimientoBody,
   buildSeguimientoMessage,
   sendSeguimientoWhatsApp,
+  probeSeguimientoCta,
   SEGUIMIENTO_MARKER,
 };

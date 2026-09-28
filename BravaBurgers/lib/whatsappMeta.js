@@ -412,8 +412,11 @@ async function sendInteractiveCtaUrl(opts) {
   };
   const footer = String(opts.footerText || '').trim();
   if (footer) interactive.footer = { text: footer.slice(0, 60) };
+  const imageMediaId = String(opts.imageMediaId || '').trim();
   const imageUrl = String(opts.imageUrl || '').trim();
-  if (imageUrl) {
+  if (imageMediaId) {
+    interactive.header = { type: 'image', image: { id: imageMediaId } };
+  } else if (imageUrl) {
     interactive.header = { type: 'image', image: { link: imageUrl } };
   }
   return graphSendMessage({
