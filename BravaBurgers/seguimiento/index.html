@@ -167,6 +167,29 @@
 		var NEAR_DEST_M = 180;
 		var lastDistToDestM = null;
 		var lastEtaMin = null;
+		var lastEtaSec = null;
+
+		function formatEtaArrivalRange(etaSeconds) {
+			if (etaSeconds == null || etaSeconds <= 0) return null;
+			var arrival = new Date(Date.now() + etaSeconds * 1000);
+			arrival.setSeconds(0, 0);
+			var end = new Date(arrival.getTime() + 5 * 60000);
+			var opts = {
+				timeZone: 'America/Argentina/Buenos_Aires',
+				hour: '2-digit',
+				minute: '2-digit',
+				hour12: false,
+			};
+			var startStr = arrival.toLocaleTimeString('es-AR', opts);
+			var endStr = end.toLocaleTimeString('es-AR', opts);
+			return startStr + ' - ' + endStr;
+		}
+
+		function etaDescLine(etaSec, fallbackText) {
+			var range = formatEtaArrivalRange(etaSec);
+			if (range) return 'Llegada estimada: ' + range;
+			return fallbackText;
+		}
 
 		function haversineM(a, b) {
 			var R = 6371000;
@@ -218,7 +241,7 @@
 		function statusCopy(data, opts) {
 			opts = opts || {};
 			var distM = opts.distToDestM != null ? opts.distToDestM : lastDistToDestM;
-			var etaMin = opts.etaMin != null ? opts.etaMin : lastEtaMin;
+			var etaSec = opts.etaSec != null ? opts.etaSec : lastEtaSec;
 			var cardClass = 'card';
 			var title = 'Estado del pedido';
 			var desc = '';
@@ -232,14 +255,10 @@
 					desc = 'Te lo entregamos en unos minutos.';
 				} else if (distM != null && distM <= NEAR_DEST_M) {
 					title = 'El repartidor está cerca';
-					desc = etaMin
-						? 'Llegada estimada: ~' + etaMin + ' min.'
-						: 'En unos minutos llega a tu puerta.';
+					desc = etaDescLine(etaSec, 'En unos minutos llega a tu puerta.');
 				} else {
 					title = 'Tu pedido va en camino';
-					desc = etaMin
-						? 'Llegada estimada: ~' + etaMin + ' min.'
-						: 'El repartidor está yendo hacia tu domicilio.';
+					desc = etaDescLine(etaSec, 'El repartidor está yendo hacia tu domicilio.');
 				}
 			} else if (data.status === 'en_cola') {
 				cardClass += ' wait';
@@ -366,6 +385,7 @@
 					if (data.routes && data.routes[0] && data.routes[0].geometry) {
 						var dur = Number(data.routes[0].duration);
 						if (!isNaN(dur) && dur > 0) {
+							lastEtaSec = dur;
 							lastEtaMin = Math.max(1, Math.round(dur / 60));
 						}
 						return data.routes[0].geometry;
@@ -403,7 +423,7 @@
 			if (!data || !data.ok || !data.tracking_live) return;
 			geocodeDest(data).then(function (dest) {
 				lastDistToDestM = driverDistToDestM(data, dest);
-				var copy = statusCopy(data, { distToDestM: lastDistToDestM, etaMin: lastEtaMin });
+				var copy = statusCopy(data, { distToDestM: lastDistToDestM, etaSec: lastEtaSec });
 				var card = main.querySelector('.card');
 				if (card) {
 					var h1 = card.querySelector('h1');
@@ -475,7 +495,7 @@
 				data.tracking_live ? '1' : '0',
 				data.repartidor_llegada_at ? '1' : '0',
 				phase,
-				lastEtaMin != null ? String(lastEtaMin) : '',
+				lastEtaSec != null ? String(Math.round(lastEtaSec / 60)) : '',
 			].join('|');
 		}
 
@@ -548,11 +568,12 @@
 			if (data.tracking_live) {
 				geocodeDest(data).then(function (dest) {
 					lastDistToDestM = driverDistToDestM(data, dest);
-					paintShell(statusCopy(data, { distToDestM: lastDistToDestM, etaMin: lastEtaMin }));
+					paintShell(statusCopy(data, { distToDestM: lastDistToDestM, etaSec: lastEtaSec }));
 				});
 			} else {
 				lastDistToDestM = null;
 				lastEtaMin = null;
+				lastEtaSec = null;
 				paintShell(statusCopy(data));
 			}
 		}
