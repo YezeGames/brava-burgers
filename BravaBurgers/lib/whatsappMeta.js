@@ -329,17 +329,22 @@ async function fetchPhoneNumberProfile() {
   }
 }
 
-async function sendTextMessage(to, text) {
+async function sendTextMessage(to, text, opts) {
+  opts = opts || {};
   const digits = normalizeWaRecipient(to);
   if (!digits || !String(text || '').trim()) {
     return { ok: false, error: 'invalid_params' };
+  }
+  const textPayload = { body: String(text).trim() };
+  if (opts.previewUrl === true) {
+    textPayload.preview_url = true;
   }
   return graphSendMessage({
     messaging_product: 'whatsapp',
     recipient_type: 'individual',
     to: digits,
     type: 'text',
-    text: { body: String(text).trim() },
+    text: textPayload,
   });
 }
 

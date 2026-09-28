@@ -22,7 +22,7 @@ function buildSeguimientoMessage(cliente, orn, phase) {
   var n = firstName(cliente);
   var nombre = n ? n.charAt(0).toUpperCase() + n.slice(1).toLowerCase() : 'Hola';
   var url = buildSeguimientoUrl(orn);
-  var link = url ? '\n\nSeguilo acá 👇\n' + url : '';
+  var link = url ? '\n\nSeguilo acá 👇\n\n' + url : '';
   if (phase === 'next_stop') {
     return (
       '¡' +
@@ -85,7 +85,7 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
     return { ok: false, error: 'tracking_not_configured' };
   }
   const text = buildSeguimientoMessage(cliente, id, phase === 'next_stop' ? 'next_stop' : 'inicio');
-  const sent = await sendTextMessage(to, text);
+  const sent = await sendTextMessage(to, text, { previewUrl: true });
   if (!sent.ok) return sent;
   const graphId =
     sent.data && sent.data.messages && sent.data.messages[0] && sent.data.messages[0].id;
