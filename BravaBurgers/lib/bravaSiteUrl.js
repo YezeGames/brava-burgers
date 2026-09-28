@@ -8,10 +8,11 @@ function getPublicSiteUrl() {
   return DEFAULT_PUBLIC_SITE;
 }
 
+/** WhatsApp link preview: ≤300 KB; ver seguimiento/wa-og.jpg (no usar logoweb.png pesado). */
 function getSeguimientoOgImageUrl() {
   const custom = String(process.env.BRAVA_SEGUIMIENTO_OG_IMAGE || '').trim();
   if (custom) return custom.replace(/\/$/, '');
-  return getPublicSiteUrl() + '/logoweb.png';
+  return getPublicSiteUrl() + '/seguimiento/wa-og.jpg';
 }
 
 module.exports = { getPublicSiteUrl, getSeguimientoOgImageUrl, DEFAULT_PUBLIC_SITE };
