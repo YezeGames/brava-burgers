@@ -8,7 +8,7 @@
 	<meta name="mobile-web-app-capable" content="yes">
 	<meta name="theme-color" content="#0b141a">
 	<title>Brava Repartidor — app</title>
-	<!-- repartidor-app v=20260328-cap-pro -->
+	<!-- repartidor-app v=20260328-native-perms -->
 	<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 	<link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet">
 	<style>
@@ -663,8 +663,6 @@
 					</div>
 					<div class="login-form notify-gate-actions">
 						<button type="button" class="btn btn-load" id="btn-enable-notify">Activar notificaciones</button>
-						<button type="button" class="btn-notify-secondary" id="btn-test-alert-sound">Probar sonido de alerta</button>
-						<button type="button" class="btn-notify-secondary hidden" id="btn-battery-settings">Batería: sin restricciones (recomendado)</button>
 						<p class="repartidor-tel-hint">Si el celular pregunta, elegí <strong>Permitir</strong>. Sin esto no podés usar el panel de entregas.</p>
 						<p class="notify-denied-hint hidden" id="notify-denied-hint">
 							Las notificaciones están bloqueadas. En iPhone: Ajustes → Apps → Safari (o Chrome) → Notificaciones → activar para este sitio. En Android: candado en la barra de dirección → Notificaciones. Después recargá esta página.
@@ -720,7 +718,6 @@
 					</div>
 					<ol class="nav-steps" id="nav-steps" aria-hidden="true"></ol>
 					<div class="nav-actions">
-						<button type="button" class="btn" id="btn-ext-maps">Maps</button>
 						<button type="button" class="btn btn-ok" id="btn-arrival">Confirmar llegada</button>
 					</div>
 				</div>
@@ -844,7 +841,13 @@
 		var currentOrder = null;
 		var routeCoords = [];
 		var steps = [];
-		var stepAnnounced = {};
+		var stepVoiceTiers = {};
+		var routeCumDistM = [];
+		var stepDistAlongRoute = [];
+		var NAV_VOICE_FAR = 480;
+		var NAV_VOICE_MID = 200;
+		var NAV_VOICE_NEAR = 75;
+		var NAV_VOICE_NOW = 22;
 		var lastSpokenStep = -1;
 		var userPos = null;
 		var markerUser = null;
@@ -950,8 +953,6 @@
 			renderList();
 		}
 
-		var NATIVE_ALERTS_KEY = 'brava_native_delivery_ready';
-
 		function isNativeShell() {
 			try {
 				if (window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()) return true;
@@ -973,27 +974,13 @@
 			return false;
 		}
 
-		function nativeAlertsReady() {
-			try {
-				return sessionStorage.getItem(NATIVE_ALERTS_KEY) === '1';
-			} catch (eSt) {
-				return false;
-			}
-		}
-
-		function setNativeAlertsReady() {
-			try {
-				sessionStorage.setItem(NATIVE_ALERTS_KEY, '1');
-			} catch (eSt2) {}
-		}
-
 		function notificationsSupported() {
 			if (useAppPermissionFlow()) return true;
 			return typeof window !== 'undefined' && 'Notification' in window;
 		}
 
 		function notificationsOk() {
-			if (useAppPermissionFlow()) return nativeAlertsReady();
+			if (useAppPermissionFlow()) return true;
 			return notificationsSupported() && Notification.permission === 'granted';
 		}
 
@@ -1053,7 +1040,7 @@
 		}
 
 		function postNativeSystemNotification(title, body) {
-			if (!useAppPermissionFlow() || !nativeAlertsReady()) return Promise.resolve();
+			if (!useAppPermissionFlow()) return Promise.resolve();
 			var t = String(title || 'Brava Repartidor').slice(0, 120);
 			var b = String(body || '').slice(0, 240);
 			var nid = (Date.now() % 2147480000) + Math.floor(Math.random() * 1000);
@@ -1123,14 +1110,12 @@
 
 		function requestNativeShellPermissions() {
 			unlockAlertAudio();
-			var btn = $('btn-enable-notify');
-			if (btn) {
-				btn.disabled = true;
-				btn.textContent = 'Esperá al celular…';
-			}
 			return capNativePromise('Geolocation', 'requestPermissions', {})
 				.then(function () {
 					return capNativePromise('LocalNotifications', 'requestPermissions', {});
+				})
+				.then(function () {
+					return registerRepartidorFcm();
 				})
 				.then(function () {
 					return new Promise(function (resolve) {
@@ -1143,20 +1128,46 @@
 								resolve();
 							},
 							function () {
-								alert(
-									'Sin ubicación no podemos mostrar el mapa ni el seguimiento al cliente. En Ajustes → Brava Repartidor → Permisos → Ubicación → Permitir.'
-								);
 								resolve();
 							},
 							{ enableHighAccuracy: true, timeout: 25000, maximumAge: 0 }
 						);
 					});
 				})
-				.finally(function () {
-					if (btn) btn.disabled = false;
-					updateNotifyGateUi();
-					ensureBravaNotifyChannel();
+				.then(function () {
+					return ensureBravaNotifyChannel();
 				});
+		}
+
+		function requestAndroidBatteryUnrestricted() {
+			if (!useAppPermissionFlow()) return Promise.resolve();
+			return new Promise(function (resolve) {
+				setTimeout(function () {
+					try {
+						window.location.href =
+							'intent:#Intent;action=android.settings.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS;scheme=package;package=app.bravaburgers.repartidor;end';
+					} catch (eBat) {}
+					resolve();
+				}, 600);
+			});
+		}
+
+		var nativeSetupPromise = null;
+
+		function runAutoNativeSetup() {
+			if (!useAppPermissionFlow()) return Promise.resolve();
+			if (nativeSetupPromise) return nativeSetupPromise;
+			nativeSetupPromise = requestNativeShellPermissions()
+				.then(function () {
+					return requestAndroidBatteryUnrestricted();
+				})
+				.then(function () {
+					startGps();
+				})
+				.finally(function () {
+					nativeSetupPromise = null;
+				});
+			return nativeSetupPromise;
 		}
 
 		function updateNotifyGateUi() {
@@ -1173,13 +1184,7 @@
 				}
 			}
 			if (!hint || !btn) return;
-			if (useAppPermissionFlow()) {
-				hint.classList.add('hidden');
-				btn.textContent = nativeAlertsReady() ? 'Continuar al panel' : 'Permitir ubicación y alertas';
-				var batBtn = $('btn-battery-settings');
-				if (batBtn) batBtn.classList.remove('hidden');
-				return;
-			}
+			if (useAppPermissionFlow()) return;
 			if (notificationsSupported() && Notification.permission === 'denied') {
 				hint.classList.remove('hidden');
 				btn.textContent = 'Ya las activé — continuar';
@@ -1228,13 +1233,14 @@
 
 		function enterMainAppAfterAuth() {
 			if (!isLoggedIn()) return;
-			if (!notificationsOk()) {
+			if (!useAppPermissionFlow() && !notificationsOk()) {
 				updateNotifyGateUi();
 				showScreen('screen-notify');
 				return;
 			}
 			updateLoginUi();
-			registerRepartidorFcm();
+			if (useAppPermissionFlow()) runAutoNativeSetup();
+			else registerRepartidorFcm();
 			if (!refreshPoll) startRefreshPoll();
 			fetchRutaLive(false);
 		}
@@ -1244,7 +1250,7 @@
 			var navActive = $('screen-nav') && $('screen-nav').classList.contains('is-active');
 			var handoffActive = $('screen-handoff') && $('screen-handoff').classList.contains('is-active');
 			if (isLoggedIn()) {
-				if (!notificationsOk()) {
+				if (!useAppPermissionFlow() && !notificationsOk()) {
 					updateNotifyGateUi();
 					showScreen('screen-notify');
 					return;
@@ -1271,13 +1277,7 @@
 
 		function requestNotificationsMandatory() {
 			if (useAppPermissionFlow()) {
-				if (nativeAlertsReady()) {
-					onNotificationsGranted();
-					return;
-				}
-				requestNativeShellPermissions().then(function () {
-					setNativeAlertsReady();
-					startGps();
+				runAutoNativeSetup().then(function () {
 					onNotificationsGranted();
 				});
 				return;
@@ -2117,17 +2117,52 @@
 		}
 
 		var ttsNativePlugin = null;
+		var TTS_LANG_TRY = ['es-AR', 'es-419', 'es-ES', 'es-US', 'es'];
 
 		function ensureNativeTts() {
 			if (ttsNativePlugin) return ttsNativePlugin;
 			try {
 				var cap = window.Capacitor;
-				if (!cap || typeof cap.registerPlugin !== 'function') return null;
-				ttsNativePlugin = cap.registerPlugin('TextToSpeech');
-				return ttsNativePlugin;
+				if (!cap) return null;
+				if (cap.Plugins && cap.Plugins.TextToSpeech) {
+					ttsNativePlugin = cap.Plugins.TextToSpeech;
+					return ttsNativePlugin;
+				}
+				if (typeof cap.registerPlugin === 'function') {
+					ttsNativePlugin = cap.registerPlugin('TextToSpeech');
+					return ttsNativePlugin;
+				}
 			} catch (eTts) {
 				return null;
 			}
+			return null;
+		}
+
+		function speakNativeOnce(TTS, line, lang) {
+			return TTS.stop().catch(function () {}).then(function () {
+				return TTS.speak({ text: line, lang: lang, rate: 0.92, pitch: 1, volume: 1 });
+			});
+		}
+
+		function speakNativeWithLangFallback(TTS, line, langIndex, initRetry) {
+			var langs = TTS_LANG_TRY;
+			var i = langIndex != null ? langIndex : 0;
+			if (i >= langs.length) return Promise.reject(new Error('no_lang'));
+			var lang = langs[i];
+			return speakNativeOnce(TTS, line, lang).catch(function (err) {
+				var msg = err && (err.message || err.errorMessage || String(err)) || '';
+				if (/not yet initialized|not available/i.test(msg) && (initRetry || 0) < 4) {
+					return new Promise(function (resolve, reject) {
+						setTimeout(function () {
+							speakNativeWithLangFallback(TTS, line, i, (initRetry || 0) + 1).then(resolve).catch(reject);
+						}, 350);
+					});
+				}
+				if (/language is not supported|unsupported/i.test(msg) && i + 1 < langs.length) {
+					return speakNativeWithLangFallback(TTS, line, i + 1, 0);
+				}
+				return Promise.reject(err);
+			});
 		}
 
 		function speak(text) {
@@ -2137,8 +2172,7 @@
 			if (useAppPermissionFlow()) {
 				var TTS = ensureNativeTts();
 				if (TTS && TTS.speak) {
-					TTS.stop().catch(function () {});
-					TTS.speak({ text: line, lang: 'es-AR', rate: 0.92, category: 'navigation' }).catch(function () {
+					speakNativeWithLangFallback(TTS, line, 0, 0).catch(function () {
 						speakWeb(line);
 					});
 					return;
@@ -2149,19 +2183,149 @@
 
 		function speakWeb(text) {
 			if (!window.speechSynthesis) return;
-			window.speechSynthesis.cancel();
-			var u = new SpeechSynthesisUtterance(text);
-			u.lang = 'es-AR';
-			u.rate = 0.92;
-			window.speechSynthesis.speak(u);
+			try {
+				window.speechSynthesis.cancel();
+				var u = new SpeechSynthesisUtterance(text);
+				u.lang = 'es-AR';
+				u.rate = 0.92;
+				window.speechSynthesis.speak(u);
+			} catch (eWebTts) {}
 		}
 
-		function openAndroidBatteryAndAppSettings() {
-			if (!useAppPermissionFlow()) return;
-			try {
-				window.location.href =
-					'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;data=package:app.bravaburgers.repartidor;end';
-			} catch (eInt) {}
+		function rebuildNavProgress() {
+			routeCumDistM = [0];
+			for (var ri = 1; ri < routeCoords.length; ri++) {
+				routeCumDistM[ri] =
+					routeCumDistM[ri - 1] +
+					haversineM(
+						{ lng: routeCoords[ri - 1][0], lat: routeCoords[ri - 1][1] },
+						{ lng: routeCoords[ri][0], lat: routeCoords[ri][1] }
+					);
+			}
+			stepDistAlongRoute = [];
+			var cum = 0;
+			for (var si = 0; si < steps.length; si++) {
+				cum += Number(steps[si].distance) || 0;
+				stepDistAlongRoute[si] = cum;
+			}
+			stepVoiceTiers = {};
+		}
+
+		function posDistanceAlongRouteM(pos) {
+			if (!routeCoords.length || !pos) return 0;
+			var bestAlong = 0;
+			var bestOff = Infinity;
+			for (var i = 0; i < routeCoords.length - 1; i++) {
+				var a = { lng: routeCoords[i][0], lat: routeCoords[i][1] };
+				var b = { lng: routeCoords[i + 1][0], lat: routeCoords[i + 1][1] };
+				var segLen = haversineM(a, b);
+				var x = pos.lng;
+				var y = pos.lat;
+				var x1 = a.lng;
+				var y1 = a.lat;
+				var x2 = b.lng;
+				var y2 = b.lat;
+				var dx = x2 - x1;
+				var dy = y2 - y1;
+				var t = 0;
+				if (dx !== 0 || dy !== 0) {
+					t = ((x - x1) * dx + (y - y1) * dy) / (dx * dx + dy * dy);
+					t = Math.max(0, Math.min(1, t));
+				}
+				var proj = { lng: x1 + t * dx, lat: y1 + t * dy };
+				var off = haversineM(pos, proj);
+				var along = routeCumDistM[i] + segLen * t;
+				if (off < bestOff) {
+					bestOff = off;
+					bestAlong = along;
+				}
+			}
+			return bestAlong;
+		}
+
+		function findNavStepIndex(alongM) {
+			for (var i = 0; i < steps.length; i++) {
+				if (stepDistAlongRoute[i] > alongM + 10) return i;
+			}
+			return Math.max(0, steps.length - 1);
+		}
+
+		function roundDistSpeech(m) {
+			if (m >= 1000) return Math.round(m / 100) * 100;
+			if (m >= 200) return Math.round(m / 50) * 50;
+			if (m >= 80) return Math.round(m / 10) * 10;
+			return Math.max(10, Math.round(m / 5) * 5);
+		}
+
+		function formatDistSpeech(m) {
+			var r = roundDistSpeech(m);
+			if (r >= 1000) {
+				var km = r / 1000;
+				if (km >= 2) return Math.round(km) + ' kilómetros';
+				var km1 = km.toFixed(1).replace('.0', '');
+				return km1 + (km1 === '1' ? ' kilómetro' : ' kilómetros');
+			}
+			return r + ' metros';
+		}
+
+		function maneuverSpeechLine(step, withDistanceM) {
+			var m = maneuverText(step);
+			if (withDistanceM == null || withDistanceM <= NAV_VOICE_NOW) return m;
+			return 'En ' + formatDistSpeech(withDistanceM) + ', ' + m.charAt(0).toLowerCase() + m.slice(1);
+		}
+
+		function ensureStepVoiceTiers(idx) {
+			if (!stepVoiceTiers[idx]) stepVoiceTiers[idx] = {};
+			return stepVoiceTiers[idx];
+		}
+
+		function maybeSpeakNavVoice(idx, distToManeuverM, step) {
+			if (!ttsOn || !step || distToManeuverM == null) return;
+			var tiers = ensureStepVoiceTiers(idx);
+			var mType = step.maneuver && step.maneuver.type;
+			if (mType === 'arrive') {
+				if (distToManeuverM <= 40 && !tiers.arrive) {
+					tiers.arrive = true;
+					speak('Llegaste al destino.');
+				}
+				return;
+			}
+			if (distToManeuverM <= NAV_VOICE_NOW && !tiers.now) {
+				tiers.now = true;
+				speak(maneuverText(step));
+				lastSpokenStep = idx;
+				return;
+			}
+			if (distToManeuverM <= NAV_VOICE_NEAR && distToManeuverM > NAV_VOICE_NOW && !tiers.near) {
+				tiers.near = true;
+				speak(maneuverSpeechLine(step, distToManeuverM));
+				lastSpokenStep = idx;
+				return;
+			}
+			if (distToManeuverM <= NAV_VOICE_MID && distToManeuverM > NAV_VOICE_NEAR && !tiers.mid) {
+				tiers.mid = true;
+				speak(maneuverSpeechLine(step, distToManeuverM));
+				lastSpokenStep = idx;
+				return;
+			}
+			if (distToManeuverM <= NAV_VOICE_FAR && distToManeuverM > NAV_VOICE_MID && !tiers.far) {
+				tiers.far = true;
+				speak(maneuverSpeechLine(step, distToManeuverM));
+				lastSpokenStep = idx;
+			}
+		}
+
+		function speakNavRouteIntro() {
+			if (!ttsOn || !steps.length || !currentOrder) return;
+			var totalM =
+				stepDistAlongRoute.length > 0 ? stepDistAlongRoute[stepDistAlongRoute.length - 1] : 0;
+			var intro =
+				'Parada ' +
+				currentOrder.parada +
+				'. ' +
+				(totalM > 600 ? 'Recorrido de ' + formatDistSpeech(totalM) + '. ' : '') +
+				maneuverText(steps[0]);
+			speak(intro);
 		}
 
 		function updateUserMarker(lng, lat, heading) {
@@ -2203,6 +2367,9 @@
 
 		function findStepIndex(pos) {
 			if (!steps.length) return 0;
+			if (stepDistAlongRoute.length && routeCoords.length) {
+				return findNavStepIndex(posDistanceAlongRouteM(pos));
+			}
 			var best = 0;
 			var bestD = Infinity;
 			for (var i = 0; i < steps.length; i++) {
@@ -2245,25 +2412,28 @@
 				updateUserMarker(lng, lat, heading);
 			}
 			if (!steps.length || !$('screen-nav').classList.contains('is-active')) return;
-			var idx = findStepIndex(userPos);
+			var along = posDistanceAlongRouteM(userPos);
+			var idx = findNavStepIndex(along);
 			var step = steps[idx];
 			var instr = maneuverText(step);
 			$('nav-instruction').textContent = instr;
-			var dist = step.distance ? Math.round(step.distance) + ' m' : '';
+			var distToTurn =
+				stepDistAlongRoute.length && stepDistAlongRoute[idx] != null
+					? Math.max(0, Math.round(stepDistAlongRoute[idx] - along))
+					: step.distance
+					? Math.round(step.distance)
+					: null;
+			var turnHint = distToTurn != null ? ' · Próx. maniobra ~' + distToTurn + ' m' : '';
 			$('nav-meta').textContent =
-				routeMetaLine + (routeMetaLine ? ' · ' : '') + 'Paso ' + (idx + 1) + '/' + steps.length + (dist ? ' · ' + dist : '');
+				routeMetaLine +
+				(routeMetaLine ? ' · ' : '') +
+				'Paso ' +
+				(idx + 1) +
+				'/' +
+				steps.length +
+				turnHint;
 
-			var loc = step.maneuver && step.maneuver.location;
-			if (loc) {
-				var dMan = haversineM(userPos, { lng: loc[0], lat: loc[1] });
-				if (dMan < 90 && !stepAnnounced[idx]) {
-					stepAnnounced[idx] = true;
-					if (lastSpokenStep !== idx) {
-						lastSpokenStep = idx;
-						speak(instr);
-					}
-				}
-			}
+			if (distToTurn != null) maybeSpeakNavVoice(idx, distToTurn, step);
 			maybeRerouteFromGps();
 		}
 
@@ -2412,7 +2582,7 @@
 		}
 
 		function syncGpsMode() {
-			if (!isLoggedIn() || !nativeAlertsReady()) {
+			if (!isLoggedIn()) {
 				return stopGps();
 			}
 			if (needsBackgroundRouteTracking()) {
@@ -2523,9 +2693,9 @@
 			var geom = route.geometry;
 			routeCoords = geom.coordinates || [];
 			currentRouteFrom = fromPt;
-			stepAnnounced = {};
 			lastSpokenStep = -1;
 			steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
+			rebuildNavProgress();
 			var totalKm = (route.distance / 1000).toFixed(1);
 			var totalMin = Math.round(route.duration / 60);
 			routeMetaLine = 'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min · OSRM';
@@ -2554,10 +2724,12 @@
 			}
 			var base = myAssignments().find(function (o) { return o.orn === orn; });
 			if (!base) return;
-			stepAnnounced = {};
+			stepVoiceTiers = {};
 			lastSpokenStep = -1;
 			steps = [];
 			routeCoords = [];
+			routeCumDistM = [];
+			stepDistAlongRoute = [];
 			lastRerouteAt = 0;
 			rerouteInFlight = false;
 			resetNavigationCamera();
@@ -2608,9 +2780,7 @@
 				.then(function (route) {
 					applyRouteFromFetch(route, fromPt);
 					scheduleNavigationHandoff();
-					if (steps[0]) {
-						speak('Parada ' + currentOrder.parada + '. ' + maneuverText(steps[0]));
-					}
+					if (steps[0]) speakNavRouteIntro();
 				})
 				.catch(function (e) {
 					$('nav-instruction').textContent = 'Error: ' + (e.message || e);
@@ -2726,17 +2896,6 @@
 			showScreen('screen-handoff');
 		}
 
-		function gmapsExternal() {
-			if (!currentOrder) return;
-			var q = encodeURIComponent(
-				(currentOrder.direccion || '') +
-					', ' +
-					(currentOrder.localidad || 'Olivos') +
-					', Provincia de Buenos Aires, Argentina'
-			);
-			window.open('https://www.google.com/maps/dir/?api=1&destination=' + q + '&travelmode=driving', '_blank');
-		}
-
 		function afterDeliverySuccess(order) {
 			renderList();
 			var next = myAssignments()[0];
@@ -2812,7 +2971,6 @@
 		});
 		$('btn-arrival').addEventListener('click', confirmArrival);
 		$('btn-handoff-confirm').addEventListener('click', markDelivered);
-		$('btn-ext-maps').addEventListener('click', gmapsExternal);
 		$('btn-start-recorrido').addEventListener('click', startRecorrido);
 		$('btn-sim-assign').addEventListener('click', simAssignFromKitchen);
 		try {
@@ -2850,6 +3008,14 @@
 					persistSession();
 					lastRouteOrigin = null;
 					deliveredStopOrigins = {};
+					if (useAppPermissionFlow()) {
+						return runAutoNativeSetup().then(function () {
+							updateLoginUi();
+							return fetchRutaLive(true).then(function () {
+								startRefreshPoll();
+							});
+						});
+					}
 					if (notificationsOk()) {
 						updateLoginUi();
 						return fetchRutaLive(true).then(function () {
@@ -2878,17 +3044,6 @@
 		}
 
 		$('btn-enable-notify').addEventListener('click', requestNotificationsMandatory);
-		$('btn-test-alert-sound').addEventListener('click', function () {
-			unlockAlertAudio().then(function () {
-				playNewOrderAlert();
-			});
-		});
-		$('btn-battery-settings').addEventListener('click', function () {
-			alert(
-				'En la pantalla siguiente: Batería → Sin restricciones (o No optimizar). Así el cliente ve tu ubicación y llegan los avisos con la app en el bolsillo.'
-			);
-			openAndroidBatteryAndAppSettings();
-		});
 		$('btn-login').addEventListener('click', doLogin);
 		$('repartidor-password').addEventListener('keydown', function (ev) {
 			if (ev.key === 'Enter') doLogin();
@@ -2925,19 +3080,21 @@
 		updateNotifyGateUi();
 		updateLoginUi();
 		renderList();
-		if (!useAppPermissionFlow() || nativeAlertsReady()) startGps();
+		if (isLoggedIn() && useAppPermissionFlow()) runAutoNativeSetup();
+		else if (isLoggedIn() || !useAppPermissionFlow()) startGps();
 		geocodeKitchen();
 		if (isLoggedIn()) {
 			enterMainAppAfterAuth();
 		}
 		document.addEventListener('visibilitychange', function () {
 			if (document.visibilityState !== 'visible' || !isLoggedIn()) return;
-			if (!notificationsOk()) {
+			if (!useAppPermissionFlow() && !notificationsOk()) {
 				showScreen('screen-notify');
 				updateNotifyGateUi();
 				return;
 			}
-			registerRepartidorFcm();
+			if (useAppPermissionFlow()) runAutoNativeSetup();
+			else registerRepartidorFcm();
 			fetchRutaLive(false);
 		});
 	})();
