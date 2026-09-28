@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — Seguimiento en WhatsApp · Brava</title>
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--brava: #ff6b35;
+			--bg: #0e0e0e;
+			--surface: #1a2026;
+			--line: #2a343c;
+			--text: #e8eef2;
+			--muted: #8fa3b0;
+			--wa-green: #005c4b;
+			--wa-in: #1f2c34;
+			--wa-meta: #8696a0;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			background: var(--bg);
+			color: var(--text);
+			line-height: 1.45;
+		}
+		.banner {
+			padding: 12px 16px;
+			border-bottom: 1px solid var(--line);
+			background: linear-gradient(135deg, #2a1810, #121212);
+			font-size: 0.82rem;
+			color: var(--muted);
+		}
+		.banner strong { color: var(--brava); }
+		.wrap {
+			max-width: 1080px;
+			margin: 0 auto;
+			padding: 16px;
+			display: grid;
+			gap: 16px;
+		}
+		@media (min-width: 880px) {
+			.wrap { grid-template-columns: 360px 1fr; align-items: start; }
+		}
+		h1 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 2rem;
+			color: var(--brava);
+			margin: 0 0 8px;
+			letter-spacing: 0.04em;
+		}
+		.lead { font-size: 0.85rem; color: var(--muted); margin: 0 0 14px; }
+		.opt-list { display: flex; flex-direction: column; gap: 8px; }
+		.opt {
+			text-align: left;
+			border: 1px solid var(--line);
+			background: var(--surface);
+			border-radius: 12px;
+			padding: 12px 14px;
+			cursor: pointer;
+			font: inherit;
+			color: var(--text);
+			transition: border-color 0.15s;
+		}
+		.opt:hover { border-color: #444; }
+		.opt.is-on {
+			border-color: var(--brava);
+			box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.25);
+		}
+		.opt .tag {
+			display: inline-block;
+			font-size: 0.62rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: var(--brava);
+			margin-bottom: 4px;
+		}
+		.opt .tag.rec { color: #43a047; }
+		.opt .tag.no { color: #e57373; }
+		.opt strong { display: block; font-size: 0.9rem; margin-bottom: 4px; }
+		.opt span { font-size: 0.78rem; color: var(--muted); }
+		.note-box {
+			margin-top: 14px;
+			padding: 12px;
+			border-radius: 10px;
+			background: rgba(41, 182, 246, 0.08);
+			border: 1px solid rgba(41, 182, 246, 0.25);
+			font-size: 0.78rem;
+			color: #b0d4e8;
+		}
+		.note-box.warn {
+			background: rgba(255, 179, 0, 0.08);
+			border-color: rgba(255, 179, 0, 0.3);
+			color: #ffe082;
+		}
+		.phone-col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+		.phone {
+			width: 100%;
+			max-width: 400px;
+			border-radius: 28px;
+			border: 3px solid #333;
+			overflow: hidden;
+			box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+			background: #0b141a;
+		}
+		.wa-top {
+			background: #1f2c34;
+			padding: 10px 12px;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+		}
+		.wa-top .avatar {
+			width: 40px;
+			height: 40px;
+			border-radius: 50%;
+			background: var(--brava);
+			display: grid;
+			place-items: center;
+			font-weight: 800;
+			font-size: 0.75rem;
+			color: #fff;
+		}
+		.wa-top .name { font-weight: 700; font-size: 0.95rem; }
+		.wa-top .sub { font-size: 0.72rem; color: var(--wa-meta); }
+		.wa-chat {
+			min-height: 440px;
+			padding: 14px 10px 20px;
+			background: #0b141a url("data:image/svg+xml,%3Csvg width='80' height='80' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h80v80H0z' fill='%230b141a'/%3E%3Ccircle cx='12' cy='12' r='1' fill='%23182229'/%3E%3C/svg%3E");
+		}
+		.msg { max-width: 88%; margin-bottom: 10px; }
+		.msg.out { margin-left: auto; }
+		.bubble {
+			border-radius: 8px;
+			padding: 6px 8px 4px;
+			font-size: 0.86rem;
+			box-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.25);
+			background: var(--wa-green);
+			color: #e9edef;
+		}
+		.bubble a { color: #53bdeb; word-break: break-all; }
+		.msg-time { font-size: 0.62rem; color: var(--wa-meta); text-align: right; margin-top: 2px; }
+		.link-card {
+			margin-top: 6px;
+			border-radius: 6px;
+			overflow: hidden;
+			background: rgba(0, 0, 0, 0.2);
+			border-left: 3px solid rgba(255, 255, 255, 0.15);
+		}
+		.link-card .thumb {
+			height: 100px;
+			background: linear-gradient(135deg, #1a2630 0%, #2d3a45 50%, #ff6b35 120%);
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 2rem;
+		}
+		.link-card .meta { padding: 8px 10px 10px; }
+		.link-card .domain {
+			font-size: 0.68rem;
+			color: rgba(255, 255, 255, 0.55);
+			text-transform: lowercase;
+		}
+		.link-card .title {
+			font-size: 0.82rem;
+			font-weight: 600;
+			margin: 2px 0 4px;
+			color: #fff;
+		}
+		.link-card .desc { font-size: 0.72rem; color: rgba(255, 255, 255, 0.7); line-height: 1.35; }
+		.wa-btn {
+			margin-top: 6px;
+			text-align: center;
+			padding: 10px;
+			border-top: 1px solid rgba(255, 255, 255, 0.12);
+			color: #53bdeb;
+			font-weight: 600;
+			font-size: 0.85rem;
+		}
+		.loc-card {
+			margin-top: 4px;
+			border-radius: 6px;
+			overflow: hidden;
+			background: rgba(0, 0, 0, 0.15);
+		}
+		.loc-map {
+			height: 120px;
+			background:
+				linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+				linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+				#1e3a2f;
+			background-size: 24px 24px;
+			position: relative;
+		}
+		.loc-map::after {
+			content: '📍';
+			position: absolute;
+			left: 50%;
+			top: 50%;
+			transform: translate(-50%, -60%);
+			font-size: 1.8rem;
+		}
+		.loc-label { padding: 8px 10px; font-size: 0.78rem; color: rgba(255, 255, 255, 0.85); }
+		.after-tap {
+			width: 100%;
+			max-width: 400px;
+			border: 1px dashed var(--line);
+			border-radius: 14px;
+			padding: 12px;
+			font-size: 0.78rem;
+			color: var(--muted);
+			text-align: center;
+		}
+		.after-tap strong { color: var(--text); }
+		.after-tap a { color: #53bdeb; }
+		.hidden { display: none !important; }
+	</style>
+</head>
+<body>
+	<div class="banner">
+		<strong>Demo interna</strong> — Cómo puede verse el aviso de seguimiento en WhatsApp. El mapa en vivo
+		<strong>no puede ir dentro del chat</strong>; al tocar link o botón se abre la web (a veces en navegador de WhatsApp).
+	</div>
+	<div class="wrap">
+		<div>
+			<h1>Seguimiento en WhatsApp</h1>
+			<p class="lead">Elegí una opción. Decinos cuál te gusta para implementar en <code>waSeguimiento.js</code> + meta tags.</p>
+			<div class="opt-list" id="opt-list"></div>
+			<div class="note-box" id="note-tech"></div>
+		</div>
+		<div class="phone-col">
+			<div class="phone">
+				<div class="wa-top">
+					<div class="avatar">BB</div>
+					<div>
+						<div class="name">Brava Burgers</div>
+						<div class="sub">Cuenta comercial · en línea</div>
+					</div>
+				</div>
+				<div class="wa-chat" id="chat"></div>
+			</div>
+			<div class="after-tap" id="after-tap"></div>
+		</div>
+	</div>
+	<script>
+	(function () {
+		var DEMO_URL =
+			'https://brava-burgers.vercel.app/seguimiento/?t=eyJ2IjoxLCJvcm4iOiJPUk4tREVMLTAwODkiLCJleHAiOjE3OTEyMjY4NjE0MjB9.fm5owTX9P6viCI1xN2mfpREgkwzeiR0u_OD5z-Pdbug';
+		var SAMPLE = {
+			nombre: 'Ezequiel',
+			textInicio: '¡Ezequiel, tu pedido ya está en camino! 🛵🍔',
+			textNext: '¡Ezequiel, ya entregamos los pedidos anteriores y vamos hacia vos! 🛵🍔',
+		};
+
+		var OPTIONS = [
+			{
+				id: 'hoy',
+				tag: 'Hoy',
+				tagClass: '',
+				title: 'Texto + link (actual)',
+				desc: 'Lo que manda la app ahora. WhatsApp a veces muestra preview chica del dominio.',
+				tech: 'Solo API de texto. Cero config extra. Preview depende de Meta cacheando la URL.',
+				rec: false,
+				render: function () {
+					return bubbleText(
+						SAMPLE.textInicio +
+							'\n\nSeguilo acá 👇\n' +
+							DEMO_URL
+					);
+				},
+				after:
+					'Al tocar el link → <strong>se abre la página de seguimiento</strong> (mapa en vivo, ETA).',
+			},
+			{
+				id: 'preview',
+				tag: 'Recomendado',
+				tagClass: 'rec',
+				title: 'Texto corto + tarjeta de link (Open Graph)',
+				desc: 'Mismo link, pero WhatsApp muestra imagen, título y descripción antes de tocar.',
+				tech: 'Seguimos enviando texto + URL. Hay que agregar og:title, og:image, og:description en /seguimiento/.',
+				rec: true,
+				render: function () {
+					return (
+						bubbleText('¡Ezequiel, tu pedido va en camino! 🛵') +
+						linkCard(
+							'Seguí tu pedido · Brava Burgers',
+							'Mapa en vivo, horario estimado y aviso cuando estemos en la puerta.',
+							'brava-burgers.vercel.app'
+						)
+					);
+				},
+				after:
+					'Toque en la <strong>tarjeta</strong> → misma web de seguimiento. Se siente más “integrado” en el chat.',
+			},
+			{
+				id: 'button',
+				tag: 'Recomendado',
+				tagClass: 'rec',
+				title: 'Mensaje + botón “Ver seguimiento”',
+				desc: 'Plantilla o mensaje interactivo de Meta con CTA. Sigue abriendo la misma URL.',
+				tech: 'Requiere plantilla aprobada en Meta o mensaje interactivo (según tipo de conversación).',
+				rec: true,
+				render: function () {
+					return (
+						bubbleText(
+							'¡Ezequiel, tu pedido ya está en camino! 🍔\n\nTocá abajo para ver el mapa y la hora estimada.'
+						) + waButton('Ver seguimiento en mapa')
+					);
+				},
+				after: 'Toque en el <strong>botón azul</strong> → abre el link de seguimiento.',
+			},
+			{
+				id: 'short',
+				tag: 'Variante',
+				tagClass: '',
+				title: 'Copy corto + preview (menos emoji)',
+				desc: 'Más sobrio; la tarjeta hace el trabajo visual.',
+				tech: 'Igual que Open Graph + texto mínimo.',
+				rec: false,
+				render: function () {
+					return (
+						bubbleText('Hola Ezequiel, ya salimos con tu pedido.') +
+						linkCard(
+							'Brava · Seguimiento de entrega',
+							'Ubicación del repartidor y llegada estimada.',
+							'brava-burgers.vercel.app'
+						)
+					);
+				},
+				after: 'Misma web al tocar la tarjeta.',
+			},
+			{
+				id: 'location',
+				tag: 'No mapa vivo',
+				tagClass: 'no',
+				title: 'Pin de ubicación (API Location)',
+				desc: 'Un punto en el mapa dentro del chat. No se mueve solo; habría que mandar muchos mensajes.',
+				tech: 'WhatsApp Business puede enviar ubicación estática. No reemplaza seguimiento en vivo.',
+				rec: false,
+				render: function () {
+					return (
+						bubbleText('Tu repartidor está acá 👇 (ubicación al momento del envío)') +
+						locCard('Olivos · ~200 m de tu domicilio')
+					);
+				},
+				after:
+					'<strong>No recomendado</strong> para Brava: el pin queda fijo; el cliente no ve recorrido ni ETA como en la web.',
+			},
+			{
+				id: 'live-wa',
+				tag: 'No disponible',
+				tagClass: 'no',
+				title: '“Ubicación en vivo” nativa de WhatsApp',
+				desc: 'Como cuando un contacto comparte live location. La API de negocio no lo automatiza.',
+				tech: 'Solo manual desde el celular del repartidor en WhatsApp personal — no encaja con la app Brava.',
+				rec: false,
+				render: function () {
+					return bubbleText(
+						'❌ Esta opción no se puede automatizar desde Brava Repartidor + cocina.\n\n' +
+							'Por eso usamos link a nuestra página de seguimiento.'
+					);
+				},
+				after: 'Referencia: por qué el link sigue siendo necesario.',
+			},
+		];
+
+		function bubbleText(t) {
+			return (
+				'<div class="msg out"><div class="bubble">' +
+				escapeHtml(t).replace(/\n/g, '<br>') +
+				'</div><div class="msg-time">15:32 ✓✓</div></div>'
+			);
+		}
+
+		function linkCard(title, desc, domain) {
+			return (
+				'<div class="msg out"><div class="bubble" style="padding-bottom:0">' +
+				'<div class="link-card">' +
+				'<div class="thumb">🛵🗺️</div>' +
+				'<div class="meta">' +
+				'<div class="domain">' +
+				escapeHtml(domain) +
+				'</div>' +
+				'<div class="title">' +
+				escapeHtml(title) +
+				'</div>' +
+				'<div class="desc">' +
+				escapeHtml(desc) +
+				'</div></div></div>' +
+				'<div style="height:4px"></div></div><div class="msg-time">15:32 ✓✓</div></div>'
+			);
+		}
+
+		function waButton(label) {
+			return (
+				'<div class="msg out"><div class="bubble" style="padding:0;overflow:hidden">' +
+				'<div style="padding:8px 10px 6px;font-size:0.86rem">Mensaje con botón interactivo</div>' +
+				'<div class="wa-btn">' +
+				escapeHtml(label) +
+				'</div></div><div class="msg-time">15:32 ✓✓</div></div>'
+			);
+		}
+
+		function locCard(label) {
+			return (
+				'<div class="msg out"><div class="bubble" style="padding-bottom:0">' +
+				'<div class="loc-card"><div class="loc-map"></div>' +
+				'<div class="loc-label">' +
+				escapeHtml(label) +
+				'</div></div>' +
+				'<div style="height:4px"></div></div><div class="msg-time">15:32 ✓✓</div></div>'
+			);
+		}
+
+		function escapeHtml(s) {
+			return String(s)
+				.replace(/&/g, '&amp;')
+				.replace(/</g, '&lt;')
+				.replace(/>/g, '&gt;');
+		}
+
+		var chat = document.getElementById('chat');
+		var note = document.getElementById('note-tech');
+		var after = document.getElementById('after-tap');
+		var list = document.getElementById('opt-list');
+		var current = 'preview';
+
+		function renderOption(id) {
+			current = id;
+			var opt = OPTIONS.find(function (o) {
+				return o.id === id;
+			});
+			if (!opt) return;
+			chat.innerHTML = opt.render();
+			note.textContent = opt.tech;
+			note.classList.toggle('warn', opt.tagClass === 'no');
+			after.innerHTML =
+				opt.after +
+				' · <a href="' +
+				DEMO_URL +
+				'" target="_blank" rel="noopener">Abrir seguimiento real (demo)</a>';
+			Array.prototype.forEach.call(list.querySelectorAll('.opt'), function (btn) {
+				btn.classList.toggle('is-on', btn.dataset.id === id);
+			});
+		}
+
+		OPTIONS.forEach(function (o) {
+			var btn = document.createElement('button');
+			btn.type = 'button';
+			btn.className = 'opt';
+			btn.dataset.id = o.id;
+			btn.innerHTML =
+				'<span class="tag ' +
+				o.tagClass +
+				'">' +
+				o.tag +
+				'</span><strong>' +
+				o.title +
+				'</strong><span>' +
+				o.desc +
+				'</span>';
+			btn.addEventListener('click', function () {
+				renderOption(o.id);
+			});
+			list.appendChild(btn);
+		});
+
+		renderOption('preview');
+	})();
+	</script>
+</body>
+</html>
