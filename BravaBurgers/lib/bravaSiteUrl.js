@@ -12,7 +12,7 @@ function getPublicSiteUrl() {
 function getSeguimientoOgImageUrl() {
   const custom = String(process.env.BRAVA_SEGUIMIENTO_OG_IMAGE || '').trim();
   if (custom) return custom.replace(/\/$/, '');
-  return getPublicSiteUrl() + '/seguimiento/wa-og.jpg';
+  return getPublicSiteUrl() + '/seguimiento/wa-og.jpg?v=1024';
 }
 
 module.exports = { getPublicSiteUrl, getSeguimientoOgImageUrl, DEFAULT_PUBLIC_SITE };
