@@ -15,10 +15,6 @@ function seguimientoSendMode() {
   return 'greeting_button';
 }
 
-function seguimientoCtaBody() {
-  return 'Mapa en vivo del repartidor, horario estimado de llegada y aviso cuando estemos en tu puerta.';
-}
-
 const SEGUIMIENTO_MARKER = '__seguimiento__:';
 
 let cachedLogoMediaId = '';
@@ -54,21 +50,16 @@ function buildSeguimientoBody(cliente, phase) {
   );
 }
 
-/** Saludo + botón URL (sin link largo visible). */
+/** Una tarjeta: logo + saludo personalizado + botón (sin URL visible). */
 async function sendSeguimientoGreetingPlusButton(to, body, url) {
-  const intro = await sendTextMessage(to, body);
-  if (!intro.ok) return Object.assign({ mode: 'greeting_failed' }, intro);
-  const cta = await sendSeguimientoCtaCard(to, seguimientoCtaBody(), url);
-  if (!cta.ok) {
-    return Object.assign({ mode: 'cta_failed', introMessageId: intro.messageId }, cta);
-  }
+  const cta = await sendSeguimientoCtaCard(to, body, url);
+  if (!cta.ok) return Object.assign({ mode: 'cta_failed' }, cta);
   return {
     ok: true,
     mode: cta.mode === 'cta_plain' ? 'greeting_button' : 'greeting_button_' + cta.mode,
     messageId: cta.messageId,
-    introMessageId: intro.messageId,
     data: cta.data,
-    contactWaId: cta.contactWaId || intro.contactWaId,
+    contactWaId: cta.contactWaId,
   };
 }
 
@@ -242,16 +233,8 @@ async function sendSeguimientoWhatsApp(telefono, cliente, orn, opts) {
     sent = await sendSeguimientoGreetingPlusButton(to, body, url);
     deliveryMode = sent.mode || 'greeting_button';
     if (!sent.ok) {
-      if (sent.introMessageId) {
-        const link = await sendTextMessage(to, url, { previewUrl: true });
-        if (link.ok) {
-          sent = Object.assign({ mode: 'link_preview_after_greeting', introMessageId: sent.introMessageId }, link);
-          deliveryMode = 'link_preview_after_greeting';
-        }
-      } else {
-        sent = await sendSeguimientoLinkPreview(to, body, url);
-        deliveryMode = sent.ok ? 'link_preview_fallback' : 'send_failed';
-      }
+      sent = await sendSeguimientoLinkPreview(to, body, url);
+      deliveryMode = sent.ok ? 'link_preview_fallback' : 'send_failed';
     }
   }
 
