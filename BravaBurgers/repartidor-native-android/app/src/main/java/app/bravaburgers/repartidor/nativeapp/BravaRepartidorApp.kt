@@ -8,6 +8,7 @@ import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.AppForeground
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
 import app.bravaburgers.repartidor.nativeapp.session.SessionServicePrefs
+import app.bravaburgers.repartidor.nativeapp.session.InstallSessionGuard
 import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +26,7 @@ class BravaRepartidorApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        InstallSessionGuard.clearSessionIfNewBuild(this)
         MapLibre.getInstance(this)
         BravaNotifications.ensureChannels(this)
         repository = RepartidorRepository(this)

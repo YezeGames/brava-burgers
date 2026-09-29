@@ -22,6 +22,18 @@ cd BravaBurgers\repartidor-native-android
 
 APK debug: `app/build/outputs/apk/debug/app-debug.apk`
 
+## Actualizaciones desde la app (GitHub Releases)
+
+La app lee **`repartidor-native-update.json`** (GitHub `main` + Vercel) y descarga **`apk_url`** (Release `repartidor-native-v{versionCode}` · asset `brava-repartidor-native.apk`).
+
+### Cada APK nueva (automático)
+
+1. Subí **`versionCode`** / **`versionName`** en `app/build.gradle.kts`.
+2. **Push a `main`** → Actions **Repartidor native APK** compila, publica en GitHub Releases y commitea el JSON.
+3. Desde PC (opcional): `.\scripts\publish-repartidor-native-release.ps1 -PushGit`
+
+En el teléfono: **Actualizar ahora** → descarga desde GitHub → instalador Android.
+
 ## Estado actual (alpha20)
 
 | Hecho | Pendiente |

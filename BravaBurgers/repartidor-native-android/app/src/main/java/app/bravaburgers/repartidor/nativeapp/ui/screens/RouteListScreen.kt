@@ -90,8 +90,9 @@ fun RouteListScreen(
                 Text(session.nombre.ifBlank { session.login }, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Text(
                     when {
-                        stops.isEmpty() && !loading -> "Ruta completada · sin paradas pendientes"
-                        else -> "${stops.size} paradas · orden fijado por cocina"
+                        stops.isEmpty() && !loading -> "Sin ordenes activas"
+                        stops.size == 1 -> "1 Orden · Activa"
+                        else -> "${stops.size} Órdenes · Activas"
                     },
                     fontSize = 12.sp,
                     color = TextMuted,

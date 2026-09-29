@@ -1,0 +1,101 @@
+# Al subir un versionCode nuevo en build.gradle.kts → compila, Release en GitHub y actualiza el JSON.
+name: Repartidor native APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "BravaBurgers/repartidor-native-android/app/build.gradle.kts"
+      - "repartidor-native-android/app/build.gradle.kts"
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: "Notas para repartidores (opcional)"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve native app directory
+        id: paths
+        run: |
+          if [ -d BravaBurgers/repartidor-native-android ]; then
+            echo "native=BravaBurgers/repartidor-native-android" >> "$GITHUB_OUTPUT"
+            echo "json=BravaBurgers/repartidor-native-update.json" >> "$GITHUB_OUTPUT"
+            echo "apk_staged=BravaBurgers/brava-repartidor-native.apk" >> "$GITHUB_OUTPUT"
+          else
+            echo "native=repartidor-native-android" >> "$GITHUB_OUTPUT"
+            echo "json=repartidor-native-update.json" >> "$GITHUB_OUTPUT"
+            echo "apk_staged=brava-repartidor-native.apk" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Read version from Gradle
+        id: ver
+        working-directory: ${{ steps.paths.outputs.native }}
+        run: |
+          VC=$(grep -E 'versionCode\s*=' app/build.gradle.kts | head -1 | sed 's/.*=\s*//' | tr -d ' ')
+          VN=$(grep -E 'versionName\s*=' app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "code=$VC" >> "$GITHUB_OUTPUT"
+          echo "name=$VN" >> "$GITHUB_OUTPUT"
+          echo "tag=repartidor-native-v${VC}" >> "$GITHUB_OUTPUT"
+
+      - name: Gradle assembleDebug
+        working-directory: ${{ steps.paths.outputs.native }}
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+
+      - name: Stage APK
+        run: cp "${{ steps.paths.outputs.native }}/app/build/outputs/apk/debug/app-debug.apk" "${{ steps.paths.outputs.apk_staged }}"
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
+          NOTES="${{ github.event.inputs.release_notes }}"
+          if [ -z "$NOTES" ]; then
+            NOTES="Actualización ${{ steps.ver.outputs.name }} (versionCode ${{ steps.ver.outputs.code }})"
+          fi
+          APK="${{ steps.paths.outputs.apk_staged }}"
+          if gh release view "$TAG" 2>/dev/null; then
+            gh release upload "$TAG" "$APK" --clobber
+            gh release edit "$TAG" --notes "$NOTES"
+          else
+            gh release create "$TAG" "$APK" --title "Repartidor nativo · ${{ steps.ver.outputs.name }}" --notes "$NOTES"
+          fi
+
+      - name: Update repartidor-native-update.json
+        env:
+          VC: ${{ steps.ver.outputs.code }}
+          VN: ${{ steps.ver.outputs.name }}
+          TAG: ${{ steps.ver.outputs.tag }}
+          JSON: ${{ steps.paths.outputs.json }}
+          REPO: ${{ github.repository }}
+        run: |
+          URL="https://github.com/${REPO}/releases/download/${TAG}/brava-repartidor-native.apk"
+          NOTES="${{ github.event.inputs.release_notes }}"
+          if [ -z "$NOTES" ]; then NOTES="Actualización ${VN}"; fi
+          jq --argjson vc "$VC" --arg vn "$VN" --arg url "$URL" --arg notes "$NOTES" \
+            '.version_code = $vc | .version_name = $vn | .apk_url = $url | .release_notes = $notes' \
+            "$JSON" > "${JSON}.tmp" && mv "${JSON}.tmp" "$JSON"
+
+      - name: Commit manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "${{ steps.paths.outputs.json }}"
+          git diff --staged --quiet && exit 0
+          git commit -m "repartidor nativo: manifest ${{ steps.ver.outputs.tag }} (${{ steps.ver.outputs.name }})"
+          git push

@@ -13,12 +13,22 @@ android {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 27
-        versionName = "2.0.0-alpha27"
+        versionCode = 32
+        versionName = "2.0.0-alpha32"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField("String", "MAP_STYLE", "\"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json\"")
         buildConfigField("String", "OSRM_BASE", "\"https://router.project-osrm.org/route/v1/driving/\"")
         buildConfigField("String", "ROUTE_API", "\"https://www.bravaburgers.com.ar/api/pedido\"")
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST",
+            "\"https://www.bravaburgers.com.ar/repartidor-native-update.json\"",
+        )
+        buildConfigField(
+            "String",
+            "UPDATE_MANIFEST_GITHUB",
+            "\"https://raw.githubusercontent.com/YezeGames/brava-burgers/main/BravaBurgers/repartidor-native-update.json\"",
+        )
     }
 
     buildFeatures {

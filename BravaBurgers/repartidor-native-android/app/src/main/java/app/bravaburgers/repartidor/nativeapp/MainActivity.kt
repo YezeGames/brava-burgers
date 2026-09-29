@@ -4,12 +4,23 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import app.bravaburgers.repartidor.nativeapp.update.AppApkInstaller
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -31,12 +42,21 @@ import app.bravaburgers.repartidor.nativeapp.viewmodel.RepartidorViewModel
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.viewmodel.RepartidorViewModelFactory
 import app.bravaburgers.repartidor.nativeapp.util.BatteryOptHelper
+import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
+import app.bravaburgers.repartidor.nativeapp.session.RouteSyncEvent
 import androidx.navigation.NavHostController
+
+private fun currentRouteOrn(nav: NavHostController): String? {
+    val route = nav.currentBackStackEntry?.destination?.route ?: return null
+    val m = Regex("^(?:nav|handoff)/(.+)$").find(route) ?: return null
+    return m.groupValues.getOrNull(1)?.takeIf { it.isNotEmpty() }
+}
 
 private fun goToNavForStop(nav: NavHostController, orn: String) {
     nav.navigate("nav/$orn") {
         popUpTo("route") { inclusive = false }
         launchSingleTop = true
+        restoreState = false
     }
 }
 
@@ -56,8 +76,31 @@ private fun goToRouteHome(nav: NavHostController) {
 private fun afterEntrega(
     vm: RepartidorViewModel,
     nav: NavHostController,
+    ctx: android.content.Context,
     next: RouteStop?,
 ) {
+    vm.stopNavigation(ctx)
+    if (next != null) {
+        vm.setActiveOrn(next.orn)
+        goToNavForStop(nav, next.orn)
+    } else {
+        goToRouteHome(nav)
+    }
+}
+
+private fun redirectAfterRemovedStop(
+    vm: RepartidorViewModel,
+    nav: NavHostController,
+    ctx: android.content.Context,
+    event: RouteSyncEvent,
+    screenOrn: String?,
+) {
+    val hit =
+        screenOrn != null &&
+            event.removed.any { it.orn == screenOrn }
+    if (!hit) return
+    vm.stopNavigation(ctx)
+    val next = event.nextStop
     if (next != null) {
         vm.setActiveOrn(next.orn)
         goToNavForStop(nav, next.orn)
@@ -76,9 +119,8 @@ class MainActivity : ComponentActivity() {
                 val vm: RepartidorViewModel =
                     viewModel(factory = RepartidorViewModelFactory(app.repository, app.realtime))
                 val ui by vm.ui.collectAsState()
-                val nav = rememberNavController()
                 val ctx = LocalContext.current
-                val start = if (ui.session != null) "route" else "login"
+                val authKey = ui.session?.token ?: "__logged_out__"
 
                 var notificationsReady by remember {
                     mutableStateOf(PushRegistrar.canPostNotifications(ctx))
@@ -107,20 +149,154 @@ class MainActivity : ComponentActivity() {
                     else notificationsReady = PushRegistrar.canPostNotifications(ctx)
                 }
 
-                LaunchedEffect(ui.session?.token, notificationsReady) {
-                    val token = ui.session?.token ?: return@LaunchedEffect
-                    if (notificationsReady) {
-                        PushRegistrar.registerAfterLogin(ctx, app.repository, token)
-                    }
+                ui.appUpdate?.let { update ->
+                    val needInstallPerm =
+                        !AppApkInstaller.canInstallPackages(ctx) && !ui.appUpdateBusy
+                    AlertDialog(
+                        onDismissRequest = { vm.dismissAppUpdate() },
+                        title = { Text("Actualización disponible") },
+                        text = {
+                            Column {
+                                Text(
+                                    buildString {
+                                        append("Versión ")
+                                        append(update.versionName)
+                                        append(
+                                            if (ui.appUpdateBusy) {
+                                                " — descargando…"
+                                            } else {
+                                                ". Se instala desde la app (un toque)."
+                                            },
+                                        )
+                                        if (update.releaseNotes.isNotBlank() && !ui.appUpdateBusy) {
+                                            append("\n\n")
+                                            append(update.releaseNotes)
+                                        }
+                                    },
+                                )
+                                if (ui.appUpdateBusy) {
+                                    if (ui.appUpdateIndeterminate) {
+                                        LinearProgressIndicator(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 12.dp),
+                                        )
+                                    } else {
+                                        LinearProgressIndicator(
+                                            progress = { ui.appUpdateProgress / 100f },
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(top = 12.dp),
+                                        )
+                                    }
+                                }
+                                ui.appUpdateError?.let { err ->
+                                    Text(
+                                        err,
+                                        modifier = Modifier.padding(top = 10.dp),
+                                    )
+                                }
+                                if (needInstallPerm) {
+                                    Text(
+                                        "Primero permití instalar actualizaciones de Brava Repartidor.",
+                                        modifier = Modifier.padding(top = 10.dp),
+                                    )
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            when {
+                                needInstallPerm -> {
+                                    TextButton(onClick = { vm.requestInstallPermission(ctx) }) {
+                                        Text("Permitir instalación")
+                                    }
+                                }
+                                ui.appUpdateBusy -> {
+                                    TextButton(onClick = {}, enabled = false) {
+                                        Text("Descargando…")
+                                    }
+                                }
+                                else -> {
+                                    TextButton(onClick = { vm.installAppUpdate(ctx) }) {
+                                        Text("Actualizar ahora")
+                                    }
+                                }
+                            }
+                        },
+                        dismissButton =
+                            if (!ui.appUpdateBusy) {
+                                {
+                                    TextButton(onClick = { vm.dismissAppUpdate() }) {
+                                        Text("Después")
+                                    }
+                                }
+                            } else {
+                                null
+                            },
+                    )
                 }
 
-                LaunchedEffect(ui.session) {
-                    if (ui.session == null) {
-                        nav.navigate("login") {
-                            popUpTo(nav.graph.id) { inclusive = true }
-                            launchSingleTop = true
+                key(authKey) {
+                    val nav = rememberNavController()
+                    val start = if (ui.session != null) "route" else "login"
+                    var routeSyncDialog by remember { mutableStateOf<RouteSyncEvent?>(null) }
+
+                    LaunchedEffect(Unit) {
+                        vm.routeSyncEvents.collect { event ->
+                            RouteLocalNotifier.show(
+                                ctx,
+                                event.title,
+                                event.body,
+                                if (event.routeCleared) "route_clear" else "route_removed",
+                            )
+                            redirectAfterRemovedStop(vm, nav, ctx, event, currentRouteOrn(nav))
+                            routeSyncDialog = event
                         }
-                    } else {
+                    }
+
+                    routeSyncDialog?.let { event ->
+                        AlertDialog(
+                            onDismissRequest = { routeSyncDialog = null },
+                            title = { Text(event.title) },
+                            text = { Text(event.body) },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        routeSyncDialog = null
+                                        if (event.nextStop != null && currentRouteOrn(nav) == null) {
+                                            vm.setActiveOrn(event.nextStop.orn)
+                                            goToNavForStop(nav, event.nextStop.orn)
+                                        } else if (event.nextStop == null && currentRouteOrn(nav) != null) {
+                                            goToRouteHome(nav)
+                                        }
+                                    },
+                                ) {
+                                    Text(
+                                        when {
+                                            event.nextStop != null -> "Siguiente parada"
+                                            event.routeCleared -> "Entendido"
+                                            else -> "OK"
+                                        },
+                                    )
+                                }
+                            },
+                            dismissButton =
+                                if (event.nextStop != null && currentRouteOrn(nav) != null) {
+                                    {
+                                        TextButton(onClick = { routeSyncDialog = null }) {
+                                            Text("Seguir acá")
+                                        }
+                                    }
+                                } else {
+                                    null
+                                },
+                        )
+                    }
+
+                    LaunchedEffect(ui.session?.token) {
+                        val token = ui.session?.token ?: return@LaunchedEffect
                         val dest = nav.currentBackStackEntry?.destination?.route
                         if (dest == "login" || dest == null) {
                             nav.navigate("route") {
@@ -131,10 +307,12 @@ class MainActivity : ComponentActivity() {
                                 BatteryOptHelper.openSettings(ctx)
                             }
                         }
+                        if (notificationsReady) {
+                            PushRegistrar.registerAfterLogin(ctx, app.repository, token)
+                        }
                     }
-                }
 
-                NavHost(navController = nav, startDestination = start) {
+                    NavHost(navController = nav, startDestination = start) {
                     composable("login") {
                         LoginScreen(
                             loading = ui.loading,
@@ -143,11 +321,7 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     composable("route") {
-                        val session = ui.session
-                        if (session == null) {
-                            nav.navigate("login") { popUpTo(0) }
-                            return@composable
-                        }
+                        val session = ui.session ?: return@composable
                         RouteListScreen(
                             session = session,
                             stops = ui.stops,
@@ -173,7 +347,14 @@ class MainActivity : ComponentActivity() {
                         val stop = vm.stopFor(orn)
                         if (stop == null) {
                             LaunchedEffect(orn) {
-                                goToRouteHome(nav)
+                                vm.stopNavigation(ctx)
+                                val next = vm.nextStop()
+                                if (next != null) {
+                                    vm.setActiveOrn(next.orn)
+                                    goToNavForStop(nav, next.orn)
+                                } else {
+                                    goToRouteHome(nav)
+                                }
                             }
                             return@composable
                         }
@@ -209,7 +390,14 @@ class MainActivity : ComponentActivity() {
                         val stop = vm.stopFor(orn)
                         if (stop == null) {
                             LaunchedEffect(orn) {
-                                goToRouteHome(nav)
+                                vm.stopNavigation(ctx)
+                                val next = vm.nextStop()
+                                if (next != null) {
+                                    vm.setActiveOrn(next.orn)
+                                    goToNavForStop(nav, next.orn)
+                                } else {
+                                    goToRouteHome(nav)
+                                }
                             }
                             return@composable
                         }
@@ -218,12 +406,12 @@ class MainActivity : ComponentActivity() {
                             whatsappSent = !stop.llegadaAt.isNullOrBlank(),
                             onBack = { nav.popBackStack() },
                             onEntregado = {
-                                vm.stopNavigation(ctx)
                                 vm.markEntregada(orn) { next ->
-                                    afterEntrega(vm, nav, next)
+                                    afterEntrega(vm, nav, ctx, next)
                                 }
                             },
                         )
+                    }
                     }
                 }
             }

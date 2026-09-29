@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.border
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -75,14 +78,20 @@ fun HandoffScreen(
                     "Parada ${stop.parada ?: "?"}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    modifier = Modifier.padding(bottom = 4.dp),
+                    modifier = Modifier.padding(bottom = 8.dp),
                 )
-                Text(
-                    if (whatsappSent) "Cliente avisado por WhatsApp" else "Revisá el pedido antes de entregar",
-                    color = TextMuted,
-                    fontSize = 13.sp,
-                    modifier = Modifier.padding(bottom = 12.dp),
-                )
+                if (whatsappSent) {
+                    ClienteAvisadoBanner(
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                } else {
+                    Text(
+                        "Revisá el pedido antes de entregar",
+                        color = TextMuted,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(bottom = 12.dp),
+                    )
+                }
                 Column(
                     modifier =
                         Modifier
@@ -145,6 +154,41 @@ fun HandoffScreen(
             ) {
                 Text("Entregado", fontWeight = FontWeight.Bold)
             }
+        }
+    }
+}
+
+@Composable
+private fun ClienteAvisadoBanner(modifier: Modifier = Modifier) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(SurfaceDark, RoundedCornerShape(14.dp))
+                .border(1.dp, OkGreen.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            Icons.Outlined.Notifications,
+            contentDescription = null,
+            tint = OkGreen,
+            modifier = Modifier.size(26.dp),
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                "Aviso al cliente",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp,
+                color = TextPrimary,
+            )
+            Text(
+                "Ya le avisamos que llegaste. El cliente fue notificado.",
+                fontSize = 13.sp,
+                color = TextMuted,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
     }
 }

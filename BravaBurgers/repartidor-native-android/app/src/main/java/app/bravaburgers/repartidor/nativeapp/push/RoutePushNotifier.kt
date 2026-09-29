@@ -27,7 +27,14 @@ object RoutePushNotifier {
                 }
             }
             "route_modified" -> "Ruta modificada" to "Cocina actualizó tu ruta. Abrí la app."
-            "route_removed" -> "Paradas quitadas" to "Cocina te sacó paradas de la ruta."
+            "route_removed" -> {
+                val cleared = data["cleared"]?.toIntOrNull() ?: 1
+                if (cleared == 1) {
+                    "Pedido cancelado" to "Ya no está en tu ruta. Revisá las paradas restantes."
+                } else {
+                    "Paradas quitadas" to "Cocina te sacó $cleared paradas de la ruta."
+                }
+            }
             "route_clear" -> "Ruta vacía" to "Cocina limpió tu ruta en la app."
             "fcm", "" -> null
             else -> "Brava Repartidor" to "Hay novedades en tu ruta."
