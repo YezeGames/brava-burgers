@@ -19,16 +19,22 @@ if (-not (Test-Path $upsert)) {
 $token = $env:VERCEL_TOKEN
 if (-not $token) {
   $candidates = @(
+    (Join-Path $root "secrets\vercel-token.txt"),
     (Join-Path $root "..\WHATSAPP_VERCEL_ENV.txt"),
     (Join-Path $root ".env.local"),
     (Join-Path $root ".env")
   )
   foreach ($f in $candidates) {
     if (-not (Test-Path $f)) { continue }
-    foreach ($line in Get-Content $f) {
-      if ($line -match '^\s*VERCEL_TOKEN\s*=\s*(.+)\s*$') {
-        $token = $Matches[1].Trim().Trim('"').Trim("'")
-        break
+    $raw = (Get-Content $f -Raw).Trim()
+    if ($f -like "*vercel-token.txt" -and $raw -match '^vcp_') {
+      $token = ($raw -split "`n")[0].Trim()
+    } else {
+      foreach ($line in Get-Content $f) {
+        if ($line -match '^\s*VERCEL_TOKEN\s*=\s*(.+)\s*$') {
+          $token = $Matches[1].Trim().Trim('"').Trim("'")
+          break
+        }
       }
     }
     if ($token) { break }

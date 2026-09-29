@@ -100,6 +100,17 @@ BRAVA_OSRM_BASE_URL=https://osrm.tudominio.com/route/v1/driving
 
 Redeploy. El proxy `lib/osrmRouteProxy.js` usa **primero** esta URL y solo si falla prueba OSRM público.
 
+## Arranque rápido (reparto del día)
+
+Desde `infra\osrm-local-pc`:
+
+```powershell
+.\start-osrm.ps1
+.\run-quick-tunnel-and-vercel.ps1   # URL trycloudflare cambia cada vez; actualiza Vercel automático
+```
+
+Dejá abierta la ventana del túnel. Si cerrás cloudflared, volvé a correr el script y redeploy (o solo `set-vercel-osrm-url.ps1` con la URL nueva).
+
 ## 5. Operación diaria
 
 - Encender PC + Docker (`docker compose up -d`) + túnel Cloudflare antes del servicio de reparto.

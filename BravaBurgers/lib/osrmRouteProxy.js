@@ -76,7 +76,7 @@ async function fetchOsrmFromHosts(pathCoords, list) {
     var url =
       list[h] +
       pathCoords +
-      '?overview=full&geometries=geojson&steps=true&language=es&alternatives=false';
+      '?overview=full&geometries=geojson&steps=true&alternatives=false';
     try {
       var upstream = await fetch(url, {
         headers: { 'User-Agent': 'BravaBurgers-Repartidor/1.0 (osrm-proxy)' },
