@@ -99,7 +99,7 @@ class RepartidorApi {
     suspend fun savePushToken(token: String, fcmToken: String, apiKey: String?): SimpleActionResponse {
         val body = authBody(token, apiKey, "savePushToken")
         body["fcm_token"] = fcmToken
-        body["platform"] = "android"
+        body["platform"] = "android_native"
         return parse(service.post(body), simpleAdapter)
     }
 

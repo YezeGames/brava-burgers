@@ -20,6 +20,8 @@ object BravaNotifications {
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = "Avisos cuando cocina te asigna paradas"
+                enableVibration(true)
+                enableLights(true)
             }
         val session =
             NotificationChannel(

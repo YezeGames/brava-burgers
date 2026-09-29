@@ -22,7 +22,7 @@ cd BravaBurgers\repartidor-native-android
 
 APK debug: `app/build/outputs/apk/debug/app-debug.apk`
 
-## Estado actual (alpha15)
+## Estado actual (alpha20)
 
 | Hecho | Pendiente |
 |-------|-----------|

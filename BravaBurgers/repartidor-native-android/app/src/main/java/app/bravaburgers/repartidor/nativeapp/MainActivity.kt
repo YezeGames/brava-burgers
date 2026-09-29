@@ -10,10 +10,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -76,10 +80,15 @@ class MainActivity : ComponentActivity() {
                 val ctx = LocalContext.current
                 val start = if (ui.session != null) "route" else "login"
 
+                var notificationsReady by remember {
+                    mutableStateOf(PushRegistrar.canPostNotifications(ctx))
+                }
                 val permLauncher =
                     rememberLauncherForActivityResult(
                         ActivityResultContracts.RequestMultiplePermissions(),
-                    ) { _ -> }
+                    ) { _ ->
+                        notificationsReady = PushRegistrar.canPostNotifications(ctx)
+                    }
 
                 LaunchedEffect(Unit) {
                     val want =
@@ -95,6 +104,14 @@ class MainActivity : ComponentActivity() {
                             ContextCompat.checkSelfPermission(ctx, it) != PackageManager.PERMISSION_GRANTED
                         }
                     if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
+                    else notificationsReady = PushRegistrar.canPostNotifications(ctx)
+                }
+
+                LaunchedEffect(ui.session?.token, notificationsReady) {
+                    val token = ui.session?.token ?: return@LaunchedEffect
+                    if (notificationsReady) {
+                        PushRegistrar.registerAfterLogin(ctx, app.repository, token)
+                    }
                 }
 
                 LaunchedEffect(ui.session) {
@@ -139,10 +156,7 @@ class MainActivity : ComponentActivity() {
                             tripStarted = ui.tripStarted,
                             loading = ui.loading,
                             onRefresh = { vm.refreshRoute(pull = true) },
-                            onLogout = {
-                                vm.stopNavigation(ctx)
-                                vm.logout()
-                            },
+                            onLogout = { vm.logout() },
                             onIniciarRecorrido = {
                                 vm.iniciarRecorrido { next ->
                                     if (next != null) {

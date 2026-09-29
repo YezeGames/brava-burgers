@@ -1,6 +1,10 @@
 package app.bravaburgers.repartidor.nativeapp.push
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.CoroutineScope
@@ -12,7 +16,20 @@ import kotlinx.coroutines.tasks.await
 object PushRegistrar {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    fun canPostNotifications(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                return false
+            }
+        }
+        val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager
+        return nm?.areNotificationsEnabled() != false
+    }
+
     fun registerAfterLogin(context: Context, repo: RepartidorRepository, repartidorToken: String) {
+        if (!canPostNotifications(context)) return
         scope.launch {
             try {
                 val fcm = FirebaseMessaging.getInstance().token.await()
@@ -25,9 +42,8 @@ object PushRegistrar {
     }
 
     fun onNewToken(context: Context, repo: RepartidorRepository, fcmToken: String) {
+        if (!canPostNotifications(context)) return
         scope.launch {
-            val snap = repo.sessionStore.sessionFlow
-            // DataStore flow needs collector — read from prefs sync path
             val sessionToken =
                 SessionTokenReader.readToken(context) ?: return@launch
             if (fcmToken.isNotBlank()) {

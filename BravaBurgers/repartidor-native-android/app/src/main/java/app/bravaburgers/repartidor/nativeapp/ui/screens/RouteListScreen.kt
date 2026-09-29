@@ -128,58 +128,60 @@ fun RouteListScreen(
             onRefresh = onRefresh,
             modifier = Modifier.weight(1f),
         ) {
-            if (stops.isEmpty() && !loading) {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        if (tripStarted || !hasPending) "¡Listo! Completaste todas las entregas." else "No hay paradas en tu ruta",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "Deslizá hacia abajo para actualizar o cerrá sesión para cambiar de cuenta.",
-                        color = TextMuted,
-                        fontSize = 13.sp,
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                if (stops.isEmpty() && !loading) {
+                    item {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp, horizontal = 12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                if (tripStarted || !hasPending) {
+                                    "¡Listo! Completaste todas las entregas."
+                                } else {
+                                    "No hay paradas en tu ruta"
+                                },
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Deslizá hacia abajo para actualizar o usá Cerrar sesión para cambiar de cuenta.",
+                                color = TextMuted,
+                                fontSize = 13.sp,
+                            )
+                        }
+                    }
+                } else {
                     itemsIndexed(stops) { index, stop ->
                         StopCard(stop = stop, isNext = index == nextIndex && stops.isNotEmpty())
                     }
                 }
             }
         }
-        Button(
-            onClick = { if (tripStarted && hasPending) onContinuar() else if (hasPending) onIniciarRecorrido() else onRefresh() },
-            enabled = !loading && (stops.isNotEmpty() || !hasPending),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp)
-                    .height(52.dp),
-            shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
-        ) {
-            Text(
-                when {
-                    !hasPending && stops.isEmpty() -> "Actualizar ruta"
-                    tripStarted && hasPending -> "Continuar entrega"
-                    hasPending -> "Iniciar recorrido"
-                    else -> "Actualizar ruta"
-                },
-                fontWeight = FontWeight.Bold,
-            )
+        if (hasPending && stops.isNotEmpty()) {
+            Button(
+                onClick = { if (tripStarted) onContinuar() else onIniciarRecorrido() },
+                enabled = !loading,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .height(52.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
+            ) {
+                Text(
+                    if (tripStarted) "Continuar entrega" else "Iniciar recorrido",
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         }
     }
 }

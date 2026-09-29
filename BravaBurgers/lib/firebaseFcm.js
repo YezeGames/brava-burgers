@@ -52,18 +52,24 @@ async function sendFcmToToken(fcmToken, msg) {
   if (!m) {
     return { ok: false, error: initError || 'firebase_not_configured' };
   }
-  const data = msg.data || {};
+  const data = Object.assign({}, msg.data || {});
+  data.title = String(msg.title || 'Brava Repartidor').slice(0, 120);
+  data.body = String(msg.body || '').slice(0, 240);
   const payload = {
     token: token,
     notification: {
-      title: String(msg.title || 'Brava Repartidor').slice(0, 120),
-      body: String(msg.body || '').slice(0, 240),
+      title: data.title,
+      body: data.body,
     },
     android: {
       priority: 'high',
+      ttl: 86400000,
       notification: {
         channelId: 'brava_entregas',
         sound: 'default',
+        priority: 'high',
+        defaultVibrateTimings: true,
+        visibility: 'public',
       },
     },
     data: Object.keys(data).reduce(function (acc, k) {

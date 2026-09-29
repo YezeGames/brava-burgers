@@ -96,11 +96,13 @@ class RepartidorViewModel(
                     } else if (_ui.value.stops.isEmpty()) {
                         refreshRoute(s.token, pull = false)
                     }
-                } else {
+                } else if (bootstrappedToken != null) {
                     bootstrappedToken = null
-                    realtime?.stop()
-                    SessionWorkScheduler.cancel(ctx)
-                    RepartoSessionForegroundService.stopSession(ctx)
+                    launch(Dispatchers.Default) {
+                        realtime?.stop()
+                        SessionWorkScheduler.cancel(ctx)
+                        RepartoSessionForegroundService.stopSession(ctx)
+                    }
                 }
             }
         }
@@ -135,13 +137,16 @@ class RepartidorViewModel(
     }
 
     fun logout() {
+        bootstrappedToken = null
         viewModelScope.launch {
-            bootstrappedToken = null
-            realtime?.stop()
-            SessionWorkScheduler.cancel(repo.appContext)
-            RepartoSessionForegroundService.stopSession(repo.appContext)
             repo.logout()
             _ui.value = RepartidorUiState()
+            val ctx = repo.appContext
+            kotlinx.coroutines.withContext(Dispatchers.Default) {
+                realtime?.stop()
+                SessionWorkScheduler.cancel(ctx)
+                RepartoSessionForegroundService.stopSession(ctx)
+            }
         }
     }
 
