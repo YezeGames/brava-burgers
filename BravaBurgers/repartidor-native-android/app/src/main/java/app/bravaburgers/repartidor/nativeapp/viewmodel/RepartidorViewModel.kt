@@ -202,9 +202,13 @@ class RepartidorViewModel(
                 loading = false,
                 refreshing = false,
                 connected = true,
-                tripStarted = _ui.value.tripStarted || merged.any { s ->
-                    s.estado.equals("en_camino", ignoreCase = true)
-                },
+                tripStarted =
+                    merged.any { s ->
+                        s.estado.equals("en_camino", ignoreCase = true) ||
+                            s.estado.equals("en_preparacion", ignoreCase = true)
+                    } &&
+                        (_ui.value.tripStarted ||
+                            merged.any { s -> s.estado.equals("en_camino", ignoreCase = true) }),
             )
         RouteGpsSync.syncFromStops(
             repo.appContext,

@@ -12,7 +12,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -43,6 +42,13 @@ private fun goToActiveStop(vm: RepartidorViewModel, nav: NavHostController) {
     goToNavForStop(nav, next.orn)
 }
 
+private fun goToRouteHome(nav: NavHostController) {
+    nav.navigate("route") {
+        popUpTo("route") { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
 private fun afterEntrega(
     vm: RepartidorViewModel,
     nav: NavHostController,
@@ -52,10 +58,7 @@ private fun afterEntrega(
         vm.setActiveOrn(next.orn)
         goToNavForStop(nav, next.orn)
     } else {
-        nav.navigate("route") {
-            popUpTo(0) { inclusive = false }
-            launchSingleTop = true
-        }
+        goToRouteHome(nav)
     }
 }
 
@@ -94,14 +97,22 @@ class MainActivity : ComponentActivity() {
                     if (missing.isNotEmpty()) permLauncher.launch(missing.toTypedArray())
                 }
 
-                LaunchedEffect(ui.session?.token) {
-                    if (ui.session != null) {
-                        nav.navigate("route") {
-                            popUpTo("login") { inclusive = true }
+                LaunchedEffect(ui.session) {
+                    if (ui.session == null) {
+                        nav.navigate("login") {
+                            popUpTo(nav.graph.id) { inclusive = true }
                             launchSingleTop = true
                         }
-                        if (BatteryOptHelper.shouldPrompt(ctx)) {
-                            BatteryOptHelper.openSettings(ctx)
+                    } else {
+                        val dest = nav.currentBackStackEntry?.destination?.route
+                        if (dest == "login" || dest == null) {
+                            nav.navigate("route") {
+                                popUpTo("login") { inclusive = true }
+                                launchSingleTop = true
+                            }
+                            if (BatteryOptHelper.shouldPrompt(ctx)) {
+                                BatteryOptHelper.openSettings(ctx)
+                            }
                         }
                     }
                 }
@@ -128,6 +139,10 @@ class MainActivity : ComponentActivity() {
                             tripStarted = ui.tripStarted,
                             loading = ui.loading,
                             onRefresh = { vm.refreshRoute(pull = true) },
+                            onLogout = {
+                                vm.stopNavigation(ctx)
+                                vm.logout()
+                            },
                             onIniciarRecorrido = {
                                 vm.iniciarRecorrido { next ->
                                     if (next != null) {
@@ -143,7 +158,9 @@ class MainActivity : ComponentActivity() {
                         val orn = entry.arguments?.getString("orn").orEmpty()
                         val stop = vm.stopFor(orn)
                         if (stop == null) {
-                            nav.popBackStack()
+                            LaunchedEffect(orn) {
+                                goToRouteHome(nav)
+                            }
                             return@composable
                         }
                         NavigationScreen(
@@ -175,7 +192,9 @@ class MainActivity : ComponentActivity() {
                         }
                         val stop = vm.stopFor(orn)
                         if (stop == null) {
-                            nav.popBackStack()
+                            LaunchedEffect(orn) {
+                                goToRouteHome(nav)
+                            }
                             return@composable
                         }
                         HandoffScreen(

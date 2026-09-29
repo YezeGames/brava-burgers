@@ -20,6 +20,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,9 +53,14 @@ fun RouteListScreen(
     tripStarted: Boolean,
     loading: Boolean,
     onRefresh: () -> Unit,
+    onLogout: () -> Unit,
     onIniciarRecorrido: () -> Unit,
     onContinuar: () -> Unit,
 ) {
+    val hasPending =
+        stops.any { s ->
+            s.estado.equals("en_camino", true) || s.estado.equals("en_preparacion", true)
+        }
     val nextIndex =
         stops.indexOfFirst { s ->
             s.estado.equals("en_camino", true) ||
@@ -83,10 +89,16 @@ fun RouteListScreen(
             Column(modifier = Modifier.weight(1f)) {
                 Text(session.nombre.ifBlank { session.login }, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Text(
-                    "${stops.size} paradas · orden fijado por cocina",
+                    when {
+                        stops.isEmpty() && !loading -> "Ruta completada · sin paradas pendientes"
+                        else -> "${stops.size} paradas · orden fijado por cocina"
+                    },
                     fontSize = 12.sp,
                     color = TextMuted,
                 )
+            }
+            TextButton(onClick = onLogout) {
+                Text("Cerrar sesión", color = TextMuted, fontSize = 13.sp)
             }
         }
         Row(
@@ -116,18 +128,41 @@ fun RouteListScreen(
             onRefresh = onRefresh,
             modifier = Modifier.weight(1f),
         ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                itemsIndexed(stops) { index, stop ->
-                    StopCard(stop = stop, isNext = index == nextIndex && stops.isNotEmpty())
+            if (stops.isEmpty() && !loading) {
+                Column(
+                    modifier =
+                        Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        if (tripStarted || !hasPending) "¡Listo! Completaste todas las entregas." else "No hay paradas en tu ruta",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "Deslizá hacia abajo para actualizar o cerrá sesión para cambiar de cuenta.",
+                        color = TextMuted,
+                        fontSize = 13.sp,
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    itemsIndexed(stops) { index, stop ->
+                        StopCard(stop = stop, isNext = index == nextIndex && stops.isNotEmpty())
+                    }
                 }
             }
         }
         Button(
-            onClick = { if (tripStarted) onContinuar() else onIniciarRecorrido() },
-            enabled = !loading && stops.isNotEmpty(),
+            onClick = { if (tripStarted && hasPending) onContinuar() else if (hasPending) onIniciarRecorrido() else onRefresh() },
+            enabled = !loading && (stops.isNotEmpty() || !hasPending),
             modifier =
                 Modifier
                     .fillMaxWidth()
@@ -137,7 +172,12 @@ fun RouteListScreen(
             colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
         ) {
             Text(
-                if (tripStarted) "Continuar entrega" else "Iniciar recorrido",
+                when {
+                    !hasPending && stops.isEmpty() -> "Actualizar ruta"
+                    tripStarted && hasPending -> "Continuar entrega"
+                    hasPending -> "Iniciar recorrido"
+                    else -> "Actualizar ruta"
+                },
                 fontWeight = FontWeight.Bold,
             )
         }
