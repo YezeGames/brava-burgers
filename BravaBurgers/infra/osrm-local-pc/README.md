@@ -37,6 +37,21 @@ cd BravaBurgers\infra\osrm-local-pc
 
 Descarga **Argentina** desde [Geofabrik](https://download.geofabrik.de/south-america/argentina.html) y corre extract/partition/customize en Docker.
 
+### 1b. Zona Brava solamente (recomendado — más rápido en PC)
+
+Mismo checkout que la tienda: **`data/zonas-entrega.geojson`** (7 polígonos). Recorta el PBF y preprocesa OSRM solo en ese bbox:
+
+```powershell
+# Primero necesitás argentina-latest.osm.pbf (paso 1)
+.\prepare-zona-brava.ps1
+docker compose down
+docker compose up -d
+```
+
+El script actualiza `docker-compose.yml` para usar `brava-zona.osrm`. Margen del bbox: variable de entorno `OSRM_BBOX_PAD=0.08` (8 %) al llamar a `node scripts/osrm-delivery-bbox.js`.
+
+Para volver a Argentina entera: en `docker-compose.yml` cambiá el `command` a `/data/argentina-latest.osrm` y `docker compose up -d`.
+
 ## 2. Levantar OSRM
 
 ```powershell
