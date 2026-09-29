@@ -115,6 +115,10 @@ function rowToOrder(row) {
 
     ajuste_motivo: row.ajuste_motivo || '',
 
+    lat: row.lat != null && !isNaN(Number(row.lat)) ? Number(row.lat) : null,
+
+    lng: row.lng != null && !isNaN(Number(row.lng)) ? Number(row.lng) : null,
+
   };
 
 }
@@ -388,6 +392,19 @@ async function createManualOrder(body) {
   const ornRes = await restRpc('next_pend_del');
   if (!ornRes.ok || !ornRes.data) return supabaseFail(ornRes, 'orn_failed');
 
+  let lat = parseFloat(body.lat);
+  let lng = parseFloat(body.lng);
+  const direccion = String(body.direccion || '').trim();
+  const localidad = String(body.localidad || '').trim();
+  if ((isNaN(lat) || isNaN(lng)) && direccion) {
+    const { geocodeDeliveryAddress } = require('./geocodeAddress');
+    const geo = await geocodeDeliveryAddress(direccion, { locHint: localidad });
+    if (geo.ok) {
+      lat = geo.lat;
+      lng = geo.lng;
+    }
+  }
+
   const row = {
     orn: ornRes.data,
     estado: 'pendiente',
@@ -410,6 +427,10 @@ async function createManualOrder(body) {
     ajuste_monto: Number(body.ajuste_monto) || 0,
     ajuste_motivo: String(body.ajuste_motivo || '').trim(),
   };
+  if (!isNaN(lat) && !isNaN(lng)) {
+    row.lat = lat;
+    row.lng = lng;
+  }
 
   const ins = await insertManualOrderRow(row);
   if (!ins.ok) return supabaseFail(ins, 'insert_failed');
@@ -524,6 +545,8 @@ async function createOrderFromShop(order) {
     cupon_codigo: cuponCodigo,
     cupon_label: cuponRow ? couponLabelComanda(cuponRow) : null,
     idempotency_key: idem || null,
+    lat: lat,
+    lng: lng,
   };
 
   const ins = await restInsert('orders', row);
@@ -811,6 +834,51 @@ async function ensureWaPostEntrega(orn) {
   return last;
 }
 
+function isDeliveryCoordsColumnMissing(r) {
+  if (!r || r.ok) return false;
+  var blob = restErrorBlob(r);
+  return (
+    blob.indexOf("'lat'") >= 0 ||
+    blob.indexOf('column "lat"') >= 0 ||
+    (blob.indexOf('pgrst204') >= 0 && blob.indexOf('lat') >= 0)
+  );
+}
+
+/** Geocodifica una vez y persiste lat/lng en orders (repartidor sin espera al navegar). */
+async function ensureOrderDeliveryCoords(order) {
+  if (!order || !order.orn) return null;
+  var lat = order.lat != null ? Number(order.lat) : NaN;
+  var lng = order.lng != null ? Number(order.lng) : NaN;
+  if (!isNaN(lat) && !isNaN(lng)) return { lat: lat, lng: lng };
+  var dir = String(order.direccion || '').trim();
+  if (!dir) return null;
+  var { geocodeDeliveryAddress } = require('./geocodeAddress');
+  var geo = await geocodeDeliveryAddress(dir, {
+    locHint: String(order.localidad || '').trim(),
+  });
+  if (!geo.ok || geo.lat == null || geo.lng == null) return null;
+  var pr = await restPatch('orders', 'orn=eq.' + encodeURIComponent(order.orn), {
+    lat: geo.lat,
+    lng: geo.lng,
+  });
+  if (!pr.ok && !isDeliveryCoordsColumnMissing(pr)) return null;
+  return { lat: geo.lat, lng: geo.lng };
+}
+
+async function resolvePedidoLatLng(row, order) {
+  var lat = row.lat != null ? Number(row.lat) : order.lat;
+  var lng = row.lng != null ? Number(row.lng) : order.lng;
+  if (lat != null && lng != null && !isNaN(lat) && !isNaN(lng)) {
+    return { lat: lat, lng: lng };
+  }
+  return ensureOrderDeliveryCoords({
+    orn: order.orn,
+    direccion: order.direccion,
+    localidad: order.localidad,
+    piso: order.piso,
+  });
+}
+
 async function listRepartidorRuta(telefono, _retried, opts) {
   const tel = telNorm(telefono);
   if (!tel) return { ok: false, error: 'missing_telefono' };
@@ -818,7 +886,7 @@ async function listRepartidorRuta(telefono, _retried, opts) {
   const includeItems = options.includeItems !== false;
   const ornFilter = String(options.orn || '').trim();
   const cols =
-    'orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,repartidor_llegada_at' +
+    'orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,repartidor_llegada_at,lat,lng' +
     (includeItems ? ',items_json' : '');
   let query =
     'select=' +
@@ -831,7 +899,7 @@ async function listRepartidorRuta(telefono, _retried, opts) {
   }
   const r = await restSelect('orders', query);
   if (!r.ok) {
-    if (isRepartidorColumnsMissing(r) && !_retried) {
+    if ((isRepartidorColumnsMissing(r) || isDeliveryCoordsColumnMissing(r)) && !_retried) {
       const mig = await migrateRepartidorSchemaAuto();
       if (mig.ok) return listRepartidorRuta(telefono, true, opts);
     }
@@ -845,27 +913,30 @@ async function listRepartidorRuta(telefono, _retried, opts) {
     return supabaseFail(r, 'repartidor_list_failed');
   }
   const rows = Array.isArray(r.data) ? r.data : [];
-  const pedidos = rows.map(function (row, idx) {
-    const o = rowToOrder(row);
-    return {
-      orn: o.orn,
-      cliente: o.cliente,
-      telefono: o.telefono || '',
-      direccion: o.direccion,
-      localidad: o.localidad,
-      piso: o.piso,
-      pago: o.pago,
-      total: o.total,
-      estado: o.estado,
-      parada: o.reparto_parada != null ? o.reparto_parada : idx + 1,
-      reparto_ruta_id: o.reparto_ruta_id || '',
-      asignado_at: o.reparto_asignado_at || '',
-      items: o.items,
-      lat: o.lat != null && !isNaN(o.lat) ? o.lat : null,
-      lng: o.lng != null && !isNaN(o.lng) ? o.lng : null,
-      llegada_at: row.repartidor_llegada_at || '',
-    };
-  });
+  const pedidos = await Promise.all(
+    rows.map(async function (row, idx) {
+      const o = rowToOrder(row);
+      const ll = (await resolvePedidoLatLng(row, o)) || { lat: null, lng: null };
+      return {
+        orn: o.orn,
+        cliente: o.cliente,
+        telefono: o.telefono || '',
+        direccion: o.direccion,
+        localidad: o.localidad,
+        piso: o.piso,
+        pago: o.pago,
+        total: o.total,
+        estado: o.estado,
+        parada: o.reparto_parada != null ? o.reparto_parada : idx + 1,
+        reparto_ruta_id: o.reparto_ruta_id || '',
+        asignado_at: o.reparto_asignado_at || '',
+        items: o.items,
+        lat: ll.lat != null && !isNaN(ll.lat) ? ll.lat : null,
+        lng: ll.lng != null && !isNaN(ll.lng) ? ll.lng : null,
+        llegada_at: row.repartidor_llegada_at || '',
+      };
+    })
+  );
   pedidos.sort(function (a, b) {
     return (a.parada || 0) - (b.parada || 0);
   });

@@ -628,6 +628,8 @@ async function migrateRepartidorAssignSchema() {
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_asignado_at timestamptz;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS reparto_ruta_id text;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS repartidor_llegada_at timestamptz;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS lat double precision;');
+    await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS lng double precision;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS track_lat double precision;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS track_lng double precision;');
     await client.query('ALTER TABLE orders ADD COLUMN IF NOT EXISTS track_at timestamptz;');
