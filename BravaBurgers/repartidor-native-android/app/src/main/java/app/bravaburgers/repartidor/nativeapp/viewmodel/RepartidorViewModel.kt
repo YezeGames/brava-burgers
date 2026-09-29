@@ -456,7 +456,7 @@ class RepartidorViewModel(
         viewModelScope.launch {
             val destCoords =
                 coroutineScope {
-                    val basesJob = async { osrm.prefetchBravaPrimary() }
+                    launch { osrm.prefetchBravaPrimary() }
                     val destJob = async { resolveDestination(stop) }
                     val fromJob =
                         async(Dispatchers.IO) {
@@ -467,7 +467,6 @@ class RepartidorViewModel(
                     val fromEarly = fromJob.await()
                     lastKnownDriverLatLng = fromEarly
                     _ui.value = _ui.value.copy(navDriver = fromEarly)
-                    basesJob.await()
                     destJob.await()
                 }
                     ?: run {

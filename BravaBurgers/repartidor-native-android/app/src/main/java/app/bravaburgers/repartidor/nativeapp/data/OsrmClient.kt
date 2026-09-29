@@ -94,7 +94,22 @@ class OsrmClient {
     }
 
     suspend fun prefetchBravaPrimary() {
-        refreshBasesIfNeeded(force = true)
+        refreshBasesIfNeeded(force = false)
+        val base = bravaPrimaryBase ?: return
+        withContext(Dispatchers.IO) {
+            runCatching {
+                fetchDirectOsrm(
+                    base,
+                    -58.482,
+                    -34.505,
+                    -58.478,
+                    -34.502,
+                    "Brava PC",
+                    directPcHttp,
+                    overview = "false",
+                )
+            }
+        }
     }
 
     suspend fun fetchDrivingRouteFast(
@@ -103,7 +118,9 @@ class OsrmClient {
         toLng: Double,
         toLat: Double,
     ): Result<RouteResult> {
-        refreshBasesIfNeeded(force = true)
+        if (bravaPrimaryBase.isNullOrBlank()) {
+            refreshBasesIfNeeded(force = true)
+        }
         bravaPrimaryBase?.let { base ->
             val direct =
                 withContext(Dispatchers.IO) {
@@ -127,12 +144,14 @@ class OsrmClient {
 
     private suspend fun refreshBasesIfNeeded(force: Boolean) {
         val now = System.currentTimeMillis()
-        if (!force && now - basesLoadedAtMs < 120_000L && bravaPrimaryBase != null) return
-        if (!force && now - basesLoadedAtMs < 120_000L && bravaPrimaryBase == null && basesLoadedAtMs > 0L) {
+        if (!force && now - basesLoadedAtMs < 600_000L && bravaPrimaryBase != null) return
+        if (!force && now - basesLoadedAtMs < 60_000L && bravaPrimaryBase == null && basesLoadedAtMs > 0L) {
             return
         }
         basesMutex.withLock {
-            if (!force && System.currentTimeMillis() - basesLoadedAtMs < 120_000L) return
+            if (!force && System.currentTimeMillis() - basesLoadedAtMs < 600_000L && bravaPrimaryBase != null) {
+                return
+            }
             val loaded =
                 withContext(Dispatchers.IO) {
                     fetchOsrmBasesFromApi()
@@ -201,9 +220,11 @@ class OsrmClient {
         toLat: Double,
         sourceTag: String,
         client: OkHttpClient = http,
+        overview: String = "simplified",
     ): Result<RouteResult> {
         val path = "$fromLng,$fromLat;$toLng,$toLat"
-        val url = "${base.trimEnd('/')}/$path?steps=true&geometries=geojson&overview=full"
+        val url =
+            "${base.trimEnd('/')}/$path?steps=true&geometries=geojson&overview=$overview&alternatives=false"
         return executeGet(url, sourceTag, client)
     }
 
