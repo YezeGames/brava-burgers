@@ -33,13 +33,13 @@ El agente **puede y debe** usar estas plataformas para terminar tareas (no queda
 - Documentación: `sheets/OPERACIONES.md`, `sheets/IMPORTAR_EN_GOOGLE_SHEETS.md`, Apps Script en `apps-script/`.
 - Personalización tienda: columnas como `Ingredientes`, `Grupo extras`, `Quitar` en pestaña productos; código en `brava-catalog.js` / `brava-shop.js`.
 
-## Repartidor APK nativa (GitHub Releases)
+## Repartidor APK nativa (sin GitHub Actions)
 
-Tras cambios en `repartidor-native-android/` que requieran APK nueva:
+**No usar GitHub Actions** para la APK (cuenta puede tener billing bloqueado). El **agente** publica desde la PC del dev:
 
 1. Subir **`versionCode`** / **`versionName`** en `repartidor-native-android/app/build.gradle.kts`.
-2. Push a **`main`** → workflow **Repartidor native APK** (`.github/workflows/repartidor-native-release.yml`) compila, publica Release `repartidor-native-v{versionCode}` y actualiza `repartidor-native-update.json`.
-3. Alternativa local: `BravaBurgers/scripts/publish-repartidor-native-release.ps1 -PushGit` (requiere `gh auth`).
+2. Ejecutar **`BravaBurgers/scripts/publish-repartidor-native-release.ps1 -PushGit`** (Gradle + Release `repartidor-native-v{code}` + `repartidor-native-update.json` + push `main`). Requiere **`gh auth login`** en esa máquina.
+3. Verificar Release en GitHub y manifest en Vercel/raw GitHub.
 
 ## Checklist al cerrar una feature
 

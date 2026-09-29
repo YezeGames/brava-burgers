@@ -26,13 +26,14 @@ APK debug: `app/build/outputs/apk/debug/app-debug.apk`
 
 La app lee **`repartidor-native-update.json`** (GitHub `main` + Vercel) y descarga **`apk_url`** (Release `repartidor-native-v{versionCode}` · asset `brava-repartidor-native.apk`).
 
-### Cada APK nueva (automático)
+### Cada APK nueva (agente / PC — sin GitHub Actions)
 
 1. Subí **`versionCode`** / **`versionName`** en `app/build.gradle.kts`.
-2. **Push a `main`** → Actions **Repartidor native APK** compila, publica en GitHub Releases y commitea el JSON.
-3. Desde PC (opcional): `.\scripts\publish-repartidor-native-release.ps1 -PushGit`
+2. Desde `BravaBurgers`:  
+   `.\scripts\publish-repartidor-native-release.ps1 -PushGit`  
+   (compila, sube Release `repartidor-native-v{code}`, actualiza JSON, push). Necesitás `gh auth login`.
 
-En el teléfono: **Actualizar ahora** → descarga desde GitHub → instalador Android.
+En el teléfono: **Actualizar ahora** → descarga desde GitHub Releases → instalador Android.
 
 ## Estado actual (alpha20)
 
