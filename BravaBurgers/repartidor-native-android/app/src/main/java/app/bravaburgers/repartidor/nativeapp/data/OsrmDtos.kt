@@ -58,6 +58,7 @@ data class AppRouteResponseDto(
     @com.squareup.moshi.Json(name = "distance_m") val distanceM: Double? = null,
     @com.squareup.moshi.Json(name = "duration_sec") val durationSec: Double? = null,
     val maneuver: String? = null,
+    @com.squareup.moshi.Json(name = "route_source") val routeSource: String? = null,
 )
 
 @JsonClass(generateAdapter = true)

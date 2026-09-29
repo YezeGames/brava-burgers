@@ -35,8 +35,15 @@ data class RouteResult(
 class OsrmClient {
     private val http =
         OkHttpClient.Builder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(18, TimeUnit.SECONDS)
+            .connectTimeout(8, TimeUnit.SECONDS)
+            .readTimeout(14, TimeUnit.SECONDS)
+            .build()
+
+    /** Túnel Brava PC: timeout corto; si falla, Brava API (misma PC vía Vercel). */
+    private val directPcHttp =
+        OkHttpClient.Builder()
+            .connectTimeout(6, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
             .build()
 
     private val moshi =
@@ -96,21 +103,25 @@ class OsrmClient {
         toLng: Double,
         toLat: Double,
     ): Result<RouteResult> {
-        refreshBasesIfNeeded(force = false)
-        val waveBrava =
-            buildList {
-                bravaPrimaryBase?.let { base ->
-                    add { fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC") }
+        refreshBasesIfNeeded(force = true)
+        bravaPrimaryBase?.let { base ->
+            val direct =
+                withContext(Dispatchers.IO) {
+                    fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC", directPcHttp)
                 }
-                add { fetchViaPedidoPost(fromLng, fromLat, toLng, toLat) }
+            if (direct.isSuccess) return direct
+        }
+        val brava =
+            withContext(Dispatchers.IO) {
+                fetchViaPedidoPost(fromLng, fromLat, toLng, toLat)
             }
-        raceFirstSuccess(waveBrava, 20_000L)?.let { return it }
+        if (brava.isSuccess) return brava
 
         val wavePublic =
             publicBases.map { base ->
                 { fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "OSRM público") }
             }
-        return raceFirstSuccess(wavePublic, 18_000L)
+        return raceFirstSuccess(wavePublic, 14_000L)
             ?: Result.failure(Exception("route_timeout"))
     }
 
@@ -189,13 +200,14 @@ class OsrmClient {
         toLng: Double,
         toLat: Double,
         sourceTag: String,
+        client: OkHttpClient = http,
     ): Result<RouteResult> {
         val path = "$fromLng,$fromLat;$toLng,$toLat"
         val url = "${base.trimEnd('/')}/$path?steps=true&geometries=geojson&overview=full"
-        return executeGet(url, sourceTag)
+        return executeGet(url, sourceTag, client)
     }
 
-    private fun executeGet(url: String, sourceTag: String): Result<RouteResult> {
+    private fun executeGet(url: String, sourceTag: String, client: OkHttpClient = http): Result<RouteResult> {
         return try {
             val req =
                 Request.Builder()
@@ -204,7 +216,7 @@ class OsrmClient {
                     .header("Accept", "application/json")
                     .get()
                     .build()
-            http.newCall(req).execute().use { resp ->
+            client.newCall(req).execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
                 if (!resp.isSuccessful) {
                     return Result.failure(Exception("osrm_http_${resp.code}"))
@@ -322,8 +334,17 @@ class OsrmClient {
                 firstManeuver = parsed.maneuver?.trim()?.takeIf { it.isNotEmpty() }
                     ?: "Seguí la ruta resaltada",
                 steps = emptyList(),
-                sourceTag = "Brava",
+                sourceTag = apiRouteSourceLabel(parsed.routeSource),
             ),
         )
+    }
+
+    private fun apiRouteSourceLabel(routeSource: String?): String {
+        return when (routeSource?.trim()?.lowercase()) {
+            "brava_pc" -> "Brava PC"
+            "osrm_public" -> "OSRM público"
+            "ors" -> "ORS"
+            else -> "Brava"
+        }
     }
 }

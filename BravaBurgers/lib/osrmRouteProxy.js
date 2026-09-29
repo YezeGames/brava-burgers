@@ -58,16 +58,20 @@ function getRouteCached(pathCoords) {
   var k = routeCacheKey(pathCoords);
   var hit = routeCache.get(k);
   if (!hit || Date.now() > hit.exp) return null;
-  return hit.data;
+  return hit;
 }
 
-function setRouteCached(pathCoords, data) {
+function setRouteCached(pathCoords, data, routeSource) {
   var k = routeCacheKey(pathCoords);
   if (routeCache.size >= ROUTE_CACHE_MAX) {
     var first = routeCache.keys().next().value;
     if (first) routeCache.delete(first);
   }
-  routeCache.set(k, { exp: Date.now() + ROUTE_CACHE_TTL_MS, data: data });
+  routeCache.set(k, {
+    exp: Date.now() + ROUTE_CACHE_TTL_MS,
+    data: data,
+    routeSource: routeSource || 'brava_pc',
+  });
 }
 
 async function fetchOsrmFromHosts(pathCoords, list) {
@@ -81,7 +85,7 @@ async function fetchOsrmFromHosts(pathCoords, list) {
       var upstream = await fetch(url, {
         headers: { 'User-Agent': 'BravaBurgers-Repartidor/1.0 (osrm-proxy)' },
         cache: 'no-store',
-        signal: AbortSignal.timeout(22000),
+        signal: AbortSignal.timeout(12000),
       });
       var text = await upstream.text();
       if (!upstream.ok) {
@@ -211,27 +215,34 @@ async function fetchOpenRouteService(pathCoords) {
  */
 async function fetchOsrmRaw(pathCoords) {
   var cached = getRouteCached(pathCoords);
-  if (cached) return { ok: true, data: cached, cached: true };
+  if (cached) {
+    return {
+      ok: true,
+      data: cached.data,
+      routeSource: cached.routeSource || 'brava_pc',
+      cached: true,
+    };
+  }
 
   var custom = osrmCustomHosts();
   if (custom.length) {
     var own = await fetchOsrmFromHosts(pathCoords, custom);
     if (own.ok) {
-      setRouteCached(pathCoords, own.data);
-      return own;
+      setRouteCached(pathCoords, own.data, 'brava_pc');
+      return { ok: true, data: own.data, routeSource: 'brava_pc' };
     }
   }
 
   var pub = await fetchOsrmFromHosts(pathCoords, OSRM_PUBLIC);
   if (pub.ok) {
-    setRouteCached(pathCoords, pub.data);
-    return pub;
+    setRouteCached(pathCoords, pub.data, 'osrm_public');
+    return { ok: true, data: pub.data, routeSource: 'osrm_public' };
   }
 
   var ors = await fetchOpenRouteService(pathCoords);
   if (ors.ok) {
-    setRouteCached(pathCoords, ors.data);
-    return ors;
+    setRouteCached(pathCoords, ors.data, 'ors');
+    return { ok: true, data: ors.data, routeSource: 'ors' };
   }
 
   return ors.ok ? ors : pub;
@@ -261,12 +272,14 @@ async function fetchOsrmRouteForApp(query) {
   const leg = route.legs && route.legs[0];
   const steps = (leg && leg.steps) || [];
   const step = steps.length ? steps[0] : null;
+  var routeSource = raw.routeSource || 'osrm_public';
   return {
     ok: true,
     coordinates: coordinates,
     distance_m: Number(route.distance) || 0,
     duration_sec: Number(route.duration) || 0,
     maneuver: maneuverTextFromStep(step),
+    route_source: routeSource,
   };
 }
 
