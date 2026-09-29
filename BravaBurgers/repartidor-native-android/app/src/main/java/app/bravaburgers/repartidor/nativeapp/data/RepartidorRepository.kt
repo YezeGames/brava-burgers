@@ -10,7 +10,12 @@ class RepartidorRepository(context: Context) {
     /** Opcional: REPARTIDOR_APP_KEY en build local (ver README). */
     var apiKey: String? = null
 
-    suspend fun login(login: String, password: String): Result<Session> {
+    data class LoginBundle(
+        val session: Session,
+        val realtime: RealtimeConfigDto?,
+    )
+
+    suspend fun login(login: String, password: String): Result<LoginBundle> {
         val out = api.login(login, password, apiKey)
         if (!out.ok || out.token.isNullOrBlank()) {
             return Result.failure(Exception(out.error ?: "login_failed"))
@@ -23,7 +28,7 @@ class RepartidorRepository(context: Context) {
                 telefono = out.telefono.orEmpty(),
             )
         sessionStore.save(session)
-        return Result.success(session)
+        return Result.success(LoginBundle(session, out.realtime))
     }
 
     suspend fun logout() {
@@ -31,10 +36,18 @@ class RepartidorRepository(context: Context) {
     }
 
     suspend fun fetchRoute(token: String): Result<List<RouteStop>> {
-        val out = api.listRuta(token, apiKey)
+        val out = api.listRuta(token, apiKey, includeItems = false)
         if (!out.ok) return Result.failure(Exception(out.error ?: "list_failed"))
         val list = out.pedidos.orEmpty().sortedBy { it.parada ?: Int.MAX_VALUE }
         return Result.success(list)
+    }
+
+    suspend fun fetchStopDetail(token: String, orn: String): Result<RouteStop> {
+        val out = api.listRuta(token, apiKey, includeItems = true, orn = orn)
+        if (!out.ok) return Result.failure(Exception(out.error ?: "list_failed"))
+        val stop = out.pedidos.orEmpty().firstOrNull { it.orn == orn }
+            ?: return Result.failure(Exception("stop_not_found"))
+        return Result.success(stop)
     }
 
     suspend fun iniciarRecorrido(token: String): Result<Unit> {

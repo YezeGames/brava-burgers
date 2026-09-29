@@ -24,8 +24,8 @@ class RepartidorApi {
 
     private val client =
         OkHttpClient.Builder()
-            .connectTimeout(25, TimeUnit.SECONDS)
-            .readTimeout(25, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
             .apply {
                 if (BuildConfig.DEBUG) {
                     addInterceptor(
@@ -61,8 +61,15 @@ class RepartidorApi {
         return parse(service.post(body), loginAdapter)
     }
 
-    suspend fun listRuta(token: String, apiKey: String?): ListRutaResponse {
+    suspend fun listRuta(
+        token: String,
+        apiKey: String?,
+        includeItems: Boolean = false,
+        orn: String? = null,
+    ): ListRutaResponse {
         val body = authBody(token, apiKey, "listRuta")
+        if (!includeItems) body["includeItems"] = false
+        if (!orn.isNullOrBlank()) body["orn"] = orn.trim()
         return parse(service.post(body), listAdapter)
     }
 

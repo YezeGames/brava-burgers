@@ -170,6 +170,9 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("handoff/{orn}") { entry ->
                         val orn = entry.arguments?.getString("orn").orEmpty()
+                        LaunchedEffect(orn) {
+                            vm.ensureStopDetail(orn)
+                        }
                         val stop = vm.stopFor(orn)
                         if (stop == null) {
                             nav.popBackStack()

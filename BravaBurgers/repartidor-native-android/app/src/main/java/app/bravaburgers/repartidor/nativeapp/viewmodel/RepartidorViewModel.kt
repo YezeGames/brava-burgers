@@ -25,6 +25,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 
 data class RepartidorUiState(
     val session: Session? = null,
@@ -55,6 +58,8 @@ class RepartidorViewModel(
     private val geocode = GeocodeClient()
     private val geocodeCache = mutableMapOf<String, Pair<Double, Double>>()
     private val navLocationTracker = NavLocationTracker(repo.appContext)
+    private val routeRefreshMutex = Mutex()
+    private var loginRealtime: RealtimeConfigDto? = null
 
     val sessionFlow =
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -73,7 +78,9 @@ class RepartidorViewModel(
                             .ifEmpty { _ui.value.activeOrn.orEmpty() }
                     RepartoSessionForegroundService.persistSession(ctx, s.token, repo.apiKey, orn)
                     PushRegistrar.registerAfterLogin(ctx, repo, s.token)
-                    realtime?.start(s.token)
+                    val rt = loginRealtime
+                    loginRealtime = null
+                    realtime?.start(s.token, rt)
                     SessionWorkScheduler.schedule(ctx)
                     if (_ui.value.stops.isEmpty()) refreshRoute(s.token, pull = false)
                 } else {
@@ -94,14 +101,19 @@ class RepartidorViewModel(
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null)
             repo.login(login, password)
-                .onSuccess { session ->
-                    _ui.value = _ui.value.copy(loading = false, session = session)
-                    val ctx = repo.appContext
-                    RepartoSessionForegroundService.persistSession(ctx, session.token, repo.apiKey)
-                    PushRegistrar.registerAfterLogin(ctx, repo, session.token)
-                    realtime?.start(session.token)
-                    SessionWorkScheduler.schedule(ctx)
-                    refreshRoute(session.token, pull = false)
+                .onSuccess { bundle ->
+                    loginRealtime = bundle.realtime
+                    _ui.value =
+                        _ui.value.copy(
+                            loading = false,
+                            session = bundle.session,
+                            error = null,
+                        )
+                    RepartoSessionForegroundService.persistSession(
+                        repo.appContext,
+                        bundle.session.token,
+                        repo.apiKey,
+                    )
                 }
                 .onFailure {
                     _ui.value = _ui.value.copy(loading = false, error = it.message ?: "Error")
@@ -140,45 +152,69 @@ class RepartidorViewModel(
         token: String,
         pull: Boolean,
         refreshing: Boolean,
-    ): Result<List<RouteStop>> {
-        if (!pull && !refreshing) {
-            _ui.value = _ui.value.copy(loading = true, error = null)
-        } else if (refreshing) {
-            _ui.value = _ui.value.copy(refreshing = true, error = null)
-        } else {
-            _ui.value = _ui.value.copy(loading = true, error = null)
+    ): Result<List<RouteStop>> =
+        routeRefreshMutex.withLock {
+            if (!pull && !refreshing) {
+                _ui.value = _ui.value.copy(loading = true, error = null)
+            } else if (refreshing) {
+                _ui.value = _ui.value.copy(refreshing = true, error = null)
+            } else {
+                _ui.value = _ui.value.copy(loading = true, error = null)
+            }
+            val result = repo.fetchRoute(token)
+            result
+                .onSuccess { list ->
+                    val merged =
+                        list.map { incoming ->
+                            val prev = _ui.value.stops.find { it.orn == incoming.orn }
+                            if (prev?.items.isNullOrEmpty()) incoming else incoming.copy(items = prev.items)
+                        }
+                    _ui.value =
+                        _ui.value.copy(
+                            stops = merged,
+                            loading = false,
+                            refreshing = false,
+                            connected = true,
+                            tripStarted = _ui.value.tripStarted || merged.any { s ->
+                                s.estado.equals("en_camino", ignoreCase = true)
+                            },
+                        )
+                    RouteGpsSync.syncFromStops(
+                        repo.appContext,
+                        token,
+                        repo.apiKey,
+                        merged,
+                        _ui.value.trackingOrn,
+                    )
+                }
+                .onFailure {
+                    _ui.value =
+                        _ui.value.copy(
+                            loading = false,
+                            refreshing = false,
+                            connected = false,
+                            error = it.message,
+                        )
+                }
+            result
         }
-        val result = repo.fetchRoute(token)
-        result
-            .onSuccess { list ->
-                _ui.value =
-                    _ui.value.copy(
-                        stops = list,
-                        loading = false,
-                        refreshing = false,
-                        connected = true,
-                        tripStarted = _ui.value.tripStarted || list.any { s ->
-                            s.estado.equals("en_camino", ignoreCase = true)
-                        },
-                    )
-                RouteGpsSync.syncFromStops(
-                    repo.appContext,
-                    token,
-                    repo.apiKey,
-                    list,
-                    _ui.value.trackingOrn,
-                )
-            }
-            .onFailure {
-                _ui.value =
-                    _ui.value.copy(
-                        loading = false,
-                        refreshing = false,
-                        connected = false,
-                        error = it.message,
-                    )
-            }
-        return result
+
+    fun ensureStopDetail(orn: String) {
+        val token = _ui.value.session?.token ?: return
+        val existing = stopFor(orn)
+        if (!existing?.items.isNullOrEmpty()) return
+        viewModelScope.launch {
+            repo.fetchStopDetail(token, orn)
+                .onSuccess { detail ->
+                    _ui.value =
+                        _ui.value.copy(
+                            stops =
+                                _ui.value.stops.map { s ->
+                                    if (s.orn == orn) detail else s
+                                },
+                        )
+                }
+        }
     }
 
     fun iniciarRecorrido(onDone: (RouteStop?) -> Unit) {

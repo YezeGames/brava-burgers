@@ -20,7 +20,7 @@ cd BravaBurgers\repartidor-native-android
 
 APK debug: `app/build/outputs/apk/debug/app-debug.apk`
 
-## Estado actual (alpha13)
+## Estado actual (alpha15)
 
 | Hecho | Pendiente |
 |-------|-----------|
@@ -42,7 +42,8 @@ Usa el **mismo Supabase gratis** que el admin (Realtime incluido en el plan free
 **Una vez en Supabase/Vercel:**
 
 - SQL: `supabase/repartidor-realtime-events.sql` (SQL Editor o migración con `SUPABASE_DB_PASSWORD`).
-- Vercel: `SUPABASE_JWT_SECRET` = JWT Secret (Supabase → Settings → API).
+- Vercel: `SUPABASE_JWT_SECRET` = **Legacy JWT Secret** (Supabase → Settings → **JWT Keys**).
+- Automatizar: `secrets/supabase-jwt.txt` + `$env:VERCEL_TOKEN` → `.\scripts\setup-repartidor-vercel-realtime.ps1`
 
 **FGS** solo con entrega **en camino** (GPS cliente). Esperando turno: Realtime + FCM, sin notificación permanente.
 

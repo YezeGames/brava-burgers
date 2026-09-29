@@ -804,19 +804,29 @@ async function ensureWaPostEntrega(orn) {
   return last;
 }
 
-async function listRepartidorRuta(telefono, _retried) {
+async function listRepartidorRuta(telefono, _retried, opts) {
   const tel = telNorm(telefono);
   if (!tel) return { ok: false, error: 'missing_telefono' };
-  const r = await restSelect(
-    'orders',
-    'select=orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,repartidor_llegada_at,items_json&repartidor_tel=eq.' +
-      encodeURIComponent(tel) +
-      '&estado=in.(en_preparacion,en_camino)&order=reparto_parada.asc.nullslast,fecha_creado.asc'
-  );
+  const options = opts && typeof opts === 'object' ? opts : {};
+  const includeItems = options.includeItems !== false;
+  const ornFilter = String(options.orn || '').trim();
+  const cols =
+    'orn,cliente,telefono,direccion,localidad,piso,pago,total,estado,reparto_parada,reparto_asignado_at,reparto_ruta_id,repartidor_llegada_at' +
+    (includeItems ? ',items_json' : '');
+  let query =
+    'select=' +
+    cols +
+    '&repartidor_tel=eq.' +
+    encodeURIComponent(tel) +
+    '&estado=in.(en_preparacion,en_camino)&order=reparto_parada.asc.nullslast,fecha_creado.asc';
+  if (ornFilter) {
+    query += '&orn=eq.' + encodeURIComponent(ornFilter);
+  }
+  const r = await restSelect('orders', query);
   if (!r.ok) {
     if (isRepartidorColumnsMissing(r) && !_retried) {
       const mig = await migrateRepartidorSchemaAuto();
-      if (mig.ok) return listRepartidorRuta(telefono, true);
+      if (mig.ok) return listRepartidorRuta(telefono, true, opts);
     }
     if (isRepartidorColumnsMissing(r)) {
       return {
@@ -979,16 +989,21 @@ async function repartidorIniciarRecorrido(body) {
       continue;
     }
     moved++;
-    const wa = await sendSeguimientoWhatsApp(row.telefono, row.cliente, orn, {
+    void sendSeguimientoWhatsApp(row.telefono, row.cliente, orn, {
       phase: 'inicio',
       parada: parada,
-    });
-    waOut.push({ orn: orn, wa: wa });
+    })
+      .then(function (wa) {
+        waOut.push({ orn: orn, wa: wa });
+      })
+      .catch(function (e) {
+        waOut.push({ orn: orn, ok: false, error: String(e.message || e) });
+      });
   }
   if (!moved) {
     return { ok: false, error: 'no_stops_to_start' };
   }
-  return { ok: true, moved: moved, wa: waOut, repartidor_tel: tel, parada: minP };
+  return { ok: true, moved: moved, wa: [], wa_async: true, repartidor_tel: tel, parada: minP };
 }
 
 async function repartidorMarkEntregada(body) {

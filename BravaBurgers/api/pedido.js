@@ -79,7 +79,12 @@ async function handleRepartidor(body, req, res) {
       return res.status(401).json({ ok: false, error: auth.error || 'unauthorized' });
     }
     if (action === 'listRuta') {
-      const out = await listRepartidorRuta(auth.tel);
+      const includeItems = body.includeItems !== false && body.include_items !== false;
+      const orn = String(body.orn || '').trim();
+      const out = await listRepartidorRuta(auth.tel, false, {
+        includeItems: includeItems,
+        orn: orn || undefined,
+      });
       return res.status(out.ok ? 200 : 400).json(out);
     }
     if (action === 'markEntregada') {
