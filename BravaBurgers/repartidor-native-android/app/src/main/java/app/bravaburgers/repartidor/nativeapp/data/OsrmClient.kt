@@ -5,6 +5,7 @@ import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.util.concurrent.TimeUnit
@@ -58,8 +59,8 @@ private data class OsrmManeuver(
 class OsrmClient {
     private val http =
         OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
+            .connectTimeout(25, TimeUnit.SECONDS)
+            .readTimeout(25, TimeUnit.SECONDS)
             .build()
 
     private val moshi =
@@ -69,7 +70,45 @@ class OsrmClient {
 
     private val adapter = moshi.adapter(OsrmResponse::class.java)
 
+    private val userAgent = "BravaRepartidorNative/2.0 (Android)"
+
     fun fetchDrivingRoute(
+        fromLng: Double,
+        fromLat: Double,
+        toLng: Double,
+        toLat: Double,
+    ): Result<RouteResult> {
+        fetchViaProxy(fromLng, fromLat, toLng, toLat)?.let { return it }
+        return fetchDirectOsrm(fromLng, fromLat, toLng, toLat)
+    }
+
+    /** Vercel proxy — mismo origen que geocode/pedido. */
+    private fun fetchViaProxy(
+        fromLng: Double,
+        fromLat: Double,
+        toLng: Double,
+        toLat: Double,
+    ): Result<RouteResult>? {
+        val base = BuildConfig.ROUTE_API.trim().removeSuffix("/")
+        if (base.isBlank()) return null
+        val url =
+            base.toHttpUrlOrNull()?.newBuilder()
+                ?.addQueryParameter("fromLng", fromLng.toString())
+                ?.addQueryParameter("fromLat", fromLat.toString())
+                ?.addQueryParameter("toLng", toLng.toString())
+                ?.addQueryParameter("toLat", toLat.toString())
+                ?.build()
+                ?: return null
+        return executeRouteRequest(
+            Request.Builder()
+                .url(url)
+                .header("User-Agent", userAgent)
+                .get()
+                .build(),
+        )
+    }
+
+    private fun fetchDirectOsrm(
         fromLng: Double,
         fromLat: Double,
         toLng: Double,
@@ -77,40 +116,52 @@ class OsrmClient {
     ): Result<RouteResult> {
         val base = BuildConfig.OSRM_BASE.trimEnd('/')
         val path = "$fromLng,$fromLat;$toLng,$toLat"
-        val url =
-            "$base/$path?overview=full&geometries=geojson&steps=true&language=es"
+        val url = "$base/$path?overview=full&geometries=geojson&steps=true&language=es"
+        return executeRouteRequest(
+            Request.Builder()
+                .url(url)
+                .header("User-Agent", userAgent)
+                .get()
+                .build(),
+        )
+    }
+
+    private fun executeRouteRequest(req: Request): Result<RouteResult> {
         return try {
-            val req = Request.Builder().url(url).get().build()
             http.newCall(req).execute().use { resp ->
                 if (!resp.isSuccessful) {
                     return Result.failure(Exception("osrm_http_${resp.code}"))
                 }
                 val body = resp.body?.string() ?: return Result.failure(Exception("osrm_empty"))
-                val parsed = adapter.fromJson(body) ?: return Result.failure(Exception("osrm_parse"))
-                if (parsed.code != "Ok" || parsed.routes.isNullOrEmpty()) {
-                    return Result.failure(Exception(parsed.message ?: "osrm_no_route"))
-                }
-                val route = parsed.routes.first()
-                val coords =
-                    route.geometry?.coordinates?.mapNotNull { pair ->
-                        if (pair.size >= 2) Pair(pair[1], pair[0]) else null
-                    }.orEmpty()
-                val step = route.legs?.firstOrNull()?.steps?.firstOrNull()
-                val maneuver =
-                    step?.maneuver?.instruction?.trim()?.takeIf { it.isNotEmpty() }
-                        ?: buildManeuverFallback(step)
-                Result.success(
-                    RouteResult(
-                        coordinates = coords,
-                        distanceM = route.distance ?: 0.0,
-                        durationSec = route.duration ?: 0.0,
-                        firstManeuver = maneuver,
-                    ),
-                )
+                parseRouteBody(body)
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private fun parseRouteBody(body: String): Result<RouteResult> {
+        val parsed = adapter.fromJson(body) ?: return Result.failure(Exception("osrm_parse"))
+        if (parsed.code != "Ok" || parsed.routes.isNullOrEmpty()) {
+            return Result.failure(Exception(parsed.message ?: "osrm_no_route"))
+        }
+        val route = parsed.routes.first()
+        val coords =
+            route.geometry?.coordinates?.mapNotNull { pair ->
+                if (pair.size >= 2) Pair(pair[1], pair[0]) else null
+            }.orEmpty()
+        val step = route.legs?.firstOrNull()?.steps?.firstOrNull()
+        val maneuver =
+            step?.maneuver?.instruction?.trim()?.takeIf { it.isNotEmpty() }
+                ?: buildManeuverFallback(step)
+        return Result.success(
+            RouteResult(
+                coordinates = coords,
+                distanceM = route.distance ?: 0.0,
+                durationSec = route.duration ?: 0.0,
+                firstManeuver = maneuver,
+            ),
+        )
     }
 
     private fun buildManeuverFallback(step: OsrmStep?): String {

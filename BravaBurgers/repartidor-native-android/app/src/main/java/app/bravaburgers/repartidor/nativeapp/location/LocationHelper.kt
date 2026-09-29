@@ -22,8 +22,9 @@ object LocationHelper {
     }
 
     /** Pair(lat, lng) */
-    suspend fun lastLatLng(context: Context): Pair<Double, Double>? =
-        suspendCoroutine { cont ->
+    suspend fun lastLatLng(context: Context): Pair<Double, Double>? {
+        if (!hasLocationPermission(context)) return null
+        return suspendCoroutine { cont ->
             val fused = LocationServices.getFusedLocationProviderClient(context)
             val cancel = CancellationTokenSource()
             fused
@@ -37,4 +38,5 @@ object LocationHelper {
                 }
                 .addOnFailureListener { cont.resume(null) }
         }
+    }
 }

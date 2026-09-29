@@ -43,6 +43,7 @@ fun NavigationScreen(
     navMeta: String,
     navLoading: Boolean,
     navDest: Pair<Double, Double>?,
+    navDriver: Pair<Double, Double>?,
     onStartNavigation: () -> Unit,
     onBack: () -> Unit,
     onLlegue: () -> Unit,
@@ -68,6 +69,7 @@ fun NavigationScreen(
             modifier = Modifier.fillMaxSize(),
             route = navRoute,
             destination = navDest,
+            driver = navDriver,
         )
 
         IconButton(

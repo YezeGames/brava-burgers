@@ -11,6 +11,7 @@ import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
+import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
 import app.bravaburgers.repartidor.nativeapp.location.TrackForegroundService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -35,6 +36,8 @@ data class RepartidorUiState(
     val navMeta: String = "",
     val navLoading: Boolean = false,
     val navDest: Pair<Double, Double>? = null,
+    /** Repartidor (GPS vivo) — lat,lng */
+    val navDriver: Pair<Double, Double>? = null,
     val trackingOrn: String? = null,
 )
 
@@ -44,6 +47,7 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
     private val osrm = OsrmClient()
     private val geocode = GeocodeClient()
     private val geocodeCache = mutableMapOf<String, Pair<Double, Double>>()
+    private val navLocationTracker = NavLocationTracker(repo.appContext)
 
     val sessionFlow =
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -248,7 +252,11 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                 navMeta = "",
                 navRoute = emptyList(),
                 navDest = null,
+                navDriver = null,
             )
+        navLocationTracker.start { lat, lng ->
+            _ui.value = _ui.value.copy(navDriver = Pair(lat, lng))
+        }
         viewModelScope.launch {
             val dest =
                 resolveDestination(stop)
@@ -276,6 +284,7 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                 withContext(Dispatchers.IO) {
                     LocationHelper.lastLatLng(context)
                 } ?: Pair(BravaConstants.KITCHEN_LAT, BravaConstants.KITCHEN_LNG)
+            _ui.value = _ui.value.copy(navDriver = from)
             val result =
                 withContext(Dispatchers.IO) {
                     osrm.fetchDrivingRoute(
@@ -301,7 +310,7 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                     _ui.value =
                         _ui.value.copy(
                             navLoading = false,
-                            navManeuver = "No se pudo calcular la ruta. Revisá datos o red.",
+                            navManeuver = "No se pudo calcular la ruta. Revisá datos móviles o Wi‑Fi.",
                             navRoute = emptyList(),
                         )
                 }
@@ -331,12 +340,14 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
     }
 
     fun stopNavigation(context: Context) {
+        navLocationTracker.stop()
         TrackForegroundService.stop(context)
         _ui.value =
             _ui.value.copy(
                 trackingOrn = null,
                 navRoute = emptyList(),
                 navDest = null,
+                navDriver = null,
                 navMeta = "",
             )
     }

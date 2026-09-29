@@ -149,6 +149,7 @@ class MainActivity : ComponentActivity() {
                             navMeta = ui.navMeta,
                             navLoading = ui.navLoading,
                             navDest = ui.navDest,
+                            navDriver = ui.navDriver,
                             onStartNavigation = { vm.beginNavigation(ctx, orn) },
                             onBack = {
                                 vm.stopNavigation(ctx)

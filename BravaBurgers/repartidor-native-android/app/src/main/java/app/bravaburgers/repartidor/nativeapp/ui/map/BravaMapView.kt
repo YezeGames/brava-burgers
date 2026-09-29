@@ -33,12 +33,15 @@ private const val ROUTE_SOURCE = "brava-route-source"
 private const val ROUTE_LAYER = "brava-route-layer"
 private const val DEST_SOURCE = "brava-dest-source"
 private const val DEST_LAYER = "brava-dest-layer"
+private const val DRIVER_SOURCE = "brava-driver-source"
+private const val DRIVER_LAYER = "brava-driver-layer"
 
 @Composable
 fun BravaMapView(
     modifier: Modifier = Modifier,
     route: List<Pair<Double, Double>>,
     destination: Pair<Double, Double>?,
+    driver: Pair<Double, Double>? = null,
     recenterKey: Int = 0,
 ) {
     val context = LocalContext.current
@@ -82,18 +85,18 @@ fun BravaMapView(
             mapRef = map
             map.setStyle(Style.Builder().fromUri(BuildConfig.MAP_STYLE)) { style ->
                 styleReady = true
-                applyRoute(style, route, destination)
-                safeFitCamera(map, route, destination)
+                applyRoute(style, route, destination, driver)
+                safeFitCamera(map, route, destination, driver)
             }
         }
     }
 
-    LaunchedEffect(route, destination, recenterKey, styleReady) {
+    LaunchedEffect(route, destination, driver, recenterKey, styleReady) {
         if (!styleReady) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
         val style = map.style ?: return@LaunchedEffect
-        applyRoute(style, route, destination)
-        safeFitCamera(map, route, destination)
+        applyRoute(style, route, destination, driver)
+        safeFitCamera(map, route, destination, driver)
     }
 
     AndroidView(modifier = modifier, factory = { mapView })
@@ -103,11 +106,12 @@ private fun applyRoute(
     style: Style,
     route: List<Pair<Double, Double>>,
     destination: Pair<Double, Double>?,
+    driver: Pair<Double, Double>?,
 ) {
-    listOf(ROUTE_LAYER, DEST_LAYER).forEach { id ->
+    listOf(ROUTE_LAYER, DEST_LAYER, DRIVER_LAYER).forEach { id ->
         if (style.getLayer(id) != null) style.removeLayer(id)
     }
-    listOf(ROUTE_SOURCE, DEST_SOURCE).forEach { id ->
+    listOf(ROUTE_SOURCE, DEST_SOURCE, DRIVER_SOURCE).forEach { id ->
         if (style.getSource(id) != null) style.removeSource(id)
     }
 
@@ -129,9 +133,22 @@ private fun applyRoute(
         style.addSource(GeoJsonSource(DEST_SOURCE, Feature.fromGeometry(point)))
         style.addLayer(
             CircleLayer(DEST_LAYER, DEST_SOURCE).withProperties(
-                PropertyFactory.circleRadius(8f),
+                PropertyFactory.circleRadius(10f),
+                PropertyFactory.circleColor("#43A047"),
+                PropertyFactory.circleStrokeWidth(3f),
+                PropertyFactory.circleStrokeColor("#FFFFFF"),
+            ),
+        )
+    }
+
+    driver?.let { (lat, lng) ->
+        val point = Point.fromLngLat(lng, lat)
+        style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
+        style.addLayer(
+            CircleLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
+                PropertyFactory.circleRadius(11f),
                 PropertyFactory.circleColor("#29B6F6"),
-                PropertyFactory.circleStrokeWidth(2f),
+                PropertyFactory.circleStrokeWidth(3f),
                 PropertyFactory.circleStrokeColor("#FFFFFF"),
             ),
         )
@@ -143,10 +160,12 @@ private fun safeFitCamera(
     map: MapLibreMap,
     route: List<Pair<Double, Double>>,
     destination: Pair<Double, Double>?,
+    driver: Pair<Double, Double>?,
 ) {
     val points = ArrayList<LatLng>()
     route.forEach { (lat, lng) -> points.add(LatLng(lat, lng)) }
     destination?.let { (lat, lng) -> points.add(LatLng(lat, lng)) }
+    driver?.let { (lat, lng) -> points.add(LatLng(lat, lng)) }
 
     when {
         points.isEmpty() -> {
