@@ -143,10 +143,15 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                     refreshRouteAndWait(token)
                         .onSuccess { list ->
                             val next = pickNextStop(list)
-                            _ui.value = _ui.value.copy(activeOrn = next?.orn)
+                            _ui.value =
+                                _ui.value.copy(
+                                    activeOrn = next?.orn,
+                                    loading = false,
+                                )
                             onDone(next)
                         }
                         .onFailure {
+                            _ui.value = _ui.value.copy(loading = false)
                             onDone(pickNextStop(_ui.value.stops))
                         }
                 }
@@ -259,7 +264,9 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
             val destLat = dest.first
             val destLng = dest.second
             patchStopCoords(orn, destLat, destLng)
-            TrackForegroundService.start(context, session.token, repo.apiKey, orn)
+            if (LocationHelper.hasLocationPermission(context)) {
+                TrackForegroundService.start(context, session.token, repo.apiKey, orn)
+            }
             _ui.value =
                 _ui.value.copy(
                     navManeuver = "Calculando ruta…",

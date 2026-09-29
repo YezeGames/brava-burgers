@@ -4,24 +4,30 @@ import android.view.ViewGroup
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
-import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
+import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
-import org.maplibre.geojson.Feature
-import org.maplibre.geojson.LineString
-import org.maplibre.geojson.Point
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
 
 private const val ROUTE_SOURCE = "brava-route-source"
 private const val ROUTE_LAYER = "brava-route-layer"
@@ -36,34 +42,58 @@ fun BravaMapView(
     recenterKey: Int = 0,
 ) {
     val context = LocalContext.current
-    val mapView = remember {
-        MapView(context).apply {
-            layoutParams =
-                ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                )
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val mapView =
+        remember {
+            MapView(context).apply {
+                layoutParams =
+                    ViewGroup.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                    )
+            }
         }
-    }
+    var mapRef by remember { mutableStateOf<MapLibreMap?>(null) }
+    var styleReady by remember { mutableStateOf(false) }
 
-    DisposableEffect(mapView) {
+    DisposableEffect(lifecycleOwner, mapView) {
         mapView.onCreate(null)
-        mapView.onStart()
-        mapView.onResume()
+        val observer =
+            LifecycleEventObserver { _, event ->
+                when (event) {
+                    Lifecycle.Event.ON_START -> mapView.onStart()
+                    Lifecycle.Event.ON_RESUME -> mapView.onResume()
+                    Lifecycle.Event.ON_PAUSE -> mapView.onPause()
+                    Lifecycle.Event.ON_STOP -> mapView.onStop()
+                    else -> {}
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
             mapView.onPause()
             mapView.onStop()
             mapView.onDestroy()
         }
     }
 
-    LaunchedEffect(route, destination, recenterKey) {
+    LaunchedEffect(mapView) {
         mapView.getMapAsync { map ->
+            mapRef = map
             map.setStyle(Style.Builder().fromUri(BuildConfig.MAP_STYLE)) { style ->
+                styleReady = true
                 applyRoute(style, route, destination)
-                fitCamera(map, route, destination)
+                safeFitCamera(map, route, destination)
             }
         }
+    }
+
+    LaunchedEffect(route, destination, recenterKey, styleReady) {
+        if (!styleReady) return@LaunchedEffect
+        val map = mapRef ?: return@LaunchedEffect
+        val style = map.style ?: return@LaunchedEffect
+        applyRoute(style, route, destination)
+        safeFitCamera(map, route, destination)
     }
 
     AndroidView(modifier = modifier, factory = { mapView })
@@ -108,26 +138,33 @@ private fun applyRoute(
     }
 }
 
-private fun fitCamera(
-    map: org.maplibre.android.maps.MapLibreMap,
+/** MapLibre crashea si newLatLngBounds tiene un solo punto o bounds degenerados. */
+private fun safeFitCamera(
+    map: MapLibreMap,
     route: List<Pair<Double, Double>>,
     destination: Pair<Double, Double>?,
 ) {
-    val boundsBuilder = LatLngBounds.Builder()
-    var count = 0
-    route.forEach { (lat, lng) ->
-        boundsBuilder.include(LatLng(lat, lng))
-        count++
+    val points = ArrayList<LatLng>()
+    route.forEach { (lat, lng) -> points.add(LatLng(lat, lng)) }
+    destination?.let { (lat, lng) -> points.add(LatLng(lat, lng)) }
+
+    when {
+        points.isEmpty() -> {
+            map.moveCamera(
+                CameraUpdateFactory.newLatLngZoom(LatLng(-34.50695, -58.49435), 13.0),
+            )
+        }
+        points.size == 1 -> {
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(points[0], 15.0))
+        }
+        else -> {
+            val builder = LatLngBounds.Builder()
+            points.forEach { builder.include(it) }
+            try {
+                map.animateCamera(CameraUpdateFactory.newLatLngBounds(builder.build(), 100))
+            } catch (_: Throwable) {
+                map.animateCamera(CameraUpdateFactory.newLatLngZoom(points.last(), 14.0))
+            }
+        }
     }
-    destination?.let { (lat, lng) ->
-        boundsBuilder.include(LatLng(lat, lng))
-        count++
-    }
-    if (count == 0) {
-        map.cameraPosition =
-            CameraPosition.Builder().target(LatLng(-34.50695, -58.49435)).zoom(13.0).build()
-        return
-    }
-    val padding = 100
-    map.animateCamera(CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), padding))
 }

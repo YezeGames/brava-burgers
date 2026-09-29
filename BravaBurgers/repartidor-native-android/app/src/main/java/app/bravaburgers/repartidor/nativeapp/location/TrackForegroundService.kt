@@ -5,13 +5,16 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.Looper
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.MainActivity
 import app.bravaburgers.repartidor.nativeapp.R
@@ -101,7 +104,18 @@ class TrackForegroundService : Service() {
         }
     }
 
+    private fun hasLocationPermission(): Boolean {
+        val fine =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        val coarse =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+                PackageManager.PERMISSION_GRANTED
+        return fine || coarse
+    }
+
     private fun startLocationUpdates() {
+        if (!hasLocationPermission()) return
         callback?.let { fused.removeLocationUpdates(it) }
         val request =
             LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 4000L)
@@ -119,7 +133,11 @@ class TrackForegroundService : Service() {
                     }
                 }
             }
-        fused.requestLocationUpdates(request, callback!!, Looper.getMainLooper())
+        try {
+            fused.requestLocationUpdates(request, callback!!, Looper.getMainLooper())
+        } catch (_: SecurityException) {
+            callback = null
+        }
     }
 
     private fun postTrack(lat: Double, lng: Double) {
