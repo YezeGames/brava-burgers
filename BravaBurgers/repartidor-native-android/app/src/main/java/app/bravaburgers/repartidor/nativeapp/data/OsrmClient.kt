@@ -78,7 +78,8 @@ class OsrmClient {
         toLng: Double,
         toLat: Double,
     ): Result<RouteResult> {
-        fetchViaProxy(fromLng, fromLat, toLng, toLat)?.let { return it }
+        val viaProxy = fetchViaProxy(fromLng, fromLat, toLng, toLat)
+        if (viaProxy?.isSuccess == true) return viaProxy
         return fetchDirectOsrm(fromLng, fromLat, toLng, toLat)
     }
 
@@ -93,6 +94,7 @@ class OsrmClient {
         if (base.isBlank()) return null
         val url =
             base.toHttpUrlOrNull()?.newBuilder()
+                ?.addQueryParameter("action", "osrmRoute")
                 ?.addQueryParameter("fromLng", fromLng.toString())
                 ?.addQueryParameter("fromLat", fromLat.toString())
                 ?.addQueryParameter("toLng", toLng.toString())

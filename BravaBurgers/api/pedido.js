@@ -179,6 +179,16 @@ module.exports = async function handler(req, res) {
   if (req.method === 'GET') {
     const q = req.query || {};
     const action = String(q.action || '').trim();
+    if (action === 'osrmRoute') {
+      const { fetchOsrmRouteJson } = require('../lib/osrmRouteProxy');
+      const out = await fetchOsrmRouteJson(q);
+      if (!out.ok) {
+        return res.status(out.status || 502).json(out);
+      }
+      res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
+      res.setHeader('Content-Type', out.contentType);
+      return res.status(200).send(out.body);
+    }
     if (action === 'listRuta') {
       return handleRepartidor(q, req, res);
     }
