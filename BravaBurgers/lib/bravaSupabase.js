@@ -1264,7 +1264,7 @@ async function assignRepartidorRuta(body) {
     return { ok: false, error: unassign.error || 'unassign_failed', detail: unassign.detail };
   }
   if (!stopsIn.length) {
-    return {
+    const emptyOut = {
       ok: true,
       assigned: 0,
       cleared: unassign.cleared,
@@ -1272,6 +1272,11 @@ async function assignRepartidorRuta(body) {
       empty_route: true,
       unassign_errors: unassign.errors,
     };
+    try {
+      const { emitRepartidorRouteEvent } = require('./repartidorSupabaseRealtime');
+      await emitRepartidorRouteEvent(tel, 'route_clear');
+    } catch (_eRt) {}
+    return emptyOut;
   }
 
   const markEnCamino = body.markEnCamino !== false;
@@ -1324,7 +1329,7 @@ async function assignRepartidorRuta(body) {
       detail: failed,
     };
   }
-  return {
+  const assignOut = {
     ok: true,
     assigned: assigned,
     failed: failed,
@@ -1334,6 +1339,11 @@ async function assignRepartidorRuta(body) {
     markEnCamino: markEnCamino,
     unassign_errors: unassign.errors,
   };
+  try {
+    const { emitRepartidorRouteEvent } = require('./repartidorSupabaseRealtime');
+    await emitRepartidorRouteEvent(tel, 'route_changed');
+  } catch (_eRt) {}
+  return assignOut;
 }
 
 async function listGastos(desde, hasta) {

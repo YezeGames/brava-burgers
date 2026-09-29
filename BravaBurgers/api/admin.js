@@ -38,6 +38,7 @@ const {
   migrateRepartidorAssignSchema,
   migrateRepartidorUsersSchema,
   migrateRepartidorPushTokensSchema,
+  migrateRepartidorRealtimeEventsSchema,
 } = require('../lib/dbMigrate');
 const { notifyRepartidorRouteAssigned } = require('../lib/repartidorRoutePush');
 const {
@@ -207,6 +208,10 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'migrateRepartidorPush') {
     return migrateRepartidorPushTokensSchema();
+  }
+
+  if (action === 'migrateRepartidorRealtime') {
+    return migrateRepartidorRealtimeEventsSchema();
   }
 
   if (action === 'listRepartidorUsers') {

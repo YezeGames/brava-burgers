@@ -3,7 +3,7 @@ package app.bravaburgers.repartidor.nativeapp.data
 import android.content.Context
 
 class RepartidorRepository(context: Context) {
-    private val api = RepartidorApi()
+    val api = RepartidorApi()
     val appContext = context.applicationContext
     val sessionStore = SessionStore(appContext)
 
@@ -50,5 +50,12 @@ class RepartidorRepository(context: Context) {
     suspend fun markEntregada(token: String, orn: String): Result<Unit> {
         val out = api.markEntregada(token, apiKey, orn)
         return if (out.ok) Result.success(Unit) else Result.failure(Exception(out.error ?: "entrega_failed"))
+    }
+
+    suspend fun savePushToken(repartidorToken: String, fcmToken: String) {
+        try {
+            api.savePushToken(repartidorToken, fcmToken, apiKey)
+        } catch (_: Exception) {
+        }
     }
 }

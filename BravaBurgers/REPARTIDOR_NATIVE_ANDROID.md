@@ -52,4 +52,4 @@ Referencia operativa: `NAVEGACION_REPARTIDOR.md`.
 ## Código nativo (inicio mar 2026)
 
 Proyecto Gradle: **`repartidor-native-android/`** · README ahí · Compose + Retrofit.  
-Alpha **2.0.0-alpha3** — MapLibre + OSRM, FGS `reportTrack`, multi-parada tras entregar, entrega COBRAR/PAGO. FCM/realtime: siguiente iteración.
+Alpha **2.0.0-alpha12** — MapLibre + OSRM, FGS GPS solo en camino, ruta vía **FCM** (sin poll Capacitor), multi-parada, COBRAR/PAGO. Siguiente: **Supabase Realtime** repartidor (event-driven como admin).

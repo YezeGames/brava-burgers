@@ -20,14 +20,37 @@ cd BravaBurgers\repartidor-native-android
 
 APK debug: `app/build/outputs/apk/debug/app-debug.apk`
 
-## Estado actual (alpha3)
+## Estado actual (alpha13)
 
 | Hecho | Pendiente |
 |-------|-----------|
-| Login · lista · pull-to-refresh · multi-parada | FCM push ruta |
-| MapLibre (CARTO/OSM) · OSRM · maniobra | Realtime Supabase |
-| FGS GPS · `reportTrack` ~16 s | Voz navegación nativa |
-| Entrega COBRAR/PAGO · Llamar · auto sig. parada | Mismo `applicationId` prod |
+| Login · lista · pull-to-refresh · multi-parada | Voz navegación nativa |
+| MapLibre · OSRM · maniobra · geocode | Mismo `applicationId` prod |
+| **Ruta:** Supabase **Realtime** (websocket) + **FCM** — **sin poll** | |
+| **GPS:** FGS solo en camino · `reportTrack` ~16 s | |
+| Entrega COBRAR/PAGO · Llamar · auto sig. parada | |
+
+### Modelo nativo (sin pagar extra)
+
+Usa el **mismo Supabase gratis** que el admin (Realtime incluido en el plan free).
+
+1. **Cocina publica ruta** → fila en `repartidor_route_events` + **FCM**.
+2. App con sesión abierta → **websocket** refresca la lista al instante (pantalla on/off, mientras Android mantenga el proceso).
+3. App matada / Doze fuerte → **FCM** despierta y avisa.
+4. **Sin timers** en la app.
+
+**Una vez en Supabase/Vercel:**
+
+- SQL: `supabase/repartidor-realtime-events.sql` (SQL Editor o migración con `SUPABASE_DB_PASSWORD`).
+- Vercel: `SUPABASE_JWT_SECRET` = JWT Secret (Supabase → Settings → API).
+
+**FGS** solo con entrega **en camino** (GPS cliente). Esperando turno: Realtime + FCM, sin notificación permanente.
+
+### FCM (obligatorio para ruta en background)
+
+1. Firebase → **brava-repartidor** → app Android **`app.bravaburgers.repartidor.nativeapp`**.
+2. Reemplazar `app/google-services.json` con el descargado.
+3. Permisos: **ubicación** + **notificaciones**; batería sin restricción recomendado en moto.
 
 ## API key
 

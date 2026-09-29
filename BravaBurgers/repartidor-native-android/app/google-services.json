@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "969540582176",
+    "project_id": "brava-repartidor",
+    "storage_bucket": "brava-repartidor.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:969540582176:android:069d5651e2e92240007545",
+        "android_client_info": {
+          "package_name": "app.bravaburgers.repartidor"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARqjmfc_IGHF-0ZZyJU1r5GkfAm0BxO3U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:969540582176:android:069d5651e2e92240007545",
+        "android_client_info": {
+          "package_name": "app.bravaburgers.repartidor.nativeapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARqjmfc_IGHF-0ZZyJU1r5GkfAm0BxO3U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

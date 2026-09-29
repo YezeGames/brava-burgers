@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -12,8 +13,8 @@ android {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "2.0.0-alpha10"
+        versionCode = 13
+        versionName = "2.0.0-alpha13"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField("String", "MAP_STYLE", "\"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json\"")
         buildConfigField("String", "OSRM_BASE", "\"https://router.project-osrm.org/route/v1/driving/\"")
@@ -49,6 +50,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-process:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.navigation:navigation-compose:2.8.4")
     implementation("androidx.compose.ui:ui")
@@ -68,8 +70,15 @@ dependencies {
     implementation("org.maplibre.gl:android-sdk:11.7.1")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
+
+    implementation(platform("io.github.jan-tennert.supabase:bom:2.6.1"))
+    implementation("io.github.jan-tennert.supabase:supabase-kt")
+    implementation("io.github.jan-tennert.supabase:gotrue-kt")
+    implementation("io.github.jan-tennert.supabase:realtime-kt")
+    implementation("io.ktor:ktor-client-android:2.3.12")
+
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
-
-// FCM: copiá google-services.json desde mobile-repartidor cuando actives push
-// plugins { id("com.google.gms.google-services") }

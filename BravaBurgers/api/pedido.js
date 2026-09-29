@@ -14,7 +14,12 @@ const { verifySeguimientoToken } = require('../lib/seguimientoToken');
 const { validateRepartidorToken } = require('../lib/repartidorAuth');
 const { repartidorLogin } = require('../lib/repartidorUsers');
 const { upsertRepartidorPushToken } = require('../lib/repartidorPushTokens');
-const { migrateRepartidorPushTokensSchema } = require('../lib/dbMigrate');
+const { migrateRepartidorPushTokensSchema, migrateRepartidorRealtimeEventsSchema } =
+  require('../lib/dbMigrate');
+const {
+  createRepartidorSupabaseRealtimeSession,
+  isRepartidorRealtimeConfigured,
+} = require('../lib/repartidorSupabaseRealtime');
 const { telNorm } = require('../lib/bravaCoupons');
 
 function parseBody(req) {
@@ -60,6 +65,9 @@ async function handleRepartidor(body, req, res) {
       return res.status(401).json({ ok: false, error: 'invalid_key' });
     }
     const out = await repartidorLogin(body.login || body.user, body.password);
+    if (out.ok && isRepartidorRealtimeConfigured()) {
+      out.realtime = createRepartidorSupabaseRealtimeSession(out.telefono);
+    }
     return res.status(out.ok ? 200 : 401).json(out);
   }
   if (!repartidorKeyOk(body, req)) {
@@ -107,6 +115,16 @@ async function handleRepartidor(body, req, res) {
       });
       const out = await repartidorReportTrack(payload);
       return res.status(out.ok ? 200 : 400).json(out);
+    }
+    if (action === 'repartidorRealtimeSession') {
+      if (!isRepartidorRealtimeConfigured()) {
+        return res.status(503).json({ ok: false, error: 'realtime_not_configured' });
+      }
+      const rt = createRepartidorSupabaseRealtimeSession(auth.tel);
+      if (!rt) {
+        return res.status(503).json({ ok: false, error: 'realtime_session_failed' });
+      }
+      return res.status(200).json({ ok: true, realtime: rt });
     }
     if (action === 'savePushToken') {
       let out = await upsertRepartidorPushToken(
@@ -212,7 +230,9 @@ module.exports = async function handler(req, res) {
     body.action === 'markEntregada' ||
     body.action === 'confirmarLlegada' ||
     body.action === 'iniciarRecorrido' ||
-    body.action === 'reportTrack'
+    body.action === 'reportTrack' ||
+    body.action === 'savePushToken' ||
+    body.action === 'repartidorRealtimeSession'
   ) {
     return handleRepartidor(body, req, res);
   }

@@ -12,7 +12,9 @@ import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
-import app.bravaburgers.repartidor.nativeapp.location.TrackForegroundService
+import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
+import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
+import app.bravaburgers.repartidor.nativeapp.session.RouteEvents
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,7 +43,10 @@ data class RepartidorUiState(
     val trackingOrn: String? = null,
 )
 
-class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() {
+class RepartidorViewModel(
+    private val repo: RepartidorRepository,
+    private val realtime: app.bravaburgers.repartidor.nativeapp.realtime.RepartidorRealtimeCoordinator? = null,
+) : ViewModel() {
     private val _ui = MutableStateFlow(RepartidorUiState())
     val ui: StateFlow<RepartidorUiState> = _ui.asStateFlow()
     private val osrm = OsrmClient()
@@ -56,7 +61,27 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
         viewModelScope.launch {
             sessionFlow.collect { s ->
                 _ui.value = _ui.value.copy(session = s)
-                if (s != null && _ui.value.stops.isEmpty()) refreshRoute(s.token, pull = false)
+                val ctx = repo.appContext
+                if (s != null) {
+                    val orn =
+                        _ui.value.stops
+                            .firstOrNull { it.estado.equals("en_camino", ignoreCase = true) }
+                            ?.orn
+                            .orEmpty()
+                            .ifEmpty { _ui.value.activeOrn.orEmpty() }
+                    RepartoSessionForegroundService.persistSession(ctx, s.token, repo.apiKey, orn)
+                    PushRegistrar.registerAfterLogin(ctx, repo, s.token)
+                    realtime?.start(s.token)
+                    if (_ui.value.stops.isEmpty()) refreshRoute(s.token, pull = false)
+                } else {
+                    realtime?.stop()
+                    RepartoSessionForegroundService.stopSession(ctx)
+                }
+            }
+        }
+        viewModelScope.launch {
+            RouteEvents.refresh.collect {
+                refreshRoute(pull = false)
             }
         }
     }
@@ -65,9 +90,13 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null)
             repo.login(login, password)
-                .onSuccess {
-                    _ui.value = _ui.value.copy(loading = false, session = it)
-                    refreshRoute(it.token, pull = false)
+                .onSuccess { session ->
+                    _ui.value = _ui.value.copy(loading = false, session = session)
+                    val ctx = repo.appContext
+                    RepartoSessionForegroundService.persistSession(ctx, session.token, repo.apiKey)
+                    PushRegistrar.registerAfterLogin(ctx, repo, session.token)
+                    realtime?.start(session.token)
+                    refreshRoute(session.token, pull = false)
                 }
                 .onFailure {
                     _ui.value = _ui.value.copy(loading = false, error = it.message ?: "Error")
@@ -77,6 +106,8 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
 
     fun logout() {
         viewModelScope.launch {
+            realtime?.stop()
+            RepartoSessionForegroundService.stopSession(repo.appContext)
             repo.logout()
             _ui.value = RepartidorUiState()
         }
@@ -152,6 +183,7 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                                     activeOrn = next?.orn,
                                     loading = false,
                                 )
+                            next?.orn?.let { RepartoSessionForegroundService.setActiveOrn(repo.appContext, it) }
                             onDone(next)
                         }
                         .onFailure {
@@ -167,6 +199,7 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
 
     fun setActiveOrn(orn: String) {
         _ui.value = _ui.value.copy(activeOrn = orn)
+        RepartoSessionForegroundService.setActiveOrn(repo.appContext, orn)
     }
 
     fun confirmarLlegada(orn: String, onDone: () -> Unit) {
@@ -203,6 +236,10 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                                     activeOrn = next?.orn,
                                     tripStarted = next != null || _ui.value.tripStarted,
                                 )
+                            RepartoSessionForegroundService.setActiveOrn(
+                                repo.appContext,
+                                next?.orn.orEmpty(),
+                            )
                             onDone(next)
                         }
                         .onFailure {
@@ -272,9 +309,7 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
             val destLat = dest.first
             val destLng = dest.second
             patchStopCoords(orn, destLat, destLng)
-            if (LocationHelper.hasLocationPermission(context)) {
-                TrackForegroundService.start(context, session.token, repo.apiKey, orn)
-            }
+            RepartoSessionForegroundService.setActiveOrn(context, orn)
             _ui.value =
                 _ui.value.copy(
                     navManeuver = "Calculando ruta…",
@@ -343,7 +378,12 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
 
     fun stopNavigation(context: Context) {
         navLocationTracker.stop()
-        TrackForegroundService.stop(context)
+        val keepOrn =
+            _ui.value.stops
+                .firstOrNull { it.estado.equals("en_camino", ignoreCase = true) }
+                ?.orn
+                .orEmpty()
+        RepartoSessionForegroundService.setActiveOrn(context, keepOrn)
         _ui.value =
             _ui.value.copy(
                 trackingOrn = null,
@@ -355,11 +395,14 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
     }
 }
 
-class RepartidorViewModelFactory(private val repo: RepartidorRepository) : ViewModelProvider.Factory {
+class RepartidorViewModelFactory(
+    private val repo: RepartidorRepository,
+    private val realtime: app.bravaburgers.repartidor.nativeapp.realtime.RepartidorRealtimeCoordinator? = null,
+) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(RepartidorViewModel::class.java)) {
-            return RepartidorViewModel(repo) as T
+            return RepartidorViewModel(repo, realtime) as T
         }
         throw IllegalArgumentException("unknown ViewModel")
     }

@@ -19,6 +19,23 @@ data class LoginResponse(
     val login: String? = null,
     val nombre: String? = null,
     val telefono: String? = null,
+    val realtime: RealtimeConfigDto? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class RealtimeConfigDto(
+    val url: String? = null,
+    @Json(name = "anonKey") val anonKey: String? = null,
+    @Json(name = "access_token") val accessToken: String? = null,
+    @Json(name = "expires_in") val expiresIn: Int? = null,
+    @Json(name = "repartidor_tel") val repartidorTel: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class RealtimeSessionResponse(
+    val ok: Boolean = false,
+    val error: String? = null,
+    val realtime: RealtimeConfigDto? = null,
 )
 
 @JsonClass(generateAdapter = true)

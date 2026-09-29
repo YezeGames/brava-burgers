@@ -49,6 +49,7 @@ class RepartidorApi {
     private val loginAdapter = moshi.adapter(LoginResponse::class.java)
     private val listAdapter = moshi.adapter(ListRutaResponse::class.java)
     private val simpleAdapter = moshi.adapter(SimpleActionResponse::class.java)
+    private val realtimeAdapter = moshi.adapter(RealtimeSessionResponse::class.java)
 
     suspend fun login(login: String, password: String, apiKey: String?): LoginResponse {
         val body = mutableMapOf<String, Any?>(
@@ -80,6 +81,11 @@ class RepartidorApi {
         val body = authBody(token, apiKey, "markEntregada")
         body["orn"] = orn
         return parse(service.post(body), simpleAdapter)
+    }
+
+    suspend fun repartidorRealtimeSession(token: String, apiKey: String?): RealtimeSessionResponse {
+        val body = authBody(token, apiKey, "repartidorRealtimeSession")
+        return parse(service.post(body), realtimeAdapter)
     }
 
     suspend fun savePushToken(token: String, fcmToken: String, apiKey: String?): SimpleActionResponse {

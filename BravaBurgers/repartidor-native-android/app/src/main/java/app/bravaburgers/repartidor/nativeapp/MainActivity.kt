@@ -27,6 +27,7 @@ import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaTheme
 import app.bravaburgers.repartidor.nativeapp.viewmodel.RepartidorViewModel
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.viewmodel.RepartidorViewModelFactory
+import app.bravaburgers.repartidor.nativeapp.util.BatteryOptHelper
 import androidx.navigation.NavHostController
 
 private fun goToNavForStop(nav: NavHostController, orn: String) {
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             BravaTheme {
                 val vm: RepartidorViewModel =
-                    viewModel(factory = RepartidorViewModelFactory(app.repository))
+                    viewModel(factory = RepartidorViewModelFactory(app.repository, app.realtime))
                 val ui by vm.ui.collectAsState()
                 val nav = rememberNavController()
                 val ctx = LocalContext.current
@@ -98,6 +99,9 @@ class MainActivity : ComponentActivity() {
                         nav.navigate("route") {
                             popUpTo("login") { inclusive = true }
                             launchSingleTop = true
+                        }
+                        if (BatteryOptHelper.shouldPrompt(ctx)) {
+                            BatteryOptHelper.openSettings(ctx)
                         }
                     }
                 }
