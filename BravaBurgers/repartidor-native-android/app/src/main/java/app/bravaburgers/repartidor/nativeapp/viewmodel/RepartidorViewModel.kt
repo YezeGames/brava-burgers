@@ -66,6 +66,7 @@ class RepartidorViewModel(
     private var bootstrappedToken: String? = null
     /** Evita listRuta extra mientras el usuario espera respuesta de una acción. */
     private var suppressBackgroundRefresh = 0
+    private var lastForegroundRefreshMs = 0L
 
     val sessionFlow =
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -106,8 +107,15 @@ class RepartidorViewModel(
         viewModelScope.launch {
             RouteEvents.refresh
                 .debounce(350)
-                .collect {
+                .collect { reason ->
                     if (suppressBackgroundRefresh > 0) return@collect
+                    if (reason == "foreground") {
+                        val now = System.currentTimeMillis()
+                        if (now - lastForegroundRefreshMs < 45_000L && _ui.value.stops.isNotEmpty()) {
+                            return@collect
+                        }
+                        lastForegroundRefreshMs = now
+                    }
                     refreshRoute(pull = false)
                 }
         }

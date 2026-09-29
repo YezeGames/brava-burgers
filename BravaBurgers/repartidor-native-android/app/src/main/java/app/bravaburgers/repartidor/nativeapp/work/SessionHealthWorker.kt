@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import app.bravaburgers.repartidor.nativeapp.BravaRepartidorApp
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
+import app.bravaburgers.repartidor.nativeapp.session.AppForeground
 import app.bravaburgers.repartidor.nativeapp.session.RouteGpsSync
 import app.bravaburgers.repartidor.nativeapp.session.SessionServicePrefs
 
@@ -15,6 +16,7 @@ class SessionHealthWorker(
     override suspend fun doWork(): Result {
         val snap = SessionServicePrefs.read(applicationContext)
         if (!snap.sessionOn || snap.token.isEmpty()) return Result.success()
+        if (AppForeground.isInForeground) return Result.success()
         val repo = (applicationContext as? BravaRepartidorApp)?.repository ?: return Result.retry()
         val list =
             repo.fetchRoute(snap.token).getOrNull()

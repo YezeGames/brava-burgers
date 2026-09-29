@@ -3,7 +3,9 @@
 App **sin WebView** · API: `https://www.bravaburgers.com.ar/api/pedido`  
 UI según `demo-repartidor-native-ui.html` y `REPARTIDOR_NATIVE_ANDROID.md`.
 
-**Application ID:** `app.bravaburgers.repartidor.nativeapp` (instala junto a la APK Capacitor mientras desarrollamos).
+**Application ID:** `app.bravaburgers.repartidor.nativeapp` (distinto de Capacitor: `app.bravaburgers.repartidor`).
+
+**Prueba de rendimiento:** desinstalá o cerrá sesión en la **APK Capacitor** vieja. Con sesión activa, esa app hace `listRuta` en background (~cada 28 s) y compite por el mismo repartidor en el servidor (no comparten datos en el teléfono, pero sí cargan la API).
 
 ## Abrir en Android Studio
 
