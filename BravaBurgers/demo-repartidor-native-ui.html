@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="robots" content="noindex,nofollow">
+	<title>Demo — UI APK Repartidor nativa · Brava</title>
+	<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			--brava: #ff6b35;
+			--bg: #0e0e0e;
+			--surface: #1a2026;
+			--line: #2a343c;
+			--text: #e8eef2;
+			--muted: #8fa3b0;
+			--ok: #43a047;
+			--ef: #ffb300;
+			--mp: #29b6f6;
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font-family: 'DM Sans', system-ui, sans-serif;
+			background: var(--bg);
+			color: var(--text);
+			line-height: 1.45;
+		}
+		.banner {
+			padding: 12px 16px;
+			border-bottom: 1px solid var(--line);
+			background: linear-gradient(135deg, #2a1810, #121212);
+			font-size: 0.82rem;
+			color: var(--muted);
+		}
+		.banner strong { color: var(--brava); }
+		.wrap {
+			max-width: 1180px;
+			margin: 0 auto;
+			padding: 16px;
+			display: grid;
+			gap: 20px;
+		}
+		@media (min-width: 920px) {
+			.wrap { grid-template-columns: 340px 1fr; align-items: start; }
+		}
+		h1 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 2.1rem;
+			color: var(--brava);
+			margin: 0 0 6px;
+			letter-spacing: 0.04em;
+		}
+		.lead { font-size: 0.85rem; color: var(--muted); margin: 0 0 16px; }
+		.section-label {
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			color: var(--muted);
+			margin: 18px 0 8px;
+		}
+		.opt-list { display: flex; flex-direction: column; gap: 8px; }
+		.opt {
+			text-align: left;
+			border: 1px solid var(--line);
+			background: var(--surface);
+			border-radius: 12px;
+			padding: 12px 14px;
+			cursor: pointer;
+			font: inherit;
+			color: var(--text);
+			transition: border-color 0.15s, box-shadow 0.15s;
+		}
+		.opt:hover { border-color: #444; }
+		.opt.is-on {
+			border-color: var(--brava);
+			box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.3);
+		}
+		.opt .tag {
+			display: inline-block;
+			font-size: 0.62rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: var(--brava);
+			margin-bottom: 4px;
+		}
+		.opt .tag.rec { color: var(--ok); }
+		.opt strong { display: block; font-size: 0.92rem; margin-bottom: 4px; }
+		.opt span { font-size: 0.78rem; color: var(--muted); }
+		.screen-pills {
+			display: flex;
+			flex-wrap: wrap;
+			gap: 6px;
+			margin-top: 4px;
+		}
+		.pill {
+			border: 1px solid var(--line);
+			background: #12181c;
+			color: var(--muted);
+			font: inherit;
+			font-size: 0.72rem;
+			font-weight: 600;
+			padding: 6px 10px;
+			border-radius: 999px;
+			cursor: pointer;
+		}
+		.pill.is-on {
+			border-color: var(--brava);
+			color: #fff;
+			background: rgba(255, 107, 53, 0.15);
+		}
+		.note-box {
+			margin-top: 14px;
+			padding: 12px;
+			border-radius: 10px;
+			background: rgba(41, 182, 246, 0.08);
+			border: 1px solid rgba(41, 182, 246, 0.25);
+			font-size: 0.78rem;
+			color: #b0d4e8;
+		}
+		.note-box ul { margin: 8px 0 0; padding-left: 18px; }
+		.phone-col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+		.phone-label { font-size: 0.75rem; color: var(--muted); text-align: center; max-width: 400px; }
+		.phone {
+			width: 100%;
+			max-width: 390px;
+			height: min(780px, 85vh);
+			border-radius: 32px;
+			border: 3px solid #333;
+			overflow: hidden;
+			box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+			display: flex;
+			flex-direction: column;
+			background: #0b141a;
+		}
+		.notch {
+			flex-shrink: 0;
+			height: 26px;
+			background: #152028;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-size: 0.58rem;
+			font-weight: 700;
+			letter-spacing: 0.1em;
+			text-transform: uppercase;
+			color: #6a7a85;
+		}
+		.app-root {
+			flex: 1;
+			min-height: 0;
+			position: relative;
+			overflow: hidden;
+		}
+		.theme { display: none; height: 100%; flex-direction: column; }
+		.theme.is-on { display: flex; }
+		/* shared mock map */
+		.mock-map {
+			flex: 1;
+			min-height: 0;
+			background:
+				radial-gradient(circle at 30% 40%, rgba(67, 160, 71, 0.15), transparent 45%),
+				radial-gradient(circle at 70% 60%, rgba(41, 182, 246, 0.12), transparent 40%),
+				linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+				linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+				#1a2830;
+			background-size: auto, auto, 28px 28px, 28px 28px;
+			position: relative;
+		}
+		.mock-map .route {
+			position: absolute;
+			inset: 18% 12% 28% 8%;
+			border: 3px solid var(--brava);
+			border-radius: 40% 60% 55% 45%;
+			opacity: 0.85;
+			filter: drop-shadow(0 0 8px rgba(255, 107, 53, 0.4));
+		}
+		.mock-map .pin-user {
+			position: absolute;
+			left: 22%;
+			top: 52%;
+			width: 14px;
+			height: 14px;
+			background: #29b6f6;
+			border: 3px solid #fff;
+			border-radius: 50%;
+			box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+		}
+		.mock-map .pin-dest {
+			position: absolute;
+			right: 18%;
+			top: 28%;
+			font-size: 1.4rem;
+			filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+		}
+		.mock-map .chip-gps {
+			position: absolute;
+			top: 10px;
+			left: 10px;
+			font-size: 0.62rem;
+			font-weight: 700;
+			padding: 5px 8px;
+			border-radius: 999px;
+			background: rgba(11, 20, 26, 0.85);
+			border: 1px solid rgba(67, 160, 71, 0.5);
+			color: #a5d6a7;
+		}
+		.btn {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 6px;
+			border: none;
+			font: inherit;
+			font-weight: 700;
+			cursor: default;
+			border-radius: 12px;
+			padding: 14px 16px;
+		}
+		.btn-primary { background: var(--brava); color: #fff; }
+		.btn-ghost {
+			background: rgba(255, 255, 255, 0.08);
+			color: var(--text);
+			border: 1px solid rgba(255, 255, 255, 0.12);
+		}
+		.btn-row { display: flex; gap: 8px; }
+		.btn-row .btn { flex: 1; }
+		/* A — Map-first */
+		.theme-a .sheet {
+			flex-shrink: 0;
+			background: linear-gradient(180deg, transparent, rgba(11, 20, 26, 0.3) 8%, #0b141a 24%);
+			padding: 0 14px 18px;
+			margin-top: -40px;
+			position: relative;
+			z-index: 2;
+		}
+		.theme-a .sheet-card {
+			background: #152028;
+			border: 1px solid #243038;
+			border-radius: 18px;
+			padding: 14px;
+			box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.35);
+		}
+		.theme-a .next-label {
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.06em;
+			color: var(--brava);
+		}
+		.theme-a .next-title { font-size: 1.05rem; font-weight: 800; margin: 4px 0; }
+		.theme-a .next-meta { font-size: 0.78rem; color: var(--muted); margin-bottom: 12px; }
+		.theme-a .maneuver {
+			font-size: 0.8rem;
+			padding: 8px 10px;
+			border-radius: 10px;
+			background: rgba(255, 107, 53, 0.12);
+			border-left: 3px solid var(--brava);
+			margin-bottom: 12px;
+		}
+		.theme-a .fab-col {
+			position: absolute;
+			right: 12px;
+			top: 50%;
+			transform: translateY(-50%);
+			display: flex;
+			flex-direction: column;
+			gap: 8px;
+			z-index: 3;
+		}
+		.theme-a .fab {
+			width: 44px;
+			height: 44px;
+			border-radius: 12px;
+			background: rgba(21, 32, 40, 0.92);
+			border: 1px solid #243038;
+			display: grid;
+			place-items: center;
+			font-size: 1rem;
+		}
+		/* B — List + tabs */
+		.theme-b .top {
+			flex-shrink: 0;
+			padding: 12px 14px;
+			background: #152028;
+			border-bottom: 1px solid #243038;
+		}
+		.theme-b .top h2 {
+			margin: 0;
+			font-size: 1rem;
+			font-weight: 800;
+		}
+		.theme-b .top p { margin: 4px 0 0; font-size: 0.75rem; color: var(--muted); }
+		.theme-b .list {
+			flex: 1;
+			overflow: auto;
+			padding: 10px 12px 80px;
+		}
+		.theme-b .stop {
+			display: flex;
+			gap: 10px;
+			padding: 12px;
+			border-radius: 14px;
+			background: #152028;
+			border: 1px solid #243038;
+			margin-bottom: 8px;
+		}
+		.theme-b .stop.is-active { border-color: var(--brava); box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.25); }
+		.theme-b .stop.done { opacity: 0.45; }
+		.theme-b .num {
+			width: 32px;
+			height: 32px;
+			border-radius: 10px;
+			background: rgba(255, 107, 53, 0.2);
+			color: var(--brava);
+			font-weight: 800;
+			display: grid;
+			place-items: center;
+			flex-shrink: 0;
+		}
+		.theme-b .stop.done .num { background: rgba(67, 160, 71, 0.2); color: var(--ok); }
+		.theme-b .stop-body { flex: 1; min-width: 0; }
+		.theme-b .stop-body strong { display: block; font-size: 0.88rem; }
+		.theme-b .stop-body span { font-size: 0.72rem; color: var(--muted); }
+		.theme-b .pay {
+			font-size: 0.62rem;
+			font-weight: 700;
+			padding: 3px 7px;
+			border-radius: 6px;
+			align-self: flex-start;
+		}
+		.theme-b .pay.ef { background: rgba(255, 179, 0, 0.2); color: var(--ef); }
+		.theme-b .pay.mp { background: rgba(41, 182, 246, 0.2); color: var(--mp); }
+		.theme-b .tabbar {
+			position: absolute;
+			bottom: 0;
+			left: 0;
+			right: 0;
+			display: flex;
+			background: #152028;
+			border-top: 1px solid #243038;
+			padding: 8px 6px 14px;
+		}
+		.theme-b .tab {
+			flex: 1;
+			text-align: center;
+			font-size: 0.65rem;
+			font-weight: 600;
+			color: var(--muted);
+			padding: 6px 4px;
+		}
+		.theme-b .tab.is-on { color: var(--brava); }
+		.theme-b .tab em { display: block; font-style: normal; font-size: 1.1rem; margin-bottom: 2px; }
+		.theme-b .cta-float {
+			position: absolute;
+			bottom: 72px;
+			left: 12px;
+			right: 12px;
+		}
+		/* Lista estilo app actual (sin tab bar) */
+		.list-screen {
+			height: 100%;
+			display: flex;
+			flex-direction: column;
+			background: #0b141a;
+		}
+		.list-topbar {
+			flex-shrink: 0;
+			display: flex;
+			align-items: center;
+			gap: 10px;
+			padding: 12px 14px;
+			background: #152028;
+			border-bottom: 1px solid #243038;
+		}
+		.list-brand {
+			width: 36px;
+			height: 36px;
+			border-radius: 10px;
+			background: linear-gradient(135deg, var(--brava), #e65100);
+			display: grid;
+			place-items: center;
+			font-weight: 800;
+			font-size: 0.85rem;
+			color: #fff;
+		}
+		.list-topbar h2 { margin: 0; font-size: 0.95rem; font-weight: 800; }
+		.list-topbar p { margin: 2px 0 0; font-size: 0.72rem; color: var(--muted); }
+		.sync-row {
+			flex-shrink: 0;
+			display: flex;
+			align-items: center;
+			gap: 8px;
+			padding: 8px 14px;
+			border-bottom: 1px solid #243038;
+			font-size: 0.72rem;
+			font-weight: 600;
+			color: #a5d6a7;
+		}
+		.sync-row .conn-dot {
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: var(--ok);
+			box-shadow: 0 0 0 2px rgba(67, 160, 71, 0.35);
+			flex-shrink: 0;
+		}
+		.route-list-scroll {
+			flex: 1;
+			overflow: auto;
+			padding: 10px 12px 12px;
+		}
+		.order-card {
+			background: #152028;
+			border: 1px solid #243038;
+			border-radius: 14px;
+			padding: 12px;
+			margin-bottom: 8px;
+			opacity: 0.72;
+		}
+		.order-card.is-next {
+			opacity: 1;
+			border-color: rgba(255, 107, 53, 0.45);
+			box-shadow: 0 0 0 1px rgba(255, 107, 53, 0.2);
+		}
+		.order-head {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 6px;
+			margin-bottom: 6px;
+		}
+		.stop-num {
+			font-weight: 800;
+			font-size: 0.85rem;
+			color: var(--brava);
+			min-width: 22px;
+		}
+		.badge-next {
+			font-size: 0.62rem;
+			font-weight: 700;
+			padding: 3px 8px;
+			border-radius: 6px;
+			background: rgba(255, 107, 53, 0.2);
+			color: var(--brava);
+		}
+		.order-addr { font-size: 0.8rem; font-weight: 600; margin-bottom: 4px; }
+		.order-meta { font-size: 0.72rem; color: var(--muted); }
+		.list-dock {
+			flex-shrink: 0;
+			padding: 10px 14px 16px;
+			border-top: 1px solid #243038;
+			background: #0b141a;
+		}
+		.btn-recorrido {
+			width: 100%;
+			padding: 16px;
+			font-size: 0.95rem;
+			font-weight: 800;
+			border: none;
+			border-radius: 14px;
+			background: var(--brava);
+			color: #fff;
+		}
+		.btn-recorrido:disabled {
+			opacity: 0.45;
+			cursor: not-allowed;
+		}
+		/* C — Brava bold */
+		.theme-c {
+			background: #0b141a;
+		}
+		.theme-c .hero {
+			flex-shrink: 0;
+			padding: 14px 14px 10px;
+			background: linear-gradient(135deg, #ff6b35, #e65100);
+			color: #fff;
+		}
+		.theme-c .hero h2 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 2rem;
+			margin: 0;
+			letter-spacing: 0.04em;
+			line-height: 1;
+		}
+		.theme-c .hero p { margin: 6px 0 0; font-size: 0.78rem; opacity: 0.92; }
+		.theme-c .stats {
+			display: flex;
+			gap: 8px;
+			padding: 10px 14px;
+			background: #121a20;
+		}
+		.theme-c .stat {
+			flex: 1;
+			text-align: center;
+			padding: 8px;
+			border-radius: 12px;
+			background: #152028;
+			border: 1px solid #243038;
+		}
+		.theme-c .stat b { display: block; font-size: 1.1rem; color: var(--brava); }
+		.theme-c .stat span { font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+		.theme-c .content { flex: 1; overflow: auto; padding: 12px 14px 16px; }
+		.theme-c .big-card {
+			border-radius: 16px;
+			padding: 16px;
+			background: #152028;
+			border: 2px solid #243038;
+			margin-bottom: 10px;
+		}
+		.theme-c .big-card h3 {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 1.6rem;
+			margin: 0 0 6px;
+			letter-spacing: 0.03em;
+		}
+		.theme-c .big-card p { margin: 0; font-size: 0.82rem; color: var(--muted); }
+		.theme-c .big-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+		.theme-c .big-actions .btn { padding: 16px; font-size: 0.95rem; border-radius: 14px; }
+		/* D — Focus single task */
+		.theme-d {
+			background: #0a1014;
+			align-items: stretch;
+			justify-content: center;
+			padding: 16px 14px 20px;
+		}
+		.theme-d .progress {
+			display: flex;
+			gap: 6px;
+			margin-bottom: 16px;
+		}
+		.theme-d .dot {
+			flex: 1;
+			height: 4px;
+			border-radius: 999px;
+			background: #243038;
+		}
+		.theme-d .dot.done { background: var(--ok); }
+		.theme-d .dot.now { background: var(--brava); }
+		.theme-d .focus-label {
+			font-size: 0.7rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			color: var(--muted);
+		}
+		.theme-d .focus-parada {
+			font-family: 'Bebas Neue', sans-serif;
+			font-size: 3rem;
+			line-height: 1;
+			color: var(--brava);
+			margin: 4px 0 8px;
+		}
+		.theme-d .focus-name { font-size: 1.25rem; font-weight: 800; margin-bottom: 4px; }
+		.theme-d .focus-addr { font-size: 0.85rem; color: var(--muted); margin-bottom: 16px; }
+		.theme-d .focus-map {
+			height: 140px;
+			border-radius: 16px;
+			margin-bottom: 16px;
+			overflow: hidden;
+			border: 1px solid #243038;
+		}
+		.theme-d .focus-map .mock-map { height: 100%; }
+		.theme-d .stack { display: flex; flex-direction: column; gap: 10px; margin-top: auto; }
+		.theme-d .stack .btn { padding: 18px; font-size: 1rem; border-radius: 16px; }
+		/* Handoff shared */
+		.handoff {
+			flex: 1;
+			display: flex;
+			flex-direction: column;
+			padding: 14px;
+			background: #0b141a;
+		}
+		.handoff h2 { margin: 0 0 4px; font-size: 1.1rem; }
+		.handoff .sub { font-size: 0.78rem; color: var(--muted); margin-bottom: 14px; }
+		.handoff-card {
+			background: #152028;
+			border: 1px solid #243038;
+			border-radius: 16px;
+			padding: 14px;
+			margin-bottom: 12px;
+		}
+		.handoff-card .client { font-size: 1.05rem; font-weight: 800; }
+		.handoff-card .addr { font-size: 0.8rem; color: var(--muted); margin-top: 6px; }
+		.items {
+			font-size: 0.78rem;
+			color: var(--muted);
+			line-height: 1.5;
+			margin: 10px 0 0;
+			padding-top: 10px;
+			border-top: 1px dashed #243038;
+		}
+		/* Entrega A+ (detalle pedido) */
+		.handoff-scroll {
+			flex: 1;
+			min-height: 0;
+			overflow: auto;
+			padding: 14px 14px 8px;
+		}
+		.handoff-dock {
+			flex-shrink: 0;
+			padding: 10px 14px 16px;
+			border-top: 1px solid #243038;
+			background: #0b141a;
+		}
+		.handoff-head .client { font-size: 1.12rem; font-weight: 800; margin: 0 0 8px; }
+		.handoff-piso {
+			font-size: 0.78rem;
+			color: var(--muted);
+			margin: 4px 0 12px;
+		}
+		.pay-block {
+			background: rgba(0, 0, 0, 0.2);
+			border-radius: 12px;
+			padding: 10px 12px;
+			margin-bottom: 12px;
+		}
+		.pay-row {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 8px;
+		}
+		.pay-badge {
+			font-size: 0.68rem;
+			font-weight: 800;
+			text-transform: uppercase;
+			letter-spacing: 0.04em;
+			padding: 5px 10px;
+			border-radius: 8px;
+		}
+		.pay-badge.ef { background: rgba(255, 179, 0, 0.18); color: var(--ef); }
+		.pay-badge.mp { background: rgba(41, 182, 246, 0.18); color: var(--mp); }
+		.pay-badge.pago {
+			background: rgba(67, 160, 71, 0.22);
+			color: #a5d6a7;
+			border: 1px solid rgba(67, 160, 71, 0.45);
+		}
+		.pay-badge.cobrar {
+			background: rgba(255, 179, 0, 0.22);
+			color: #ffe082;
+			border: 1px solid rgba(255, 179, 0, 0.5);
+		}
+		.pay-total {
+			margin-left: auto;
+			font-size: 1.05rem;
+			font-weight: 800;
+		}
+		.pay-hint {
+			font-size: 0.72rem;
+			color: var(--muted);
+			margin-top: 8px;
+			line-height: 1.35;
+		}
+		.order-section h4 {
+			margin: 0 0 8px;
+			font-size: 0.65rem;
+			font-weight: 700;
+			text-transform: uppercase;
+			letter-spacing: 0.08em;
+			color: var(--muted);
+		}
+		.handoff-items {
+			list-style: none;
+			margin: 0;
+			padding: 0;
+		}
+		.handoff-items li {
+			display: flex;
+			gap: 10px;
+			padding: 10px 0;
+			border-bottom: 1px solid #243038;
+			font-size: 0.84rem;
+		}
+		.handoff-items li:last-child { border-bottom: none; }
+		.handoff-items .qty {
+			font-weight: 800;
+			color: var(--brava);
+			min-width: 28px;
+		}
+		.handoff-items .name { flex: 1; font-weight: 600; }
+		.handoff-items .note {
+			display: block;
+			font-size: 0.72rem;
+			font-weight: 500;
+			color: var(--muted);
+			margin-top: 2px;
+		}
+		.handoff-orn {
+			font-size: 0.68rem;
+			color: var(--muted);
+			margin-top: 10px;
+		}
+		.btn-call {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			gap: 8px;
+		}
+		.btn-block { width: 100%; }
+		.btn-row-handoff {
+			display: grid;
+			grid-template-columns: 1fr 1.35fr;
+			gap: 8px;
+		}
+		.chosen-box {
+			border: 1px solid rgba(255, 107, 53, 0.35);
+			background: rgba(255, 107, 53, 0.06);
+			border-radius: 12px;
+			padding: 12px 14px;
+			font-size: 0.8rem;
+			margin-bottom: 14px;
+		}
+		.chosen-box ul { margin: 8px 0 0; padding-left: 18px; color: var(--muted); }
+		.chosen-box strong { color: var(--text); }
+		details.archive { margin-top: 12px; font-size: 0.78rem; color: var(--muted); }
+		details.archive summary { cursor: pointer; color: var(--brava); font-weight: 600; }
+		.hidden { display: none !important; }
+	</style>
+</head>
+<body>
+	<div class="banner">
+		<strong>Demo interno</strong> — UI **elegida** para APK repartidor nativa (MapLibre + OSM). Navegación <strong>A</strong> · Ruta <strong>B</strong> · Entrega <strong>A</strong> con detalle de pedido y pago.
+	</div>
+	<div class="wrap">
+		<aside>
+			<h1>Repartidor nativo</h1>
+			<p class="lead">Mock del flujo acordado. Mapas decorativos (sin tiles OSM en este HTML).</p>
+
+			<div class="chosen-box">
+				<strong>Diseño Brava (fijado)</strong>
+				<ul>
+					<li><strong>Navegación</strong> — A map-first · solo botón <em>Llegué</em> (sin llamar en mapa).</li>
+					<li><strong>Ruta / lista</strong> — paradas en orden (sin elegir cuál) · chips EF/MP · <em>Iniciar recorrido</em> abajo (como la app hoy).</li>
+					<li><strong>Entrega</strong> — A · <em>Llamar</em> + <em>Entregado</em> · ítems · <em>COBRAR</em> (EF) o <em>PAGO</em> (MP).</li>
+				</ul>
+			</div>
+
+			<div class="section-label">Pantalla en el mockup</div>
+			<div class="screen-pills" id="screen-opts">
+				<button type="button" class="pill is-on" data-screen="nav">Navegación</button>
+				<button type="button" class="pill" data-screen="list">Ruta / lista</button>
+				<button type="button" class="pill" data-screen="handoff">Entrega</button>
+			</div>
+
+			<div class="section-label hidden" id="pay-demo-label">Mock entrega · método de pago</div>
+			<div class="screen-pills hidden" id="pay-opts">
+				<button type="button" class="pill is-on" data-pay="ef">Efectivo</button>
+				<button type="button" class="pill" data-pay="mp">Mercado Pago · PAGO</button>
+			</div>
+
+			<div class="note-box">
+				<strong>APK nativa</strong>
+				<ul>
+					<li>MapLibre + CARTO/OSM · datos desde API.</li>
+					<li>Lista: estado <strong>Conectado</strong> · push/realtime; pull-to-refresh de respaldo (estilo PedidosYa).</li>
+					<li><strong>COBRAR</strong> / <strong>PAGO</strong> en entrega.</li>
+				</ul>
+			</div>
+
+			<details class="archive">
+				<summary>Otras opciones archivadas (C, D…)</summary>
+				<p style="margin:8px 0 0;">Quedaron descartadas; el mock del teléfono usa solo A+B+A.</p>
+			</details>
+		</aside>
+
+		<div class="phone-col">
+			<p class="phone-label" id="phone-caption">Navegación · A</p>
+			<div class="phone">
+				<div class="notch">Brava Repartidor · mock</div>
+				<div class="app-root" id="app-root">
+					<!-- Diseño elegido: Nav A + Lista B + Entrega A -->
+					<div class="theme theme-a is-on" data-theme-panel="final">
+						<div class="panel-nav">
+							<div class="mock-map" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+								<span class="chip-gps">● GPS en vivo</span>
+								<div class="route"></div>
+								<div class="pin-user"></div>
+								<div class="pin-dest">📍</div>
+								<div class="fab-col">
+									<div class="fab">🔊</div>
+									<div class="fab">⌖</div>
+								</div>
+							</div>
+							<div class="sheet">
+								<div class="sheet-card">
+									<div class="next-label">Siguiente · Parada 2</div>
+									<div class="next-title">María G. · Vicente López</div>
+									<div class="next-meta">Av. Maipú 1234 · Piso 3 B · ~8 min</div>
+									<div class="maneuver">↱ En 240 m girá a la derecha por Av. Libertador</div>
+									<button type="button" class="btn btn-primary btn-block">Llegué</button>
+								</div>
+							</div>
+						</div>
+						<div class="panel-list hidden list-screen">
+							<header class="list-topbar">
+								<div class="list-brand">B</div>
+								<div>
+									<h2>Tomás</h2>
+									<p id="list-summary">3 paradas · orden fijado por cocina</p>
+								</div>
+							</header>
+							<div class="sync-row">
+								<span class="conn-dot" aria-hidden="true"></span>
+								<span>Conectado</span>
+							</div>
+							<div class="route-list-scroll">
+								<div class="order-card is-next">
+									<div class="order-head">
+										<span class="stop-num">1</span>
+										<span class="pay mp" style="font-size:0.62rem;font-weight:700;padding:3px 7px;border-radius:6px;background:rgba(41,182,246,0.2);color:var(--mp);">MP</span>
+										<span class="badge-next">Siguiente</span>
+									</div>
+									<div class="order-addr">Av. del Libertador 3200</div>
+									<div class="order-meta">Lucas R. · MP pagado</div>
+								</div>
+								<div class="order-card">
+									<div class="order-head">
+										<span class="stop-num">2</span>
+										<span class="pay ef" style="font-size:0.62rem;font-weight:700;padding:3px 7px;border-radius:6px;background:rgba(255,179,0,0.2);color:var(--ef);">EF</span>
+									</div>
+									<div class="order-addr">Av. Maipú 1234 · Piso 3 B</div>
+									<div class="order-meta">María G. · Cobrar $ 18.500</div>
+								</div>
+								<div class="order-card">
+									<div class="order-head">
+										<span class="stop-num">3</span>
+										<span class="pay mp" style="font-size:0.62rem;font-weight:700;padding:3px 7px;border-radius:6px;background:rgba(41,182,246,0.2);color:var(--mp);">MP</span>
+									</div>
+									<div class="order-addr">Av. Libertador 4500</div>
+									<div class="order-meta">Juan P. · MP pagado</div>
+								</div>
+							</div>
+							<div class="list-dock">
+								<button type="button" class="btn-recorrido">Iniciar recorrido</button>
+							</div>
+						</div>
+						<div class="panel-handoff hidden handoff" style="padding:0;">
+							<div class="handoff-scroll">
+								<h2 style="margin:0 0 4px;font-size:1.1rem;">Parada 2</h2>
+								<p class="sub" style="margin:0 0 12px;">Cliente avisado por WhatsApp</p>
+								<div class="handoff-card" style="margin-bottom:0;">
+									<div class="handoff-head">
+										<div class="client">María G.</div>
+									</div>
+									<div class="addr">Av. Maipú 1234, Vicente López</div>
+									<div class="handoff-piso">Piso / depto: 3 B</div>
+									<div class="pay-block" id="pay-block">
+										<div class="pay-row">
+											<span class="pay-badge ef" id="pay-method">Efectivo</span>
+											<span class="pay-badge cobrar" id="pay-stamp">COBRAR</span>
+											<span class="pay-total" id="pay-total">$ 18.500</span>
+										</div>
+										<p class="pay-hint" id="pay-hint">Cobrá en mano al entregar.</p>
+									</div>
+									<div class="order-section">
+										<h4>Pedido</h4>
+										<ul class="handoff-items">
+											<li><span class="qty">2×</span><span class="name">Brava clásica<span class="note">Sin cebolla · extra cheddar</span></span></li>
+											<li><span class="qty">1×</span><span class="name">Papas Brava<span class="note">Mediana</span></span></li>
+											<li><span class="qty">1×</span><span class="name">Coca-Cola 500 ml</span></li>
+										</ul>
+									</div>
+									<div class="handoff-orn">ORN-20260328-8842</div>
+								</div>
+							</div>
+							<div class="handoff-dock">
+								<div class="btn-row-handoff">
+									<button type="button" class="btn btn-ghost btn-call">📞 Llamar</button>
+									<button type="button" class="btn btn-primary">Entregado</button>
+								</div>
+							</div>
+						</div>
+					</div>
+
+					<!-- Archivo: A Map-first -->
+					<div class="theme theme-a hidden" data-theme-panel="a">
+						<div class="panel-nav">
+							<div class="mock-map" style="flex:1;min-height:0;display:flex;flex-direction:column;">
+								<span class="chip-gps">● GPS en vivo</span>
+								<div class="route"></div>
+								<div class="pin-user"></div>
+								<div class="pin-dest">📍</div>
+								<div class="fab-col">
+									<div class="fab">🔊</div>
+									<div class="fab">⌖</div>
+								</div>
+							</div>
+							<div class="sheet">
+								<div class="sheet-card">
+									<div class="next-label">Siguiente · Parada 2</div>
+									<div class="next-title">María G. · Vicente López</div>
+									<div class="next-meta">Av. Maipú 1234 · Efectivo $18.500 · ~8 min</div>
+									<div class="maneuver">↱ En 240 m girá a la derecha por Av. Libertador</div>
+									<div class="btn-row">
+										<button type="button" class="btn btn-ghost">Llamar</button>
+										<button type="button" class="btn btn-primary">Llegué</button>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="panel-list hidden handoff-mode-list">
+							<div class="top" style="padding:12px 14px;background:#152028;border-bottom:1px solid #243038;">
+								<h2 style="margin:0;font-size:1rem;">Hoy · 3 paradas</h2>
+								<p style="margin:4px 0 0;font-size:0.75rem;color:var(--muted);">En camino desde cocina</p>
+							</div>
+							<div style="flex:1;padding:12px;">
+								<div class="sheet-card" style="margin-bottom:8px;"><div class="next-label">Parada 2 · ahora</div><div class="next-title">María G.</div></div>
+								<div class="sheet-card" style="opacity:0.5;"><div class="next-label">Parada 3</div><div class="next-title">Juan P.</div></div>
+							</div>
+						</div>
+						<div class="panel-handoff hidden handoff">
+							<h2>Parada 2</h2>
+							<p class="sub">Cliente avisado por WhatsApp</p>
+							<div class="handoff-card">
+								<div class="client">María G.</div>
+								<div class="addr">Av. Maipú 1234, Vicente López</div>
+								<div class="items">2× Brava clásica · 1× Papas</div>
+							</div>
+							<div class="btn-row" style="margin-top:auto;">
+								<button type="button" class="btn btn-ghost">Problema</button>
+								<button type="button" class="btn btn-primary">Entregado</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- B List + tabs -->
+					<div class="theme theme-b" data-theme-panel="b">
+						<div class="panel-nav" style="height:100%;display:flex;flex-direction:column;position:relative;">
+							<div class="mock-map" style="height:42%;flex:none;">
+								<span class="chip-gps">● En ruta</span>
+								<div class="route"></div>
+								<div class="pin-user"></div>
+								<div class="pin-dest">📍</div>
+							</div>
+							<div class="top"><h2>Parada 2 en curso</h2><p>240 m · girá a la derecha</p></div>
+							<div class="cta-float"><button type="button" class="btn btn-primary" style="width:100%;">Abrir navegación</button></div>
+							<div class="tabbar">
+								<div class="tab"><em>≡</em>Ruta</div>
+								<div class="tab is-on"><em>🗺</em>Mapa</div>
+								<div class="tab"><em>👤</em>Cuenta</div>
+							</div>
+						</div>
+						<div class="panel-list hidden" style="height:100%;display:flex;flex-direction:column;position:relative;">
+							<div class="top"><h2>Mi ruta</h2><p>3 entregas · Olivos → Vicente López</p></div>
+							<div class="list">
+								<div class="stop done"><div class="num">✓</div><div class="stop-body"><strong>Cocina Brava</strong><span>Salida 19:02</span></div></div>
+								<div class="stop is-active"><div class="num">2</div><div class="stop-body"><strong>María G.</strong><span>Maipú 1234 · Vicente López</span></div><span class="pay ef">EF</span></div>
+								<div class="stop"><div class="num">3</div><div class="stop-body"><strong>Juan P.</strong><span>Av. Libertador 4500</span></div><span class="pay mp">MP</span></div>
+							</div>
+							<div class="cta-float"><button type="button" class="btn btn-primary" style="width:100%;">Ir a parada 2</button></div>
+							<div class="tabbar">
+								<div class="tab is-on"><em>≡</em>Ruta</div>
+								<div class="tab"><em>🗺</em>Mapa</div>
+								<div class="tab"><em>👤</em>Cuenta</div>
+							</div>
+						</div>
+						<div class="panel-handoff hidden handoff">
+							<h2>Confirmar entrega</h2>
+							<p class="sub">Parada 2 · Efectivo</p>
+							<div class="handoff-card">
+								<div class="client">María G. · $18.500</div>
+								<div class="addr">Av. Maipú 1234</div>
+								<div class="items">Pedido ORN-8842</div>
+							</div>
+							<button type="button" class="btn btn-primary" style="width:100%;margin-top:auto;">Marcar entregado</button>
+						</div>
+					</div>
+
+					<!-- C Brava bold -->
+					<div class="theme theme-c" data-theme-panel="c">
+						<div class="panel-nav" style="overflow:auto;">
+							<div class="hero"><h2>EN CAMINO</h2><p>Parada 2 · ~8 min · OSRM</p></div>
+							<div class="stats">
+								<div class="stat"><b>2/3</b><span>Paradas</span></div>
+								<div class="stat"><b>4.2</b><span>Km rest.</span></div>
+								<div class="stat"><b>ON</b><span>Voz</span></div>
+							</div>
+							<div class="content">
+								<div class="mock-map focus-map" style="height:160px;border-radius:16px;margin-bottom:12px;">
+									<div class="route"></div><div class="pin-user"></div><div class="pin-dest">📍</div>
+								</div>
+								<div class="big-card">
+									<h3>GIrá EN 240 M</h3>
+									<p>Av. Libertador hacia Maipú</p>
+									<div class="big-actions">
+										<button type="button" class="btn btn-primary">Llegué a la puerta</button>
+										<button type="button" class="btn btn-ghost">Ver pedido</button>
+									</div>
+								</div>
+							</div>
+						</div>
+						<div class="panel-list hidden" style="overflow:auto;">
+							<div class="hero"><h2>TU RUTA</h2><p>Publicada desde cocina · 19:00</p></div>
+							<div class="content">
+								<div class="big-card"><h3>PARADA 2</h3><p>María G. · Maipú 1234</p></div>
+								<div class="big-card" style="opacity:0.55;"><h3>PARADA 3</h3><p>Juan P. · Libertador</p></div>
+							</div>
+						</div>
+						<div class="panel-handoff hidden handoff" style="padding:0;">
+							<div class="hero"><h2>ENTREGA</h2><p>Revisá antes de cerrar</p></div>
+							<div class="content handoff" style="padding-top:0;">
+								<div class="handoff-card">
+									<div class="client">María G.</div>
+									<div class="addr">2 burgers · Efectivo $18.500</div>
+								</div>
+								<button type="button" class="btn btn-primary" style="width:100%;">Listo · Siguiente</button>
+							</div>
+						</div>
+					</div>
+
+					<!-- D Focus -->
+					<div class="theme theme-d" data-theme-panel="d">
+						<div class="panel-nav">
+							<div class="progress"><div class="dot done"></div><div class="dot now"></div><div class="dot"></div></div>
+							<div class="focus-label">Ahora</div>
+							<div class="focus-parada">02</div>
+							<div class="focus-name">María G.</div>
+							<div class="focus-addr">Av. Maipú 1234, Vicente López</div>
+							<div class="focus-map"><div class="mock-map"><div class="route"></div><div class="pin-dest">📍</div></div></div>
+							<div class="maneuver" style="font-size:0.85rem;padding:10px 12px;border-radius:12px;background:rgba(255,107,53,0.12);margin-bottom:12px;">240 m → derecha en Libertador</div>
+							<div class="stack">
+								<button type="button" class="btn btn-primary">Llegué</button>
+								<button type="button" class="btn btn-ghost">Ver ruta completa</button>
+							</div>
+						</div>
+						<div class="panel-list hidden theme-d" style="padding:16px;">
+							<div class="focus-label">Resumen</div>
+							<div class="focus-name" style="font-size:1rem;">3 paradas hoy</div>
+							<div class="focus-addr" style="margin-bottom:12px;">Tocá una fila en producción; en el mock solo mostramos foco.</div>
+							<div class="big-card" style="background:#152028;border-radius:14px;padding:12px;border:1px solid #243038;margin-bottom:8px;">✓ Cocina · 1 · Juan · 2 · María ←</div>
+						</div>
+						<div class="panel-handoff hidden handoff">
+							<div class="progress"><div class="dot done"></div><div class="dot done"></div><div class="dot now"></div></div>
+							<h2>Entregar a María</h2>
+							<p class="sub">WhatsApp enviado al llegar</p>
+							<div class="handoff-card">
+								<div class="client">$18.500 efectivo</div>
+								<div class="items">2× Brava · 1× Papas</div>
+							</div>
+							<button type="button" class="btn btn-primary stack" style="width:100%;margin-top:auto;">Confirmar entrega</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+	<script>
+		(function () {
+			var screen = 'nav';
+			var payMode = 'ef';
+			var captions = {
+				nav: 'Navegación · estilo A (solo Llegué)',
+				list: 'Ruta / lista · orden cocina · Iniciar recorrido',
+				handoff: 'Entrega · estilo A (detalle + Llamar)',
+			};
+
+			function applyPayMock() {
+				var method = document.getElementById('pay-method');
+				var stamp = document.getElementById('pay-stamp');
+				var hint = document.getElementById('pay-hint');
+				var total = document.getElementById('pay-total');
+				if (!method) return;
+				if (payMode === 'mp') {
+					method.textContent = 'Mercado Pago';
+					method.className = 'pay-badge mp';
+					if (stamp) {
+						stamp.textContent = 'PAGO';
+						stamp.className = 'pay-badge pago';
+					}
+					if (hint) hint.textContent = 'Ya está pago en la app. No cobres efectivo.';
+					if (total) total.textContent = '$ 21.200';
+				} else {
+					method.textContent = 'Efectivo';
+					method.className = 'pay-badge ef';
+					if (stamp) {
+						stamp.textContent = 'COBRAR';
+						stamp.className = 'pay-badge cobrar';
+					}
+					if (hint) hint.textContent = 'Confirmá el monto en mano antes de marcar entregado.';
+					if (total) total.textContent = '$ 18.500';
+				}
+			}
+
+			function apply() {
+				document.querySelectorAll('#screen-opts .pill').forEach(function (btn) {
+					btn.classList.toggle('is-on', btn.getAttribute('data-screen') === screen);
+				});
+				document.querySelectorAll('#pay-opts .pill').forEach(function (btn) {
+					btn.classList.toggle('is-on', btn.getAttribute('data-pay') === payMode);
+				});
+				var panel = document.querySelector('[data-theme-panel="final"]');
+				if (panel) {
+					panel.querySelectorAll('.panel-nav, .panel-list, .panel-handoff').forEach(function (p) {
+						p.classList.add('hidden');
+					});
+					var show = panel.querySelector(
+						screen === 'nav' ? '.panel-nav' : screen === 'list' ? '.panel-list' : '.panel-handoff'
+					);
+					if (show) show.classList.remove('hidden');
+				}
+				var cap = document.getElementById('phone-caption');
+				if (cap) cap.textContent = captions[screen] || '';
+				var payLabel = document.getElementById('pay-demo-label');
+				var payOpts = document.getElementById('pay-opts');
+				var showPay = screen === 'handoff';
+				if (payLabel) payLabel.classList.toggle('hidden', !showPay);
+				if (payOpts) payOpts.classList.toggle('hidden', !showPay);
+				applyPayMock();
+			}
+
+			document.getElementById('screen-opts').addEventListener('click', function (e) {
+				var btn = e.target.closest('[data-screen]');
+				if (!btn) return;
+				screen = btn.getAttribute('data-screen');
+				apply();
+			});
+			document.getElementById('pay-opts').addEventListener('click', function (e) {
+				var btn = e.target.closest('[data-pay]');
+				if (!btn) return;
+				payMode = btn.getAttribute('data-pay');
+				apply();
+			});
+			apply();
+		})();
+	</script>
+</body>
+</html>

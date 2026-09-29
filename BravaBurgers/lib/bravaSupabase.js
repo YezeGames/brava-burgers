@@ -844,6 +844,8 @@ async function listRepartidorRuta(telefono, _retried) {
       reparto_ruta_id: o.reparto_ruta_id || '',
       asignado_at: o.reparto_asignado_at || '',
       items: o.items,
+      lat: o.lat != null && !isNaN(o.lat) ? o.lat : null,
+      lng: o.lng != null && !isNaN(o.lng) ? o.lng : null,
       llegada_at: row.repartidor_llegada_at || '',
     };
   });
