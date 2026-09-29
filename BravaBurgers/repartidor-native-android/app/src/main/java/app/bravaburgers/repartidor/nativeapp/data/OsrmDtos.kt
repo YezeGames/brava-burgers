@@ -45,6 +45,12 @@ data class OsrmManeuverDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class OsrmBasesResponseDto(
+    val ok: Boolean = false,
+    val primary: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
 data class AppRouteResponseDto(
     val ok: Boolean = false,
     val error: String? = null,

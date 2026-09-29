@@ -4,6 +4,7 @@ import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.navigation.OsrmNavText
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -12,6 +13,9 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONObject
@@ -23,9 +27,11 @@ data class RouteResult(
     val durationSec: Double,
     val firstManeuver: String,
     val steps: List<NavStep> = emptyList(),
+    /** Etiqueta UI: Brava PC, Brava, OSRM público */
+    val sourceTag: String = "OSRM",
 )
 
-/** Igual que Capacitor/WebView: OSRM directo desde el teléfono; servidor Brava como respaldo. */
+/** Brava PC (túnel) primero; Brava proxy; OSRM público solo si falla lo anterior. */
 class OsrmClient {
     private val http =
         OkHttpClient.Builder()
@@ -40,18 +46,23 @@ class OsrmClient {
 
     private val osrmAdapter = moshi.adapter(OsrmResponseDto::class.java)
     private val appAdapter = moshi.adapter(AppRouteResponseDto::class.java)
+    private val basesAdapter = moshi.adapter(OsrmBasesResponseDto::class.java)
 
-    /** Mismo perfil que Chrome WebView en la APK Capacitor. */
     private val browserUa =
         "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
-    private val directBases =
+    private val publicBases =
         listOf(
-            "https://router.project-osrm.org/route/v1/driving/",
             "https://routing.openstreetmap.de/routed-car/route/v1/driving/",
+            "https://router.project-osrm.org/route/v1/driving/",
         )
 
+    private val basesMutex = Mutex()
+    private var bravaPrimaryBase: String? = null
+    private var basesLoadedAtMs: Long = 0L
+
+    /** Mismo perfil que Chrome WebView en la APK Capacitor. */
     fun fetchDrivingRoute(
         fromLng: Double,
         fromLat: Double,
@@ -59,63 +70,132 @@ class OsrmClient {
         toLat: Double,
     ): Result<RouteResult> {
         var lastErr: Throwable? = null
+        bravaPrimaryBase?.let { base ->
+            val direct = fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC")
+            if (direct.isSuccess) return direct
+            lastErr = direct.exceptionOrNull()
+        }
         val brava = fetchViaPedidoPost(fromLng, fromLat, toLng, toLat)
         if (brava.isSuccess) return brava
         lastErr = brava.exceptionOrNull()
-        for (base in directBases) {
-            val out = fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat)
+        for (base in publicBases) {
+            val out = fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "OSRM público")
             if (out.isSuccess) return out
             lastErr = out.exceptionOrNull()
         }
         return Result.failure(lastErr ?: Exception("route_failed"))
     }
 
-    /** Brava + OSRM en paralelo; gana el primero que responda (menos “Calculando ruta…”). */
+    suspend fun prefetchBravaPrimary() {
+        refreshBasesIfNeeded(force = true)
+    }
+
     suspend fun fetchDrivingRouteFast(
         fromLng: Double,
         fromLat: Double,
         toLng: Double,
         toLat: Double,
     ): Result<RouteResult> {
-        val attempts =
-            listOf(
-                { fetchViaPedidoPost(fromLng, fromLat, toLng, toLat) },
-                { fetchDirectOsrm(directBases[1], fromLng, fromLat, toLng, toLat) },
-                { fetchDirectOsrm(directBases[0], fromLng, fromLat, toLng, toLat) },
-            )
-        return withTimeoutOrNull(22_000L) {
+        refreshBasesIfNeeded(force = false)
+        val waveBrava =
+            buildList {
+                bravaPrimaryBase?.let { base ->
+                    add { fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC") }
+                }
+                add { fetchViaPedidoPost(fromLng, fromLat, toLng, toLat) }
+            }
+        raceFirstSuccess(waveBrava, 20_000L)?.let { return it }
+
+        val wavePublic =
+            publicBases.map { base ->
+                { fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "OSRM público") }
+            }
+        return raceFirstSuccess(wavePublic, 18_000L)
+            ?: Result.failure(Exception("route_timeout"))
+    }
+
+    private suspend fun refreshBasesIfNeeded(force: Boolean) {
+        val now = System.currentTimeMillis()
+        if (!force && now - basesLoadedAtMs < 120_000L && bravaPrimaryBase != null) return
+        if (!force && now - basesLoadedAtMs < 120_000L && bravaPrimaryBase == null && basesLoadedAtMs > 0L) {
+            return
+        }
+        basesMutex.withLock {
+            if (!force && System.currentTimeMillis() - basesLoadedAtMs < 120_000L) return
+            val loaded =
+                withContext(Dispatchers.IO) {
+                    fetchOsrmBasesFromApi()
+                }
+            bravaPrimaryBase = loaded
+            basesLoadedAtMs = System.currentTimeMillis()
+        }
+    }
+
+    private fun fetchOsrmBasesFromApi(): String? {
+        val api = BuildConfig.API_BASE.trim()
+        if (api.isBlank()) return null
+        val url =
+            api.toHttpUrlOrNull()?.newBuilder()?.apply {
+                addQueryParameter("action", "osrmBases")
+            }?.build()?.toString() ?: return null
+        return try {
+            val req =
+                Request.Builder()
+                    .url(url)
+                    .header("User-Agent", browserUa)
+                    .header("Accept", "application/json")
+                    .get()
+                    .build()
+            http.newCall(req).execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) return null
+                val parsed = basesAdapter.fromJson(body) ?: return null
+                if (!parsed.ok) return null
+                parsed.primary?.trim()?.trimEnd('/')?.plus("/")?.takeIf { it.startsWith("https://") }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private suspend fun raceFirstSuccess(
+        attempts: List<() -> Result<RouteResult>>,
+        timeoutMs: Long,
+    ): Result<RouteResult>? {
+        if (attempts.isEmpty()) return null
+        return withTimeoutOrNull(timeoutMs) {
             coroutineScope {
                 val gate = CompletableDeferred<Result<RouteResult>>()
-                val done = AtomicInteger(0)
+                val failures = AtomicInteger(0)
                 attempts.forEach { block ->
                     launch(Dispatchers.IO) {
                         val out = block()
                         if (out.isSuccess) {
-                            gate.complete(out)
-                        } else if (done.incrementAndGet() == attempts.size) {
+                            if (!gate.isCompleted) gate.complete(out)
+                        } else if (failures.incrementAndGet() == attempts.size && !gate.isCompleted) {
                             gate.complete(out)
                         }
                     }
                 }
-                gate.await()
+                gate.await().takeIf { it.isSuccess }
             }
-        } ?: Result.failure(Exception("route_timeout"))
+        }
     }
 
-    /** URL idéntica a repartidor/index.html fetchRouteOsrm */
     private fun fetchDirectOsrm(
         base: String,
         fromLng: Double,
         fromLat: Double,
         toLng: Double,
         toLat: Double,
+        sourceTag: String,
     ): Result<RouteResult> {
         val path = "$fromLng,$fromLat;$toLng,$toLat"
         val url = "${base.trimEnd('/')}/$path?steps=true&geometries=geojson&overview=full"
-        return executeGet(url)
+        return executeGet(url, sourceTag)
     }
 
-    private fun executeGet(url: String): Result<RouteResult> {
+    private fun executeGet(url: String, sourceTag: String): Result<RouteResult> {
         return try {
             val req =
                 Request.Builder()
@@ -129,7 +209,7 @@ class OsrmClient {
                 if (!resp.isSuccessful) {
                     return Result.failure(Exception("osrm_http_${resp.code}"))
                 }
-                parseOsrmJson(body)
+                parseOsrmJson(body, sourceTag)
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -163,14 +243,14 @@ class OsrmClient {
                 if (!resp.isSuccessful) {
                     return Result.failure(Exception("route_http_${resp.code}"))
                 }
-                parseAppRoute(body).recoverCatching { parseOsrmJson(body).getOrThrow() }
+                parseAppRoute(body).recoverCatching { parseOsrmJson(body, "Brava").getOrThrow() }
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    private fun parseOsrmJson(body: String): Result<RouteResult> {
+    private fun parseOsrmJson(body: String, sourceTag: String): Result<RouteResult> {
         val parsed = osrmAdapter.fromJson(body) ?: return Result.failure(Exception("osrm_parse"))
         if (parsed.code != "Ok" || parsed.routes.isNullOrEmpty()) {
             return Result.failure(Exception(parsed.message ?: "osrm_no_route"))
@@ -193,6 +273,7 @@ class OsrmClient {
                 durationSec = route.duration ?: 0.0,
                 firstManeuver = OsrmNavText.maneuverText(step),
                 steps = navSteps,
+                sourceTag = sourceTag,
             ),
         )
     }
@@ -241,6 +322,7 @@ class OsrmClient {
                 firstManeuver = parsed.maneuver?.trim()?.takeIf { it.isNotEmpty() }
                     ?: "Seguí la ruta resaltada",
                 steps = emptyList(),
+                sourceTag = "Brava",
             ),
         )
     }

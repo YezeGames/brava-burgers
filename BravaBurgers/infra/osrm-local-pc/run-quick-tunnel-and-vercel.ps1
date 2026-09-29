@@ -6,7 +6,8 @@ $cf = Join-Path $PSScriptRoot "bin\cloudflared.exe"
 if (-not (Test-Path $cf)) { throw "Falta bin\cloudflared.exe" }
 
 try {
-  Invoke-WebRequest -Uri "http://127.0.0.1:5000/" -UseBasicParsing -TimeoutSec 5 | Out-Null
+  $probe = Invoke-RestMethod -Uri "http://127.0.0.1:5000/route/v1/driving/-58.38,-34.60;-58.37,-34.61?overview=false" -TimeoutSec 8
+  if ($probe.code -ne "Ok") { throw "osrm_not_ok" }
 } catch {
   Write-Host "OSRM no responde en :5000. Ejecutá: docker compose up -d" -ForegroundColor Red
   exit 1
@@ -29,5 +30,5 @@ if (-not $url) {
 Write-Host "Túnel: $url" -ForegroundColor Green
 $base = "$url/route/v1/driving"
 & (Join-Path $PSScriptRoot "set-vercel-osrm-url.ps1") -Url $base
-Write-Host "PID túnel: $($proc.Id) — no cierres este script mientras repartan." -ForegroundColor Gray
-Wait-Process $proc
+Write-Host "PID tunel: $($proc.Id) - no cierres este script mientras repartan." -ForegroundColor Gray
+Wait-Process -Id $proc.Id

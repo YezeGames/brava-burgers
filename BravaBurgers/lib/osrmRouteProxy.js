@@ -116,12 +116,17 @@ async function fetchOsrmFromHosts(pathCoords, list) {
   return lastErr;
 }
 
-function osrmCustomHosts() {
+function bravaOsrmPublicBase() {
   var custom = String(process.env.BRAVA_OSRM_BASE_URL || process.env.OSRM_BASE_URL || '').trim();
-  if (!custom) return [];
+  if (!custom) return null;
   var base = custom.replace(/\/+$/, '');
   if (base.indexOf('/route/v1/driving') < 0) base = base + '/route/v1/driving';
-  return [base.endsWith('/') ? base : base + '/'];
+  return base.endsWith('/') ? base : base + '/';
+}
+
+function osrmCustomHosts() {
+  var one = bravaOsrmPublicBase();
+  return one ? [one] : [];
 }
 
 async function fetchOpenRouteService(pathCoords) {
@@ -285,4 +290,4 @@ async function fetchOsrmRouteJson(query) {
   };
 }
 
-module.exports = { fetchOsrmRouteJson, fetchOsrmRouteForApp };
+module.exports = { fetchOsrmRouteJson, fetchOsrmRouteForApp, bravaOsrmPublicBase };

@@ -105,6 +105,7 @@ class RepartidorViewModel(
 
                     if (bootstrappedToken != s.token) {
                         bootstrappedToken = s.token
+                        launch { osrm.prefetchBravaPrimary() }
                         PushRegistrar.registerAfterLogin(ctx, repo, s.token)
                         val rt = loginRealtime
                         loginRealtime = null
@@ -504,7 +505,7 @@ class RepartidorViewModel(
                             navLoading = false,
                             navRoute = route.coordinates,
                             navManeuver = route.firstManeuver,
-                            navMeta = String.format("~%d min · %.1f km · OSRM", min, km),
+                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
                         )
                 }
                 .onFailure {
@@ -601,7 +602,7 @@ class RepartidorViewModel(
                         _ui.value.copy(
                             navRoute = route.coordinates,
                             navManeuver = route.firstManeuver,
-                            navMeta = String.format("~%d min · %.1f km · OSRM", min, km),
+                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
                         )
                 }
                 .onFailure {
