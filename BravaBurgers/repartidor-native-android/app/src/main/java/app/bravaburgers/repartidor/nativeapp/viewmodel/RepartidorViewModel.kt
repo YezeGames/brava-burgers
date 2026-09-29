@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.bravaburgers.repartidor.nativeapp.BravaConstants
+import app.bravaburgers.repartidor.nativeapp.data.GeocodeClient
 import app.bravaburgers.repartidor.nativeapp.data.OsrmClient
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
@@ -41,6 +42,8 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
     private val _ui = MutableStateFlow(RepartidorUiState())
     val ui: StateFlow<RepartidorUiState> = _ui.asStateFlow()
     private val osrm = OsrmClient()
+    private val geocode = GeocodeClient()
+    private val geocodeCache = mutableMapOf<String, Pair<Double, Double>>()
 
     val sessionFlow =
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -218,30 +221,50 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
         return stops.minByOrNull { it.parada ?: 999 }
     }
 
+    private fun patchStopCoords(orn: String, lat: Double, lng: Double) {
+        geocodeCache[orn] = Pair(lat, lng)
+        _ui.value =
+            _ui.value.copy(
+                stops =
+                    _ui.value.stops.map { s ->
+                        if (s.orn == orn) s.copy(lat = lat, lng = lng) else s
+                    },
+            )
+    }
+
     fun beginNavigation(context: Context, orn: String) {
         val session = _ui.value.session ?: return
         val stop = stopFor(orn) ?: return
-        val destLat = stop.lat
-        val destLng = stop.lng
-        if (destLat == null || destLng == null) {
-            _ui.value =
-                _ui.value.copy(
-                    navLoading = false,
-                    navManeuver = "Falta ubicación del pedido. Pedile a cocina que republique la ruta.",
-                    navRoute = emptyList(),
-                    navDest = null,
-                )
-            return
-        }
-        TrackForegroundService.start(context, session.token, repo.apiKey, orn)
         _ui.value =
             _ui.value.copy(
                 trackingOrn = orn,
                 navLoading = true,
-                navManeuver = "Calculando ruta…",
-                navDest = Pair(destLat, destLng),
+                navManeuver = "Ubicando dirección en el mapa…",
+                navMeta = "",
+                navRoute = emptyList(),
+                navDest = null,
             )
         viewModelScope.launch {
+            val dest =
+                resolveDestination(stop)
+                    ?: run {
+                        _ui.value =
+                            _ui.value.copy(
+                                navLoading = false,
+                                navRoute = emptyList(),
+                                navDest = null,
+                            )
+                        return@launch
+                    }
+            val destLat = dest.first
+            val destLng = dest.second
+            patchStopCoords(orn, destLat, destLng)
+            TrackForegroundService.start(context, session.token, repo.apiKey, orn)
+            _ui.value =
+                _ui.value.copy(
+                    navManeuver = "Calculando ruta…",
+                    navDest = dest,
+                )
             val from =
                 withContext(Dispatchers.IO) {
                     LocationHelper.lastLatLng(context)
@@ -264,7 +287,7 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                             navLoading = false,
                             navRoute = route.coordinates,
                             navManeuver = route.firstManeuver,
-                            navMeta = String.format("%.1f km · ~%d min · OSRM", km, min),
+                            navMeta = String.format("~%d min · %.1f km", min, km),
                         )
                 }
                 .onFailure {
@@ -276,6 +299,28 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                         )
                 }
         }
+    }
+
+    /** Igual que la web: coords del pedido o geocode vía /api/address-suggest. */
+    private suspend fun resolveDestination(stop: RouteStop): Pair<Double, Double>? {
+        val lat = stop.lat
+        val lng = stop.lng
+        if (lat != null && lng != null) {
+            return Pair(lat, lng)
+        }
+        geocodeCache[stop.orn]?.let { return it }
+        val geo =
+            withContext(Dispatchers.IO) {
+                geocode.geocodeStop(stop)
+            }
+        return geo
+            .onFailure { err ->
+                _ui.value =
+                    _ui.value.copy(
+                        navManeuver = err.message ?: "No ubicamos la dirección.",
+                    )
+            }
+            .getOrNull()
     }
 
     fun stopNavigation(context: Context) {
