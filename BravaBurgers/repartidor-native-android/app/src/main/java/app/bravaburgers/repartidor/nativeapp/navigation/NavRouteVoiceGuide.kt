@@ -69,6 +69,24 @@ class NavRouteVoiceGuide(context: Context) {
         ready = false
     }
 
+    fun speakOffRoute() {
+        speak("Te saliste de la ruta. Recalculando.")
+    }
+
+    /** Tras reroute OSRM (como web: «Recalculamos la ruta…»). */
+    fun announceReroute(result: RouteResult) {
+        steps = result.steps
+        currentStepIndex = 0
+        spokenTiers.clear()
+        val instr =
+            if (steps.isEmpty()) {
+                result.firstManeuver
+            } else {
+                steps.first().speech
+            }
+        speak("Recalculamos la ruta. $instr")
+    }
+
     fun startRoute(result: RouteResult, parada: Int?) {
         reset()
         steps = result.steps

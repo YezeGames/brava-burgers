@@ -804,7 +804,7 @@ async function ensureWaPostEntrega(orn) {
       console.warn('[ensureWaPostEntrega]', orn, attempt, last.error);
     }
     await new Promise(function (resolve) {
-      setTimeout(resolve, 200 + attempt * 150);
+      setTimeout(resolve, 80 + attempt * 120);
     });
   }
   console.warn('[ensureWaPostEntrega] gave up', orn, last.error || last.reason);

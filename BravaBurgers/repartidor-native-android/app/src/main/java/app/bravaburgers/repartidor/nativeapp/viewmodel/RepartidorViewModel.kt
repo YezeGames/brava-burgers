@@ -13,6 +13,7 @@ import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
+import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteGeometry
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteVoiceGuide
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
@@ -70,6 +71,9 @@ class RepartidorViewModel(
     /** Evita listRuta extra mientras el usuario espera respuesta de una acción. */
     private var suppressBackgroundRefresh = 0
     private var lastForegroundRefreshMs = 0L
+    private var navRerouteInFlight = false
+    private var lastNavRerouteAtMs = 0L
+    private var navOffRouteAnnounced = false
 
     val sessionFlow =
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -406,6 +410,9 @@ class RepartidorViewModel(
                 navDriver = null,
             )
         navVoice.setEnabled(_ui.value.navVoiceOn)
+        navRerouteInFlight = false
+        lastNavRerouteAtMs = 0L
+        navOffRouteAnnounced = false
         navLocationTracker.start { lat, lng ->
             val maneuver = navVoice.onDriverPosition(lat, lng)
             _ui.value =
@@ -413,6 +420,7 @@ class RepartidorViewModel(
                     navDriver = Pair(lat, lng),
                     navManeuver = maneuver ?: _ui.value.navManeuver,
                 )
+            maybeRerouteFromGps(lat, lng)
         }
         viewModelScope.launch {
             val dest =
@@ -503,6 +511,74 @@ class RepartidorViewModel(
         _ui.value = _ui.value.copy(navVoiceOn = on)
     }
 
+    private fun maybeRerouteFromGps(lat: Double, lng: Double) {
+        val state = _ui.value
+        if (state.navLoading || state.trackingOrn.isNullOrBlank()) return
+        val route = state.navRoute
+        if (route.size < 2 || navRerouteInFlight) return
+        val dest = state.navDest ?: return
+        val offM = NavRouteGeometry.distanceToRouteM(lat, lng, route)
+        if (offM < REROUTE_OFF_ROUTE_M) {
+            navOffRouteAnnounced = false
+            return
+        }
+        val now = System.currentTimeMillis()
+        if (now - lastNavRerouteAtMs < REROUTE_MIN_INTERVAL_MS) return
+        if (!navOffRouteAnnounced) {
+            navOffRouteAnnounced = true
+            navVoice.speakOffRoute()
+        }
+        rerouteFromCurrentPosition(lat, lng, dest)
+    }
+
+    private fun rerouteFromCurrentPosition(
+        lat: Double,
+        lng: Double,
+        dest: Pair<Double, Double>,
+    ) {
+        navRerouteInFlight = true
+        lastNavRerouteAtMs = System.currentTimeMillis()
+        val prevMeta = _ui.value.navMeta
+        _ui.value =
+            _ui.value.copy(
+                navMeta =
+                    if (prevMeta.contains("Recalculando")) prevMeta
+                    else "$prevMeta · Recalculando ruta…".trim().removePrefix("·").trim(),
+            )
+        viewModelScope.launch {
+            val result =
+                withContext(Dispatchers.IO) {
+                    osrm.fetchDrivingRoute(
+                        fromLng = lng,
+                        fromLat = lat,
+                        toLng = dest.second,
+                        toLat = dest.first,
+                    )
+                }
+            navRerouteInFlight = false
+            result
+                .onSuccess { route ->
+                    val km = route.distanceM / 1000.0
+                    val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
+                    navVoice.announceReroute(route)
+                    navOffRouteAnnounced = false
+                    _ui.value =
+                        _ui.value.copy(
+                            navRoute = route.coordinates,
+                            navManeuver = route.firstManeuver,
+                            navMeta = String.format("~%d min · %.1f km · OSRM", min, km),
+                        )
+                }
+                .onFailure {
+                    navOffRouteAnnounced = false
+                    _ui.value =
+                        _ui.value.copy(
+                            navMeta = prevMeta.ifBlank { _ui.value.navMeta },
+                        )
+                }
+        }
+    }
+
     fun stopNavigation(context: Context) {
         navLocationTracker.stop()
         navVoice.reset()
@@ -525,6 +601,11 @@ class RepartidorViewModel(
     override fun onCleared() {
         navVoice.shutdown()
         super.onCleared()
+    }
+
+    companion object {
+        private const val REROUTE_OFF_ROUTE_M = 55.0
+        private const val REROUTE_MIN_INTERVAL_MS = 15_000L
     }
 }
 

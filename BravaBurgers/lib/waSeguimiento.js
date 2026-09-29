@@ -65,9 +65,11 @@ async function sendSeguimientoGreetingPlusButton(to, body, url) {
 
 /** Tarjeta estilo Google Maps: 2º mensaje solo con URL + preview_url (Open Graph). */
 async function sendSeguimientoLinkPreview(to, body, url) {
-  const intro = await sendTextMessage(to, body);
+  const introP = sendTextMessage(to, body);
+  const linkP = sendTextMessage(to, url, { previewUrl: true });
+  const intro = await introP;
+  const link = await linkP;
   if (!intro.ok) return Object.assign({ mode: 'link_preview_intro_failed' }, intro);
-  const link = await sendTextMessage(to, url, { previewUrl: true });
   if (!link.ok) {
     return Object.assign({ mode: 'link_preview_card_failed', introMessageId: intro.messageId }, link);
   }
@@ -141,23 +143,24 @@ async function sendSeguimientoCtaCard(to, bodyText, url, opts) {
 
   let firstErr = '';
   let firstHint = '';
-  const mediaId = await resolveSeguimientoLogoMediaId();
-  if (mediaId) {
-    let sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: mediaId }));
-    if (sent.ok) return Object.assign({ mode: 'cta_logo_upload' }, sent);
-    firstErr = graphDetail(sent).slice(0, 200);
-    firstHint = sent.hint || '';
-  }
+  /** Botón sin imagen primero: el link llega al cliente sin esperar fetch/upload del logo. */
+  let sent = await sendInteractiveCtaUrl(base);
+  if (sent.ok) return Object.assign({ mode: 'cta_plain' }, sent);
+  firstErr = graphDetail(sent).slice(0, 200);
+  firstHint = sent.hint || '';
 
-  let sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageUrl: logoUrl }));
+  sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageUrl: logoUrl }));
   if (sent.ok) return Object.assign({ mode: 'cta_logo_link' }, sent);
   if (!firstErr) {
     firstErr = graphDetail(sent).slice(0, 200);
     firstHint = sent.hint || '';
   }
 
-  sent = await sendInteractiveCtaUrl(base);
-  if (sent.ok) return Object.assign({ mode: 'cta_plain' }, sent);
+  const mediaId = await resolveSeguimientoLogoMediaId();
+  if (mediaId) {
+    sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: mediaId }));
+    if (sent.ok) return Object.assign({ mode: 'cta_logo_upload' }, sent);
+  }
 
   console.warn('[wa-seguimiento] cta_url failed', firstHint, firstErr, graphDetail(sent).slice(0, 200));
   return Object.assign({ mode: 'cta_failed', ctaFirstError: firstErr, ctaHint: firstHint }, sent);
