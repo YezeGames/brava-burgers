@@ -13,6 +13,7 @@ import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
+import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteVoiceGuide
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
 import app.bravaburgers.repartidor.nativeapp.session.RouteEvents
@@ -48,6 +49,7 @@ data class RepartidorUiState(
     /** Repartidor (GPS vivo) — lat,lng */
     val navDriver: Pair<Double, Double>? = null,
     val trackingOrn: String? = null,
+    val navVoiceOn: Boolean = true,
 )
 
 @OptIn(FlowPreview::class)
@@ -61,6 +63,7 @@ class RepartidorViewModel(
     private val geocode = GeocodeClient()
     private val geocodeCache = mutableMapOf<String, Pair<Double, Double>>()
     private val navLocationTracker = NavLocationTracker(repo.appContext)
+    private val navVoice = NavRouteVoiceGuide(repo.appContext)
     private val routeRefreshMutex = Mutex()
     private var loginRealtime: RealtimeConfigDto? = null
     private var bootstrappedToken: String? = null
@@ -72,6 +75,7 @@ class RepartidorViewModel(
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
+        navVoice.ensureInit()
         viewModelScope.launch {
             sessionFlow.collect { s ->
                 _ui.value = _ui.value.copy(session = s)
@@ -401,8 +405,14 @@ class RepartidorViewModel(
                 navDest = null,
                 navDriver = null,
             )
+        navVoice.setEnabled(_ui.value.navVoiceOn)
         navLocationTracker.start { lat, lng ->
-            _ui.value = _ui.value.copy(navDriver = Pair(lat, lng))
+            val maneuver = navVoice.onDriverPosition(lat, lng)
+            _ui.value =
+                _ui.value.copy(
+                    navDriver = Pair(lat, lng),
+                    navManeuver = maneuver ?: _ui.value.navManeuver,
+                )
         }
         viewModelScope.launch {
             val dest =
@@ -443,6 +453,7 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
+                    navVoice.startRoute(route, stop.parada)
                     _ui.value =
                         _ui.value.copy(
                             navLoading = false,
@@ -486,8 +497,15 @@ class RepartidorViewModel(
             .getOrNull()
     }
 
+    fun toggleNavVoice() {
+        val on = !_ui.value.navVoiceOn
+        navVoice.setEnabled(on)
+        _ui.value = _ui.value.copy(navVoiceOn = on)
+    }
+
     fun stopNavigation(context: Context) {
         navLocationTracker.stop()
+        navVoice.reset()
         val keepOrn =
             _ui.value.stops
                 .firstOrNull { it.estado.equals("en_camino", ignoreCase = true) }
@@ -502,6 +520,11 @@ class RepartidorViewModel(
                 navDriver = null,
                 navMeta = "",
             )
+    }
+
+    override fun onCleared() {
+        navVoice.shutdown()
+        super.onCleared()
     }
 }
 

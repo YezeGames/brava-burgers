@@ -185,6 +185,8 @@ class MainActivity : ComponentActivity() {
                             navLoading = ui.navLoading,
                             navDest = ui.navDest,
                             navDriver = ui.navDriver,
+                            navVoiceOn = ui.navVoiceOn,
+                            onToggleVoice = vm::toggleNavVoice,
                             onStartNavigation = { vm.beginNavigation(ctx, orn) },
                             onBack = {
                                 vm.stopNavigation(ctx)

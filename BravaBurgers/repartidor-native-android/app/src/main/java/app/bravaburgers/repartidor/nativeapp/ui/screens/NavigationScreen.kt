@@ -2,8 +2,11 @@ package app.bravaburgers.repartidor.nativeapp.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -44,6 +47,8 @@ fun NavigationScreen(
     navLoading: Boolean,
     navDest: Pair<Double, Double>?,
     navDriver: Pair<Double, Double>?,
+    navVoiceOn: Boolean,
+    onToggleVoice: () -> Unit,
     onStartNavigation: () -> Unit,
     onBack: () -> Unit,
     onLlegue: () -> Unit,
@@ -83,19 +88,41 @@ fun NavigationScreen(
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver", tint = TextPrimary)
         }
 
-        Text(
-            text = "● GPS en vivo",
-            color = Color(0xFFA5D6A7),
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
+        Row(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
-                    .padding(start = 10.dp, top = 58.dp)
-                    .background(BgDark.copy(alpha = 0.85f), RoundedCornerShape(999.dp))
-                    .border(1.dp, OkGreen.copy(alpha = 0.5f), RoundedCornerShape(999.dp))
-                    .padding(horizontal = 8.dp, vertical = 5.dp),
-        )
+                    .padding(start = 10.dp, top = 58.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = "● GPS en vivo",
+                color = Color(0xFFA5D6A7),
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier =
+                    Modifier
+                        .background(BgDark.copy(alpha = 0.85f), RoundedCornerShape(999.dp))
+                        .border(1.dp, OkGreen.copy(alpha = 0.5f), RoundedCornerShape(999.dp))
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
+            )
+            Text(
+                text = if (navVoiceOn) "Voz ON" else "Voz OFF",
+                color = if (navVoiceOn) BravaOrange else TextMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier =
+                    Modifier
+                        .clickable(onClick = onToggleVoice)
+                        .background(SurfaceDark.copy(alpha = 0.92f), RoundedCornerShape(999.dp))
+                        .border(
+                            1.dp,
+                            if (navVoiceOn) BravaOrange.copy(alpha = 0.6f) else LineDark,
+                            RoundedCornerShape(999.dp),
+                        )
+                        .padding(horizontal = 10.dp, vertical = 5.dp),
+            )
+        }
 
         Column(
             modifier =

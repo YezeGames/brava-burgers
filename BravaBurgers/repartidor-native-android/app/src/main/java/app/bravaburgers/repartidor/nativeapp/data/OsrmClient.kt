@@ -1,8 +1,7 @@
 package app.bravaburgers.repartidor.nativeapp.data
 
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
-import com.squareup.moshi.Json
-import com.squareup.moshi.JsonClass
+import app.bravaburgers.repartidor.nativeapp.navigation.OsrmNavText
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.MediaType.Companion.toMediaType
@@ -17,6 +16,7 @@ data class RouteResult(
     val distanceM: Double,
     val durationSec: Double,
     val firstManeuver: String,
+    val steps: List<NavStep> = emptyList(),
 )
 
 /** Igual que Capacitor/WebView: OSRM directo desde el teléfono; servidor Brava como respaldo. */
@@ -32,8 +32,8 @@ class OsrmClient {
             .add(KotlinJsonAdapterFactory())
             .build()
 
-    private val osrmAdapter = moshi.adapter(OsrmResponse::class.java)
-    private val appAdapter = moshi.adapter(AppRouteResponse::class.java)
+    private val osrmAdapter = moshi.adapter(OsrmResponseDto::class.java)
+    private val appAdapter = moshi.adapter(AppRouteResponseDto::class.java)
 
     /** Mismo perfil que Chrome WebView en la APK Capacitor. */
     private val browserUa =
@@ -151,15 +151,42 @@ class OsrmClient {
         if (coords.size < 2) {
             return Result.failure(Exception("osrm_empty_geometry"))
         }
-        val step = route.legs?.firstOrNull()?.steps?.firstOrNull()
+        val osrmSteps = route.legs?.firstOrNull()?.steps.orEmpty()
+        val step = osrmSteps.firstOrNull()
+        val navSteps = buildNavSteps(osrmSteps, coords)
         return Result.success(
             RouteResult(
                 coordinates = coords,
                 distanceM = route.distance ?: 0.0,
                 durationSec = route.duration ?: 0.0,
-                firstManeuver = maneuverText(step),
+                firstManeuver = OsrmNavText.maneuverText(step),
+                steps = navSteps,
             ),
         )
+    }
+
+    private fun buildNavSteps(osrmSteps: List<OsrmStepDto>, routeCoords: List<Pair<Double, Double>>): List<NavStep> {
+        if (osrmSteps.isEmpty()) return emptyList()
+        val out = mutableListOf<NavStep>()
+        for (s in osrmSteps) {
+            val loc = s.maneuver?.location
+            val latLng =
+                if (loc != null && loc.size >= 2) {
+                    Pair(loc[1], loc[0])
+                } else {
+                    null
+                }
+            if (latLng != null) {
+                out.add(NavStep(lat = latLng.first, lng = latLng.second, dto = s))
+            }
+        }
+        if (out.isNotEmpty()) return out
+        if (routeCoords.size >= 2) {
+            val first = osrmSteps.first()
+            val p = routeCoords.first()
+            return listOf(NavStep(lat = p.first, lng = p.second, dto = first))
+        }
+        return emptyList()
     }
 
     private fun parseAppRoute(body: String): Result<RouteResult> {
@@ -181,83 +208,8 @@ class OsrmClient {
                 durationSec = parsed.durationSec ?: 0.0,
                 firstManeuver = parsed.maneuver?.trim()?.takeIf { it.isNotEmpty() }
                     ?: "Seguí la ruta resaltada",
+                steps = emptyList(),
             ),
         )
     }
-
-    private fun maneuverText(step: OsrmStep?): String {
-        if (step == null || step.maneuver == null) return "Seguí por la ruta resaltada"
-        val m = step.maneuver
-        val street = (m.name ?: step.name)?.trim().orEmpty()
-        val t = m.type.orEmpty()
-        val mod = m.modifier.orEmpty()
-        return when {
-            t == "arrive" -> "Llegaste al destino"
-            t == "depart" -> "Salí hacia ${street.ifEmpty { "la ruta" }}"
-            mod == "left" -> "Girá a la izquierda${if (street.isNotEmpty()) " en $street" else ""}"
-            mod == "right" -> "Girá a la derecha${if (street.isNotEmpty()) " en $street" else ""}"
-            mod == "slight left" -> "Mantenete a la izquierda"
-            mod == "slight right" -> "Mantenete a la derecha"
-            t == "roundabout" -> "Tomá la rotonda"
-            t == "continue" -> "Continuá${if (street.isNotEmpty()) " por $street" else ""}"
-            !m.instruction.isNullOrBlank() -> m.instruction!!.trim()
-            else -> "Seguí la ruta resaltada"
-        }
-    }
 }
-
-@JsonClass(generateAdapter = true)
-private data class OsrmResponse(
-    val code: String? = null,
-    val routes: List<OsrmRoute>? = null,
-    val message: String? = null,
-)
-
-@JsonClass(generateAdapter = true)
-private data class OsrmRoute(
-    val distance: Double? = null,
-    val duration: Double? = null,
-    val geometry: OsrmGeometry? = null,
-    val legs: List<OsrmLeg>? = null,
-)
-
-@JsonClass(generateAdapter = true)
-private data class OsrmGeometry(
-    val coordinates: List<List<Double>>? = null,
-)
-
-@JsonClass(generateAdapter = true)
-private data class OsrmLeg(
-    val steps: List<OsrmStep>? = null,
-)
-
-@JsonClass(generateAdapter = true)
-private data class OsrmStep(
-    val distance: Double? = null,
-    val maneuver: OsrmManeuver? = null,
-    val name: String? = null,
-)
-
-@JsonClass(generateAdapter = true)
-private data class OsrmManeuver(
-    val instruction: String? = null,
-    val type: String? = null,
-    val modifier: String? = null,
-    val name: String? = null,
-)
-
-@JsonClass(generateAdapter = true)
-private data class AppRouteResponse(
-    val ok: Boolean = false,
-    val error: String? = null,
-    val coordinates: List<RouteCoord>? = null,
-    @Json(name = "distance_m") val distanceM: Double? = null,
-    @Json(name = "duration_sec") val durationSec: Double? = null,
-    val maneuver: String? = null,
-)
-
-@JsonClass(generateAdapter = true)
-private data class RouteCoord(
-    val lat: Double = 0.0,
-    val lng: Double = 0.0,
-)

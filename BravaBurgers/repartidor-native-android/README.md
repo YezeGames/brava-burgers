@@ -26,7 +26,8 @@ APK debug: `app/build/outputs/apk/debug/app-debug.apk`
 
 | Hecho | Pendiente |
 |-------|-----------|
-| Login · lista · pull-to-refresh · multi-parada | Voz navegación nativa |
+| Login · lista · pull-to-refresh · multi-parada | |
+| **Voz GPS** (TTS turn-by-turn, chip Voz ON/OFF en mapa) | |
 | MapLibre · OSRM · maniobra · geocode | Mismo `applicationId` prod |
 | **Ruta:** Supabase **Realtime** (websocket) + **FCM** — **sin poll** | |
 | **GPS:** FGS solo en camino · `reportTrack` ~16 s | |
