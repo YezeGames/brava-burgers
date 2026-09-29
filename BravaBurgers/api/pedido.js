@@ -180,14 +180,10 @@ module.exports = async function handler(req, res) {
     const q = req.query || {};
     const action = String(q.action || '').trim();
     if (action === 'osrmRoute') {
-      const { fetchOsrmRouteJson } = require('../lib/osrmRouteProxy');
-      const out = await fetchOsrmRouteJson(q);
-      if (!out.ok) {
-        return res.status(out.status || 502).json(out);
-      }
+      const { fetchOsrmRouteForApp } = require('../lib/osrmRouteProxy');
+      const out = await fetchOsrmRouteForApp(q);
       res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
-      res.setHeader('Content-Type', out.contentType);
-      return res.status(200).send(out.body);
+      return res.status(out.ok ? 200 : out.status || 502).json(out);
     }
     if (action === 'listRuta') {
       return handleRepartidor(q, req, res);
@@ -205,14 +201,10 @@ module.exports = async function handler(req, res) {
 
   const body = parseBody(req);
   if (body.action === 'osrmRoute') {
-    const { fetchOsrmRouteJson } = require('../lib/osrmRouteProxy');
-    const out = await fetchOsrmRouteJson(body);
-    if (!out.ok) {
-      return res.status(out.status || 502).json(out);
-    }
+    const { fetchOsrmRouteForApp } = require('../lib/osrmRouteProxy');
+    const out = await fetchOsrmRouteForApp(body);
     res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
-    res.setHeader('Content-Type', out.contentType);
-    return res.status(200).send(out.body);
+    return res.status(out.ok ? 200 : out.status || 502).json(out);
   }
   if (
     body.action === 'repartidorLogin' ||
