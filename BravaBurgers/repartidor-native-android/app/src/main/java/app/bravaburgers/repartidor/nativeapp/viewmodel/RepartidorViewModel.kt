@@ -10,6 +10,7 @@ import app.bravaburgers.repartidor.nativeapp.data.OsrmClient
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
+import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
@@ -23,11 +24,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 
 data class RepartidorUiState(
     val session: Session? = null,
@@ -48,6 +50,7 @@ data class RepartidorUiState(
     val trackingOrn: String? = null,
 )
 
+@OptIn(FlowPreview::class)
 class RepartidorViewModel(
     private val repo: RepartidorRepository,
     private val realtime: app.bravaburgers.repartidor.nativeapp.realtime.RepartidorRealtimeCoordinator? = null,
@@ -60,6 +63,9 @@ class RepartidorViewModel(
     private val navLocationTracker = NavLocationTracker(repo.appContext)
     private val routeRefreshMutex = Mutex()
     private var loginRealtime: RealtimeConfigDto? = null
+    private var bootstrappedToken: String? = null
+    /** Evita listRuta extra mientras el usuario espera respuesta de una acción. */
+    private var suppressBackgroundRefresh = 0
 
     val sessionFlow =
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -77,13 +83,20 @@ class RepartidorViewModel(
                             .orEmpty()
                             .ifEmpty { _ui.value.activeOrn.orEmpty() }
                     RepartoSessionForegroundService.persistSession(ctx, s.token, repo.apiKey, orn)
-                    PushRegistrar.registerAfterLogin(ctx, repo, s.token)
-                    val rt = loginRealtime
-                    loginRealtime = null
-                    realtime?.start(s.token, rt)
-                    SessionWorkScheduler.schedule(ctx)
-                    if (_ui.value.stops.isEmpty()) refreshRoute(s.token, pull = false)
+
+                    if (bootstrappedToken != s.token) {
+                        bootstrappedToken = s.token
+                        PushRegistrar.registerAfterLogin(ctx, repo, s.token)
+                        val rt = loginRealtime
+                        loginRealtime = null
+                        realtime?.start(s.token, rt)
+                        SessionWorkScheduler.schedule(ctx)
+                        applyRefresh(s.token, pull = false, refreshing = false)
+                    } else if (_ui.value.stops.isEmpty()) {
+                        refreshRoute(s.token, pull = false)
+                    }
                 } else {
+                    bootstrappedToken = null
                     realtime?.stop()
                     SessionWorkScheduler.cancel(ctx)
                     RepartoSessionForegroundService.stopSession(ctx)
@@ -91,9 +104,12 @@ class RepartidorViewModel(
             }
         }
         viewModelScope.launch {
-            RouteEvents.refresh.collect {
-                refreshRoute(pull = false)
-            }
+            RouteEvents.refresh
+                .debounce(350)
+                .collect {
+                    if (suppressBackgroundRefresh > 0) return@collect
+                    refreshRoute(pull = false)
+                }
         }
     }
 
@@ -103,17 +119,6 @@ class RepartidorViewModel(
             repo.login(login, password)
                 .onSuccess { bundle ->
                     loginRealtime = bundle.realtime
-                    _ui.value =
-                        _ui.value.copy(
-                            loading = false,
-                            session = bundle.session,
-                            error = null,
-                        )
-                    RepartoSessionForegroundService.persistSession(
-                        repo.appContext,
-                        bundle.session.token,
-                        repo.apiKey,
-                    )
                 }
                 .onFailure {
                     _ui.value = _ui.value.copy(loading = false, error = it.message ?: "Error")
@@ -123,6 +128,7 @@ class RepartidorViewModel(
 
     fun logout() {
         viewModelScope.launch {
+            bootstrappedToken = null
             realtime?.stop()
             SessionWorkScheduler.cancel(repo.appContext)
             RepartoSessionForegroundService.stopSession(repo.appContext)
@@ -142,9 +148,7 @@ class RepartidorViewModel(
         }
     }
 
-    /** Refresca ruta y espera respuesta (p. ej. tras entregar, antes de ir a la siguiente parada). */
     private suspend fun refreshRouteAndWait(token: String): Result<List<RouteStop>> {
-        _ui.value = _ui.value.copy(loading = true, error = null)
         return applyRefresh(token, pull = false, refreshing = false)
     }
 
@@ -164,28 +168,7 @@ class RepartidorViewModel(
             val result = repo.fetchRoute(token)
             result
                 .onSuccess { list ->
-                    val merged =
-                        list.map { incoming ->
-                            val prev = _ui.value.stops.find { it.orn == incoming.orn }
-                            if (prev?.items.isNullOrEmpty()) incoming else incoming.copy(items = prev.items)
-                        }
-                    _ui.value =
-                        _ui.value.copy(
-                            stops = merged,
-                            loading = false,
-                            refreshing = false,
-                            connected = true,
-                            tripStarted = _ui.value.tripStarted || merged.any { s ->
-                                s.estado.equals("en_camino", ignoreCase = true)
-                            },
-                        )
-                    RouteGpsSync.syncFromStops(
-                        repo.appContext,
-                        token,
-                        repo.apiKey,
-                        merged,
-                        _ui.value.trackingOrn,
-                    )
+                    applyStopsFromServer(token, list)
                 }
                 .onFailure {
                     _ui.value =
@@ -198,6 +181,40 @@ class RepartidorViewModel(
                 }
             result
         }
+
+    private fun applyStopsFromServer(token: String, list: List<RouteStop>) {
+        val merged =
+            list.map { incoming ->
+                val prev = _ui.value.stops.find { it.orn == incoming.orn }
+                if (prev?.items.isNullOrEmpty()) incoming else incoming.copy(items = prev.items)
+            }
+        _ui.value =
+            _ui.value.copy(
+                stops = merged,
+                loading = false,
+                refreshing = false,
+                connected = true,
+                tripStarted = _ui.value.tripStarted || merged.any { s ->
+                    s.estado.equals("en_camino", ignoreCase = true)
+                },
+            )
+        RouteGpsSync.syncFromStops(
+            repo.appContext,
+            token,
+            repo.apiKey,
+            merged,
+            _ui.value.trackingOrn,
+        )
+    }
+
+    private suspend inline fun <T> withActionRefreshGuard(block: suspend () -> T): T {
+        suppressBackgroundRefresh++
+        try {
+            return block()
+        } finally {
+            suppressBackgroundRefresh--
+        }
+    }
 
     fun ensureStopDetail(orn: String) {
         val token = _ui.value.session?.token ?: return
@@ -220,18 +237,22 @@ class RepartidorViewModel(
     fun iniciarRecorrido(onDone: (RouteStop?) -> Unit) {
         val token = _ui.value.session?.token ?: return
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(loading = true, error = null)
-            repo.iniciarRecorrido(token)
-                .onSuccess {
-                    _ui.value = _ui.value.copy(tripStarted = true)
+            withActionRefreshGuard {
+                _ui.value = _ui.value.copy(loading = true, error = null)
+                repo.iniciarRecorrido(token)
+            }.onSuccess { pedidos ->
+                _ui.value = _ui.value.copy(tripStarted = true)
+                if (!pedidos.isNullOrEmpty()) {
+                    applyStopsFromServer(token, pedidos)
+                    val next = pickNextStop(pedidos)
+                    _ui.value = _ui.value.copy(activeOrn = next?.orn, loading = false)
+                    next?.orn?.let { RepartoSessionForegroundService.setActiveOrn(repo.appContext, it) }
+                    onDone(next)
+                } else {
                     refreshRouteAndWait(token)
                         .onSuccess { list ->
                             val next = pickNextStop(list)
-                            _ui.value =
-                                _ui.value.copy(
-                                    activeOrn = next?.orn,
-                                    loading = false,
-                                )
+                            _ui.value = _ui.value.copy(activeOrn = next?.orn, loading = false)
                             next?.orn?.let { RepartoSessionForegroundService.setActiveOrn(repo.appContext, it) }
                             onDone(next)
                         }
@@ -240,9 +261,9 @@ class RepartidorViewModel(
                             onDone(pickNextStop(_ui.value.stops))
                         }
                 }
-                .onFailure {
-                    _ui.value = _ui.value.copy(loading = false, error = it.message)
-                }
+            }.onFailure {
+                _ui.value = _ui.value.copy(loading = false, error = it.message)
+            }
         }
     }
 
@@ -254,28 +275,51 @@ class RepartidorViewModel(
     fun confirmarLlegada(orn: String, onDone: () -> Unit) {
         val token = _ui.value.session?.token ?: return
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(loading = true, error = null)
-            repo.confirmarLlegada(token, orn)
-                .onSuccess {
-                    refreshRouteAndWait(token)
-                    _ui.value = _ui.value.copy(loading = false)
-                    onDone()
-                }
-                .onFailure {
-                    _ui.value = _ui.value.copy(loading = false, error = it.message)
-                }
+            withActionRefreshGuard {
+                _ui.value = _ui.value.copy(loading = true, error = null)
+                repo.confirmarLlegada(token, orn)
+            }.onSuccess { llegadaAt ->
+                val at = llegadaAt.orEmpty().ifBlank { java.time.Instant.now().toString() }
+                _ui.value =
+                    _ui.value.copy(
+                        stops =
+                            _ui.value.stops.map { s ->
+                                if (s.orn == orn) s.copy(llegadaAt = at) else s
+                            },
+                        loading = false,
+                    )
+                onDone()
+            }.onFailure {
+                _ui.value = _ui.value.copy(loading = false, error = it.message)
+            }
         }
     }
 
     /**
-     * Marca entregada, refresca ruta (servidor activa siguiente parada) y devuelve la siguiente entrega.
+     * Marca entregada; el servidor devuelve la ruta actualizada (sin segundo listRuta).
      */
     fun markEntregada(orn: String, onDone: (RouteStop?) -> Unit) {
         val token = _ui.value.session?.token ?: return
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(loading = true, error = null)
-            repo.markEntregada(token, orn)
-                .onSuccess {
+            withActionRefreshGuard {
+                _ui.value = _ui.value.copy(loading = true, error = null)
+                repo.markEntregada(token, orn)
+            }.onSuccess { pedidos ->
+                if (!pedidos.isNullOrEmpty()) {
+                    applyStopsFromServer(token, pedidos)
+                    val next = pickNextStop(pedidos)
+                    _ui.value =
+                        _ui.value.copy(
+                            loading = false,
+                            activeOrn = next?.orn,
+                            tripStarted = next != null || _ui.value.tripStarted,
+                        )
+                    RepartoSessionForegroundService.setActiveOrn(
+                        repo.appContext,
+                        next?.orn.orEmpty(),
+                    )
+                    onDone(next)
+                } else {
                     refreshRouteAndWait(token)
                         .onSuccess { list ->
                             val next = pickNextStop(list)
@@ -297,9 +341,9 @@ class RepartidorViewModel(
                             onDone(next)
                         }
                 }
-                .onFailure {
-                    _ui.value = _ui.value.copy(loading = false, error = it.message)
-                }
+            }.onFailure {
+                _ui.value = _ui.value.copy(loading = false, error = it.message)
+            }
         }
     }
 

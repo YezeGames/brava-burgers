@@ -50,19 +50,24 @@ class RepartidorRepository(context: Context) {
         return Result.success(stop)
     }
 
-    suspend fun iniciarRecorrido(token: String): Result<Unit> {
+    suspend fun iniciarRecorrido(token: String): Result<List<RouteStop>?> {
         val out = api.iniciarRecorrido(token, apiKey)
-        return if (out.ok) Result.success(Unit) else Result.failure(Exception(out.error ?: "iniciar_failed"))
+        if (!out.ok) return Result.failure(Exception(out.error ?: "iniciar_failed"))
+        val list = out.pedidos?.sortedBy { it.parada ?: Int.MAX_VALUE }
+        return Result.success(list)
     }
 
-    suspend fun confirmarLlegada(token: String, orn: String): Result<Unit> {
+    suspend fun confirmarLlegada(token: String, orn: String): Result<String?> {
         val out = api.confirmarLlegada(token, apiKey, orn)
-        return if (out.ok) Result.success(Unit) else Result.failure(Exception(out.error ?: "llegada_failed"))
+        if (!out.ok) return Result.failure(Exception(out.error ?: "llegada_failed"))
+        return Result.success(out.llegadaAt)
     }
 
-    suspend fun markEntregada(token: String, orn: String): Result<Unit> {
+    suspend fun markEntregada(token: String, orn: String): Result<List<RouteStop>?> {
         val out = api.markEntregada(token, apiKey, orn)
-        return if (out.ok) Result.success(Unit) else Result.failure(Exception(out.error ?: "entrega_failed"))
+        if (!out.ok) return Result.failure(Exception(out.error ?: "entrega_failed"))
+        val list = out.pedidos?.sortedBy { it.parada ?: Int.MAX_VALUE }
+        return Result.success(list)
     }
 
     suspend fun savePushToken(repartidorToken: String, fcmToken: String) {

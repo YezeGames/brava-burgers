@@ -38,8 +38,9 @@ class BravaRepartidorApp : Application() {
             RepartoSessionForegroundService.ensureGpsIfNeeded(this)
             val snap = SessionServicePrefs.read(this)
             if (snap.sessionOn && snap.token.isNotEmpty()) {
-                realtime.start(snap.token)
-                PushRegistrar.registerAfterLogin(this, repository, snap.token)
+                if (!realtime.isLiveForToken(snap.token)) {
+                    realtime.start(snap.token)
+                }
             }
         }
         AppForeground.install()

@@ -767,7 +767,14 @@ async function updateOrder(body) {
 
   var waPostEntrega = null;
   if (patch.estado === 'entregada') {
-    waPostEntrega = await ensureWaPostEntrega(outOrn);
+    if (body.asyncWaPostEntrega) {
+      void ensureWaPostEntrega(outOrn).catch(function (e) {
+        console.warn('[updateOrder asyncWaPostEntrega]', outOrn, e && e.message ? e.message : e);
+      });
+      waPostEntrega = { ok: true, async: true };
+    } else {
+      waPostEntrega = await ensureWaPostEntrega(outOrn);
+    }
   }
 
   return { ok: true, orn: outOrn, waPostEntrega: waPostEntrega };
@@ -928,13 +935,18 @@ async function repartidorSeguimientoNextStopAfterEntrega(repartidorTel) {
       continue;
     }
     activated++;
-    const wa = await sendSeguimientoWhatsApp(row.telefono, row.cliente, orn, {
+    void sendSeguimientoWhatsApp(row.telefono, row.cliente, orn, {
       phase: 'next_stop',
       parada: parada,
-    });
-    waOut.push({ orn: orn, wa: wa });
+    })
+      .then(function (wa) {
+        waOut.push({ orn: orn, wa: wa });
+      })
+      .catch(function (e) {
+        waOut.push({ orn: orn, ok: false, error: String(e.message || e) });
+      });
   }
-  return { ok: true, activated: activated, wa: waOut, parada: minP };
+  return { ok: true, activated: activated, wa: [], wa_async: true, parada: minP };
 }
 
 async function repartidorIniciarRecorrido(body) {
@@ -963,7 +975,10 @@ async function repartidorIniciarRecorrido(body) {
         '&estado=eq.en_camino&limit=1'
     );
     if (cam.ok && cam.data && cam.data.length) {
-      return { ok: true, already: true, moved: 0, en_camino: cam.data.length, wa: [] };
+      const routeAlready = await listRepartidorRuta(tel, false, { includeItems: false });
+      const alreadyOut = { ok: true, already: true, moved: 0, en_camino: cam.data.length, wa: [] };
+      if (routeAlready.ok && routeAlready.pedidos) alreadyOut.pedidos = routeAlready.pedidos;
+      return alreadyOut;
     }
     return { ok: false, error: 'no_stops_to_start' };
   }
@@ -1003,7 +1018,17 @@ async function repartidorIniciarRecorrido(body) {
   if (!moved) {
     return { ok: false, error: 'no_stops_to_start' };
   }
-  return { ok: true, moved: moved, wa: [], wa_async: true, repartidor_tel: tel, parada: minP };
+  const route = await listRepartidorRuta(tel, false, { includeItems: false });
+  const out = {
+    ok: true,
+    moved: moved,
+    wa: [],
+    wa_async: true,
+    repartidor_tel: tel,
+    parada: minP,
+  };
+  if (route.ok && route.pedidos) out.pedidos = route.pedidos;
+  return out;
 }
 
 async function repartidorMarkEntregada(body) {
@@ -1021,21 +1046,22 @@ async function repartidorMarkEntregada(body) {
     return { ok: false, error: 'order_not_assigned_to_repartidor' };
   }
   if (String(row.estado || '').toLowerCase() === 'entregada') {
-    const waPostEntrega = await ensureWaPostEntrega(orn);
-    return { ok: true, orn: orn, already: true, waPostEntrega: waPostEntrega };
+    void ensureWaPostEntrega(orn).catch(function () {});
+    const route = await listRepartidorRuta(tel, false, { includeItems: false });
+    const already = { ok: true, orn: orn, already: true, waPostEntrega: { ok: true, async: true } };
+    if (route.ok && route.pedidos) already.pedidos = route.pedidos;
+    return already;
   }
-  const out = await updateOrder({ orn: orn, estado: 'entregada' });
+  const out = await updateOrder({ orn: orn, estado: 'entregada', asyncWaPostEntrega: true });
   if (!out.ok) return out;
   await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), {
     track_lat: null,
     track_lng: null,
     track_at: null,
   });
-  if (!out.waPostEntrega || (!out.waPostEntrega.ok && !(out.waPostEntrega.skipped && out.waPostEntrega.reason === 'already_sent'))) {
-    const retryWa = await ensureWaPostEntrega(orn);
-    out.waPostEntrega = retryWa;
-  }
   out.seguimientoNext = await repartidorSeguimientoNextStopAfterEntrega(tel);
+  const route = await listRepartidorRuta(tel, false, { includeItems: false });
+  if (route.ok && route.pedidos) out.pedidos = route.pedidos;
   return out;
 }
 
@@ -1191,14 +1217,6 @@ async function repartidorConfirmarLlegada(body, _retried) {
   if (row.repartidor_llegada_at) {
     return { ok: true, already: true, llegada_at: row.repartidor_llegada_at, wa: false };
   }
-  const wa = await sendRepartidorLlegadaWhatsApp(row.telefono, row.cliente);
-  if (!wa.ok) {
-    return {
-      ok: false,
-      error: wa.error === 'whatsapp_not_configured' ? 'whatsapp_not_configured' : 'wa_failed',
-      detail: wa.error || wa.message,
-    };
-  }
   const now = new Date().toISOString();
   const patch = await restPatch('orders', 'orn=eq.' + encodeURIComponent(orn), {
     repartidor_llegada_at: now,
@@ -1213,7 +1231,10 @@ async function repartidorConfirmarLlegada(body, _retried) {
     }
     return supabaseFail(patch, 'llegada_patch_failed');
   }
-  return { ok: true, llegada_at: now, wa: true, orn: orn };
+  void sendRepartidorLlegadaWhatsApp(row.telefono, row.cliente).catch(function (e) {
+    console.warn('[confirmarLlegada wa]', orn, e && e.message ? e.message : e);
+  });
+  return { ok: true, llegada_at: now, wa_async: true, orn: orn };
 }
 
 function isRepartidorLlegadaColumnMissing(r) {

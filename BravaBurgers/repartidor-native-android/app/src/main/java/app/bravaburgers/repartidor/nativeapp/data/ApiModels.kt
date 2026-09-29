@@ -82,4 +82,7 @@ data class ListRutaResponse(
 data class SimpleActionResponse(
     val ok: Boolean = false,
     val error: String? = null,
+    val pedidos: List<RouteStop>? = null,
+    @Json(name = "llegada_at") val llegadaAt: String? = null,
+    val orn: String? = null,
 )

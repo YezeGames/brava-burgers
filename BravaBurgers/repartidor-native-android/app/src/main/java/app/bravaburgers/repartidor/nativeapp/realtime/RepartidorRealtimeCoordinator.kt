@@ -27,20 +27,29 @@ class RepartidorRealtimeCoordinator(
     private var supabase: io.github.jan.supabase.SupabaseClient? = null
     private var refreshJob: Job? = null
     private var repartidorToken: String? = null
+    private var connectJob: Job? = null
+    private var connectedToken: String? = null
+
+    fun isLiveForToken(token: String): Boolean =
+        token.isNotBlank() && token == connectedToken && supabase != null
 
     fun start(repartidorToken: String, initial: RealtimeConfigDto? = null) {
+        if (isLiveForToken(repartidorToken) && initial == null) return
         this.repartidorToken = repartidorToken
-        scope.launch {
-            stopInternal()
-            connect(initial ?: fetchConfig(repartidorToken) ?: return@launch)
-            scheduleTokenRefresh(repartidorToken)
-        }
+        connectJob?.cancel()
+        connectJob =
+            scope.launch {
+                stopInternal()
+                connect(initial ?: fetchConfig(repartidorToken) ?: return@launch)
+                scheduleTokenRefresh(repartidorToken)
+            }
     }
 
     private fun stopInternal() {
         refreshJob?.cancel()
         refreshJob = null
         supabase = null
+        connectedToken = null
     }
 
     fun stop() {
@@ -81,6 +90,7 @@ class RepartidorRealtimeCoordinator(
                 RouteEvents.requestRefresh("realtime")
             }.launchIn(scope)
         channel.subscribe()
+        connectedToken = repartidorToken
     }
 
     private fun scheduleTokenRefresh(repartidorToken: String) {
