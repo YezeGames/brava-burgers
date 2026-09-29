@@ -22,3 +22,10 @@ Si pide **reinicio** (WSL/Docker), reiniciá y volvé a ejecutar el mismo script
 (`VERCEL_TOKEN` en variable de entorno o en un `.env` local — ver script.)
 
 La app repartidor **no se reinstala**: usa `osrmRoute` en Vercel, que apunta a tu PC.
+
+## OpenRouteService (mientras no hay Docker)
+
+1. Guardá la key en `secrets/openrouteservice-api-key.txt` (una línea, gitignored).
+2. Ejecutá: `BravaBurgers\scripts\set-vercel-openrouteservice-from-secrets.ps1`
+
+La API Brava usa **cache + OSRM gratis + ORS solo si hace falta** (ahorra cuota).
