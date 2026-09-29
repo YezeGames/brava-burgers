@@ -1,0 +1,14 @@
+# OSRM en la PC del local — solo routing (mapa sigue MapLibre + CARTO en el teléfono).
+# Preparar datos una vez: .\prepare.ps1
+# Arrancar: docker compose up -d
+
+services:
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: brava-osrm
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ./data:/data
+    command: osrm-routed --algorithm mld /data/argentina-latest.osrm

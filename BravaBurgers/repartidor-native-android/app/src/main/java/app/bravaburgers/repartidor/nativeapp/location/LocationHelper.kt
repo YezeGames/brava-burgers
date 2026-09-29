@@ -21,11 +21,24 @@ object LocationHelper {
         return fine || coarse
     }
 
-    /** Pair(lat, lng) */
+    /** Pair(lat, lng) — caché del fused primero (instantáneo), luego fix GPS si hace falta. */
     suspend fun lastLatLng(context: Context): Pair<Double, Double>? {
         if (!hasLocationPermission(context)) return null
+        val fused = LocationServices.getFusedLocationProviderClient(context)
+        val cached =
+            suspendCoroutine { cont ->
+                fused.lastLocation
+                    .addOnSuccessListener { loc ->
+                        if (loc != null) {
+                            cont.resume(Pair(loc.latitude, loc.longitude))
+                        } else {
+                            cont.resume(null)
+                        }
+                    }
+                    .addOnFailureListener { cont.resume(null) }
+            }
+        if (cached != null) return cached
         return suspendCoroutine { cont ->
-            val fused = LocationServices.getFusedLocationProviderClient(context)
             val cancel = CancellationTokenSource()
             fused
                 .getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, cancel.token)

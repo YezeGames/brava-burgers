@@ -1,7 +1,21 @@
-const OSRM_HOSTS = [
-  'https://router.project-osrm.org/route/v1/driving/',
+const OSRM_PUBLIC = [
   'https://routing.openstreetmap.de/routed-car/route/v1/driving/',
+  'https://router.project-osrm.org/route/v1/driving/',
 ];
+
+/** PC del local (Cloudflare Tunnel) u otro OSRM propio — ver infra/osrm-local-pc/README.md */
+function osrmHostList() {
+  var custom = String(process.env.BRAVA_OSRM_BASE_URL || process.env.OSRM_BASE_URL || '').trim();
+  var hosts = [];
+  if (custom) {
+    var base = custom.replace(/\/+$/, '');
+    if (base.indexOf('/route/v1/driving') < 0) {
+      base = base + '/route/v1/driving';
+    }
+    hosts.push(base.endsWith('/') ? base : base + '/');
+  }
+  return hosts.concat(OSRM_PUBLIC);
+}
 
 function maneuverTextFromStep(step) {
   if (!step || !step.maneuver) return 'Seguí por la ruta resaltada';
@@ -20,11 +34,90 @@ function maneuverTextFromStep(step) {
   return m.instruction || 'Seguí la ruta resaltada';
 }
 
+async function fetchOpenRouteService(pathCoords) {
+  var key = String(process.env.OPENROUTESERVICE_API_KEY || process.env.ORS_API_KEY || '').trim();
+  if (!key) return { ok: false, error: 'ors_not_configured' };
+  var parts = String(pathCoords || '').split(';');
+  if (parts.length < 2) return { ok: false, error: 'ors_bad_coords' };
+  var a = parts[0].split(',');
+  var b = parts[1].split(',');
+  if (a.length < 2 || b.length < 2) return { ok: false, error: 'ors_bad_coords' };
+  var body = {
+    coordinates: [
+      [parseFloat(a[0]), parseFloat(a[1])],
+      [parseFloat(b[0]), parseFloat(b[1])],
+    ],
+  };
+  try {
+    var res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
+      method: 'POST',
+      headers: {
+        Authorization: key,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(25000),
+    });
+    var text = await res.text();
+    if (!res.ok) {
+      return { ok: false, error: 'ors_upstream', status: 502, detail: text.slice(0, 240) };
+    }
+    var geo = JSON.parse(text);
+    var feat = geo.features && geo.features[0];
+    var coords = feat && feat.geometry && feat.geometry.coordinates;
+    if (!coords || !coords.length) {
+      return { ok: false, error: 'ors_no_route', status: 502 };
+    }
+    var dist = (feat.properties && feat.properties.summary && feat.properties.summary.distance) || 0;
+    var dur = (feat.properties && feat.properties.summary && feat.properties.summary.duration) || 0;
+    var steps = [];
+    var segs =
+      feat.properties &&
+      feat.properties.segments &&
+      feat.properties.segments[0] &&
+      feat.properties.segments[0].steps;
+    if (segs && segs.length) {
+      for (var si = 0; si < segs.length; si++) {
+        var st = segs[si];
+        steps.push({
+          distance: st.distance,
+          duration: st.duration,
+          name: st.name || '',
+          maneuver: {
+            type: st.type === 10 ? 'arrive' : 'turn',
+            modifier: st.instruction || '',
+            instruction: st.instruction || '',
+            location: st.way_points ? null : null,
+          },
+        });
+      }
+    }
+    var osrmLike = {
+      code: 'Ok',
+      routes: [
+        {
+          distance: dist,
+          duration: dur,
+          geometry: { type: 'LineString', coordinates: coords },
+          legs: [{ steps: steps }],
+        },
+      ],
+    };
+    return { ok: true, data: osrmLike };
+  } catch (e) {
+    return { ok: false, error: 'ors_failed', detail: String(e.message || e) };
+  }
+}
+
 async function fetchOsrmRaw(pathCoords) {
   var lastErr = { ok: false, error: 'osrm_failed' };
-  for (var h = 0; h < OSRM_HOSTS.length; h++) {
+  var ors = await fetchOpenRouteService(pathCoords);
+  if (ors.ok) return ors;
+  var list = osrmHostList();
+  for (var h = 0; h < list.length; h++) {
     var url =
-      OSRM_HOSTS[h] +
+      list[h] +
       pathCoords +
       '?overview=full&geometries=geojson&steps=true&language=es&alternatives=false';
     try {

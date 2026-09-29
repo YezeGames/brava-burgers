@@ -143,12 +143,20 @@ async function sendSeguimientoCtaCard(to, bodyText, url, opts) {
 
   let firstErr = '';
   let firstHint = '';
-  /** Botón sin imagen primero: el link llega al cliente sin esperar fetch/upload del logo. */
-  let sent = await sendInteractiveCtaUrl(base);
-  if (sent.ok) return Object.assign({ mode: 'cta_plain' }, sent);
-  firstErr = graphDetail(sent).slice(0, 200);
-  firstHint = sent.hint || '';
+  /** Precalentar media id en background (siguiente envío más rápido). */
+  void resolveSeguimientoLogoMediaId().catch(function () {});
 
+  const envMediaId = String(process.env.WHATSAPP_SEGUIMIENTO_MEDIA_ID || '').trim();
+  const mediaIdFast = envMediaId || cachedLogoMediaId;
+  let sent;
+  if (mediaIdFast) {
+    sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: mediaIdFast }));
+    if (sent.ok) return Object.assign({ mode: 'cta_logo_media' }, sent);
+    firstErr = graphDetail(sent).slice(0, 200);
+    firstHint = sent.hint || '';
+  }
+
+  /** Logo por URL: Meta lo baja; no bloqueamos en upload desde Vercel. */
   sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageUrl: logoUrl }));
   if (sent.ok) return Object.assign({ mode: 'cta_logo_link' }, sent);
   if (!firstErr) {
@@ -156,9 +164,12 @@ async function sendSeguimientoCtaCard(to, bodyText, url, opts) {
     firstHint = sent.hint || '';
   }
 
-  const mediaId = await resolveSeguimientoLogoMediaId();
-  if (mediaId) {
-    sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: mediaId }));
+  sent = await sendInteractiveCtaUrl(base);
+  if (sent.ok) return Object.assign({ mode: 'cta_plain' }, sent);
+
+  const uploadedId = await resolveSeguimientoLogoMediaId();
+  if (uploadedId && uploadedId !== mediaIdFast) {
+    sent = await sendInteractiveCtaUrl(Object.assign({}, base, { imageMediaId: uploadedId }));
     if (sent.ok) return Object.assign({ mode: 'cta_logo_upload' }, sent);
   }
 

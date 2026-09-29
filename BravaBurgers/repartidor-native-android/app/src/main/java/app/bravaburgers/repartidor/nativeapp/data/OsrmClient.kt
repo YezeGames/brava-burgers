@@ -8,6 +8,12 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import java.util.concurrent.atomic.AtomicInteger
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -23,8 +29,8 @@ data class RouteResult(
 class OsrmClient {
     private val http =
         OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(18, TimeUnit.SECONDS)
             .build()
 
     private val moshi =
@@ -53,21 +59,47 @@ class OsrmClient {
         toLat: Double,
     ): Result<RouteResult> {
         var lastErr: Throwable? = null
+        val brava = fetchViaPedidoPost(fromLng, fromLat, toLng, toLat)
+        if (brava.isSuccess) return brava
+        lastErr = brava.exceptionOrNull()
         for (base in directBases) {
-            repeat(2) { attempt ->
-                if (attempt > 0) Thread.sleep(350L)
-                val out = fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat)
-                if (out.isSuccess) return out
-                lastErr = out.exceptionOrNull()
-            }
-        }
-        repeat(2) { attempt ->
-            if (attempt > 0) Thread.sleep(400L)
-            val out = fetchViaPedidoPost(fromLng, fromLat, toLng, toLat)
+            val out = fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat)
             if (out.isSuccess) return out
             lastErr = out.exceptionOrNull()
         }
         return Result.failure(lastErr ?: Exception("route_failed"))
+    }
+
+    /** Brava + OSRM en paralelo; gana el primero que responda (menos “Calculando ruta…”). */
+    suspend fun fetchDrivingRouteFast(
+        fromLng: Double,
+        fromLat: Double,
+        toLng: Double,
+        toLat: Double,
+    ): Result<RouteResult> {
+        val attempts =
+            listOf(
+                { fetchViaPedidoPost(fromLng, fromLat, toLng, toLat) },
+                { fetchDirectOsrm(directBases[1], fromLng, fromLat, toLng, toLat) },
+                { fetchDirectOsrm(directBases[0], fromLng, fromLat, toLng, toLat) },
+            )
+        return withTimeoutOrNull(22_000L) {
+            coroutineScope {
+                val gate = CompletableDeferred<Result<RouteResult>>()
+                val done = AtomicInteger(0)
+                attempts.forEach { block ->
+                    launch(Dispatchers.IO) {
+                        val out = block()
+                        if (out.isSuccess) {
+                            gate.complete(out)
+                        } else if (done.incrementAndGet() == attempts.size) {
+                            gate.complete(out)
+                        }
+                    }
+                }
+                gate.await()
+            }
+        } ?: Result.failure(Exception("route_timeout"))
     }
 
     /** URL idéntica a repartidor/index.html fetchRouteOsrm */

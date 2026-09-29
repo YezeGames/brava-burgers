@@ -5,7 +5,7 @@ UI según `demo-repartidor-native-ui.html` y `REPARTIDOR_NATIVE_ANDROID.md`.
 
 **Application ID:** `app.bravaburgers.repartidor.nativeapp` (distinto de Capacitor: `app.bravaburgers.repartidor`).
 
-**Prueba de rendimiento:** desinstalá o cerrá sesión en la **APK Capacitor** vieja. Con sesión activa, esa app hace `listRuta` en background (~cada 28 s) y compite por el mismo repartidor en el servidor (no comparten datos en el teléfono, pero sí cargan la API).
+**Prueba de rendimiento:** desinstalá o cerrá sesión en la **APK Capacitor** vieja (`app.bravaburgers.repartidor`). Con sesión activa, esa app hace `listRuta` en background (~cada 28 s) y compite por el mismo repartidor en el servidor (no comparten datos en el teléfono, pero sí cargan la API). La nativa no acumula “basura” de versiones viejas: si hay lag, suele ser red (OSRM/geocode) o dos apps repartidor a la vez — no hace falta borrar datos de Android salvo reinstalar la APK nativa para limpiar caché del mapa.
 
 ## Abrir en Android Studio
 

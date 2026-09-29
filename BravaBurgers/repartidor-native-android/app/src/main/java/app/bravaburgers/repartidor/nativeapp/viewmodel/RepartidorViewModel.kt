@@ -21,6 +21,8 @@ import app.bravaburgers.repartidor.nativeapp.session.RouteEvents
 import app.bravaburgers.repartidor.nativeapp.session.RouteGpsSync
 import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -71,9 +73,14 @@ class RepartidorViewModel(
     /** Evita listRuta extra mientras el usuario espera respuesta de una acción. */
     private var suppressBackgroundRefresh = 0
     private var lastForegroundRefreshMs = 0L
+    /** Invalida refreshes en vuelo al cerrar sesión (estilo Uber: UI primero). */
+    private var authEpoch = 0
+    private var suppressSessionRestore = false
     private var navRerouteInFlight = false
     private var lastNavRerouteAtMs = 0L
     private var navOffRouteAnnounced = false
+    /** Último fix GPS útil para arrancar OSRM sin esperar getCurrentLocation. */
+    private var lastKnownDriverLatLng: Pair<Double, Double>? = null
 
     val sessionFlow =
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
@@ -82,7 +89,10 @@ class RepartidorViewModel(
         navVoice.ensureInit()
         viewModelScope.launch {
             sessionFlow.collect { s ->
-                _ui.value = _ui.value.copy(session = s)
+                if (suppressSessionRestore && s != null) return@collect
+                if (!suppressSessionRestore || s == null) {
+                    _ui.value = _ui.value.copy(session = s)
+                }
                 val ctx = repo.appContext
                 if (s != null) {
                     val orn =
@@ -145,15 +155,22 @@ class RepartidorViewModel(
     }
 
     fun logout() {
+        authEpoch++
+        suppressSessionRestore = true
         bootstrappedToken = null
-        viewModelScope.launch {
-            repo.logout()
-            _ui.value = RepartidorUiState()
-            val ctx = repo.appContext
-            kotlinx.coroutines.withContext(Dispatchers.Default) {
-                realtime?.stop()
-                SessionWorkScheduler.cancel(ctx)
-                RepartoSessionForegroundService.stopSession(ctx)
+        navLocationTracker.stop()
+        navVoice.reset()
+        lastKnownDriverLatLng = null
+        val ctx = repo.appContext
+        RepartoSessionForegroundService.stopSession(ctx)
+        SessionWorkScheduler.cancel(ctx)
+        realtime?.stop()
+        _ui.value = RepartidorUiState()
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repo.logout()
+            } finally {
+                suppressSessionRestore = false
             }
         }
     }
@@ -179,6 +196,10 @@ class RepartidorViewModel(
         refreshing: Boolean,
     ): Result<List<RouteStop>> =
         routeRefreshMutex.withLock {
+            val epoch = authEpoch
+            if (_ui.value.session?.token != token) {
+                return@withLock Result.failure(Exception("session_gone"))
+            }
             if (!pull && !refreshing) {
                 _ui.value = _ui.value.copy(loading = true, error = null)
             } else if (refreshing) {
@@ -187,23 +208,31 @@ class RepartidorViewModel(
                 _ui.value = _ui.value.copy(loading = true, error = null)
             }
             val result = repo.fetchRoute(token)
+            if (epoch != authEpoch || _ui.value.session?.token != token) {
+                return@withLock Result.failure(Exception("session_gone"))
+            }
             result
                 .onSuccess { list ->
-                    applyStopsFromServer(token, list)
+                    if (epoch == authEpoch && _ui.value.session?.token == token) {
+                        applyStopsFromServer(token, list)
+                    }
                 }
                 .onFailure {
-                    _ui.value =
-                        _ui.value.copy(
-                            loading = false,
-                            refreshing = false,
-                            connected = false,
-                            error = it.message,
-                        )
+                    if (epoch == authEpoch && _ui.value.session?.token == token) {
+                        _ui.value =
+                            _ui.value.copy(
+                                loading = false,
+                                refreshing = false,
+                                connected = false,
+                                error = it.message,
+                            )
+                    }
                 }
             result
         }
 
     private fun applyStopsFromServer(token: String, list: List<RouteStop>) {
+        if (_ui.value.session?.token != token) return
         val merged =
             list.map { incoming ->
                 val prev = _ui.value.stops.find { it.orn == incoming.orn }
@@ -414,6 +443,7 @@ class RepartidorViewModel(
         lastNavRerouteAtMs = 0L
         navOffRouteAnnounced = false
         navLocationTracker.start { lat, lng ->
+            lastKnownDriverLatLng = Pair(lat, lng)
             val maneuver = navVoice.onDriverPosition(lat, lng)
             _ui.value =
                 _ui.value.copy(
@@ -423,8 +453,20 @@ class RepartidorViewModel(
             maybeRerouteFromGps(lat, lng)
         }
         viewModelScope.launch {
-            val dest =
-                resolveDestination(stop)
+            val destCoords =
+                coroutineScope {
+                    val destJob = async { resolveDestination(stop) }
+                    val fromJob =
+                        async(Dispatchers.IO) {
+                            lastKnownDriverLatLng
+                                ?: LocationHelper.lastLatLng(context)
+                                ?: Pair(BravaConstants.KITCHEN_LAT, BravaConstants.KITCHEN_LNG)
+                        }
+                    val fromEarly = fromJob.await()
+                    lastKnownDriverLatLng = fromEarly
+                    _ui.value = _ui.value.copy(navDriver = fromEarly)
+                    destJob.await()
+                }
                     ?: run {
                         _ui.value =
                             _ui.value.copy(
@@ -434,29 +476,24 @@ class RepartidorViewModel(
                             )
                         return@launch
                     }
-            val destLat = dest.first
-            val destLng = dest.second
+            val destLat = destCoords.first
+            val destLng = destCoords.second
             patchStopCoords(orn, destLat, destLng)
             RepartoSessionForegroundService.setActiveOrn(context, orn)
             _ui.value =
                 _ui.value.copy(
                     navManeuver = "Calculando ruta…",
-                    navDest = dest,
+                    navDest = destCoords,
                 )
-            val from =
-                withContext(Dispatchers.IO) {
-                    LocationHelper.lastLatLng(context)
-                } ?: Pair(BravaConstants.KITCHEN_LAT, BravaConstants.KITCHEN_LNG)
-            _ui.value = _ui.value.copy(navDriver = from)
+            val from = _ui.value.navDriver ?: lastKnownDriverLatLng
+                ?: Pair(BravaConstants.KITCHEN_LAT, BravaConstants.KITCHEN_LNG)
             val result =
-                withContext(Dispatchers.IO) {
-                    osrm.fetchDrivingRoute(
-                        fromLng = from.second,
-                        fromLat = from.first,
-                        toLng = destLng,
-                        toLat = destLat,
-                    )
-                }
+                osrm.fetchDrivingRouteFast(
+                    fromLng = from.second,
+                    fromLat = from.first,
+                    toLng = destLng,
+                    toLat = destLat,
+                )
             result
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
@@ -547,14 +584,12 @@ class RepartidorViewModel(
             )
         viewModelScope.launch {
             val result =
-                withContext(Dispatchers.IO) {
-                    osrm.fetchDrivingRoute(
-                        fromLng = lng,
-                        fromLat = lat,
-                        toLng = dest.second,
-                        toLat = dest.first,
-                    )
-                }
+                osrm.fetchDrivingRouteFast(
+                    fromLng = lng,
+                    fromLat = lat,
+                    toLng = dest.second,
+                    toLat = dest.first,
+                )
             navRerouteInFlight = false
             result
                 .onSuccess { route ->
