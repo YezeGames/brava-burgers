@@ -204,6 +204,16 @@ module.exports = async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   const body = parseBody(req);
+  if (body.action === 'osrmRoute') {
+    const { fetchOsrmRouteJson } = require('../lib/osrmRouteProxy');
+    const out = await fetchOsrmRouteJson(body);
+    if (!out.ok) {
+      return res.status(out.status || 502).json(out);
+    }
+    res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
+    res.setHeader('Content-Type', out.contentType);
+    return res.status(200).send(out.body);
+  }
   if (
     body.action === 'repartidorLogin' ||
     body.action === 'listRuta' ||

@@ -294,26 +294,18 @@ class RepartidorViewModel(private val repo: RepartidorRepository) : ViewModel() 
                         toLat = destLat,
                     )
                 }
-            result
-                .onSuccess { route ->
-                    val km = route.distanceM / 1000.0
-                    val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    _ui.value =
-                        _ui.value.copy(
-                            navLoading = false,
-                            navRoute = route.coordinates,
-                            navManeuver = route.firstManeuver,
-                            navMeta = String.format("~%d min · %.1f km", min, km),
-                        )
-                }
-                .onFailure {
-                    _ui.value =
-                        _ui.value.copy(
-                            navLoading = false,
-                            navManeuver = "No se pudo calcular la ruta. Revisá datos móviles o Wi‑Fi.",
-                            navRoute = emptyList(),
-                        )
-                }
+            result.onSuccess { route ->
+                val km = route.distanceM / 1000.0
+                val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
+                val prefix = if (route.estimated) "Estimado · " else ""
+                _ui.value =
+                    _ui.value.copy(
+                        navLoading = false,
+                        navRoute = route.coordinates,
+                        navManeuver = route.firstManeuver,
+                        navMeta = String.format("%s~%d min · %.1f km", prefix, min, km),
+                    )
+            }
         }
     }
 
