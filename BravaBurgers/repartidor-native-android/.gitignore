@@ -1,3 +1,4 @@
+.jdk17/
 *.apk
 *.aab
 .gradle/
