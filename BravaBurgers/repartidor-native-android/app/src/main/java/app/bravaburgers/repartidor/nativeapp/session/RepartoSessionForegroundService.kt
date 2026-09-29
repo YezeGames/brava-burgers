@@ -141,10 +141,12 @@ class RepartoSessionForegroundService : Service() {
             locationCallback = null
             return
         }
-        if (locationCallback != null) return
+        locationCallback?.let { fused.removeLocationUpdates(it) }
+        locationCallback = null
         val request =
             LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 4000L)
                 .setMinUpdateIntervalMillis(3000L)
+                .setWaitForAccurateLocation(false)
                 .build()
         locationCallback =
             object : LocationCallback() {
@@ -191,6 +193,14 @@ class RepartoSessionForegroundService : Service() {
         locationCallback?.let { fused.removeLocationUpdates(it) }
         locationCallback = null
         if (clearPrefs) SessionServicePrefs.clear(this)
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        val snap = SessionServicePrefs.read(this)
+        if (snap.sessionOn && snap.activeOrn.isNotEmpty()) {
+            ensureGpsIfNeeded(this)
+        }
     }
 
     override fun onDestroy() {

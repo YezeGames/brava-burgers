@@ -4,8 +4,11 @@ import android.app.Application
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.push.BravaNotifications
 import app.bravaburgers.repartidor.nativeapp.realtime.RepartidorRealtimeCoordinator
+import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.AppForeground
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
+import app.bravaburgers.repartidor.nativeapp.session.SessionServicePrefs
+import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,7 +27,6 @@ class BravaRepartidorApp : Application() {
         super.onCreate()
         MapLibre.getInstance(this)
         BravaNotifications.ensureChannels(this)
-        AppForeground.install()
         repository = RepartidorRepository(this)
         realtime =
             RepartidorRealtimeCoordinator(
@@ -32,6 +34,17 @@ class BravaRepartidorApp : Application() {
                 repository.api,
                 repository.apiKey,
             )
+        AppForeground.onForeground = {
+            RepartoSessionForegroundService.ensureGpsIfNeeded(this)
+            val snap = SessionServicePrefs.read(this)
+            if (snap.sessionOn && snap.token.isNotEmpty()) {
+                realtime.start(snap.token)
+                PushRegistrar.registerAfterLogin(this, repository, snap.token)
+            }
+        }
+        AppForeground.install()
         RepartoSessionForegroundService.ensureGpsIfNeeded(this)
+        val snap = SessionServicePrefs.read(this)
+        if (snap.sessionOn) SessionWorkScheduler.schedule(this)
     }
 }

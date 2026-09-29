@@ -31,16 +31,21 @@ class RepartidorRealtimeCoordinator(
     fun start(repartidorToken: String, initial: RealtimeConfigDto? = null) {
         this.repartidorToken = repartidorToken
         scope.launch {
+            stopInternal()
             connect(initial ?: fetchConfig(repartidorToken) ?: return@launch)
             scheduleTokenRefresh(repartidorToken)
         }
     }
 
-    fun stop() {
+    private fun stopInternal() {
         refreshJob?.cancel()
         refreshJob = null
-        repartidorToken = null
         supabase = null
+    }
+
+    fun stop() {
+        stopInternal()
+        repartidorToken = null
     }
 
     private suspend fun fetchConfig(token: String): RealtimeConfigDto? {

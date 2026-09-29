@@ -15,6 +15,8 @@ import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
 import app.bravaburgers.repartidor.nativeapp.session.RouteEvents
+import app.bravaburgers.repartidor.nativeapp.session.RouteGpsSync
+import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,9 +74,11 @@ class RepartidorViewModel(
                     RepartoSessionForegroundService.persistSession(ctx, s.token, repo.apiKey, orn)
                     PushRegistrar.registerAfterLogin(ctx, repo, s.token)
                     realtime?.start(s.token)
+                    SessionWorkScheduler.schedule(ctx)
                     if (_ui.value.stops.isEmpty()) refreshRoute(s.token, pull = false)
                 } else {
                     realtime?.stop()
+                    SessionWorkScheduler.cancel(ctx)
                     RepartoSessionForegroundService.stopSession(ctx)
                 }
             }
@@ -96,6 +100,7 @@ class RepartidorViewModel(
                     RepartoSessionForegroundService.persistSession(ctx, session.token, repo.apiKey)
                     PushRegistrar.registerAfterLogin(ctx, repo, session.token)
                     realtime?.start(session.token)
+                    SessionWorkScheduler.schedule(ctx)
                     refreshRoute(session.token, pull = false)
                 }
                 .onFailure {
@@ -107,6 +112,7 @@ class RepartidorViewModel(
     fun logout() {
         viewModelScope.launch {
             realtime?.stop()
+            SessionWorkScheduler.cancel(repo.appContext)
             RepartoSessionForegroundService.stopSession(repo.appContext)
             repo.logout()
             _ui.value = RepartidorUiState()
@@ -155,6 +161,13 @@ class RepartidorViewModel(
                             s.estado.equals("en_camino", ignoreCase = true)
                         },
                     )
+                RouteGpsSync.syncFromStops(
+                    repo.appContext,
+                    token,
+                    repo.apiKey,
+                    list,
+                    _ui.value.trackingOrn,
+                )
             }
             .onFailure {
                 _ui.value =
