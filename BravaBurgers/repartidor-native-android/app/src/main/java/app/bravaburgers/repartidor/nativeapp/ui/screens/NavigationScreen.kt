@@ -24,6 +24,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -52,6 +57,7 @@ fun NavigationScreen(
     navLoading: Boolean,
     navDest: Pair<Double, Double>?,
     navDriver: Pair<Double, Double>?,
+    navDriverBearing: Float? = null,
     navVoiceOn: Boolean,
     onToggleVoice: () -> Unit,
     onStartNavigation: () -> Unit,
@@ -60,8 +66,18 @@ fun NavigationScreen(
 ) {
     val context = LocalContext.current
 
+    var navigationFollow by remember(stop.orn) { mutableStateOf(false) }
+
     LaunchedEffect(stop.orn) {
         onStartNavigation()
+    }
+
+    LaunchedEffect(navLoading, navRoute.size) {
+        navigationFollow = false
+        if (!navLoading && navRoute.size >= 2) {
+            delay(1800)
+            navigationFollow = true
+        }
     }
 
     val addrLine =
@@ -82,6 +98,8 @@ fun NavigationScreen(
             route = navRoute,
             destination = navDest,
             driver = navDriver,
+            navigationFollow = navigationFollow,
+            driverBearing = navDriverBearing,
         )
 
         IconButton(

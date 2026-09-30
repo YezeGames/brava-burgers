@@ -34,7 +34,7 @@ class NavRouteVoiceGuide(context: Context) {
 
     private var route: List<Pair<Double, Double>> = emptyList()
     private var steps: List<NavStep> = emptyList()
-    private var stepEndDistM: DoubleArray = doubleArrayOf()
+    private var maneuverAlongM: DoubleArray = doubleArrayOf()
     private val spokenTiers = mutableMapOf<Int, MutableSet<String>>()
     private val utteranceSeq = AtomicInteger(0)
     private var lastSpokenLine: String? = null
@@ -54,7 +54,7 @@ class NavRouteVoiceGuide(context: Context) {
     fun reset() {
         route = emptyList()
         steps = emptyList()
-        stepEndDistM = doubleArrayOf()
+        maneuverAlongM = doubleArrayOf()
         spokenTiers.clear()
         lastSpokenLine = null
         lastSpokenVoiceKey = null
@@ -74,7 +74,12 @@ class NavRouteVoiceGuide(context: Context) {
     private fun bindRoute(result: RouteResult) {
         route = result.coordinates
         steps = result.steps
-        stepEndDistM = NavRouteProgress.rebuildStepDistances(steps)
+        maneuverAlongM =
+            if (route.size >= 2) {
+                NavRouteProgress.maneuverAlongRouteM(steps, route)
+            } else {
+                NavRouteProgress.rebuildStepDistances(steps)
+            }
         spokenTiers.clear()
     }
 
@@ -117,19 +122,14 @@ class NavRouteVoiceGuide(context: Context) {
     fun onDriverPosition(lat: Double, lng: Double): Tick? {
         if (steps.isEmpty()) return null
         val snap =
-            if (route.size >= 2 && stepEndDistM.isNotEmpty()) {
-                NavRouteProgress.snapshot(lat, lng, route, steps, stepEndDistM)
+            if (route.size >= 2 && maneuverAlongM.isNotEmpty()) {
+                NavRouteProgress.snapshot(lat, lng, route, steps, maneuverAlongM)
             } else {
                 null
             }
-        val rawIdx = snap?.stepIndex ?: 0
-        val targetIdx = significantTarget(rawIdx)
+        val targetIdx = snap?.stepIndex ?: significantTarget(0)
         val distM =
-            if (snap != null && targetIdx in stepEndDistM.indices) {
-                (stepEndDistM[targetIdx] - snap.alongRouteM).coerceAtLeast(0.0)
-            } else {
-                fallbackDistM(lat, lng, targetIdx)
-            }
+            snap?.distanceToManeuverM ?: fallbackDistM(lat, lng, targetIdx)
         val step = steps.getOrNull(targetIdx) ?: return null
         val along = snap?.alongRouteM
         val side = resolveArrivalSide(lat, lng, along)

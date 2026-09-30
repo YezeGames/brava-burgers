@@ -220,7 +220,7 @@ class OsrmClient {
         toLat: Double,
         sourceTag: String,
         client: OkHttpClient = http,
-        overview: String = "simplified",
+        overview: String = "full",
     ): Result<RouteResult> {
         val path = "$fromLng,$fromLat;$toLng,$toLat"
         val url =

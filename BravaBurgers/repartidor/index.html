@@ -2134,9 +2134,9 @@
 				return 'Entrá a la rotonda' + (street ? ' en ' + street : '');
 			}
 			if (mod === 'sharp left') return 'Girá fuerte a la izquierda' + (street ? ' en ' + street : '');
-			if (mod === 'left') return 'Girá a la izquierda' + (street ? ' en ' + street : '');
+			if (mod === 'left') return 'Girá a la izquierda' + (street ? ' con dirección a ' + street : '');
 			if (mod === 'sharp right') return 'Girá fuerte a la derecha' + (street ? ' en ' + street : '');
-			if (mod === 'right') return 'Girá a la derecha' + (street ? ' en ' + street : '');
+			if (mod === 'right') return 'Girá a la derecha' + (street ? ' con dirección a ' + street : '');
 			if (mod === 'slight left') return 'Mantenete a la izquierda' + (street ? ' hacia ' + street : '');
 			if (mod === 'slight right') return 'Mantenete a la derecha' + (street ? ' hacia ' + street : '');
 			if (mod === 'uturn') return 'Hacé un retorno';
@@ -2344,10 +2344,15 @@
 					);
 			}
 			stepDistAlongRoute = [];
-			var cum = 0;
 			for (var si = 0; si < steps.length; si++) {
-				cum += Number(steps[si].distance) || 0;
-				stepDistAlongRoute[si] = cum;
+				var loc = steps[si].maneuver && steps[si].maneuver.location;
+				if (loc && routeCoords.length >= 2) {
+					stepDistAlongRoute[si] = posDistanceAlongRouteM({ lng: loc[0], lat: loc[1] });
+				} else {
+					var cum = 0;
+					for (var sj = 0; sj <= si; sj++) cum += Number(steps[sj].distance) || 0;
+					stepDistAlongRoute[si] = cum;
+				}
 			}
 			stepVoiceTiers = {};
 		}

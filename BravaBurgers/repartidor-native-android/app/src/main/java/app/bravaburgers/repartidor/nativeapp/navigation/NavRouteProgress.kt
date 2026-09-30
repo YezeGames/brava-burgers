@@ -8,8 +8,8 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Progreso sobre la polyline (map-matching simple), igual que repartidor/index.html.
- * La distancia a la próxima maniobra sale **a lo largo de la ruta**, no en línea recta al punto OSRM.
+ * Progreso sobre la polyline. Distancia a maniobra = metros **sobre la ruta**
+ * hasta el punto GPS del giro (como Google Maps), no suma de step.distance OSRM.
  */
 object NavRouteProgress {
     data class Snapshot(
@@ -18,6 +18,18 @@ object NavRouteProgress {
         val alongRouteM: Double,
     )
 
+    /** Posición de cada maniobra proyectada sobre la geometría de la ruta. */
+    fun maneuverAlongRouteM(
+        steps: List<NavStep>,
+        route: List<Pair<Double, Double>>,
+    ): DoubleArray {
+        if (steps.isEmpty()) return doubleArrayOf()
+        return DoubleArray(steps.size) { i ->
+            distanceAlongRouteM(steps[i].lat, steps[i].lng, route)
+        }
+    }
+
+    @Deprecated("Usar maneuverAlongRouteM para distancias de giro")
     fun rebuildStepDistances(steps: List<NavStep>): DoubleArray {
         if (steps.isEmpty()) return doubleArrayOf()
         var cum = 0.0
@@ -52,12 +64,12 @@ object NavRouteProgress {
         return bestAlong
     }
 
-    fun findStepIndex(alongM: Double, stepEndDistM: DoubleArray): Int {
-        if (stepEndDistM.isEmpty()) return 0
-        for (i in stepEndDistM.indices) {
-            if (stepEndDistM[i] > alongM + 10.0) return i
+    fun findUpcomingStepIndex(alongM: Double, maneuverAlongM: DoubleArray): Int {
+        if (maneuverAlongM.isEmpty()) return 0
+        for (i in maneuverAlongM.indices) {
+            if (maneuverAlongM[i] > alongM + 8.0) return i
         }
-        return stepEndDistM.size - 1
+        return maneuverAlongM.size - 1
     }
 
     fun snapshot(
@@ -65,13 +77,44 @@ object NavRouteProgress {
         lng: Double,
         route: List<Pair<Double, Double>>,
         steps: List<NavStep>,
-        stepEndDistM: DoubleArray,
+        maneuverAlongM: DoubleArray,
     ): Snapshot? {
-        if (steps.isEmpty() || stepEndDistM.size != steps.size) return null
+        if (steps.isEmpty() || maneuverAlongM.size != steps.size || route.size < 2) return null
         val along = distanceAlongRouteM(lat, lng, route)
-        val idx = findStepIndex(along, stepEndDistM)
-        val distTo = (stepEndDistM[idx] - along).coerceAtLeast(0.0)
+        val rawIdx = findUpcomingStepIndex(along, maneuverAlongM)
+        val idx = OsrmNavText.significantStepIndex(steps, rawIdx)
+        val distTo = (maneuverAlongM[idx] - along).coerceAtLeast(0.0)
         return Snapshot(stepIndex = idx, distanceToManeuverM = distTo, alongRouteM = along)
+    }
+
+    /** Bearing (°) del tramo de ruta donde va el repartidor. */
+    fun travelBearingDeg(
+        route: List<Pair<Double, Double>>,
+        alongM: Double,
+    ): Double? {
+        if (route.size < 2) return null
+        var cum = 0.0
+        for (i in 0 until route.size - 1) {
+            val a = route[i]
+            val b = route[i + 1]
+            val segLen = haversineM(a.first, a.second, b.first, b.second)
+            if (alongM <= cum + segLen || i == route.size - 2) {
+                return bearingDeg(a.first, a.second, b.first, b.second)
+            }
+            cum += segLen
+        }
+        val a = route[route.size - 2]
+        val b = route.last()
+        return bearingDeg(a.first, a.second, b.first, b.second)
+    }
+
+    fun bearingDeg(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+        val phi1 = Math.toRadians(lat1)
+        val phi2 = Math.toRadians(lat2)
+        val dLambda = Math.toRadians(lng2 - lng1)
+        val y = sin(dLambda) * cos(phi2)
+        val x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(dLambda)
+        return (Math.toDegrees(kotlin.math.atan2(y, x)) + 360.0) % 360.0
     }
 
     private fun projectOnSegment(

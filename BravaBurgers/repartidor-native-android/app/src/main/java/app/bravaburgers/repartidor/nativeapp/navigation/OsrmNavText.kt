@@ -29,8 +29,8 @@ object OsrmNavText {
             t == "merge" -> if (street.isNotEmpty()) "Incorporate a $street" else "Incorporate a la vía"
             t == "off ramp" && mod.contains("right") -> "Tomá la salida a la derecha${streetTowards(street)}"
             t == "off ramp" && mod.contains("left") -> "Tomá la salida a la izquierda${streetTowards(street)}"
-            t == "continue" && street.isNotEmpty() -> "Permanecé en $street"
-            t == "new name" && street.isNotEmpty() -> "Continuá por $street"
+            t == "continue" && street.isNotEmpty() -> "Dirigite hacia $street"
+            t == "new name" && street.isNotEmpty() -> "Dirigite hacia $street"
             t == "end of road" && mod == "right" -> "Al final de la calle, girá a la derecha"
             t == "end of road" && mod == "left" -> "Al final de la calle, girá a la izquierda"
             t == "turn" && mod == "right" -> turnPhrase(left = false, sharp = false, slight = false, street)
@@ -161,11 +161,11 @@ object OsrmNavText {
         val side = if (left) "izquierda" else "derecha"
         return when {
             sharp && street.isNotEmpty() ->
-                "Girá a la $side en ángulo cerrado hacia $street"
+                "Girá a la $side en ángulo cerrado con dirección a $street"
             sharp -> "Girá a la $side en ángulo cerrado"
             slight && street.isNotEmpty() -> "Girá levemente a la $side en $street"
             slight -> "Girá levemente a la $side"
-            street.isNotEmpty() -> "Girá a la $side en $street"
+            street.isNotEmpty() -> "Girá a la $side con dirección a $street"
             else -> "Girá a la $side"
         }
     }

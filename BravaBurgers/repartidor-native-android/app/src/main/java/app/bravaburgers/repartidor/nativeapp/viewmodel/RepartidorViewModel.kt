@@ -15,6 +15,7 @@ import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteGeometry
+import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteVoiceGuide
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
@@ -57,6 +58,7 @@ data class RepartidorUiState(
     val navDest: Pair<Double, Double>? = null,
     /** Repartidor (GPS vivo) — lat,lng */
     val navDriver: Pair<Double, Double>? = null,
+    val navDriverBearing: Float? = null,
     val trackingOrn: String? = null,
     val navVoiceOn: Boolean = true,
     val appUpdate: AppUpdateOffer? = null,
@@ -92,6 +94,7 @@ class RepartidorViewModel(
     private var navOffRouteAnnounced = false
     /** Último fix GPS útil para arrancar OSRM sin esperar getCurrentLocation. */
     private var lastKnownDriverLatLng: Pair<Double, Double>? = null
+    private var lastNavFixForBearing: Pair<Double, Double>? = null
     /** Invalida coroutines de OSRM/geocode si cambió la parada o se cerró navegación. */
     private var navGeneration = 0
     private var routeListReady = false
@@ -619,12 +622,26 @@ class RepartidorViewModel(
         navRerouteInFlight = false
         lastNavRerouteAtMs = 0L
         navOffRouteAnnounced = false
-        navLocationTracker.start { lat, lng ->
+        navLocationTracker.start { lat, lng, gpsBearing ->
             lastKnownDriverLatLng = Pair(lat, lng)
+            var bearing = gpsBearing
+            if (bearing == null) {
+                val prev = lastNavFixForBearing
+                if (prev != null) {
+                    val movedM =
+                        kotlin.math.abs(prev.first - lat) + kotlin.math.abs(prev.second - lng)
+                    if (movedM > 0.00004) {
+                        bearing =
+                            NavRouteProgress.bearingDeg(prev.first, prev.second, lat, lng).toFloat()
+                    }
+                }
+            }
+            lastNavFixForBearing = Pair(lat, lng)
             val tick = navVoice.onDriverPosition(lat, lng)
             _ui.value =
                 _ui.value.copy(
                     navDriver = Pair(lat, lng),
+                    navDriverBearing = bearing,
                     navManeuver = tick?.instruction ?: _ui.value.navManeuver,
                     navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
                 )
@@ -865,6 +882,7 @@ class RepartidorViewModel(
                 navRoute = emptyList(),
                 navDest = null,
                 navDriver = null,
+                navDriverBearing = null,
                 navMeta = "",
                 navManeuver = "",
             )

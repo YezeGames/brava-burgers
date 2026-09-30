@@ -10,11 +10,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
+import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
+import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
@@ -36,6 +40,10 @@ private const val DEST_LAYER = "brava-dest-layer"
 private const val DRIVER_SOURCE = "brava-driver-source"
 private const val DRIVER_LAYER = "brava-driver-layer"
 
+private const val NAV_ZOOM = 17.2
+private const val NAV_PITCH = 58.0
+private const val NAV_ANIM_MS = 380
+
 @Composable
 fun BravaMapView(
     modifier: Modifier = Modifier,
@@ -43,9 +51,13 @@ fun BravaMapView(
     destination: Pair<Double, Double>?,
     driver: Pair<Double, Double>? = null,
     recenterKey: Int = 0,
+    navigationFollow: Boolean = false,
+    driverBearing: Float? = null,
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val bottomPadPx = with(density) { 280.dp.toPx().toInt() }
     val mapView =
         remember {
             MapView(context).apply {
@@ -58,6 +70,7 @@ fun BravaMapView(
         }
     var mapRef by remember { mutableStateOf<MapLibreMap?>(null) }
     var styleReady by remember { mutableStateOf(false) }
+    var didOverview by remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycleOwner, mapView) {
         mapView.onCreate(null)
@@ -91,12 +104,41 @@ fun BravaMapView(
         }
     }
 
-    LaunchedEffect(route, destination, driver, recenterKey, styleReady) {
+    LaunchedEffect(route, destination, driver, recenterKey, styleReady, navigationFollow, driverBearing) {
         if (!styleReady) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
         val style = map.style ?: return@LaunchedEffect
         applyRoute(style, route, destination, driver)
-        safeFitCamera(map, route, destination, driver)
+        if (navigationFollow && driver != null && route.size >= 2) {
+            map.uiSettings.isRotateGesturesEnabled = true
+            map.uiSettings.isTiltGesturesEnabled = true
+            map.setPadding(0, 0, 0, bottomPadPx)
+            val along = NavRouteProgress.distanceAlongRouteM(driver.first, driver.second, route)
+            val brg =
+                driverBearing?.toDouble()
+                    ?: NavRouteProgress.travelBearingDeg(route, along)
+                    ?: 0.0
+            val pos = CameraPosition.Builder()
+                .target(LatLng(driver.first, driver.second))
+                .zoom(NAV_ZOOM)
+                .tilt(NAV_PITCH)
+                .bearing(brg)
+                .build()
+            map.animateCamera(CameraUpdateFactory.newCameraPosition(pos), NAV_ANIM_MS)
+        } else if (!navigationFollow && !didOverview && route.size >= 2) {
+            map.setPadding(0, 0, 0, 0)
+            safeFitCamera(map, route, destination, driver)
+            didOverview = true
+        } else if (!navigationFollow) {
+            map.setPadding(0, 0, 0, 0)
+            safeFitCamera(map, route, destination, driver)
+        }
+    }
+
+    LaunchedEffect(navigationFollow) {
+        if (!navigationFollow) {
+            didOverview = false
+        }
     }
 
     AndroidView(modifier = modifier, factory = { mapView })

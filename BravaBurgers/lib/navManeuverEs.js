@@ -86,7 +86,7 @@ function turnPhrase(left, sharp, slight, street) {
 
   if (slight) return 'Girá levemente a la ' + side;
 
-  if (street) return 'Girá a la ' + side + ' en ' + street;
+  if (street) return 'Girá a la ' + side + ' con dirección a ' + street;
 
   return 'Girá a la ' + side;
 
