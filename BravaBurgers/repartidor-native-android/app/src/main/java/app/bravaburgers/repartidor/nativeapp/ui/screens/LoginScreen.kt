@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeScreen
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
@@ -40,9 +41,10 @@ fun LoginScreen(
         modifier =
             Modifier
                 .fillMaxSize()
+                .bravaSafeScreen()
                 .padding(24.dp),
     ) {
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Text(text = "Brava repartidor", color = BravaOrange)
         Text(
             text = "Entrá con tu usuario de cocina",

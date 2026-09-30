@@ -31,6 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
+import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeBottom
+import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
 import app.bravaburgers.repartidor.nativeapp.ui.PayKind
 import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
@@ -73,6 +75,7 @@ fun RouteListScreen(
                 Modifier
                     .fillMaxWidth()
                     .background(SurfaceDark)
+                    .bravaSafeTop()
                     .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -174,6 +177,7 @@ fun RouteListScreen(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 12.dp)
+                        .bravaSafeBottom()
                         .height(52.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),

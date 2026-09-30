@@ -3,29 +3,35 @@ package app.bravaburgers.repartidor.nativeapp.ui.screens
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.border
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +40,9 @@ import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.OrderItem
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.ui.PayKind
+import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeBottom
+import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
+import app.bravaburgers.repartidor.nativeapp.ui.components.StageAlertOverlay
 import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
@@ -56,17 +65,21 @@ fun HandoffScreen(
     val context = LocalContext.current
     val pay = payUiFor(stop)
     val items = stop.items.orEmpty()
+    var showStageAlert by remember(stop.orn, whatsappSent) { mutableStateOf(whatsappSent) }
 
-    Column(modifier = Modifier.fillMaxSize().background(BgDark)) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .weight(1f)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-        ) {
-            item {
+    Box(modifier = Modifier.fillMaxSize().background(BgDark)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 14.dp)
+                        .bravaSafeTop()
+                        .padding(top = 4.dp, bottom = 12.dp),
+            ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -78,25 +91,21 @@ fun HandoffScreen(
                     "Parada ${stop.parada ?: "?"}",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    modifier = Modifier.padding(bottom = 8.dp),
+                    modifier = Modifier.padding(bottom = 4.dp),
                 )
-                if (whatsappSent) {
-                    ClienteAvisadoBanner(
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                } else {
-                    Text(
-                        "Revisá el pedido antes de entregar",
-                        color = TextMuted,
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(bottom = 12.dp),
-                    )
-                }
+                Text(
+                    "Revisá el pedido y confirmá la entrega",
+                    color = TextMuted,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(bottom = 12.dp),
+                )
+
                 Column(
                     modifier =
                         Modifier
                             .fillMaxWidth()
                             .background(SurfaceDark, RoundedCornerShape(16.dp))
+                            .border(1.dp, LineDark, RoundedCornerShape(16.dp))
                             .padding(14.dp),
                 ) {
                     Text(stop.cliente.orEmpty(), fontWeight = FontWeight.Bold, fontSize = 18.sp)
@@ -110,86 +119,76 @@ fun HandoffScreen(
                         Text("Piso / depto: ${stop.piso}", color = TextMuted, fontSize = 13.sp)
                     }
                     PayBlock(pay = pay)
+
+                    HorizontalDivider(
+                        color = LineDark,
+                        modifier = Modifier.padding(vertical = 14.dp),
+                    )
+
                     Text(
                         "PEDIDO",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
+                        color = BravaOrange,
+                        letterSpacing = 1.sp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (items.isEmpty()) {
+                        Text("Sin detalle de ítems en la app", color = TextMuted, fontSize = 13.sp)
+                    } else {
+                        items.forEach { item ->
+                            ItemRow(item)
+                        }
+                    }
+                    Text(
+                        "ORN ${stop.orn}",
                         color = TextMuted,
-                        modifier = Modifier.padding(top = 12.dp, bottom = 6.dp),
+                        fontSize = 11.sp,
+                        modifier = Modifier.padding(top = 12.dp),
                     )
                 }
             }
-            items(items) { item ->
-                ItemRow(item)
-            }
-            item {
-                Text("ORN ${stop.orn}", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(vertical = 12.dp))
-            }
-        }
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .background(SurfaceDark)
-                    .padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            OutlinedButton(
-                onClick = {
-                    val tel = stop.telefono?.filter { it.isDigit() || it == '+' }.orEmpty()
-                    if (tel.isNotEmpty()) {
-                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(12.dp),
-            ) {
-                Text("Llamar")
-            }
-            Button(
-                onClick = onEntregado,
-                modifier = Modifier.weight(1.35f),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
-            ) {
-                Text("Entregado", fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
 
-@Composable
-private fun ClienteAvisadoBanner(modifier: Modifier = Modifier) {
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .background(SurfaceDark, RoundedCornerShape(14.dp))
-                .border(1.dp, OkGreen.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            Icons.Outlined.Notifications,
-            contentDescription = null,
-            tint = OkGreen,
-            modifier = Modifier.size(26.dp),
-        )
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                "Aviso al cliente",
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                color = TextPrimary,
-            )
-            Text(
-                "Ya le avisamos que llegaste. El cliente fue notificado.",
-                fontSize = 13.sp,
-                color = TextMuted,
-                modifier = Modifier.padding(top = 2.dp),
-            )
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(SurfaceDark)
+                        .border(width = 1.dp, color = LineDark)
+                        .padding(horizontal = 12.dp, vertical = 12.dp)
+                        .bravaSafeBottom(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val tel = stop.telefono?.filter { it.isDigit() || it == '+' }.orEmpty()
+                        if (tel.isNotEmpty()) {
+                            context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:$tel")))
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Llamar")
+                }
+                Button(
+                    onClick = onEntregado,
+                    modifier = Modifier.weight(1.35f),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
+                ) {
+                    Text("Entregado", fontWeight = FontWeight.Bold)
+                }
+            }
         }
+
+        StageAlertOverlay(
+            visible = showStageAlert,
+            title = "Cliente avisado",
+            message = "Le notificamos que llegaste. Podés entregar el pedido.",
+            modifier = Modifier.align(Alignment.TopCenter),
+            onDismiss = { showStageAlert = false },
+        )
     }
 }
 
@@ -262,7 +261,7 @@ private fun ItemRow(item: OrderItem) {
     ) {
         Text("${item.quantity()}×", color = BravaOrange, fontWeight = FontWeight.Bold)
         Column {
-            Text(item.displayName(), fontWeight = FontWeight.SemiBold)
+            Text(item.displayName(), fontWeight = FontWeight.SemiBold, color = TextPrimary)
             item.displayNote()?.let { Text(it, color = TextMuted, fontSize = 12.sp) }
         }
     }

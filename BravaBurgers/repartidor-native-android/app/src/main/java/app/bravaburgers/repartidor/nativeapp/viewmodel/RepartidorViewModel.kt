@@ -16,6 +16,7 @@ import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteGeometry
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
+import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteVoiceGuide
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
@@ -521,6 +522,12 @@ class RepartidorViewModel(
                             },
                         loading = false,
                     )
+                RouteLocalNotifier.show(
+                    repo.appContext,
+                    title = "Cliente avisado",
+                    body = "Le avisamos por WhatsApp que llegaste. Revisá el pedido y marcá entregado.",
+                    type = "cliente_avisado",
+                )
                 onDone()
             }.onFailure {
                 _ui.value = _ui.value.copy(loading = false, error = it.message)

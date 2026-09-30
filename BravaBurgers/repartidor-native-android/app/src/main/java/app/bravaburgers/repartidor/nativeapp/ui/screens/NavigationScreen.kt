@@ -39,6 +39,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.navigation.BravaNavigationTts
+import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeBottom
+import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
 import app.bravaburgers.repartidor.nativeapp.ui.map.BravaMapView
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
@@ -107,6 +109,7 @@ fun NavigationScreen(
             modifier =
                 Modifier
                     .align(Alignment.TopStart)
+                    .bravaSafeTop()
                     .padding(start = 10.dp, top = 10.dp)
                     .background(SurfaceDark.copy(alpha = 0.92f), RoundedCornerShape(12.dp)),
         ) {
@@ -128,7 +131,8 @@ fun NavigationScreen(
                                 ),
                         ),
                     )
-                    .padding(start = 14.dp, end = 14.dp, top = 24.dp, bottom = 18.dp),
+                    .padding(start = 14.dp, end = 14.dp, top = 24.dp, bottom = 18.dp)
+                    .bravaSafeBottom(),
         ) {
             Column(
                 modifier =
