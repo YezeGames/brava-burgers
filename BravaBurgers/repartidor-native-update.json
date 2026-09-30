@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  35,
-    "version_name":  "2.0.0-alpha35",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v35/brava-repartidor-native.apk",
-    "release_notes":  "Entrega: pedido en una tarjeta, alerta etapa tipo push (5 s), safe area en botones, aviso al confirmar llegada."
+    "version_code":  36,
+    "version_name":  "2.0.0-alpha36",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v36/brava-repartidor-native.apk",
+    "release_notes":  "Valhalla: ruta shape denso, snap GPS (trace/locate), routing engine valhalla"
 }
