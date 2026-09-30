@@ -1,0 +1,19 @@
+# Cloudflare Tunnel — Brava Burgers (copiar a config activo de cloudflared)
+# 1) cloudflared tunnel login
+# 2) cloudflared tunnel create brava-routing
+# 3) Reemplazar TUNNEL-UUID y credentials-file
+# 4) DNS (proxied):
+#    CNAME osrm     -> TUNNEL-UUID.cfargotunnel.com
+#    CNAME valhalla -> TUNNEL-UUID.cfargotunnel.com
+# 5) cloudflared tunnel --config tunnel-config.bravaburgers.yml run brava-routing
+#    o servicio Windows: cloudflared service install (ver setup-tunnel-bravaburgers.ps1)
+
+tunnel: TUNNEL-UUID
+credentials-file: C:\Users\TU_USUARIO\.cloudflared\TUNNEL-UUID.json
+
+ingress:
+  - hostname: valhalla.bravaburgers.com.ar
+    service: http://127.0.0.1:8002
+  - hostname: osrm.bravaburgers.com.ar
+    service: http://127.0.0.1:5000
+  - service: http_status:404

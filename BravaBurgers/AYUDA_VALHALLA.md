@@ -9,11 +9,49 @@
 
 Sin túnel + Vercel, la app no llega a tu Valhalla en 4G.
 
+## Dominio fijo (bravaburgers.com.ar)
+
+Subdominios recomendados:
+
+| Host | Puerto local | Uso |
+|------|----------------|-----|
+| `valhalla.bravaburgers.com.ar` | 8002 | Valhalla (`/route`, `/locate`, `/trace_route`) |
+| `osrm.bravaburgers.com.ar` | 5000 | Fallback OSRM (opcional) |
+
+**Una sola vez** en la PC (requiere login en el navegador):
+
+```powershell
+cd BravaBurgers\infra\routing-local-pc
+# Tras cloudflared tunnel login + tunnel create brava-routing:
+.\setup-tunnel-bravaburgers.ps1 -TunnelUuid <UUID-del-tunel>
+```
+
+En Cloudflare DNS (zona `bravaburgers.com.ar`), CNAME **proxied**:
+
+- `valhalla` → `<UUID>.cfargotunnel.com`
+- `osrm` → `<UUID>.cfargotunnel.com`
+
+Cada día de reparto:
+
+```powershell
+.\start-reparto-dia.ps1          # Docker OSRM + Valhalla
+.\run-tunnel-bravaburgers.ps1    # túnel fijo (no trycloudflare)
+```
+
+Vercel producción:
+
+```powershell
+cd ..\valhalla-local-pc
+.\set-vercel-valhalla-url.ps1 -Url "https://valhalla.bravaburgers.com.ar/route"
+```
+
+Plantilla: `infra/routing-local-pc/tunnel-config.bravaburgers.example.yml`
+
 ## Variables Vercel
 
 | Variable | Ejemplo |
 |----------|---------|
-| `BRAVA_VALHALLA_BASE_URL` | `https://valhalla.tudominio.com/route` |
+| `BRAVA_VALHALLA_BASE_URL` | `https://valhalla.bravaburgers.com.ar/route` |
 | `BRAVA_ROUTING_ENGINE` | `valhalla` |
 | `BRAVA_OSRM_BASE_URL` | opcional fallback |
 
