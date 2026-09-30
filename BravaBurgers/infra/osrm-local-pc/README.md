@@ -2,6 +2,8 @@
 
 La **PC del local** puede ser el servidor de **rutas** (turn-by-turn). El mapa en el celular sigue siendo **MapLibre + OpenStreetMap** (CARTO); solo cambia **quién calcula el camino**.
 
+> **Motor principal recomendado:** [Valhalla](../valhalla-local-pc/README.md) (`:8002`). OSRM en esta carpeta queda como **fallback** opcional.
+
 ## Cómo entra en Brava
 
 ```text

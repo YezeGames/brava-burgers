@@ -1,0 +1,21 @@
+# Valhalla en la PC del local — routing + map-matching (mapa sigue MapLibre en el teléfono).
+# Preparar datos: .\prepare.ps1  (usa el mismo PBF zona Brava que OSRM)
+# Primera subida: construye tiles (puede tardar 20–90 min según PC).
+# Arrancar: docker compose up -d
+
+services:
+  valhalla:
+    image: ghcr.io/gis-ops/docker-valhalla/valhalla:latest
+    container_name: brava-valhalla
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8002:8002"
+    volumes:
+      - ./custom_files:/custom_files
+    environment:
+      build_elevation: "False"
+      build_admins: "True"
+      build_time_zones: "False"
+      force_rebuild: "False"
+      use_tiles_ignore_pbf: "True"
+      serve_tiles: "True"

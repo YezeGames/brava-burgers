@@ -209,10 +209,10 @@ module.exports = async function handler(req, res) {
       return res.status(out.ok ? 200 : out.status || 502).json(out);
     }
     if (action === 'osrmBases') {
-      const { bravaOsrmPublicBase } = require('../lib/osrmRouteProxy');
-      const primary = bravaOsrmPublicBase();
+      const { bravaRouteBases } = require('../lib/osrmRouteProxy');
+      const bases = bravaRouteBases();
       res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=120');
-      return res.status(200).json({ ok: true, primary: primary });
+      return res.status(200).json(bases);
     }
     if (action === 'listRuta') {
       return handleRepartidor(q, req, res);
@@ -233,6 +233,12 @@ module.exports = async function handler(req, res) {
     const { fetchOsrmRouteForApp } = require('../lib/osrmRouteProxy');
     const out = await fetchOsrmRouteForApp(body);
     res.setHeader('Cache-Control', 'public, max-age=30, s-maxage=60');
+    return res.status(out.ok ? 200 : out.status || 502).json(out);
+  }
+  if (body.action === 'valhallaMatch') {
+    const { valhallaMatchForApp } = require('../lib/valhallaMatchProxy');
+    const out = await valhallaMatchForApp(body);
+    res.setHeader('Cache-Control', 'no-store');
     return res.status(out.ok ? 200 : out.status || 502).json(out);
   }
   if (

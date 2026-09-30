@@ -199,8 +199,7 @@ async function fetchOpenRouteService(pathCoords) {
 }
 
 /**
- * API Brava de rutas: cache → OSRM propio (PC) → ORS (cuota) → OSRM público.
- * No es clonar ORS: ORS sigue contando; el cache y OSRM local reducen el tope.
+ * API Brava de rutas: cache → Valhalla (PC) → OSRM propio → OSRM público → ORS.
  */
 async function fetchOsrmRaw(pathCoords) {
   var cached = getRouteCached(pathCoords);
@@ -213,13 +212,45 @@ async function fetchOsrmRaw(pathCoords) {
     };
   }
 
+  var valhallaMod = require('./valhallaRouteProxy');
+  if (valhallaMod.bravaValhallaRouteUrl()) {
+    var parts = String(pathCoords || '').split(';');
+    if (parts.length >= 2) {
+      var a = parts[0].split(',');
+      var b = parts[1].split(',');
+      if (a.length >= 2 && b.length >= 2) {
+        var v = await valhallaMod.fetchValhallaRoute(
+          parseFloat(a[0]),
+          parseFloat(a[1]),
+          parseFloat(b[0]),
+          parseFloat(b[1]),
+        );
+        if (v.ok) {
+          setRouteCached(pathCoords, v.data, 'valhalla');
+          return { ok: true, data: v.data, routeSource: 'valhalla' };
+        }
+      }
+    }
+  }
+
+  var valhallaOnly = require('./valhallaServiceBase').valhallaOnlyRouting();
+
   var custom = osrmCustomHosts();
-  if (custom.length) {
+  if (!valhallaOnly && custom.length) {
     var own = await fetchOsrmFromHosts(pathCoords, custom);
     if (own.ok) {
       setRouteCached(pathCoords, own.data, 'brava_pc');
       return { ok: true, data: own.data, routeSource: 'brava_pc' };
     }
+  }
+
+  if (valhallaOnly) {
+    return {
+      ok: false,
+      error: 'valhalla_unavailable',
+      status: 502,
+      detail: 'BRAVA_ROUTING_ENGINE=valhalla and Valhalla did not return a route',
+    };
   }
 
   var pub = await fetchOsrmFromHosts(pathCoords, OSRM_PUBLIC);
@@ -299,4 +330,23 @@ async function fetchOsrmRouteJson(query) {
   };
 }
 
-module.exports = { fetchOsrmRouteJson, fetchOsrmRouteForApp, bravaOsrmPublicBase };
+function bravaRouteBases() {
+  var valhallaMod = require('./valhallaRouteProxy');
+  var valhalla = valhallaMod.bravaValhallaRouteUrl();
+  var osrm = bravaOsrmPublicBase();
+  return {
+    ok: true,
+    /** Legacy APK: solo GET OSRM; no poner Valhalla acá. */
+    primary: osrm,
+    valhalla: valhalla,
+    osrm: osrm,
+    engine: valhalla ? 'valhalla' : osrm ? 'osrm' : null,
+  };
+}
+
+module.exports = {
+  fetchOsrmRouteJson,
+  fetchOsrmRouteForApp,
+  bravaOsrmPublicBase,
+  bravaRouteBases,
+};

@@ -18,6 +18,7 @@ import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteGeometry
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
 import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteVoiceGuide
+import app.bravaburgers.repartidor.nativeapp.navigation.ValhallaMapMatcher
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
 import app.bravaburgers.repartidor.nativeapp.session.RouteEvents
@@ -77,6 +78,9 @@ class RepartidorViewModel(
     private val _ui = MutableStateFlow(RepartidorUiState())
     val ui: StateFlow<RepartidorUiState> = _ui.asStateFlow()
     private val osrm = OsrmClient()
+    private val valhallaMatcher = ValhallaMapMatcher(osrm)
+    private var navValhallaMatchOn = false
+    private val navGpsMutex = Mutex()
     private val geocode = GeocodeClient()
     private val geocodeCache = mutableMapOf<String, Pair<Double, Double>>()
     private val navLocationTracker = NavLocationTracker(repo.appContext)
@@ -600,6 +604,51 @@ class RepartidorViewModel(
         return stops.minByOrNull { it.parada ?: 999 }
     }
 
+    private suspend fun applyNavDriverFix(
+        lat: Double,
+        lng: Double,
+        gpsBearing: Float?,
+    ) {
+        lastKnownDriverLatLng = Pair(lat, lng)
+        var useLat = lat
+        var useLng = lng
+        if (navValhallaMatchOn) {
+            valhallaMatcher.matchedPosition(lat, lng)?.let {
+                useLat = it.first
+                useLng = it.second
+            }
+        }
+        var bearing = gpsBearing
+        if (bearing == null) {
+            val prev = lastNavFixForBearing
+            if (prev != null) {
+                val movedM =
+                    kotlin.math.abs(prev.first - useLat) + kotlin.math.abs(prev.second - useLng)
+                if (movedM > 0.00004) {
+                    bearing =
+                        NavRouteProgress.bearingDeg(prev.first, prev.second, useLat, useLng).toFloat()
+                }
+            }
+        }
+        lastNavFixForBearing = Pair(useLat, useLng)
+        val tick = navVoice.onDriverPosition(useLat, useLng)
+        _ui.value =
+            _ui.value.copy(
+                navDriver = Pair(useLat, useLng),
+                navDriverBearing = bearing,
+                navManeuver = tick?.instruction ?: _ui.value.navManeuver,
+                navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
+            )
+        maybeRerouteFromGps(useLat, useLng)
+    }
+
+    private fun enableValhallaMatchIfAvailable() {
+        val on = osrm.hasValhallaService()
+        navValhallaMatchOn = on
+        valhallaMatcher.setEnabled(on)
+        if (on) valhallaMatcher.reset()
+    }
+
     private fun patchStopCoords(orn: String, lat: Double, lng: Double) {
         geocodeCache[orn] = Pair(lat, lng)
         _ui.value =
@@ -629,34 +678,20 @@ class RepartidorViewModel(
         navRerouteInFlight = false
         lastNavRerouteAtMs = 0L
         navOffRouteAnnounced = false
+        navValhallaMatchOn = false
+        valhallaMatcher.setEnabled(false)
+        valhallaMatcher.reset()
         navLocationTracker.start { lat, lng, gpsBearing ->
-            lastKnownDriverLatLng = Pair(lat, lng)
-            var bearing = gpsBearing
-            if (bearing == null) {
-                val prev = lastNavFixForBearing
-                if (prev != null) {
-                    val movedM =
-                        kotlin.math.abs(prev.first - lat) + kotlin.math.abs(prev.second - lng)
-                    if (movedM > 0.00004) {
-                        bearing =
-                            NavRouteProgress.bearingDeg(prev.first, prev.second, lat, lng).toFloat()
-                    }
+            viewModelScope.launch {
+                navGpsMutex.withLock {
+                    applyNavDriverFix(lat, lng, gpsBearing)
                 }
             }
-            lastNavFixForBearing = Pair(lat, lng)
-            val tick = navVoice.onDriverPosition(lat, lng)
-            _ui.value =
-                _ui.value.copy(
-                    navDriver = Pair(lat, lng),
-                    navDriverBearing = bearing,
-                    navManeuver = tick?.instruction ?: _ui.value.navManeuver,
-                    navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
-                )
-            maybeRerouteFromGps(lat, lng)
         }
         viewModelScope.launch {
             val destCoords =
                 coroutineScope {
+                    launch { osrm.ensureBasesLoaded() }
                     launch { osrm.prefetchBravaPrimary() }
                     val destJob = async { resolveDestination(stop) }
                     val fromJob =
@@ -706,13 +741,18 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
+                    enableValhallaMatchIfAvailable()
                     navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng))
+                    val matchHint =
+                        if (navValhallaMatchOn) " · snap Valhalla" else ""
                     _ui.value =
                         _ui.value.copy(
                             navLoading = false,
                             navRoute = route.coordinates,
                             navManeuver = route.firstManeuver,
-                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
+                            navMeta =
+                                String.format("~%d min · %.1f km · %s", min, km, route.sourceTag) +
+                                    matchHint,
                         )
                 }
                 .onFailure {
@@ -848,13 +888,18 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
+                    enableValhallaMatchIfAvailable()
                     navVoice.announceReroute(route)
                     navOffRouteAnnounced = false
+                    val matchHint =
+                        if (navValhallaMatchOn) " · snap Valhalla" else ""
                     _ui.value =
                         _ui.value.copy(
                             navRoute = route.coordinates,
                             navManeuver = route.firstManeuver,
-                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
+                            navMeta =
+                                String.format("~%d min · %.1f km · %s", min, km, route.sourceTag) +
+                                    matchHint,
                         )
                 }
                 .onFailure {
@@ -881,6 +926,9 @@ class RepartidorViewModel(
 
     private fun stopNavigationQuiet() {
         navLocationTracker.stop()
+        navValhallaMatchOn = false
+        valhallaMatcher.setEnabled(false)
+        valhallaMatcher.reset()
         navVoice.reset()
         _ui.value =
             _ui.value.copy(

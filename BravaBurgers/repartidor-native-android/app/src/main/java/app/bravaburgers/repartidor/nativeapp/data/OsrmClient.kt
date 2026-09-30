@@ -18,6 +18,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicInteger
+import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
@@ -67,7 +68,11 @@ class OsrmClient {
 
     private val basesMutex = Mutex()
     private var bravaPrimaryBase: String? = null
+    private var bravaValhallaRouteUrl: String? = null
+    private var bravaValhallaServiceBase: String? = null
     private var basesLoadedAtMs: Long = 0L
+
+    fun hasValhallaService(): Boolean = !bravaValhallaServiceBase.isNullOrBlank()
 
     /** Mismo perfil que Chrome WebView en la APK Capacitor. */
     fun fetchDrivingRoute(
@@ -77,10 +82,17 @@ class OsrmClient {
         toLat: Double,
     ): Result<RouteResult> {
         var lastErr: Throwable? = null
+        bravaValhallaRouteUrl?.let { url ->
+            val v = fetchDirectValhalla(url, fromLng, fromLat, toLng, toLat, "Valhalla PC")
+            if (v.isSuccess) return v
+            lastErr = v.exceptionOrNull()
+        }
         bravaPrimaryBase?.let { base ->
-            val direct = fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC")
-            if (direct.isSuccess) return direct
-            lastErr = direct.exceptionOrNull()
+            if (!base.contains("/route", ignoreCase = true) || base.contains("driving")) {
+                val direct = fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC")
+                if (direct.isSuccess) return direct
+                lastErr = direct.exceptionOrNull()
+            }
         }
         val brava = fetchViaPedidoPost(fromLng, fromLat, toLng, toLat)
         if (brava.isSuccess) return brava
@@ -91,6 +103,10 @@ class OsrmClient {
             lastErr = out.exceptionOrNull()
         }
         return Result.failure(lastErr ?: Exception("route_failed"))
+    }
+
+    suspend fun ensureBasesLoaded() {
+        refreshBasesIfNeeded(force = true)
     }
 
     suspend fun prefetchBravaPrimary() {
@@ -121,18 +137,33 @@ class OsrmClient {
         if (bravaPrimaryBase.isNullOrBlank()) {
             refreshBasesIfNeeded(force = true)
         }
-        bravaPrimaryBase?.let { base ->
-            val direct =
+        bravaValhallaRouteUrl?.let { url ->
+            val v =
                 withContext(Dispatchers.IO) {
-                    fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC", directPcHttp)
+                    fetchDirectValhalla(url, fromLng, fromLat, toLng, toLat, "Valhalla PC", directPcHttp)
                 }
-            if (direct.isSuccess) return direct
+            if (v.isSuccess) return v
+        }
+        if (bravaValhallaRouteUrl.isNullOrBlank()) {
+            bravaPrimaryBase?.let { base ->
+                if (base.contains("driving", ignoreCase = true)) {
+                    val direct =
+                        withContext(Dispatchers.IO) {
+                            fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC", directPcHttp)
+                        }
+                    if (direct.isSuccess) return direct
+                }
+            }
         }
         val brava =
             withContext(Dispatchers.IO) {
                 fetchViaPedidoPost(fromLng, fromLat, toLng, toLat)
             }
         if (brava.isSuccess) return brava
+
+        if (!bravaValhallaRouteUrl.isNullOrBlank()) {
+            return Result.failure(Exception("valhalla_route_failed"))
+        }
 
         val wavePublic =
             publicBases.map { base ->
@@ -144,30 +175,160 @@ class OsrmClient {
 
     private suspend fun refreshBasesIfNeeded(force: Boolean) {
         val now = System.currentTimeMillis()
-        if (!force && now - basesLoadedAtMs < 600_000L && bravaPrimaryBase != null) return
-        if (!force && now - basesLoadedAtMs < 60_000L && bravaPrimaryBase == null && basesLoadedAtMs > 0L) {
+        if (!force && now - basesLoadedAtMs < 600_000L && (bravaPrimaryBase != null || bravaValhallaRouteUrl != null)) {
+            return
+        }
+        if (
+            !force &&
+            now - basesLoadedAtMs < 60_000L &&
+            bravaPrimaryBase == null &&
+            bravaValhallaRouteUrl == null &&
+            basesLoadedAtMs > 0L
+        ) {
             return
         }
         basesMutex.withLock {
-            if (!force && System.currentTimeMillis() - basesLoadedAtMs < 600_000L && bravaPrimaryBase != null) {
+            if (
+                !force &&
+                System.currentTimeMillis() - basesLoadedAtMs < 600_000L &&
+                (bravaPrimaryBase != null || bravaValhallaRouteUrl != null)
+            ) {
                 return
             }
             val loaded =
                 withContext(Dispatchers.IO) {
                     fetchOsrmBasesFromApi()
                 }
-            bravaPrimaryBase = loaded
+            bravaPrimaryBase = loaded.osrm
+            bravaValhallaRouteUrl = loaded.valhalla
+            bravaValhallaServiceBase =
+                loaded.valhalla
+                    ?.trim()
+                    ?.replace(Regex("/route/?$", RegexOption.IGNORE_CASE), "")
+                    ?.trimEnd('/')
+                    ?.takeIf { it.startsWith("https://") }
             basesLoadedAtMs = System.currentTimeMillis()
         }
     }
 
-    private fun fetchOsrmBasesFromApi(): String? {
+    /** Map-matching Valhalla: trail + fix actual → lat/lng en calle. */
+    fun valhallaMapMatch(
+        trail: List<Pair<Double, Double>>,
+        lat: Double,
+        lng: Double,
+    ): Pair<Double, Double>? {
+        val service = bravaValhallaServiceBase
+        if (!service.isNullOrBlank()) {
+            if (trail.size >= 2) {
+                val merged = trail + Pair(lat, lng)
+                valhallaTraceSnap(service, merged)?.let { return it }
+            }
+            valhallaLocate(service, lat, lng)?.let { return it }
+        }
+        return valhallaMapMatchViaApi(trail, lat, lng)
+    }
+
+    private fun valhallaLocate(base: String, lat: Double, lng: Double): Pair<Double, Double>? {
+        val url = "${base.trimEnd('/')}/locate"
+        val json =
+            JSONObject()
+                .put("locations", JSONArray().put(JSONObject().put("lat", lat).put("lon", lng)))
+                .put("costing", "auto")
+        return postValhallaJson(url, json)?.let { ValhallaMatch.parseLocate(it) }
+    }
+
+    private fun valhallaTraceSnap(
+        base: String,
+        points: List<Pair<Double, Double>>,
+    ): Pair<Double, Double>? {
+        if (points.size < 2) return null
+        val url = "${base.trimEnd('/')}/trace_route"
+        val shape = JSONArray()
+        for (p in points) {
+            shape.put(JSONObject().put("lat", p.first).put("lon", p.second))
+        }
+        val json =
+            JSONObject()
+                .put("shape", shape)
+                .put("costing", "auto")
+                .put("shape_match", "map_snap")
+                .put("shape_format", "polyline6")
+                .put("directions_options", JSONObject().put("language", "es-ES"))
+        return postValhallaJson(url, json, client = directPcHttp)?.let { ValhallaMatch.parseTraceLastPoint(it) }
+    }
+
+    private fun valhallaMapMatchViaApi(
+        trail: List<Pair<Double, Double>>,
+        lat: Double,
+        lng: Double,
+    ): Pair<Double, Double>? {
         val api = BuildConfig.API_BASE.trim()
         if (api.isBlank()) return null
+        val json =
+            JSONObject()
+                .put("action", "valhallaMatch")
+                .put("lat", lat)
+                .put("lng", lng)
+        if (trail.isNotEmpty()) {
+            val arr = JSONArray()
+            for (p in trail) {
+                arr.put(JSONObject().put("lat", p.first).put("lng", p.second))
+            }
+            json.put("trail", arr)
+        }
+        return try {
+            val req =
+                Request.Builder()
+                    .url(api)
+                    .header("User-Agent", browserUa)
+                    .post(json.toString().toRequestBody("application/json".toMediaType()))
+                    .build()
+            http.newCall(req).execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) return null
+                val o = JSONObject(body)
+                if (!o.optBoolean("ok", false)) return null
+                val mLat = o.optDouble("lat", Double.NaN)
+                val mLng = o.optDouble("lng", Double.NaN)
+                if (mLat.isNaN() || mLng.isNaN()) null else Pair(mLat, mLng)
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun postValhallaJson(
+        url: String,
+        json: JSONObject,
+        client: OkHttpClient = http,
+    ): String? {
+        return try {
+            val req =
+                Request.Builder()
+                    .url(url)
+                    .header("User-Agent", browserUa)
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/json")
+                    .post(json.toString().toRequestBody("application/json".toMediaType()))
+                    .build()
+            client.newCall(req).execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) null else body
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private data class RouteBases(val osrm: String?, val valhalla: String?)
+
+    private fun fetchOsrmBasesFromApi(): RouteBases {
+        val api = BuildConfig.API_BASE.trim()
+        if (api.isBlank()) return RouteBases(null, null)
         val url =
             api.toHttpUrlOrNull()?.newBuilder()?.apply {
                 addQueryParameter("action", "osrmBases")
-            }?.build()?.toString() ?: return null
+            }?.build()?.toString() ?: return RouteBases(null, null)
         return try {
             val req =
                 Request.Builder()
@@ -178,13 +339,74 @@ class OsrmClient {
                     .build()
             http.newCall(req).execute().use { resp ->
                 val body = resp.body?.string().orEmpty()
-                if (!resp.isSuccessful) return null
-                val parsed = basesAdapter.fromJson(body) ?: return null
-                if (!parsed.ok) return null
-                parsed.primary?.trim()?.trimEnd('/')?.plus("/")?.takeIf { it.startsWith("https://") }
+                if (!resp.isSuccessful) return RouteBases(null, null)
+                val parsed = basesAdapter.fromJson(body) ?: return RouteBases(null, null)
+                if (!parsed.ok) return RouteBases(null, null)
+                val osrm =
+                    parsed.osrm?.trim()?.trimEnd('/')?.plus("/")
+                        ?: parsed.primary?.trim()?.trimEnd('/')?.plus("/")
+                val osrmBase = osrm?.takeIf { it.contains("driving", ignoreCase = true) }
+                val valhalla =
+                    parsed.valhalla?.trim()?.trimEnd('/')
+                        ?: parsed.primary?.trim()?.trimEnd('/').takeIf {
+                            it != null && it.contains("/route", ignoreCase = true) &&
+                                !it.contains("driving", ignoreCase = true)
+                        }
+                RouteBases(
+                    osrm = osrmBase,
+                    valhalla = valhalla?.takeIf { it.startsWith("https://") },
+                )
             }
         } catch (_: Exception) {
-            null
+            RouteBases(null, null)
+        }
+    }
+
+    private fun fetchDirectValhalla(
+        routeUrl: String,
+        fromLng: Double,
+        fromLat: Double,
+        toLng: Double,
+        toLat: Double,
+        sourceTag: String,
+        client: OkHttpClient = http,
+    ): Result<RouteResult> {
+        val url = routeUrl.trim().trimEnd('/')
+        val json =
+            JSONObject()
+                .put(
+                    "locations",
+                    JSONArray()
+                        .put(JSONObject().put("lon", fromLng).put("lat", fromLat).put("type", "break"))
+                        .put(JSONObject().put("lon", toLng).put("lat", toLat).put("type", "break")),
+                )
+                .put("costing", "auto")
+                .put("units", "kilometers")
+                .put("language", "es-ES")
+                .put(
+                    "directions_options",
+                    JSONObject().put("units", "kilometers").put("language", "es-ES"),
+                )
+                .put("shape_match", "edge_walk")
+                .put("shape_format", "polyline6")
+        return try {
+            val req =
+                Request.Builder()
+                    .url(url)
+                    .header("User-Agent", browserUa)
+                    .header("Accept", "application/json")
+                    .header("Content-Type", "application/json")
+                    .post(json.toString().toRequestBody("application/json".toMediaType()))
+                    .build()
+            client.newCall(req).execute().use { resp ->
+                val body = resp.body?.string().orEmpty()
+                if (!resp.isSuccessful) {
+                    return Result.failure(Exception("valhalla_http_${resp.code}"))
+                }
+                ValhallaRouteParser.parse(body, sourceTag)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -367,6 +589,7 @@ class OsrmClient {
     private fun apiRouteSourceLabel(routeSource: String?): String {
         return when (routeSource?.trim()?.lowercase()) {
             "brava_pc" -> "Brava PC"
+            "valhalla" -> "Valhalla"
             "osrm_public" -> "OSRM público"
             "ors" -> "ORS"
             else -> "Brava"
