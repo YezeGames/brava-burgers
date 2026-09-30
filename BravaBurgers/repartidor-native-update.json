@@ -1,6 +1,6 @@
 ﻿{
-  "version_code": 32,
-  "version_name": "2.0.0-alpha32",
-  "apk_url": "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v32/brava-repartidor-native.apk",
-  "release_notes": "OTA desde GitHub, UI ruta/nav/entrega, logout y cancelacion de pedidos."
+    "version_code":  33,
+    "version_name":  "2.0.0-alpha33",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v33/brava-repartidor-native.apk",
+    "release_notes":  "Navegacion: instrucciones con distancia, menos repeticion en TTS, motor Google TTS, pasos OSRM en API, llegada con destino a la derecha/izquierda."
 }
