@@ -3,169 +3,239 @@ package app.bravaburgers.repartidor.nativeapp.navigation
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.speech.tts.TextToSpeech
 import app.bravaburgers.repartidor.nativeapp.data.NavStep
 import app.bravaburgers.repartidor.nativeapp.data.RouteResult
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.round
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** Voz turn-by-turn (umbrales como repartidor/index.html). */
+/** Voz turn-by-turn: 1 aviso lejos + 1 corto al girar; próxima maniobra importante. */
 class NavRouteVoiceGuide(context: Context) {
-    private val appContext = context.applicationContext
+    data class ArrivalContext(
+        val clientLabel: String?,
+        val destLat: Double,
+        val destLng: Double,
+    )
+
+    data class Tick(
+        val instruction: String,
+        val distanceToManeuverM: Int?,
+        val stepIndex: Int,
+        val stepCount: Int,
+    )
+
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var tts: TextToSpeech? = null
-    private var ready = false
+    private val tts = BravaNavigationTts(context)
     private var enabled = true
 
+    private var route: List<Pair<Double, Double>> = emptyList()
     private var steps: List<NavStep> = emptyList()
-    private var currentStepIndex = 0
+    private var stepEndDistM: DoubleArray = doubleArrayOf()
     private val spokenTiers = mutableMapOf<Int, MutableSet<String>>()
     private val utteranceSeq = AtomicInteger(0)
+    private var lastSpokenLine: String? = null
+    private var lastSpokenAtMs = 0L
+    private var lastSpokenVoiceKey: String? = null
+    private var arrival: ArrivalContext? = null
 
     fun setEnabled(on: Boolean) {
         enabled = on
-        if (!on) tts?.stop()
+        if (!on) mainHandler.post { tts.stop() }
     }
 
     fun ensureInit() {
-        if (tts != null) return
-        tts =
-            TextToSpeech(appContext) { status ->
-                ready = status == TextToSpeech.SUCCESS
-                if (ready) {
-                    val t = tts ?: return@TextToSpeech
-                    val locales =
-                        listOf(
-                            Locale("es", "AR"),
-                            Locale("es", "ES"),
-                            Locale("es", "MX"),
-                            Locale("es"),
-                        )
-                    for (loc in locales) {
-                        if (t.setLanguage(loc) != TextToSpeech.LANG_NOT_SUPPORTED) break
-                    }
-                    t.setSpeechRate(0.92f)
-                    t.setPitch(1f)
-                }
-            }
+        tts.ensureInit()
     }
 
     fun reset() {
+        route = emptyList()
         steps = emptyList()
-        currentStepIndex = 0
+        stepEndDistM = doubleArrayOf()
         spokenTiers.clear()
-        mainHandler.post { tts?.stop() }
+        lastSpokenLine = null
+        lastSpokenVoiceKey = null
+        arrival = null
+        mainHandler.post { tts.stop() }
     }
 
     fun shutdown() {
         reset()
-        tts?.shutdown()
-        tts = null
-        ready = false
+        tts.shutdown()
     }
 
     fun speakOffRoute() {
-        speak("Te saliste de la ruta. Recalculando.")
+        speak("Te saliste de la ruta. Recalculando.", flush = true, voiceKey = "offroute")
     }
 
-    /** Tras reroute OSRM (como web: «Recalculamos la ruta…»). */
-    fun announceReroute(result: RouteResult) {
+    private fun bindRoute(result: RouteResult) {
+        route = result.coordinates
         steps = result.steps
-        currentStepIndex = 0
+        stepEndDistM = NavRouteProgress.rebuildStepDistances(steps)
         spokenTiers.clear()
+    }
+
+    fun announceReroute(result: RouteResult) {
+        bindRoute(result)
+        lastSpokenLine = null
+        lastSpokenVoiceKey = null
+        val target = significantTarget(0)
+        val step = steps.getOrNull(target)?.dto
         val instr =
-            if (steps.isEmpty()) {
+            if (step == null) {
                 result.firstManeuver
             } else {
-                steps.first().speech
+                OsrmNavText.maneuverText(step)
             }
-        speak("Recalculamos la ruta. $instr")
+        speak("Recalculando ruta. $instr", flush = true, voiceKey = "reroute|${OsrmNavText.maneuverVoiceKey(step)}")
     }
 
-    fun startRoute(result: RouteResult, parada: Int?) {
+    fun startRoute(result: RouteResult, parada: Int?, arrivalContext: ArrivalContext?) {
         reset()
-        steps = result.steps
+        arrival = arrivalContext
+        bindRoute(result)
         val totalM = result.distanceM
         val intro =
-            if (steps.isEmpty()) {
-                result.firstManeuver
-            } else {
-                buildString {
-                    if (parada != null) append("Parada $parada. ")
-                    if (totalM > 600) append("Recorrido de ${OsrmNavText.formatDistSpeech(totalM)}. ")
-                    append(steps.first().speech)
+            buildString {
+                if (parada != null) append("Parada $parada. ")
+                if (totalM > 600) {
+                    append("Son ${OsrmNavText.formatDistSpeech(totalM)} hasta el destino.")
+                } else if (parada == null) {
+                    append("Iniciá el recorrido.")
                 }
-            }
+            }.trim()
+        if (intro.isEmpty()) return
         mainHandler.postDelayed({
             if (!enabled) return@postDelayed
-            speak(intro)
+            speak(intro, flush = true, voiceKey = "intro")
         }, 500L)
     }
 
-    /** Devuelve maniobra actual para la UI. */
-    fun onDriverPosition(lat: Double, lng: Double): String? {
+    fun onDriverPosition(lat: Double, lng: Double): Tick? {
         if (steps.isEmpty()) return null
-        advanceStepIfPassed(lat, lng)
-        val step = steps.getOrNull(currentStepIndex) ?: return null
-        val distM = haversineM(lat, lng, step.lat, step.lng)
-        maybeSpeakNavVoice(currentStepIndex, distM, step)
-        return step.speech
-    }
-
-    private fun advanceStepIfPassed(lat: Double, lng: Double) {
-        while (currentStepIndex < steps.size - 1) {
-            val d = haversineM(lat, lng, steps[currentStepIndex].lat, steps[currentStepIndex].lng)
-            if (d <= PASS_STEP_M) {
-                currentStepIndex++
+        val snap =
+            if (route.size >= 2 && stepEndDistM.isNotEmpty()) {
+                NavRouteProgress.snapshot(lat, lng, route, steps, stepEndDistM)
             } else {
-                break
+                null
             }
-        }
+        val rawIdx = snap?.stepIndex ?: 0
+        val targetIdx = significantTarget(rawIdx)
+        val distM =
+            if (snap != null && targetIdx in stepEndDistM.indices) {
+                (stepEndDistM[targetIdx] - snap.alongRouteM).coerceAtLeast(0.0)
+            } else {
+                fallbackDistM(lat, lng, targetIdx)
+            }
+        val step = steps.getOrNull(targetIdx) ?: return null
+        val along = snap?.alongRouteM
+        val side = resolveArrivalSide(lat, lng, along)
+        maybeSpeakNavVoice(targetIdx, distM, step, side)
+        val distInt = distM.takeIf { it.isFinite() }?.let { round(it).toInt() }
+        val instruction =
+            if (step.type == "arrive" || (distInt != null && distInt <= 55 && targetIdx == steps.lastIndex)) {
+                OsrmNavText.arrivePhrase(arrival?.clientLabel, side)
+            } else {
+                OsrmNavText.displayInstruction(step.dto, distInt)
+            }
+        return Tick(
+            instruction = instruction,
+            distanceToManeuverM = distInt,
+            stepIndex = targetIdx,
+            stepCount = steps.size,
+        )
     }
 
-    private fun maybeSpeakNavVoice(idx: Int, distToManeuverM: Double, step: NavStep) {
-        if (!enabled || !ready) return
+    private fun resolveArrivalSide(
+        driverLat: Double,
+        driverLng: Double,
+        alongRouteM: Double?,
+    ): NavArrivalSide.Side? {
+        val ctx = arrival ?: return null
+        if (route.size < 2 || alongRouteM == null) return null
+        return NavArrivalSide.sideOfDestination(
+            driverLat,
+            driverLng,
+            ctx.destLat,
+            ctx.destLng,
+            route,
+            alongRouteM,
+        )
+    }
+
+    private fun significantTarget(rawIndex: Int): Int = OsrmNavText.significantStepIndex(steps, rawIndex)
+
+    private fun fallbackDistM(lat: Double, lng: Double, idx: Int): Double {
+        val step = steps.getOrNull(idx) ?: return 0.0
+        return haversineM(lat, lng, step.lat, step.lng)
+    }
+
+    private fun maybeSpeakNavVoice(
+        idx: Int,
+        distToManeuverM: Double,
+        step: NavStep,
+        arrivalSide: NavArrivalSide.Side?,
+    ) {
+        if (!enabled || !tts.ready) return
+        val dto = step.dto
+        if (OsrmNavText.isLowValueManeuver(dto)) return
+
+        val voiceKey = OsrmNavText.maneuverVoiceKey(dto)
         val tiers = spokenTiers.getOrPut(idx) { mutableSetOf() }
+
         if (step.type == "arrive") {
-            if (distToManeuverM <= 40 && "arrive" !in tiers) {
+            if (distToManeuverM in 70.0..130.0 && arrivalSide != null && "side_hint" !in tiers) {
+                tiers.add("side_hint")
+                val hint =
+                    when (arrivalSide) {
+                        NavArrivalSide.Side.RIGHT -> "Tu destino está a la derecha"
+                        NavArrivalSide.Side.LEFT -> "Tu destino está a la izquierda"
+                    }
+                speak(hint, flush = false, voiceKey = "side_hint|${arrivalSide.name}")
+            }
+            if (distToManeuverM <= 45 && "arrive" !in tiers) {
                 tiers.add("arrive")
-                speak("Llegaste al destino.")
+                val line = OsrmNavText.arrivePhrase(arrival?.clientLabel, arrivalSide)
+                speak(line, flush = true, voiceKey = "arrive")
             }
             return
         }
+
+        val previewSpoken = "ahead" in tiers
+
         when {
             distToManeuverM <= VOICE_NOW && "now" !in tiers -> {
                 tiers.add("now")
-                speak(step.speech)
+                val line = OsrmNavText.voiceNowLine(dto, previewSpoken)
+                speak(line, flush = true, voiceKey = "now|$voiceKey")
             }
-            distToManeuverM <= VOICE_NEAR && distToManeuverM > VOICE_NOW && "near" !in tiers -> {
-                tiers.add("near")
-                speak(OsrmNavText.maneuverSpeechLine(step.dto, distToManeuverM, VOICE_NOW))
-            }
-            distToManeuverM <= VOICE_MID && distToManeuverM > VOICE_NEAR && "mid" !in tiers -> {
-                tiers.add("mid")
-                speak(OsrmNavText.maneuverSpeechLine(step.dto, distToManeuverM, VOICE_NOW))
-            }
-            distToManeuverM <= VOICE_FAR && distToManeuverM > VOICE_MID && "far" !in tiers -> {
-                tiers.add("far")
-                speak(OsrmNavText.maneuverSpeechLine(step.dto, distToManeuverM, VOICE_NOW))
+            distToManeuverM in VOICE_AHEAD_MIN..VOICE_AHEAD_MAX && "ahead" !in tiers -> {
+                tiers.add("ahead")
+                val line = OsrmNavText.voiceAheadLine(dto, distToManeuverM)
+                speak(line, flush = false, voiceKey = "ahead|$voiceKey")
             }
         }
     }
 
-    private fun speak(text: String) {
+    private fun speak(text: String, flush: Boolean, voiceKey: String) {
         val line = text.trim()
         if (line.isEmpty() || !enabled) return
+        val now = System.currentTimeMillis()
+        if (
+            (line == lastSpokenLine || voiceKey == lastSpokenVoiceKey) &&
+            now - lastSpokenAtMs < MIN_REPEAT_MS
+        ) {
+            return
+        }
+        lastSpokenLine = line
+        lastSpokenVoiceKey = voiceKey
+        lastSpokenAtMs = now
         mainHandler.post {
-            val engine = tts ?: return@post
-            if (!ready) return@post
             val id = "brava-nav-${utteranceSeq.incrementAndGet()}"
-            engine.speak(line, TextToSpeech.QUEUE_ADD, null, id)
+            tts.speak(line, flush, id)
         }
     }
 
@@ -180,10 +250,10 @@ class NavRouteVoiceGuide(context: Context) {
     }
 
     companion object {
-        private const val PASS_STEP_M = 25.0
-        private const val VOICE_FAR = 480.0
-        private const val VOICE_MID = 200.0
-        private const val VOICE_NEAR = 75.0
-        private const val VOICE_NOW = 22.0
+        /** Un aviso entre ~120 y ~180 m (moto / ciudad). */
+        private const val VOICE_AHEAD_MIN = 120.0
+        private const val VOICE_AHEAD_MAX = 180.0
+        private const val VOICE_NOW = 30.0
+        private const val MIN_REPEAT_MS = 20_000L
     }
 }

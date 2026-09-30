@@ -833,6 +833,7 @@
 		var bgGeoWatcherId = null;
 		var bgGeoStarting = false;
 		var nativeAppLifecycleBound = false;
+		var nativeRouteChangeBound = false;
 		var bgGeoPlugin = null;
 		var repartoSessionPlugin = null;
 		var nativeRepartoSessionOn = false;
@@ -849,10 +850,11 @@
 		var stepVoiceTiers = {};
 		var routeCumDistM = [];
 		var stepDistAlongRoute = [];
-		var NAV_VOICE_FAR = 480;
-		var NAV_VOICE_MID = 200;
-		var NAV_VOICE_NEAR = 75;
-		var NAV_VOICE_NOW = 22;
+		var NAV_VOICE_AHEAD_MIN = 120;
+		var NAV_VOICE_AHEAD_MAX = 180;
+		var NAV_VOICE_NOW = 30;
+		var lastSpokenVoiceKey = '';
+		var lastSpokenAtMs = 0;
 		var lastSpokenStep = -1;
 		var userPos = null;
 		var markerUser = null;
@@ -2099,21 +2101,149 @@
 			}, 1800);
 		}
 
+		function isLowValueManeuver(step) {
+			if (!step || !step.maneuver) return false;
+			var t = step.maneuver.type || '';
+			var mod = step.maneuver.modifier || '';
+			return t === 'depart' || t === 'continue' || (t === 'new name' && !mod);
+		}
+
+		function significantStepIndex(rawIndex) {
+			if (!steps.length) return 0;
+			var i = Math.max(0, Math.min(rawIndex, steps.length - 1));
+			while (i < steps.length - 1 && isLowValueManeuver(steps[i])) i++;
+			return i;
+		}
+
 		function maneuverText(step) {
-			if (!step || !step.maneuver) return 'Seguí por la ruta';
+			if (!step || !step.maneuver) return 'Seguí por la ruta resaltada';
 			var m = step.maneuver;
 			var street = (m.name || step.name || '').trim();
 			var t = m.type || '';
 			var mod = m.modifier || '';
 			if (t === 'arrive') return 'Llegaste al destino';
-			if (t === 'depart') return 'Salí hacia ' + (street || 'la ruta');
+			if (t === 'depart') {
+				if (street && m.bearing_after != null) {
+					var head = bearingCardinalEs(m.bearing_after);
+					if (head) return 'Dirigite hacia el ' + head + ' por ' + street;
+				}
+				return street ? 'Salí por ' + street : 'Iniciá el recorrido';
+			}
+			if (t === 'roundabout' || t === 'rotary') {
+				if (m.exit > 0) return 'En la rotonda, tomá la ' + ordinalEs(m.exit) + ' salida' + (street ? ' en ' + street : '');
+				return 'Entrá a la rotonda' + (street ? ' en ' + street : '');
+			}
+			if (mod === 'sharp left') return 'Girá fuerte a la izquierda' + (street ? ' en ' + street : '');
 			if (mod === 'left') return 'Girá a la izquierda' + (street ? ' en ' + street : '');
+			if (mod === 'sharp right') return 'Girá fuerte a la derecha' + (street ? ' en ' + street : '');
 			if (mod === 'right') return 'Girá a la derecha' + (street ? ' en ' + street : '');
-			if (mod === 'slight left') return 'Mantenete a la izquierda';
+			if (mod === 'slight left') return 'Mantenete a la izquierda' + (street ? ' hacia ' + street : '');
+			if (mod === 'slight right') return 'Mantenete a la derecha' + (street ? ' hacia ' + street : '');
+			if (mod === 'uturn') return 'Hacé un retorno';
+			if (t === 'fork' && mod === 'left') return 'En la bifurcación, tomá a la izquierda';
+			if (t === 'fork' && mod === 'right') return 'En la bifurcación, tomá a la derecha';
+			if (t === 'merge') return 'Incorporate' + (street ? ' en ' + street : '');
+			if (t === 'continue' && street) return 'Continuá por ' + street;
+			if (t === 'new name' && street) return 'Continuá por ' + street;
+			if (m.instruction && !/^(Turn|Continue|Head|Merge|Enter|Take|Keep|Exit|Arrive)\b/i.test(m.instruction)) {
+				return m.instruction;
+			}
+			return 'Seguí la ruta';
+		}
+
+		function bearingCardinalEs(bearing) {
+			if (bearing == null || isNaN(bearing)) return null;
+			var b = ((bearing % 360) + 360) % 360;
+			var idx = Math.floor(((b + 22.5) / 45) % 8);
+			return ['norte', 'noreste', 'este', 'sureste', 'sur', 'suroeste', 'oeste', 'noroeste'][idx];
+		}
+
+		function ordinalEs(n) {
+			if (n === 1) return 'primera';
+			if (n === 2) return 'segunda';
+			if (n === 3) return 'tercera';
+			if (n === 4) return 'cuarta';
+			if (n === 5) return 'quinta';
+			return n + '.ª';
+		}
+
+		function displayNavInstruction(step, distanceToM) {
+			var core = maneuverText(step);
+			if (distanceToM == null || distanceToM <= 35) return core;
+			return 'En ' + formatDistSpeech(distanceToM) + ', ' + core.charAt(0).toLowerCase() + core.slice(1);
+		}
+
+		function bearingDeg(lat1, lng1, lat2, lng2) {
+			var toRad = Math.PI / 180;
+			var phi1 = lat1 * toRad;
+			var phi2 = lat2 * toRad;
+			var dL = (lng2 - lng1) * toRad;
+			var y = Math.sin(dL) * Math.cos(phi2);
+			var x = Math.cos(phi1) * Math.sin(phi2) - Math.sin(phi1) * Math.cos(phi2) * Math.cos(dL);
+			return (Math.atan2(y, x) * (180 / Math.PI) + 360) % 360;
+		}
+
+		function travelBearingAlongRoute(alongM) {
+			if (!routeCoords.length || routeCoords.length < 2) return null;
+			var cum = 0;
+			for (var i = 0; i < routeCoords.length - 1; i++) {
+				var a = { lng: routeCoords[i][0], lat: routeCoords[i][1] };
+				var b = { lng: routeCoords[i + 1][0], lat: routeCoords[i + 1][1] };
+				var segLen = haversineM(a, b);
+				if (alongM <= cum + segLen || i === routeCoords.length - 2) {
+					return bearingDeg(a.lat, a.lng, b.lat, b.lng);
+				}
+				cum += segLen;
+			}
+			return null;
+		}
+
+		function arrivalSide(driver, alongM) {
+			if (!currentOrder || currentOrder.lat == null || currentOrder.lng == null) return null;
+			var travel = travelBearingAlongRoute(alongM);
+			if (travel == null) return null;
+			var toDest = bearingDeg(driver.lat, driver.lng, currentOrder.lat, currentOrder.lng);
+			var delta = toDest - travel;
+			while (delta > 180) delta -= 360;
+			while (delta < -180) delta += 360;
+			if (delta >= 28 && delta <= 152) return 'right';
+			if (delta <= -28 && delta >= -152) return 'left';
+			return null;
+		}
+
+		function navClientLabel() {
+			if (!currentOrder) return null;
+			var c = String(currentOrder.cliente || '').trim();
+			var d = String(currentOrder.direccion || '').trim();
+			if (c && d) return c + ', ' + d;
+			if (c) return c;
+			if (d) return d;
+			return null;
+		}
+
+		function arrivePhrase(side) {
+			var who = navClientLabel();
+			var base = who ? 'Llegaste al domicilio de ' + who : 'Llegaste a tu destino';
+			if (side === 'right') return base + '. Tu destino está a la derecha';
+			if (side === 'left') return base + '. Tu destino está a la izquierda';
+			return base;
+		}
+
+		function voiceNowLine(step, previewSpoken) {
+			if (!previewSpoken) return maneuverText(step);
+			var m = step.maneuver;
+			var street = (m.name || step.name || '').trim();
+			var mod = m.modifier || '';
+			var t = m.type || '';
+			if (t === 'roundabout' || t === 'rotary') {
+				return m.exit > 0 ? 'Ahora, salida ' + ordinalEs(m.exit) : 'Ahora, la rotonda';
+			}
+			if (street && (mod.indexOf('right') >= 0 || mod.indexOf('left') >= 0)) return 'Después, ' + street;
+			if (mod === 'right' || mod === 'sharp right') return 'Ahora, a la derecha';
+			if (mod === 'left' || mod === 'sharp left') return 'Ahora, a la izquierda';
 			if (mod === 'slight right') return 'Mantenete a la derecha';
-			if (t === 'roundabout') return 'Tomá la rotonda';
-			if (t === 'continue') return 'Continuá' + (street ? ' por ' + street : '');
-			return m.instruction || 'Seguí la ruta';
+			if (mod === 'slight left') return 'Mantenete a la izquierda';
+			return street ? 'Entrá en ' + street : maneuverText(step);
 		}
 
 		function haversineM(a, b) {
@@ -2279,49 +2409,52 @@
 			return r + ' metros';
 		}
 
-		function maneuverSpeechLine(step, withDistanceM) {
-			var m = maneuverText(step);
-			if (withDistanceM == null || withDistanceM <= NAV_VOICE_NOW) return m;
-			return 'En ' + formatDistSpeech(withDistanceM) + ', ' + m.charAt(0).toLowerCase() + m.slice(1);
-		}
-
 		function ensureStepVoiceTiers(idx) {
 			if (!stepVoiceTiers[idx]) stepVoiceTiers[idx] = {};
 			return stepVoiceTiers[idx];
 		}
 
-		function maybeSpeakNavVoice(idx, distToManeuverM, step) {
-			if (!ttsOn || !step || distToManeuverM == null) return;
+		function speakNavLine(line, voiceKey) {
+			if (!ttsOn || !line) return;
+			var now = Date.now();
+			if (voiceKey && voiceKey === lastSpokenVoiceKey && now - lastSpokenAtMs < 20000) return;
+			lastSpokenVoiceKey = voiceKey || line;
+			lastSpokenAtMs = now;
+			speak(line);
+		}
+
+		function maybeSpeakNavVoice(idx, distToManeuverM, step, alongM) {
+			if (!ttsOn || !step || distToManeuverM == null || isLowValueManeuver(step)) return;
 			var tiers = ensureStepVoiceTiers(idx);
 			var mType = step.maneuver && step.maneuver.type;
+			var side = userPos && alongM != null ? arrivalSide(userPos, alongM) : null;
 			if (mType === 'arrive') {
-				if (distToManeuverM <= 40 && !tiers.arrive) {
+				if (side && distToManeuverM >= 70 && distToManeuverM <= 130 && !tiers.side_hint) {
+					tiers.side_hint = true;
+					speakNavLine(
+						side === 'right' ? 'Tu destino está a la derecha' : 'Tu destino está a la izquierda',
+						'side_hint'
+					);
+				}
+				if (distToManeuverM <= 45 && !tiers.arrive) {
 					tiers.arrive = true;
-					speak('Llegaste al destino.');
+					speakNavLine(arrivePhrase(side), 'arrive');
 				}
 				return;
 			}
 			if (distToManeuverM <= NAV_VOICE_NOW && !tiers.now) {
 				tiers.now = true;
-				speak(maneuverText(step));
+				speakNavLine(voiceNowLine(step, !!tiers.ahead), 'now|' + idx);
 				lastSpokenStep = idx;
 				return;
 			}
-			if (distToManeuverM <= NAV_VOICE_NEAR && distToManeuverM > NAV_VOICE_NOW && !tiers.near) {
-				tiers.near = true;
-				speak(maneuverSpeechLine(step, distToManeuverM));
-				lastSpokenStep = idx;
-				return;
-			}
-			if (distToManeuverM <= NAV_VOICE_MID && distToManeuverM > NAV_VOICE_NEAR && !tiers.mid) {
-				tiers.mid = true;
-				speak(maneuverSpeechLine(step, distToManeuverM));
-				lastSpokenStep = idx;
-				return;
-			}
-			if (distToManeuverM <= NAV_VOICE_FAR && distToManeuverM > NAV_VOICE_MID && !tiers.far) {
-				tiers.far = true;
-				speak(maneuverSpeechLine(step, distToManeuverM));
+			if (
+				distToManeuverM >= NAV_VOICE_AHEAD_MIN &&
+				distToManeuverM <= NAV_VOICE_AHEAD_MAX &&
+				!tiers.ahead
+			) {
+				tiers.ahead = true;
+				speakNavLine(displayNavInstruction(step, Math.round(distToManeuverM)), 'ahead|' + idx);
 				lastSpokenStep = idx;
 			}
 		}
@@ -2330,13 +2463,9 @@
 			if (!ttsOn || !steps.length || !currentOrder) return;
 			var totalM =
 				stepDistAlongRoute.length > 0 ? stepDistAlongRoute[stepDistAlongRoute.length - 1] : 0;
-			var intro =
-				'Parada ' +
-				currentOrder.parada +
-				'. ' +
-				(totalM > 600 ? 'Recorrido de ' + formatDistSpeech(totalM) + '. ' : '') +
-				maneuverText(steps[0]);
-			speak(intro);
+			var intro = 'Parada ' + currentOrder.parada + '.';
+			if (totalM > 600) intro += ' Son ' + formatDistSpeech(totalM) + ' hasta el destino.';
+			speakNavLine(intro, 'intro');
 		}
 
 		function updateUserMarker(lng, lat, heading) {
@@ -2425,16 +2554,21 @@
 			}
 			if (!steps.length || !$('screen-nav').classList.contains('is-active')) return;
 			var along = posDistanceAlongRouteM(userPos);
-			var idx = findNavStepIndex(along);
+			var rawIdx = findNavStepIndex(along);
+			var idx = significantStepIndex(rawIdx);
 			var step = steps[idx];
-			var instr = maneuverText(step);
-			$('nav-instruction').textContent = instr;
 			var distToTurn =
 				stepDistAlongRoute.length && stepDistAlongRoute[idx] != null
 					? Math.max(0, Math.round(stepDistAlongRoute[idx] - along))
 					: step.distance
 					? Math.round(step.distance)
 					: null;
+			var side = userPos ? arrivalSide(userPos, along) : null;
+			var isArrive = step.maneuver && step.maneuver.type === 'arrive';
+			var nearEnd = distToTurn != null && distToTurn <= 55 && idx === steps.length - 1;
+			var instr =
+				isArrive || nearEnd ? arrivePhrase(side) : displayNavInstruction(step, distToTurn);
+			$('nav-instruction').textContent = instr;
 			var turnHint = distToTurn != null ? ' · Próx. maniobra ~' + distToTurn + ' m' : '';
 			$('nav-meta').textContent =
 				routeMetaLine +
@@ -2445,7 +2579,7 @@
 				steps.length +
 				turnHint;
 
-			if (distToTurn != null) maybeSpeakNavVoice(idx, distToTurn, step);
+			if (distToTurn != null) maybeSpeakNavVoice(idx, distToTurn, step, along);
 			maybeRerouteFromGps();
 		}
 
@@ -2522,7 +2656,10 @@
 			var cam = myAssignments().filter(function (a) {
 				return String(a.estado || '').toLowerCase() === 'en_camino';
 			});
-			return cam[0] && cam[0].orn ? String(cam[0].orn).trim() : '';
+			if (cam[0] && cam[0].orn) return String(cam[0].orn).trim();
+			var any = myAssignments();
+			if (any[0] && any[0].orn) return String(any[0].orn).trim();
+			return '';
 		}
 
 		function stopNativeRepartoSession() {
@@ -2534,12 +2671,22 @@
 			return Promise.resolve();
 		}
 
+		function bindNativeRouteChangeListener() {
+			if (nativeRouteChangeBound) return;
+			var S = ensureRepartoSessionPlugin();
+			if (!S || !S.addListener) return;
+			nativeRouteChangeBound = true;
+			S.addListener('routeChanged', function () {
+				if (isLoggedIn()) fetchRutaLive(false);
+			});
+		}
+
 		function syncNativeRepartoSession() {
 			if (!useAppPermissionFlow() || !isLoggedIn() || !needsBackgroundRouteTracking()) {
 				return stopNativeRepartoSession();
 			}
+			bindNativeRouteChangeListener();
 			var orn = resolveActiveTrackOrn();
-			if (!orn) return stopNativeRepartoSession();
 			var S = ensureRepartoSessionPlugin();
 			if (!S || !S.startSession) return Promise.resolve();
 			return Promise.resolve(

@@ -42,6 +42,9 @@ data class OsrmManeuverDto(
     val modifier: String? = null,
     val name: String? = null,
     val location: List<Double>? = null,
+    val exit: Int? = null,
+    @com.squareup.moshi.Json(name = "bearing_after") val bearingAfter: Int? = null,
+    @com.squareup.moshi.Json(name = "bearing_before") val bearingBefore: Int? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -59,6 +62,7 @@ data class AppRouteResponseDto(
     @com.squareup.moshi.Json(name = "duration_sec") val durationSec: Double? = null,
     val maneuver: String? = null,
     @com.squareup.moshi.Json(name = "route_source") val routeSource: String? = null,
+    val steps: List<OsrmStepDto>? = null,
 )
 
 @JsonClass(generateAdapter = true)

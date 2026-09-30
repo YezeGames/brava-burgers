@@ -347,14 +347,18 @@ class OsrmClient {
         if (coords.size < 2) {
             return Result.failure(Exception("route_empty_geometry"))
         }
+        val osrmSteps = parsed.steps.orEmpty()
+        val navSteps = buildNavSteps(osrmSteps, coords)
+        val step = osrmSteps.firstOrNull()
         return Result.success(
             RouteResult(
                 coordinates = coords,
                 distanceM = parsed.distanceM ?: 0.0,
                 durationSec = parsed.durationSec ?: 0.0,
-                firstManeuver = parsed.maneuver?.trim()?.takeIf { it.isNotEmpty() }
-                    ?: "Seguí la ruta resaltada",
-                steps = emptyList(),
+                firstManeuver =
+                    parsed.maneuver?.trim()?.takeIf { it.isNotEmpty() }
+                        ?: OsrmNavText.maneuverText(step),
+                steps = navSteps,
                 sourceTag = apiRouteSourceLabel(parsed.routeSource),
             ),
         )

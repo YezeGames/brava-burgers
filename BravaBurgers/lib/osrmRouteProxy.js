@@ -17,21 +17,10 @@ function osrmHostList() {
   return hosts.concat(OSRM_PUBLIC);
 }
 
+var maneuverTextFromOsrmStep = require('./navManeuverEs').maneuverTextFromOsrmStep;
+
 function maneuverTextFromStep(step) {
-  if (!step || !step.maneuver) return 'Seguí por la ruta resaltada';
-  var m = step.maneuver;
-  var street = String(m.name || step.name || '').trim();
-  var t = m.type || '';
-  var mod = m.modifier || '';
-  if (t === 'arrive') return 'Llegaste al destino';
-  if (t === 'depart') return 'Salí hacia ' + (street || 'la ruta');
-  if (mod === 'left') return 'Girá a la izquierda' + (street ? ' en ' + street : '');
-  if (mod === 'right') return 'Girá a la derecha' + (street ? ' en ' + street : '');
-  if (mod === 'slight left') return 'Mantenete a la izquierda';
-  if (mod === 'slight right') return 'Mantenete a la derecha';
-  if (t === 'roundabout') return 'Tomá la rotonda';
-  if (t === 'continue') return 'Continuá' + (street ? ' por ' + street : '');
-  return m.instruction || 'Seguí la ruta resaltada';
+  return maneuverTextFromOsrmStep(step);
 }
 
 /** Menos llamadas a ORS/OSRM: misma ruta ~90 s (reroute GPS redondeado). */
@@ -280,6 +269,13 @@ async function fetchOsrmRouteForApp(query) {
     duration_sec: Number(route.duration) || 0,
     maneuver: maneuverTextFromStep(step),
     route_source: routeSource,
+    steps: steps.map(function (s) {
+      return {
+        distance: s.distance,
+        name: s.name,
+        maneuver: s.maneuver,
+      };
+    }),
   };
 }
 

@@ -2,6 +2,8 @@ package app.bravaburgers.repartidor.nativeapp.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Arrangement
@@ -24,12 +26,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
+import app.bravaburgers.repartidor.nativeapp.navigation.BravaNavigationTts
 import app.bravaburgers.repartidor.nativeapp.ui.map.BravaMapView
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
@@ -38,6 +42,7 @@ import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun NavigationScreen(
     stop: RouteStop,
@@ -53,6 +58,8 @@ fun NavigationScreen(
     onBack: () -> Unit,
     onLlegue: () -> Unit,
 ) {
+    val context = LocalContext.current
+
     LaunchedEffect(stop.orn) {
         onStartNavigation()
     }
@@ -126,8 +133,7 @@ fun NavigationScreen(
                         letterSpacing = 0.5.sp,
                         modifier = Modifier.weight(1f),
                     )
-                    IconButton(
-                        onClick = onToggleVoice,
+                    Box(
                         modifier =
                             Modifier
                                 .background(
@@ -138,7 +144,13 @@ fun NavigationScreen(
                                     1.dp,
                                     if (navVoiceOn) BravaOrange.copy(alpha = 0.45f) else LineDark,
                                     RoundedCornerShape(12.dp),
-                                ),
+                                )
+                                .combinedClickable(
+                                    onClick = onToggleVoice,
+                                    onLongClick = { BravaNavigationTts.openGoogleTtsSettings(context) },
+                                )
+                                .padding(12.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector =
@@ -148,7 +160,11 @@ fun NavigationScreen(
                                     Icons.AutoMirrored.Filled.VolumeOff
                                 },
                             contentDescription =
-                                if (navVoiceOn) "Silenciar indicaciones por voz" else "Activar voz",
+                                if (navVoiceOn) {
+                                    "Silenciar indicaciones por voz. Mantené pulsado para ajustes de voz."
+                                } else {
+                                    "Activar voz. Mantené pulsado para ajustes de voz."
+                                },
                             tint = if (navVoiceOn) BravaOrange else TextMuted,
                         )
                     }

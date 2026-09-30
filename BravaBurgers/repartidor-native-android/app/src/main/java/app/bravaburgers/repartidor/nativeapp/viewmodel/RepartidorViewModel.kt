@@ -621,11 +621,12 @@ class RepartidorViewModel(
         navOffRouteAnnounced = false
         navLocationTracker.start { lat, lng ->
             lastKnownDriverLatLng = Pair(lat, lng)
-            val maneuver = navVoice.onDriverPosition(lat, lng)
+            val tick = navVoice.onDriverPosition(lat, lng)
             _ui.value =
                 _ui.value.copy(
                     navDriver = Pair(lat, lng),
-                    navManeuver = maneuver ?: _ui.value.navManeuver,
+                    navManeuver = tick?.instruction ?: _ui.value.navManeuver,
+                    navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
                 )
             maybeRerouteFromGps(lat, lng)
         }
@@ -681,7 +682,7 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    navVoice.startRoute(route, stop.parada)
+                    navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng))
                     _ui.value =
                         _ui.value.copy(
                             navLoading = false,
@@ -732,6 +733,48 @@ class RepartidorViewModel(
         val on = !_ui.value.navVoiceOn
         navVoice.setEnabled(on)
         _ui.value = _ui.value.copy(navVoiceOn = on)
+    }
+
+    private fun navArrivalContext(
+        stop: RouteStop,
+        destLat: Double,
+        destLng: Double,
+    ): NavRouteVoiceGuide.ArrivalContext {
+        val cliente = stop.cliente?.trim()?.takeIf { it.isNotEmpty() }
+        val dir = stop.direccion?.trim()?.takeIf { it.isNotEmpty() }
+        val label =
+            when {
+                cliente != null && dir != null -> "$cliente, $dir"
+                cliente != null -> cliente
+                dir != null -> dir
+                else -> null
+            }
+        return NavRouteVoiceGuide.ArrivalContext(
+            clientLabel = label,
+            destLat = destLat,
+            destLng = destLng,
+        )
+    }
+
+    private fun appendNavTurnMeta(
+        current: String,
+        tick: NavRouteVoiceGuide.Tick?,
+    ): String {
+        val base =
+            current
+                .split(" · Paso ")
+                .first()
+                .split(" · Próx. maniobra")
+                .first()
+                .replace(" · Recalculando ruta…", "")
+                .trim()
+        if (tick == null || tick.stepCount <= 0) return base
+        val stepPart = " · Paso ${tick.stepIndex + 1}/${tick.stepCount}"
+        val distPart =
+            tick.distanceToManeuverM?.let { d ->
+                if (d > 0) " · Próx. maniobra ~$d m" else ""
+            }.orEmpty()
+        return (base + stepPart + distPart).trim()
     }
 
     private fun maybeRerouteFromGps(lat: Double, lng: Double) {
