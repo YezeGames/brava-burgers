@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
+import app.bravaburgers.repartidor.nativeapp.ui.BravaRidersLogo
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeBottom
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
 import app.bravaburgers.repartidor.nativeapp.ui.PayKind
@@ -80,15 +81,7 @@ fun RouteListScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(36.dp)
-                        .background(BravaOrange, RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("B", color = TextPrimary, fontWeight = FontWeight.Bold)
-            }
+            BravaRidersLogo(size = 40.dp, cornerRadius = 10.dp)
             Column(modifier = Modifier.weight(1f)) {
                 Text(session.nombre.ifBlank { session.login }, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Text(

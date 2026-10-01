@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -21,6 +22,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import app.bravaburgers.repartidor.nativeapp.ui.BravaRidersLogo
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeScreen
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
@@ -43,13 +45,14 @@ fun LoginScreen(
                 .fillMaxSize()
                 .bravaSafeScreen()
                 .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(text = "Brava repartidor", color = BravaOrange)
+        Spacer(modifier = Modifier.height(8.dp))
+        BravaRidersLogo(size = 120.dp, cornerRadius = 22.dp)
         Text(
             text = "Entrá con tu usuario de cocina",
             color = TextMuted,
-            modifier = Modifier.padding(top = 8.dp, bottom = 24.dp),
+            modifier = Modifier.padding(top = 16.dp, bottom = 24.dp),
         )
         val fieldColors =
             OutlinedTextFieldDefaults.colors(

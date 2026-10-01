@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  45,
-    "version_name":  "2.0.0-alpha45",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v45/brava-repartidor-native.apk",
-    "release_notes":  "Icono de app: logo Brava Riders."
+    "version_code":  46,
+    "version_name":  "2.0.0-alpha46",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v46/brava-repartidor-native.apk",
+    "release_notes":  "Logo Brava Riders en login y lista de ruta."
 }
