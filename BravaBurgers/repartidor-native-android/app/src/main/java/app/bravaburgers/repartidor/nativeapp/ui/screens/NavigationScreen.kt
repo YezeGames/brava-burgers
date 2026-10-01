@@ -2,6 +2,7 @@ package app.bravaburgers.repartidor.nativeapp.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,14 +60,14 @@ import app.bravaburgers.repartidor.nativeapp.ui.map.BravaMapView
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
-import app.bravaburgers.repartidor.nativeapp.ui.theme.MpBlue
 import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
+import app.bravaburgers.repartidor.nativeapp.ui.theme.MpBlue
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
+import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-private val NavSheetWhite = Color.White
-private val NavSheetSubtext = Color(0xFF5F6368)
+private val NavFabWhite = Color.White
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -102,7 +103,6 @@ fun NavigationScreen(
     val floatRowBottom = sheetTotalHeight + 10.dp
 
     var mapFollow by remember(stop.orn) { mutableStateOf(false) }
-    var showRecenter by remember(stop.orn) { mutableStateOf(false) }
     var recenterKey by remember(stop.orn) { mutableIntStateOf(0) }
     var compassKey by remember(stop.orn) { mutableIntStateOf(0) }
 
@@ -112,7 +112,6 @@ fun NavigationScreen(
 
     LaunchedEffect(navLoading, navRoute.size) {
         mapFollow = false
-        showRecenter = false
         if (!navLoading && navRoute.size >= 2) {
             delay(1600)
             mapFollow = true
@@ -127,12 +126,12 @@ fun NavigationScreen(
             else -> "Seguí la ruta resaltada"
         }
 
-    val addressLine =
+    val addressStreet =
         listOfNotNull(
             stop.direccion?.trim()?.takeIf { it.isNotEmpty() },
             stop.piso?.trim()?.takeIf { it.isNotEmpty() }?.let { "Piso $it" },
-            stop.localidad?.trim()?.takeIf { it.isNotEmpty() },
         ).joinToString(" · ")
+    val addressZone = stop.localidad?.trim()?.takeIf { it.isNotEmpty() }.orEmpty()
 
     Box(modifier = Modifier.fillMaxSize().background(BgDark)) {
         BravaMapView(
@@ -149,7 +148,6 @@ fun NavigationScreen(
             onUserMovedMap = {
                 if (!navLoading && navRoute.size >= 2) {
                     mapFollow = false
-                    showRecenter = true
                 }
             },
         )
@@ -162,58 +160,56 @@ fun NavigationScreen(
             loading = navLoading,
         )
 
-        Row(
+        NavSpeedChip(
+            speedKmh = navSpeedKmh,
             modifier =
                 Modifier
                     .align(Alignment.BottomStart)
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, end = 12.dp, bottom = floatRowBottom),
-            verticalAlignment = Alignment.CenterVertically,
+                    .padding(start = 12.dp, bottom = floatRowBottom),
+        )
+
+        Column(
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 12.dp, bottom = floatRowBottom),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            NavSpeedChip(speedKmh = navSpeedKmh)
-            Spacer(modifier = Modifier.weight(1f))
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            NavRoundMapButton(
+                onClick = {
+                    mapFollow = false
+                    compassKey++
+                },
+                contentDescription = "Brújula / vista norte",
             ) {
-                NavRoundMapButton(
-                    onClick = {
-                        mapFollow = false
-                        showRecenter = true
-                        compassKey++
-                    },
-                    contentDescription = "Brújula / vista norte",
-                ) {
-                    Icon(Icons.Default.Explore, contentDescription = null, tint = BravaOrange)
-                }
-                NavRoundMapButton(
-                    onClick = onToggleVoice,
-                    onLongClick = { BravaNavigationTts.openGoogleTtsSettings(context) },
-                    contentDescription = "Voz",
-                ) {
-                    Icon(
-                        imageVector =
-                            if (navVoiceOn) {
-                                Icons.AutoMirrored.Filled.VolumeUp
-                            } else {
-                                Icons.AutoMirrored.Filled.VolumeOff
-                            },
-                        contentDescription = null,
-                        tint = if (navVoiceOn) BravaOrange else TextMuted,
-                    )
-                }
-                if (showRecenter && !mapFollow) {
-                    NavRoundMapButton(
-                        onClick = {
-                            showRecenter = false
-                            mapFollow = true
-                            recenterKey++
+                Icon(Icons.Default.Explore, contentDescription = null, tint = BravaOrange)
+            }
+            NavRoundMapButton(
+                onClick = onToggleVoice,
+                onLongClick = { BravaNavigationTts.openGoogleTtsSettings(context) },
+                contentDescription = "Voz",
+            ) {
+                Icon(
+                    imageVector =
+                        if (navVoiceOn) {
+                            Icons.AutoMirrored.Filled.VolumeUp
+                        } else {
+                            Icons.AutoMirrored.Filled.VolumeOff
                         },
-                        contentDescription = "Centrar en tu ubicación",
-                    ) {
-                        Icon(Icons.Default.MyLocation, contentDescription = null, tint = MpBlue)
-                    }
-                }
+                    contentDescription = null,
+                    tint = if (navVoiceOn) BravaOrange else TextMuted,
+                )
+            }
+            NavRoundMapButton(
+                onClick = {
+                    mapFollow = true
+                    recenterKey++
+                },
+                contentDescription = "Centrar en tu ubicación",
+                highlighted = !mapFollow,
+            ) {
+                Icon(Icons.Default.MyLocation, contentDescription = null, tint = MpBlue)
             }
         }
 
@@ -224,7 +220,8 @@ fun NavigationScreen(
                     .fillMaxWidth(),
             etaMinutes = navEtaMinutes,
             routeKm = navRouteKm,
-            addressLine = addressLine,
+            addressStreet = addressStreet,
+            addressZone = addressZone,
             onExit = onBack,
             onLlegue = onLlegue,
             navLoading = navLoading,
@@ -344,7 +341,7 @@ private fun NavSpeedChip(
                 .size(52.dp)
                 .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
-                .background(NavSheetWhite),
+                .background(NavFabWhite),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -357,7 +354,7 @@ private fun NavSpeedChip(
             Text(
                 text = "km/h",
                 fontSize = 9.sp,
-                color = NavSheetSubtext,
+                color = TextMuted,
             )
         }
     }
@@ -369,6 +366,7 @@ private fun NavRoundMapButton(
     onClick: () -> Unit,
     contentDescription: String,
     onLongClick: (() -> Unit)? = null,
+    highlighted: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     Box(
@@ -377,7 +375,14 @@ private fun NavRoundMapButton(
                 .size(46.dp)
                 .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
-                .background(NavSheetWhite)
+                .background(NavFabWhite)
+                .then(
+                    if (highlighted) {
+                        Modifier.border(2.dp, BravaOrange, CircleShape)
+                    } else {
+                        Modifier
+                    },
+                )
                 .then(
                     if (onLongClick != null) {
                         Modifier.combinedClickable(
@@ -399,7 +404,8 @@ private fun NavBottomTripBar(
     modifier: Modifier = Modifier,
     etaMinutes: Int?,
     routeKm: Double?,
-    addressLine: String,
+    addressStreet: String,
+    addressZone: String,
     onExit: () -> Unit,
     onLlegue: () -> Unit,
     navLoading: Boolean,
@@ -408,7 +414,7 @@ private fun NavBottomTripBar(
 ) {
     Column(
         modifier =
-            modifier.background(NavSheetWhite),
+            modifier.background(BgDark),
     ) {
         Column(
             modifier =
@@ -426,9 +432,9 @@ private fun NavBottomTripBar(
                     modifier =
                         Modifier
                             .size(44.dp)
-                            .background(Color(0xFFF1F3F4), CircleShape),
+                            .background(LineDark, CircleShape),
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Salir", tint = Color(0xFF3C4043))
+                    Icon(Icons.Default.Close, contentDescription = "Salir", tint = TextPrimary)
                 }
                 Column(
                     modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
@@ -447,13 +453,14 @@ private fun NavBottomTripBar(
                     )
                     val sub =
                         buildList {
+                            if (addressStreet.isNotBlank()) add(addressStreet)
+                            if (addressZone.isNotBlank()) add(addressZone)
                             routeKm?.let { add(String.format(Locale.US, "%.1f km", it)) }
-                            if (addressLine.isNotBlank()) add(addressLine)
                         }.joinToString(" · ")
                     if (sub.isNotBlank()) {
                         Text(
                             sub,
-                            color = NavSheetSubtext,
+                            color = TextMuted,
                             fontSize = 13.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
@@ -480,7 +487,7 @@ private fun NavBottomTripBar(
                 Modifier
                     .fillMaxWidth()
                     .height(navBarBottom)
-                    .background(NavSheetWhite),
+                    .background(BgDark),
         )
     }
 }

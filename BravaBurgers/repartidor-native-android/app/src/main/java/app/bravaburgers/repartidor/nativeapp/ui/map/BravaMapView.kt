@@ -53,11 +53,11 @@ private const val DRIVER_SOURCE = "brava-driver-source"
 private const val DRIVER_LAYER = "brava-driver-layer"
 private const val NAV_PUCK_IMAGE = "brava-nav-puck"
 
-private const val NAV_ZOOM = 17.85
-private const val NAV_PITCH = 62.0
-private const val NAV_ANIM_MS = 160
+private const val NAV_ZOOM = 18.85
+private const val NAV_PITCH = 68.5
+private const val NAV_ANIM_MS = 120
 /** Metros adelante del GPS: cámara en “tercera persona” (flecha abajo-centro). */
-private const val NAV_CAMERA_AHEAD_M = 42.0
+private const val NAV_CAMERA_AHEAD_M = 78.0
 
 @Composable
 fun BravaMapView(
@@ -172,7 +172,13 @@ fun BravaMapView(
     ) {
         if (!styleReady) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
-        map.setPadding(0, topPadPx, 0, bottomPadPx)
+        val puckLiftPx =
+            if (navigationFollow && navigationMode) {
+                with(density) { 78.dp.toPx().toInt() }
+            } else {
+                0
+            }
+        map.setPadding(0, topPadPx, 0, bottomPadPx + puckLiftPx)
         if (navigationFollow && driver != null && route.size >= 2) {
             map.uiSettings.isRotateGesturesEnabled = true
             map.uiSettings.isTiltGesturesEnabled = true
@@ -322,23 +328,19 @@ private fun updateDriverMarker(
     if (driver == null) return
 
     val point = Point.fromLngLat(driver.second, driver.first)
-    val brg = bearing?.toDouble() ?: 0.0
-    val feature =
-        Feature.fromGeometry(point).apply {
-            addNumberProperty("bearing", brg)
-        }
-    style.addSource(GeoJsonSource(DRIVER_SOURCE, feature))
+    style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
 
     if (navigationMode) {
         style.addLayer(
             SymbolLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
                 PropertyFactory.iconImage(NAV_PUCK_IMAGE),
-                PropertyFactory.iconSize(0.85f),
+                PropertyFactory.iconSize(0.92f),
                 PropertyFactory.iconAllowOverlap(true),
                 PropertyFactory.iconIgnorePlacement(true),
                 PropertyFactory.iconAnchor("center"),
-                PropertyFactory.iconRotate(Expression.get("bearing")),
-                PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
+                PropertyFactory.iconRotate(0f),
+                PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_VIEWPORT),
+                PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
             ),
         )
     } else {

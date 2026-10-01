@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  40,
-    "version_name":  "2.0.0-alpha40",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v40/brava-repartidor-native.apk",
-    "release_notes":  "Nav Brava: colores marca, cartel inferior full, km/h alineado, fix Luego, camara 3ra persona, solo Llegue."
+    "version_code":  42,
+    "version_name":  "2.0.0-alpha42",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v42/brava-repartidor-native.apk",
+    "release_notes":  "Nav: camara 3ra persona mas zoom, cartel negro dir-zona-km, botones verticales centrar-voz-brujula."
 }
