@@ -1,5 +1,6 @@
 const { tripShapeAndSteps } = require('./valhallaManeuverMap');
 const { maneuverTextFromOsrmStep } = require('./navManeuverEs');
+const { VALHALLA_COSTING_OPTIONS } = require('./bravaRoutePreferences');
 
 function bravaValhallaRouteUrl() {
   var custom = String(
@@ -18,10 +19,10 @@ function buildValhallaBody(fromLng, fromLat, toLng, toLat) {
       { lon: toLng, lat: toLat, type: 'break' },
     ],
     costing: 'auto',
+    costing_options: VALHALLA_COSTING_OPTIONS,
     units: 'kilometers',
     language: 'es-ES',
     directions_options: { units: 'kilometers', language: 'es-ES' },
-    shape_match: 'edge_walk',
     shape_format: 'polyline6',
   };
 }

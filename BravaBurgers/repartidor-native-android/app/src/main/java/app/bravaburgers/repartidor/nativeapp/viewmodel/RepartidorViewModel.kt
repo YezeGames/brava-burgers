@@ -610,36 +610,73 @@ class RepartidorViewModel(
         gpsBearing: Float?,
     ) {
         lastKnownDriverLatLng = Pair(lat, lng)
-        var useLat = lat
-        var useLng = lng
-        if (navValhallaMatchOn) {
-            valhallaMatcher.matchedPosition(lat, lng)?.let {
-                useLat = it.first
-                useLng = it.second
-            }
+
+        navGpsMutex.withLock {
+            publishNavDriverOnMap(lat, lng, gpsBearing)
         }
-        var bearing = gpsBearing
-        if (bearing == null) {
-            val prev = lastNavFixForBearing
-            if (prev != null) {
-                val movedM =
-                    kotlin.math.abs(prev.first - useLat) + kotlin.math.abs(prev.second - useLng)
-                if (movedM > 0.00004) {
-                    bearing =
-                        NavRouteProgress.bearingDeg(prev.first, prev.second, useLat, useLng).toFloat()
-                }
+
+        val snapped =
+            if (navValhallaMatchOn) {
+                valhallaMatcher.matchedPosition(lat, lng)
+            } else {
+                null
             }
+        val useLat = snapped?.first ?: lat
+        val useLng = snapped?.second ?: lng
+
+        navGpsMutex.withLock {
+            commitNavDriverFix(useLat, useLng, gpsBearing, updateMap = snapped != null)
         }
-        lastNavFixForBearing = Pair(useLat, useLng)
-        val tick = navVoice.onDriverPosition(useLat, useLng)
+    }
+
+    /** Punto azul al instante (GPS crudo); voz y reruta van en [commitNavDriverFix]. */
+    private fun publishNavDriverOnMap(
+        lat: Double,
+        lng: Double,
+        gpsBearing: Float?,
+    ) {
+        val bearing = resolveNavBearing(lat, lng, gpsBearing, forDisplay = true)
         _ui.value =
             _ui.value.copy(
-                navDriver = Pair(useLat, useLng),
+                navDriver = Pair(lat, lng),
                 navDriverBearing = bearing,
+            )
+    }
+
+    private fun commitNavDriverFix(
+        lat: Double,
+        lng: Double,
+        gpsBearing: Float?,
+        updateMap: Boolean,
+    ) {
+        val bearing = resolveNavBearing(lat, lng, gpsBearing, forDisplay = false)
+        lastNavFixForBearing = Pair(lat, lng)
+        val tick = navVoice.onDriverPosition(lat, lng)
+        _ui.value =
+            _ui.value.copy(
+                navDriver = if (updateMap) Pair(lat, lng) else _ui.value.navDriver,
+                navDriverBearing = if (updateMap) bearing else _ui.value.navDriverBearing,
                 navManeuver = tick?.instruction ?: _ui.value.navManeuver,
                 navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
             )
-        maybeRerouteFromGps(useLat, useLng)
+        maybeRerouteFromGps(lat, lng)
+    }
+
+    private fun resolveNavBearing(
+        lat: Double,
+        lng: Double,
+        gpsBearing: Float?,
+        forDisplay: Boolean,
+    ): Float? {
+        if (gpsBearing != null) return gpsBearing
+        val prev = if (forDisplay) _ui.value.navDriver else lastNavFixForBearing
+        if (prev != null) {
+            val movedM = kotlin.math.abs(prev.first - lat) + kotlin.math.abs(prev.second - lng)
+            if (movedM > 0.00004) {
+                return NavRouteProgress.bearingDeg(prev.first, prev.second, lat, lng).toFloat()
+            }
+        }
+        return _ui.value.navDriverBearing
     }
 
     private fun enableValhallaMatchIfAvailable() {
@@ -660,6 +697,7 @@ class RepartidorViewModel(
             )
     }
 
+    /** Ruta mínima km hacia esta parada (y cada recálculo); orden 1→2→3 lo define cocina. */
     fun beginNavigation(context: Context, orn: String) {
         if (_ui.value.session == null) return
         val stop = stopFor(orn) ?: return
@@ -683,9 +721,7 @@ class RepartidorViewModel(
         valhallaMatcher.reset()
         navLocationTracker.start { lat, lng, gpsBearing ->
             viewModelScope.launch {
-                navGpsMutex.withLock {
-                    applyNavDriverFix(lat, lng, gpsBearing)
-                }
+                applyNavDriverFix(lat, lng, gpsBearing)
             }
         }
         viewModelScope.launch {

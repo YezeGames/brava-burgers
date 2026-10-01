@@ -2060,7 +2060,7 @@
 				to.lng +
 				',' +
 				to.lat +
-				'?steps=true&geometries=geojson&overview=full';
+				'?steps=true&geometries=geojson&overview=full&alternatives=2';
 			return fetch(url)
 				.then(function (r) {
 					return r.json();
@@ -2069,7 +2069,11 @@
 					if (data.code !== 'Ok' || !data.routes || !data.routes[0]) {
 						throw new Error((data && data.message) || 'Sin ruta OSRM');
 					}
-					return data.routes[0];
+					var best = data.routes[0];
+					for (var ri = 1; ri < data.routes.length; ri++) {
+						if ((data.routes[ri].distance || 0) < (best.distance || 0)) best = data.routes[ri];
+					}
+					return best;
 				});
 		}
 

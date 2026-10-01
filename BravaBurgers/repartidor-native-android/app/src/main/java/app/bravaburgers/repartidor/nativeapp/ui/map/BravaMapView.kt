@@ -42,7 +42,7 @@ private const val DRIVER_LAYER = "brava-driver-layer"
 
 private const val NAV_ZOOM = 17.2
 private const val NAV_PITCH = 58.0
-private const val NAV_ANIM_MS = 380
+private const val NAV_ANIM_MS = 180
 
 @Composable
 fun BravaMapView(
@@ -98,17 +98,29 @@ fun BravaMapView(
             mapRef = map
             map.setStyle(Style.Builder().fromUri(BuildConfig.MAP_STYLE)) { style ->
                 styleReady = true
-                applyRoute(style, route, destination, driver)
+                applyRouteGeometry(style, route, destination)
+                updateDriverMarker(style, driver)
                 safeFitCamera(map, route, destination, driver)
             }
         }
     }
 
-    LaunchedEffect(route, destination, driver, recenterKey, styleReady, navigationFollow, driverBearing) {
+    LaunchedEffect(route, destination, styleReady) {
         if (!styleReady) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
         val style = map.style ?: return@LaunchedEffect
-        applyRoute(style, route, destination, driver)
+        applyRouteGeometry(style, route, destination)
+    }
+
+    LaunchedEffect(driver, styleReady) {
+        if (!styleReady) return@LaunchedEffect
+        val style = mapRef?.style ?: return@LaunchedEffect
+        updateDriverMarker(style, driver)
+    }
+
+    LaunchedEffect(driver, destination, recenterKey, styleReady, navigationFollow, driverBearing, route) {
+        if (!styleReady) return@LaunchedEffect
+        val map = mapRef ?: return@LaunchedEffect
         if (navigationFollow && driver != null && route.size >= 2) {
             map.uiSettings.isRotateGesturesEnabled = true
             map.uiSettings.isTiltGesturesEnabled = true
@@ -144,16 +156,15 @@ fun BravaMapView(
     AndroidView(modifier = modifier, factory = { mapView })
 }
 
-private fun applyRoute(
+private fun applyRouteGeometry(
     style: Style,
     route: List<Pair<Double, Double>>,
     destination: Pair<Double, Double>?,
-    driver: Pair<Double, Double>?,
 ) {
-    listOf(ROUTE_LAYER, DEST_LAYER, DRIVER_LAYER).forEach { id ->
+    listOf(ROUTE_LAYER, DEST_LAYER).forEach { id ->
         if (style.getLayer(id) != null) style.removeLayer(id)
     }
-    listOf(ROUTE_SOURCE, DEST_SOURCE, DRIVER_SOURCE).forEach { id ->
+    listOf(ROUTE_SOURCE, DEST_SOURCE).forEach { id ->
         if (style.getSource(id) != null) style.removeSource(id)
     }
 
@@ -182,19 +193,29 @@ private fun applyRoute(
             ),
         )
     }
+}
 
-    driver?.let { (lat, lng) ->
-        val point = Point.fromLngLat(lng, lat)
-        style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
-        style.addLayer(
-            CircleLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
-                PropertyFactory.circleRadius(11f),
-                PropertyFactory.circleColor("#29B6F6"),
-                PropertyFactory.circleStrokeWidth(3f),
-                PropertyFactory.circleStrokeColor("#FFFFFF"),
-            ),
-        )
+private fun updateDriverMarker(style: Style, driver: Pair<Double, Double>?) {
+    if (driver == null) {
+        if (style.getLayer(DRIVER_LAYER) != null) style.removeLayer(DRIVER_LAYER)
+        if (style.getSource(DRIVER_SOURCE) != null) style.removeSource(DRIVER_SOURCE)
+        return
     }
+    val point = Point.fromLngLat(driver.second, driver.first)
+    val existing = style.getSourceAs<GeoJsonSource>(DRIVER_SOURCE)
+    if (existing != null) {
+        existing.setGeoJson(Feature.fromGeometry(point))
+        return
+    }
+    style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
+    style.addLayer(
+        CircleLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
+            PropertyFactory.circleRadius(11f),
+            PropertyFactory.circleColor("#29B6F6"),
+            PropertyFactory.circleStrokeWidth(3f),
+            PropertyFactory.circleStrokeColor("#FFFFFF"),
+        ),
+    )
 }
 
 /** MapLibre crashea si newLatLngBounds tiene un solo punto o bounds degenerados. */

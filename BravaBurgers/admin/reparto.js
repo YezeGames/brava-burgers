@@ -251,7 +251,8 @@
         stopCoords.forEach(function (c) {
           pairs.push(coordPair(c.lng, c.lat));
         });
-        var url = OSRM + pairs.join(';') + '?geometries=geojson&overview=full';
+        var url =
+          OSRM + pairs.join(';') + '?geometries=geojson&overview=full&alternatives=2';
         setStatus('Calculando ruta…');
         return fetch(url).then(function (r) {
           return r.json();
@@ -263,6 +264,11 @@
           return;
         }
         var route = data.routes[0];
+        if (data.routes.length > 1) {
+          data.routes.forEach(function (r) {
+            if ((r.distance || 0) < (route.distance || 0)) route = r;
+          });
+        }
         map.addSource('reparto-route', {
           type: 'geojson',
           data: { type: 'Feature', properties: {}, geometry: route.geometry }

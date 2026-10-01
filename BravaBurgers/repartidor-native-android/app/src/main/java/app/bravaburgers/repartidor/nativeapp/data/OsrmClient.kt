@@ -32,7 +32,10 @@ data class RouteResult(
     val sourceTag: String = "OSRM",
 )
 
-/** Brava PC (túnel) primero; Brava proxy; OSRM público solo si falla lo anterior. */
+/**
+ * Rutas A→B para **cada parada** (1, 2, 3…), recálculo off-route y fallback API.
+ * Siempre criterio **menor distancia** ([valhallaShortestCostingOptions] / OSRM alternativas).
+ */
 class OsrmClient {
     private val http =
         OkHttpClient.Builder()
@@ -387,7 +390,7 @@ class OsrmClient {
                     "directions_options",
                     JSONObject().put("units", "kilometers").put("language", "es-ES"),
                 )
-                .put("shape_match", "edge_walk")
+                .put("costing_options", valhallaShortestCostingOptions())
                 .put("shape_format", "polyline6")
         return try {
             val req =
@@ -446,7 +449,7 @@ class OsrmClient {
     ): Result<RouteResult> {
         val path = "$fromLng,$fromLat;$toLng,$toLat"
         val url =
-            "${base.trimEnd('/')}/$path?steps=true&geometries=geojson&overview=$overview&alternatives=false"
+            "${base.trimEnd('/')}/$path?steps=true&geometries=geojson&overview=$overview&alternatives=2"
         return executeGet(url, sourceTag, client)
     }
 
@@ -510,7 +513,9 @@ class OsrmClient {
         if (parsed.code != "Ok" || parsed.routes.isNullOrEmpty()) {
             return Result.failure(Exception(parsed.message ?: "osrm_no_route"))
         }
-        val route = parsed.routes.first()
+        val route =
+            parsed.routes.minByOrNull { it.distance ?: Double.MAX_VALUE }
+                ?: parsed.routes.first()
         val coords =
             route.geometry?.coordinates?.mapNotNull { pair ->
                 if (pair.size >= 2) Pair(pair[1], pair[0]) else null
@@ -594,5 +599,17 @@ class OsrmClient {
             "ors" -> "ORS"
             else -> "Brava"
         }
+    }
+
+    companion object {
+        /** Mismo criterio que `lib/bravaRoutePreferences.js` en Vercel. */
+        fun valhallaShortestCostingOptions(): JSONObject =
+            JSONObject()
+                .put(
+                    "auto",
+                    JSONObject()
+                        .put("shortest", true)
+                        .put("disable_hierarchy_pruning", true),
+                )
     }
 }

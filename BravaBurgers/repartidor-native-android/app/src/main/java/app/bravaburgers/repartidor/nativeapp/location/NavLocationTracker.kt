@@ -18,9 +18,10 @@ class NavLocationTracker(context: Context) {
         if (!LocationHelper.hasLocationPermission(appContext)) return
         stop()
         val request =
-            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 3000L)
-                .setMinUpdateIntervalMillis(2000L)
-                .setMaxUpdateDelayMillis(6000L)
+            LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L)
+                .setMinUpdateIntervalMillis(500L)
+                .setMaxUpdateDelayMillis(2000L)
+                .setMinUpdateDistanceMeters(0f)
                 .build()
         callback =
             object : LocationCallback() {

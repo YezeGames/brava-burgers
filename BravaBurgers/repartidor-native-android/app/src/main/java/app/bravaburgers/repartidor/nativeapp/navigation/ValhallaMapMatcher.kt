@@ -44,8 +44,8 @@ class ValhallaMapMatcher(
         if (!enabled || !osrm.hasValhallaService()) return null
         recordRawFix(lat, lng)
         val now = System.currentTimeMillis()
-        if (now - lastMatchAtMs < MIN_INTERVAL_MS && lastMatch != null) {
-            return lastMatch
+        if (now - lastMatchAtMs < MIN_INTERVAL_MS) {
+            return null
         }
         val trailList = trail.toList()
         val out =
@@ -61,6 +61,6 @@ class ValhallaMapMatcher(
 
     companion object {
         private const val MAX_TRAIL = 8
-        private const val MIN_INTERVAL_MS = 900L
+        private const val MIN_INTERVAL_MS = 650L
     }
 }

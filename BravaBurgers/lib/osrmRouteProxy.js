@@ -1,3 +1,9 @@
+const {
+  OSRM_ROUTE_QUERY,
+  pickShortestOsrmRoute,
+  ROUTE_CACHE_PROFILE,
+} = require('./bravaRoutePreferences');
+
 const OSRM_PUBLIC = [
   'https://routing.openstreetmap.de/routed-car/route/v1/driving/',
   'https://router.project-osrm.org/route/v1/driving/',
@@ -40,7 +46,7 @@ function routeCacheKey(pathCoords) {
       (Math.round(parseFloat(xy[1]) * 1000) / 1000)
     );
   }
-  return roundPart(parts[0]) + ';' + roundPart(parts[1]);
+  return roundPart(parts[0]) + ';' + roundPart(parts[1]) + ';' + ROUTE_CACHE_PROFILE;
 }
 
 function getRouteCached(pathCoords) {
@@ -69,7 +75,7 @@ async function fetchOsrmFromHosts(pathCoords, list) {
     var url =
       list[h] +
       pathCoords +
-      '?overview=full&geometries=geojson&steps=true&alternatives=false';
+      OSRM_ROUTE_QUERY;
     try {
       var upstream = await fetch(url, {
         headers: { 'User-Agent': 'BravaBurgers-Repartidor/1.0 (osrm-proxy)' },
@@ -93,8 +99,9 @@ async function fetchOsrmFromHosts(pathCoords, list) {
         lastErr = { ok: false, error: 'osrm_parse', status: 502 };
         continue;
       }
-      if (data.code === 'Ok' && data.routes && data.routes[0]) {
-        return { ok: true, data: data };
+      if (data.code === 'Ok' && data.routes && data.routes.length) {
+        var shortest = pickShortestOsrmRoute(data.routes);
+        return { ok: true, data: { code: data.code, routes: [shortest] } };
       }
       lastErr = {
         ok: false,
@@ -135,6 +142,7 @@ async function fetchOpenRouteService(pathCoords) {
       [parseFloat(a[0]), parseFloat(a[1])],
       [parseFloat(b[0]), parseFloat(b[1])],
     ],
+    preference: 'shortest',
   };
   try {
     var res = await fetch('https://api.openrouteservice.org/v2/directions/driving-car/geojson', {
