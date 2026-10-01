@@ -31,10 +31,6 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.Property
-import kotlin.math.asin
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
@@ -53,11 +49,9 @@ private const val DRIVER_SOURCE = "brava-driver-source"
 private const val DRIVER_LAYER = "brava-driver-layer"
 private const val NAV_PUCK_IMAGE = "brava-nav-puck"
 
-private const val NAV_ZOOM = 18.85
-private const val NAV_PITCH = 68.5
-private const val NAV_ANIM_MS = 120
-/** Metros adelante del GPS: cámara en “tercera persona” (flecha abajo-centro). */
-private const val NAV_CAMERA_AHEAD_M = 78.0
+private const val NAV_ZOOM = 18.65
+private const val NAV_PITCH = 62.0
+private const val NAV_ANIM_MS = 110
 
 @Composable
 fun BravaMapView(
@@ -130,7 +124,9 @@ fun BravaMapView(
                 styleReady = true
                 applyRouteGeometry(style, route, destination, navigationMode)
                 updateDriverMarker(style, driver, driverBearing, navigationMode)
-                safeFitCamera(map, route, destination, driver)
+                if (!navigationMode) {
+                    safeFitCamera(map, route, destination, driver)
+                }
             }
         }
     }
@@ -172,37 +168,23 @@ fun BravaMapView(
     ) {
         if (!styleReady) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
-        val puckLiftPx =
-            if (navigationFollow && navigationMode) {
-                with(density) { 78.dp.toPx().toInt() }
-            } else {
-                0
-            }
-        map.setPadding(0, topPadPx, 0, bottomPadPx + puckLiftPx)
+        map.setPadding(0, topPadPx, 0, bottomPadPx)
         if (navigationFollow && driver != null && route.size >= 2) {
-            map.uiSettings.isRotateGesturesEnabled = true
-            map.uiSettings.isTiltGesturesEnabled = true
-            val along = NavRouteProgress.distanceAlongRouteM(driver.first, driver.second, route)
-            val brg =
-                driverBearing?.toDouble()
-                    ?: NavRouteProgress.travelBearingDeg(route, along)
-                    ?: 0.0
-            val ahead =
-                offsetByMeters(driver.first, driver.second, brg, NAV_CAMERA_AHEAD_M)
-            val pos =
-                CameraPosition.Builder()
-                    .target(LatLng(ahead.first, ahead.second))
-                    .zoom(NAV_ZOOM)
-                    .tilt(NAV_PITCH)
-                    .bearing(brg)
-                    .build()
-            map.animateCamera(CameraUpdateFactory.newCameraPosition(pos), NAV_ANIM_MS)
+            applyNavigationCamera(map, driver, driverBearing, route, animate = true)
         } else if (!navigationFollow && !didOverview && route.size >= 2 && !navigationMode) {
             safeFitCamera(map, route, destination, driver)
             didOverview = true
         } else if (!navigationFollow && !navigationMode) {
             safeFitCamera(map, route, destination, driver)
         }
+    }
+
+    LaunchedEffect(recenterKey, styleReady, navigationFollow, driver, driverBearing, route) {
+        if (!styleReady || recenterKey == 0) return@LaunchedEffect
+        val map = mapRef ?: return@LaunchedEffect
+        if (!navigationFollow || driver == null || route.size < 2) return@LaunchedEffect
+        map.setPadding(0, topPadPx, 0, bottomPadPx)
+        applyNavigationCamera(map, driver, driverBearing, route, animate = true)
     }
 
     LaunchedEffect(compassResetKey, styleReady, driver) {
@@ -217,12 +199,6 @@ fun BravaMapView(
                 .bearing(0.0)
                 .build()
         map.animateCamera(CameraUpdateFactory.newCameraPosition(pos), 280)
-    }
-
-    LaunchedEffect(recenterKey, navigationFollow) {
-        if (recenterKey > 0 && navigationFollow) {
-            didOverview = false
-        }
     }
 
     LaunchedEffect(navigationFollow) {
@@ -240,28 +216,33 @@ private fun configureBravaMapUi(map: MapLibreMap, @Suppress("UNUSED_PARAMETER") 
     map.uiSettings.isAttributionEnabled = false
 }
 
-private fun offsetByMeters(
-    lat: Double,
-    lng: Double,
-    bearingDeg: Double,
-    distanceM: Double,
-): Pair<Double, Double> {
-    val r = 6371000.0
-    val br = Math.toRadians(bearingDeg)
-    val lat1 = Math.toRadians(lat)
-    val lng1 = Math.toRadians(lng)
-    val ang = distanceM / r
-    val lat2 =
-        asin(
-            sin(lat1) * cos(ang) + cos(lat1) * sin(ang) * cos(br),
-        )
-    val lng2 =
-        lng1 +
-            atan2(
-                sin(br) * sin(ang) * cos(lat1),
-                cos(ang) - sin(lat1) * sin(lat2),
-            )
-    return Pair(Math.toDegrees(lat2), Math.toDegrees(lng2))
+private fun applyNavigationCamera(
+    map: MapLibreMap,
+    driver: Pair<Double, Double>,
+    driverBearing: Float?,
+    route: List<Pair<Double, Double>>,
+    animate: Boolean,
+) {
+    map.uiSettings.isRotateGesturesEnabled = true
+    map.uiSettings.isTiltGesturesEnabled = true
+    val along = NavRouteProgress.distanceAlongRouteM(driver.first, driver.second, route)
+    val brg =
+        driverBearing?.toDouble()
+            ?: NavRouteProgress.travelBearingDeg(route, along)
+            ?: map.cameraPosition.bearing
+    val pos =
+        CameraPosition.Builder()
+            .target(LatLng(driver.first, driver.second))
+            .zoom(NAV_ZOOM)
+            .tilt(NAV_PITCH)
+            .bearing(brg)
+            .build()
+    val update = CameraUpdateFactory.newCameraPosition(pos)
+    if (animate) {
+        map.animateCamera(update, NAV_ANIM_MS)
+    } else {
+        map.moveCamera(update)
+    }
 }
 
 private fun ensureNavPuckImage(context: Context, style: Style) {

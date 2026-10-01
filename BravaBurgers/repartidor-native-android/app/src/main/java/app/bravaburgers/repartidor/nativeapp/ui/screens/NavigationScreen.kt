@@ -113,7 +113,7 @@ fun NavigationScreen(
     LaunchedEffect(navLoading, navRoute.size) {
         mapFollow = false
         if (!navLoading && navRoute.size >= 2) {
-            delay(1600)
+            delay(900)
             mapFollow = true
         }
     }
