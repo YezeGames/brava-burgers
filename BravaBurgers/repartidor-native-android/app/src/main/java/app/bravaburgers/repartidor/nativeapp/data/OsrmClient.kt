@@ -137,42 +137,29 @@ class OsrmClient {
         toLng: Double,
         toLat: Double,
     ): Result<RouteResult> {
-        if (bravaPrimaryBase.isNullOrBlank()) {
+        if (bravaPrimaryBase.isNullOrBlank() && bravaValhallaRouteUrl.isNullOrBlank()) {
             refreshBasesIfNeeded(force = true)
         }
+        val attempts = mutableListOf<() -> Result<RouteResult>>()
         bravaValhallaRouteUrl?.let { url ->
-            val v =
-                withContext(Dispatchers.IO) {
-                    fetchDirectValhalla(url, fromLng, fromLat, toLng, toLat, "Valhalla PC", directPcHttp)
-                }
-            if (v.isSuccess) return v
+            attempts.add {
+                fetchDirectValhalla(url, fromLng, fromLat, toLng, toLat, "Valhalla PC", directPcHttp)
+            }
         }
+        bravaPrimaryBase?.let { base ->
+            if (base.contains("driving", ignoreCase = true)) {
+                attempts.add {
+                    fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC", directPcHttp)
+                }
+            }
+        }
+        attempts.add { fetchViaPedidoPost(fromLng, fromLat, toLng, toLat) }
         if (bravaValhallaRouteUrl.isNullOrBlank()) {
-            bravaPrimaryBase?.let { base ->
-                if (base.contains("driving", ignoreCase = true)) {
-                    val direct =
-                        withContext(Dispatchers.IO) {
-                            fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "Brava PC", directPcHttp)
-                        }
-                    if (direct.isSuccess) return direct
-                }
+            for (base in publicBases) {
+                attempts.add { fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "OSRM público") }
             }
         }
-        val brava =
-            withContext(Dispatchers.IO) {
-                fetchViaPedidoPost(fromLng, fromLat, toLng, toLat)
-            }
-        if (brava.isSuccess) return brava
-
-        if (!bravaValhallaRouteUrl.isNullOrBlank()) {
-            return Result.failure(Exception("valhalla_route_failed"))
-        }
-
-        val wavePublic =
-            publicBases.map { base ->
-                { fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "OSRM público") }
-            }
-        return raceFirstSuccess(wavePublic, 14_000L)
+        return raceFirstSuccess(attempts, 16_000L)
             ?: Result.failure(Exception("route_timeout"))
     }
 

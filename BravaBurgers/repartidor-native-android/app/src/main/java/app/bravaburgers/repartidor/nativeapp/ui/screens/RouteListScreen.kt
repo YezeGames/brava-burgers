@@ -136,7 +136,24 @@ fun RouteListScreen(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                if (stops.isEmpty() && !loading) {
+                if (loading && stops.isEmpty()) {
+                    item {
+                        Column(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 48.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                color = BravaOrange,
+                                strokeWidth = 2.dp,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text("Cargando paradas…", color = TextMuted, fontSize = 14.sp)
+                        }
+                    }
+                } else if (stops.isEmpty() && !loading) {
                     item {
                         Column(
                             modifier =

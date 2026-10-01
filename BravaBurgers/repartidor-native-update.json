@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  43,
-    "version_name":  "2.0.0-alpha43",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v43/brava-repartidor-native.apk",
-    "release_notes":  "Navegacion: camara centrada en GPS, padding cartel, recentrar 3ra persona, sin overview al entrar."
+    "version_code":  44,
+    "version_name":  "2.0.0-alpha44",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v44/brava-repartidor-native.apk",
+    "release_notes":  "GPS real sin snap; recalcular mas rapido; carteles nav; login y rutas en paralelo (A+B+C+D+E)."
 }

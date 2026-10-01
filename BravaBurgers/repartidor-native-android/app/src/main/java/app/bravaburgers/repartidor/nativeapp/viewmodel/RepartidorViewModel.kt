@@ -138,13 +138,14 @@ class RepartidorViewModel(
 
                     if (bootstrappedToken != s.token) {
                         bootstrappedToken = s.token
+                        launch { osrm.ensureBasesLoaded() }
                         launch { osrm.prefetchBravaPrimary() }
                         PushRegistrar.registerAfterLogin(ctx, repo, s.token)
                         val rt = loginRealtime
                         loginRealtime = null
                         realtime?.start(s.token, rt)
                         SessionWorkScheduler.schedule(ctx)
-                        applyRefresh(s.token, pull = false, refreshing = false)
+                        applyRefresh(s.token, pull = false, refreshing = true)
                         checkForAppUpdate()
                     } else if (_ui.value.stops.isEmpty()) {
                         refreshRoute(s.token, pull = false)
@@ -182,6 +183,7 @@ class RepartidorViewModel(
             repo.login(login, password)
                 .onSuccess { bundle ->
                     loginRealtime = bundle.realtime
+                    _ui.value = _ui.value.copy(loading = false, error = null)
                 }
                 .onFailure {
                     _ui.value = _ui.value.copy(loading = false, error = it.message ?: "Error")
@@ -620,54 +622,20 @@ class RepartidorViewModel(
     ) {
         lastKnownDriverLatLng = Pair(lat, lng)
         val speedKmh =
-            speedMps?.takeIf { it >= 0f }?.let { (it * 3.6f).toInt().coerceIn(0, 999) }
+            speedMps?.takeIf { it >= 0f && it >= 1.2f }?.let { (it * 3.6f).toInt().coerceIn(0, 999) }
+                ?: 0
 
         navGpsMutex.withLock {
-            publishNavDriverOnMap(lat, lng, gpsBearing, speedKmh)
-        }
-
-        val snapped =
-            if (navValhallaMatchOn) {
-                valhallaMatcher.matchedPosition(lat, lng)
-            } else {
-                null
-            }
-        val useLat = snapped?.first ?: lat
-        val useLng = snapped?.second ?: lng
-
-        navGpsMutex.withLock {
-            commitNavDriverFix(
-                useLat,
-                useLng,
-                gpsBearing,
-                updateMap = snapped != null,
-                speedKmh = speedKmh,
-            )
+            commitNavDriverFix(lat, lng, gpsBearing, speedKmh)
         }
     }
 
-    /** Punto azul al instante (GPS crudo); voz y reruta van en [commitNavDriverFix]. */
-    private fun publishNavDriverOnMap(
-        lat: Double,
-        lng: Double,
-        gpsBearing: Float?,
-        speedKmh: Int?,
-    ) {
-        val bearing = resolveNavBearing(lat, lng, gpsBearing, forDisplay = true)
-        _ui.value =
-            _ui.value.copy(
-                navDriver = Pair(lat, lng),
-                navDriverBearing = bearing,
-                navSpeedKmh = speedKmh ?: _ui.value.navSpeedKmh,
-            )
-    }
-
+    /** GPS real en mapa, voz y reruta (sin map-matching a calle). */
     private fun commitNavDriverFix(
         lat: Double,
         lng: Double,
         gpsBearing: Float?,
-        updateMap: Boolean,
-        speedKmh: Int?,
+        speedKmh: Int,
     ) {
         val bearing = resolveNavBearing(lat, lng, gpsBearing, forDisplay = false)
         lastNavFixForBearing = Pair(lat, lng)
@@ -675,9 +643,9 @@ class RepartidorViewModel(
         val stepIdx = tick?.stepIndex ?: 0
         _ui.value =
             _ui.value.copy(
-                navDriver = if (updateMap) Pair(lat, lng) else _ui.value.navDriver,
-                navDriverBearing = if (updateMap) bearing else _ui.value.navDriverBearing,
-                navSpeedKmh = speedKmh ?: _ui.value.navSpeedKmh,
+                navDriver = Pair(lat, lng),
+                navDriverBearing = bearing,
+                navSpeedKmh = speedKmh,
                 navManeuver = tick?.instruction ?: _ui.value.navManeuver,
                 navInstructionPrimary = navVoice.bannerPrimary(stepIdx),
                 navInstructionThen = navVoice.nextSignificantInstruction(stepIdx),
@@ -688,7 +656,7 @@ class RepartidorViewModel(
                 navManeuverModifier = navVoice.maneuverModifierAt(stepIdx),
                 navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
             )
-        maybeRerouteFromGps(lat, lng)
+        maybeRerouteFromGps(lat, lng, speedKmh)
     }
 
     private fun resolveNavBearing(
@@ -708,11 +676,10 @@ class RepartidorViewModel(
         return _ui.value.navDriverBearing
     }
 
-    private fun enableValhallaMatchIfAvailable() {
-        val on = osrm.hasValhallaService()
-        navValhallaMatchOn = on
-        valhallaMatcher.setEnabled(on)
-        if (on) valhallaMatcher.reset()
+    private fun disableNavMapMatching() {
+        navValhallaMatchOn = false
+        valhallaMatcher.setEnabled(false)
+        valhallaMatcher.reset()
     }
 
     private fun patchStopCoords(orn: String, lat: Double, lng: Double) {
@@ -813,10 +780,8 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    enableValhallaMatchIfAvailable()
+                    disableNavMapMatching()
                     navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng))
-                    val matchHint =
-                        if (navValhallaMatchOn) " · snap Valhalla" else ""
                     _ui.value =
                         _ui.value.copy(
                             navLoading = false,
@@ -831,9 +796,7 @@ class RepartidorViewModel(
                             navManeuverModifier = navVoice.maneuverModifierAt(0),
                             navEtaMinutes = min,
                             navRouteKm = km,
-                            navMeta =
-                                String.format("~%d min · %.1f km · %s", min, km, route.sourceTag) +
-                                    matchHint,
+                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
                         )
                 }
                 .onFailure {
@@ -922,19 +885,35 @@ class RepartidorViewModel(
         return (base + stepPart + distPart).trim()
     }
 
-    private fun maybeRerouteFromGps(lat: Double, lng: Double) {
+    private fun maybeRerouteFromGps(lat: Double, lng: Double, speedKmh: Int) {
         val state = _ui.value
         if (state.navLoading || state.trackingOrn.isNullOrBlank()) return
         val route = state.navRoute
         if (route.size < 2 || navRerouteInFlight) return
         val dest = state.navDest ?: return
+        if (speedKmh < REROUTE_MIN_SPEED_KMH) {
+            navOffRouteAnnounced = false
+            return
+        }
         val offM = NavRouteGeometry.distanceToRouteM(lat, lng, route)
-        if (offM < REROUTE_OFF_ROUTE_M) {
+        val threshold =
+            if (speedKmh >= 15) {
+                REROUTE_OFF_ROUTE_M_FAST
+            } else {
+                REROUTE_OFF_ROUTE_M
+            }
+        if (offM < threshold) {
             navOffRouteAnnounced = false
             return
         }
         val now = System.currentTimeMillis()
-        if (now - lastNavRerouteAtMs < REROUTE_MIN_INTERVAL_MS) return
+        val minInterval =
+            if (speedKmh >= 10) {
+                REROUTE_MIN_INTERVAL_MOVING_MS
+            } else {
+                REROUTE_MIN_INTERVAL_MS
+            }
+        if (now - lastNavRerouteAtMs < minInterval) return
         if (!navOffRouteAnnounced) {
             navOffRouteAnnounced = true
             navVoice.speakOffRoute()
@@ -969,11 +948,9 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    enableValhallaMatchIfAvailable()
+                    disableNavMapMatching()
                     navVoice.announceReroute(route)
                     navOffRouteAnnounced = false
-                    val matchHint =
-                        if (navValhallaMatchOn) " · snap Valhalla" else ""
                     _ui.value =
                         _ui.value.copy(
                             navRoute = route.coordinates,
@@ -987,9 +964,7 @@ class RepartidorViewModel(
                             navManeuverModifier = navVoice.maneuverModifierAt(0),
                             navEtaMinutes = min,
                             navRouteKm = km,
-                            navMeta =
-                                String.format("~%d min · %.1f km · %s", min, km, route.sourceTag) +
-                                    matchHint,
+                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
                         )
                 }
                 .onFailure {
@@ -1046,8 +1021,11 @@ class RepartidorViewModel(
     }
 
     companion object {
-        private const val REROUTE_OFF_ROUTE_M = 55.0
-        private const val REROUTE_MIN_INTERVAL_MS = 15_000L
+        private const val REROUTE_OFF_ROUTE_M = 32.0
+        private const val REROUTE_OFF_ROUTE_M_FAST = 26.0
+        private const val REROUTE_MIN_SPEED_KMH = 4
+        private const val REROUTE_MIN_INTERVAL_MS = 12_000L
+        private const val REROUTE_MIN_INTERVAL_MOVING_MS = 5_500L
     }
 }
 

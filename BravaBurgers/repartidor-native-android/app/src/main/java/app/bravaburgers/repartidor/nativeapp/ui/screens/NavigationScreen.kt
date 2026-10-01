@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -68,6 +69,8 @@ import kotlinx.coroutines.delay
 import java.util.Locale
 
 private val NavFabWhite = Color.White
+private val NavCardShape = RoundedCornerShape(18.dp)
+private val NavCardBorder = Color(0xFF3A3F4A)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -244,17 +247,17 @@ private fun NavTopInstructionBanner(
             Modifier
                 .fillMaxWidth()
                 .bravaSafeTop()
-                .padding(start = 10.dp, end = 10.dp, top = 8.dp),
+                .padding(start = 12.dp, end = 12.dp, top = 8.dp)
+                .shadow(10.dp, NavCardShape)
+                .clip(NavCardShape)
+                .border(1.dp, NavCardBorder, NavCardShape)
+                .background(BgDark, NavCardShape),
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .shadow(6.dp, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
-                    .background(
-                        SurfaceDark,
-                        RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                    )
+                    .background(SurfaceDark.copy(alpha = 0.55f))
                     .padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -288,11 +291,10 @@ private fun NavTopInstructionBanner(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .background(
-                            BgDark,
-                            RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-                        )
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LineDark.copy(alpha = 0.85f))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -316,16 +318,7 @@ private fun NavTopInstructionBanner(
                 )
             }
         } else {
-            Spacer(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(4.dp)
-                        .background(
-                            BgDark,
-                            RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
-                        ),
-            )
+            Spacer(modifier = Modifier.fillMaxWidth().height(6.dp))
         }
     }
 }
@@ -414,30 +407,36 @@ private fun NavBottomTripBar(
 ) {
     Column(
         modifier =
-            modifier.background(BgDark),
+            modifier
+                .padding(horizontal = 10.dp)
+                .shadow(12.dp, NavCardShape)
+                .clip(NavCardShape)
+                .border(1.dp, NavCardBorder, NavCardShape)
+                .background(BgDark, NavCardShape),
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .height(sheetBodyHeight)
-                    .padding(top = 12.dp),
+                    .padding(top = 10.dp, bottom = 4.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center,
             ) {
                 IconButton(
                     onClick = onExit,
                     modifier =
                         Modifier
+                            .align(Alignment.CenterStart)
                             .size(44.dp)
                             .background(LineDark, CircleShape),
                 ) {
                     Icon(Icons.Default.Close, contentDescription = "Salir", tint = TextPrimary)
                 }
                 Column(
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
@@ -450,6 +449,7 @@ private fun NavBottomTripBar(
                         color = BravaOrange,
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp,
+                        textAlign = TextAlign.Center,
                     )
                     val sub =
                         buildList {
@@ -464,10 +464,11 @@ private fun NavBottomTripBar(
                             fontSize = 13.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                 }
-                Spacer(modifier = Modifier.size(44.dp))
             }
             Button(
                 onClick = onLlegue,
@@ -475,7 +476,7 @@ private fun NavBottomTripBar(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 8.dp),
+                        .padding(start = 14.dp, end = 14.dp, top = 6.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
             ) {
