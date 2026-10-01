@@ -119,13 +119,17 @@ class NavRouteVoiceGuide(context: Context) {
         }, 500L)
     }
 
-    fun nextSignificantInstruction(afterStepIndex: Int): String? {
+    fun nextSignificantStepIndex(afterStepIndex: Int): Int? {
         if (steps.isEmpty()) return null
-        var i = (afterStepIndex + 1).coerceAtMost(steps.lastIndex)
+        var i = afterStepIndex + 1
         while (i < steps.size && OsrmNavText.isLowValueManeuver(steps[i].dto)) {
             i++
         }
-        if (i >= steps.size) return null
+        return i.takeIf { it < steps.size }
+    }
+
+    fun nextSignificantInstruction(afterStepIndex: Int): String? {
+        val i = nextSignificantStepIndex(afterStepIndex) ?: return null
         return OsrmNavText.maneuverText(steps[i].dto)
     }
 

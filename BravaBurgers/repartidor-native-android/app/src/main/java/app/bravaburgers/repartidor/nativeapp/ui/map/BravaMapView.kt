@@ -30,6 +30,11 @@ import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.Property
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
@@ -48,9 +53,11 @@ private const val DRIVER_SOURCE = "brava-driver-source"
 private const val DRIVER_LAYER = "brava-driver-layer"
 private const val NAV_PUCK_IMAGE = "brava-nav-puck"
 
-private const val NAV_ZOOM = 17.4
-private const val NAV_PITCH = 60.0
-private const val NAV_ANIM_MS = 180
+private const val NAV_ZOOM = 17.85
+private const val NAV_PITCH = 62.0
+private const val NAV_ANIM_MS = 160
+/** Metros adelante del GPS: cámara en “tercera persona” (flecha abajo-centro). */
+private const val NAV_CAMERA_AHEAD_M = 42.0
 
 @Composable
 fun BravaMapView(
@@ -63,13 +70,21 @@ fun BravaMapView(
     navigationFollow: Boolean = false,
     driverBearing: Float? = null,
     navigationMode: Boolean = false,
+    bottomOverlayPx: Int = 0,
     onUserMovedMap: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val topPadPx = with(density) { if (navigationMode) 132.dp.toPx().toInt() else 0 }
-    val bottomPadPx = with(density) { if (navigationMode) 112.dp.toPx().toInt() else 0 }
+    val bottomPadPx =
+        if (navigationMode && bottomOverlayPx > 0) {
+            bottomOverlayPx
+        } else if (navigationMode) {
+            with(density) { 168.dp.toPx().toInt() }
+        } else {
+            0
+        }
     val mapView =
         remember {
             MapView(context).apply {
@@ -109,6 +124,7 @@ fun BravaMapView(
     LaunchedEffect(mapView) {
         mapView.getMapAsync { map ->
             mapRef = map
+            configureBravaMapUi(map, mapView)
             map.setStyle(Style.Builder().fromUri(BuildConfig.MAP_STYLE)) { style ->
                 ensureNavPuckImage(context, style)
                 styleReady = true
@@ -165,9 +181,11 @@ fun BravaMapView(
                 driverBearing?.toDouble()
                     ?: NavRouteProgress.travelBearingDeg(route, along)
                     ?: 0.0
+            val ahead =
+                offsetByMeters(driver.first, driver.second, brg, NAV_CAMERA_AHEAD_M)
             val pos =
                 CameraPosition.Builder()
-                    .target(LatLng(driver.first, driver.second))
+                    .target(LatLng(ahead.first, ahead.second))
                     .zoom(NAV_ZOOM)
                     .tilt(NAV_PITCH)
                     .bearing(brg)
@@ -210,6 +228,36 @@ fun BravaMapView(
     AndroidView(modifier = modifier, factory = { mapView })
 }
 
+private fun configureBravaMapUi(map: MapLibreMap, @Suppress("UNUSED_PARAMETER") mapView: MapView) {
+    map.uiSettings.isCompassEnabled = false
+    map.uiSettings.isLogoEnabled = false
+    map.uiSettings.isAttributionEnabled = false
+}
+
+private fun offsetByMeters(
+    lat: Double,
+    lng: Double,
+    bearingDeg: Double,
+    distanceM: Double,
+): Pair<Double, Double> {
+    val r = 6371000.0
+    val br = Math.toRadians(bearingDeg)
+    val lat1 = Math.toRadians(lat)
+    val lng1 = Math.toRadians(lng)
+    val ang = distanceM / r
+    val lat2 =
+        asin(
+            sin(lat1) * cos(ang) + cos(lat1) * sin(ang) * cos(br),
+        )
+    val lng2 =
+        lng1 +
+            atan2(
+                sin(br) * sin(ang) * cos(lat1),
+                cos(ang) - sin(lat1) * sin(lat2),
+            )
+    return Pair(Math.toDegrees(lat2), Math.toDegrees(lng2))
+}
+
 private fun ensureNavPuckImage(context: Context, style: Style) {
     if (style.getImage(NAV_PUCK_IMAGE) != null) return
     val dr =
@@ -239,7 +287,7 @@ private fun applyRouteGeometry(
         val points = route.map { (lat, lng) -> Point.fromLngLat(lng, lat) }
         val line = LineString.fromLngLats(points)
         style.addSource(GeoJsonSource(ROUTE_SOURCE, Feature.fromGeometry(line)))
-        val lineColor = if (navigationMode) "#4285F4" else "#FF6B35"
+        val lineColor = "#FF6B35"
         style.addLayer(
             LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
                 PropertyFactory.lineColor(lineColor),
@@ -255,7 +303,7 @@ private fun applyRouteGeometry(
         style.addLayer(
             CircleLayer(DEST_LAYER, DEST_SOURCE).withProperties(
                 PropertyFactory.circleRadius(10f),
-                PropertyFactory.circleColor("#EA4335"),
+                PropertyFactory.circleColor("#43A047"),
                 PropertyFactory.circleStrokeWidth(3f),
                 PropertyFactory.circleStrokeColor("#FFFFFF"),
             ),
@@ -290,6 +338,7 @@ private fun updateDriverMarker(
                 PropertyFactory.iconIgnorePlacement(true),
                 PropertyFactory.iconAnchor("center"),
                 PropertyFactory.iconRotate(Expression.get("bearing")),
+                PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_MAP),
             ),
         )
     } else {

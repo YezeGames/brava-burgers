@@ -58,6 +58,7 @@ data class RepartidorUiState(
     /** Banner superior (sin prefijo de distancia). */
     val navInstructionPrimary: String = "",
     val navInstructionThen: String? = null,
+    val navInstructionThenModifier: String? = null,
     val navManeuverModifier: String? = null,
     val navSpeedKmh: Int = 0,
     val navEtaMinutes: Int? = null,
@@ -680,6 +681,10 @@ class RepartidorViewModel(
                 navManeuver = tick?.instruction ?: _ui.value.navManeuver,
                 navInstructionPrimary = navVoice.bannerPrimary(stepIdx),
                 navInstructionThen = navVoice.nextSignificantInstruction(stepIdx),
+                navInstructionThenModifier =
+                    navVoice.nextSignificantStepIndex(stepIdx)?.let {
+                        navVoice.maneuverModifierAt(it)
+                    },
                 navManeuverModifier = navVoice.maneuverModifierAt(stepIdx),
                 navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
             )
@@ -733,6 +738,7 @@ class RepartidorViewModel(
                 navManeuver = "Ubicando dirección en el mapa…",
                 navInstructionPrimary = "Ubicando dirección…",
                 navInstructionThen = null,
+                navInstructionThenModifier = null,
                 navManeuverModifier = null,
                 navSpeedKmh = 0,
                 navEtaMinutes = null,
@@ -818,6 +824,10 @@ class RepartidorViewModel(
                             navManeuver = route.firstManeuver,
                             navInstructionPrimary = navVoice.bannerPrimary(0),
                             navInstructionThen = navVoice.nextSignificantInstruction(0),
+                            navInstructionThenModifier =
+                                navVoice.nextSignificantStepIndex(0)?.let {
+                                    navVoice.maneuverModifierAt(it)
+                                },
                             navManeuverModifier = navVoice.maneuverModifierAt(0),
                             navEtaMinutes = min,
                             navRouteKm = km,
@@ -970,6 +980,10 @@ class RepartidorViewModel(
                             navManeuver = route.firstManeuver,
                             navInstructionPrimary = navVoice.bannerPrimary(0),
                             navInstructionThen = navVoice.nextSignificantInstruction(0),
+                            navInstructionThenModifier =
+                                navVoice.nextSignificantStepIndex(0)?.let {
+                                    navVoice.maneuverModifierAt(it)
+                                },
                             navManeuverModifier = navVoice.maneuverModifierAt(0),
                             navEtaMinutes = min,
                             navRouteKm = km,
@@ -1018,6 +1032,7 @@ class RepartidorViewModel(
                 navManeuver = "",
                 navInstructionPrimary = "",
                 navInstructionThen = null,
+                navInstructionThenModifier = null,
                 navManeuverModifier = null,
                 navSpeedKmh = 0,
                 navEtaMinutes = null,

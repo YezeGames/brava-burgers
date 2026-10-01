@@ -1,17 +1,19 @@
 package app.bravaburgers.repartidor.nativeapp.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -30,7 +32,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,24 +47,26 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.navigation.BravaNavigationTts
-import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeBottom
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
 import app.bravaburgers.repartidor.nativeapp.ui.map.BravaMapView
+import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
+import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
+import app.bravaburgers.repartidor.nativeapp.ui.theme.MpBlue
+import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
-import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
 import kotlinx.coroutines.delay
 import java.util.Locale
 
-private val MapsBanner = Color(0xFF1F4E5F)
-private val MapsBannerThen = Color(0xFF173A47)
-private val MapsBlue = Color(0xFF1A73E8)
+private val NavSheetWhite = Color.White
+private val NavSheetSubtext = Color(0xFF5F6368)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -73,6 +76,7 @@ fun NavigationScreen(
     navManeuver: String,
     navInstructionPrimary: String,
     navInstructionThen: String?,
+    navInstructionThenModifier: String?,
     navManeuverModifier: String?,
     navSpeedKmh: Int,
     navEtaMinutes: Int?,
@@ -89,6 +93,13 @@ fun NavigationScreen(
     onLlegue: () -> Unit,
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
+    val navBarBottom =
+        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val sheetBodyHeight = 158.dp
+    val sheetTotalHeight = sheetBodyHeight + navBarBottom
+    val bottomOverlayPx = with(density) { sheetTotalHeight.toPx().toInt() }
+    val floatRowBottom = sheetTotalHeight + 10.dp
 
     var mapFollow by remember(stop.orn) { mutableStateOf(false) }
     var showRecenter by remember(stop.orn) { mutableStateOf(false) }
@@ -116,7 +127,14 @@ fun NavigationScreen(
             else -> "Seguí la ruta resaltada"
         }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val addressLine =
+        listOfNotNull(
+            stop.direccion?.trim()?.takeIf { it.isNotEmpty() },
+            stop.piso?.trim()?.takeIf { it.isNotEmpty() }?.let { "Piso $it" },
+            stop.localidad?.trim()?.takeIf { it.isNotEmpty() },
+        ).joinToString(" · ")
+
+    Box(modifier = Modifier.fillMaxSize().background(BgDark)) {
         BravaMapView(
             modifier = Modifier.fillMaxSize(),
             route = navRoute,
@@ -127,6 +145,7 @@ fun NavigationScreen(
             navigationFollow = mapFollow,
             driverBearing = navDriverBearing,
             navigationMode = true,
+            bottomOverlayPx = bottomOverlayPx,
             onUserMovedMap = {
                 if (!navLoading && navRoute.size >= 2) {
                     mapFollow = false
@@ -138,81 +157,79 @@ fun NavigationScreen(
         NavTopInstructionBanner(
             primary = primaryText,
             thenInstruction = navInstructionThen,
-            modifier = navManeuverModifier,
+            thenModifier = navInstructionThenModifier,
+            primaryModifier = navManeuverModifier,
             loading = navLoading,
         )
 
-        NavSpeedChip(
-            speedKmh = navSpeedKmh,
+        Row(
             modifier =
                 Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 16.dp, bottom = 118.dp)
-                    .bravaSafeBottom(),
-        )
-
-        Column(
-            modifier =
-                Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 12.dp, bottom = 100.dp)
-                    .bravaSafeBottom(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 12.dp, bottom = floatRowBottom),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            NavRoundMapButton(
-                onClick = {
-                    mapFollow = false
-                    showRecenter = true
-                    compassKey++
-                },
-                contentDescription = "Brújula / vista norte",
+            NavSpeedChip(speedKmh = navSpeedKmh)
+            Spacer(modifier = Modifier.weight(1f))
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.Explore, contentDescription = null, tint = MapsBlue)
-            }
-            NavRoundMapButton(
-                onClick = onToggleVoice,
-                onLongClick = { BravaNavigationTts.openGoogleTtsSettings(context) },
-                contentDescription = "Voz",
-            ) {
-                Icon(
-                    imageVector =
-                        if (navVoiceOn) {
-                            Icons.AutoMirrored.Filled.VolumeUp
-                        } else {
-                            Icons.AutoMirrored.Filled.VolumeOff
-                        },
-                    contentDescription = null,
-                    tint = if (navVoiceOn) MapsBlue else TextMuted,
-                )
-            }
-            if (showRecenter && !mapFollow) {
                 NavRoundMapButton(
                     onClick = {
-                        showRecenter = false
-                        mapFollow = true
-                        recenterKey++
+                        mapFollow = false
+                        showRecenter = true
+                        compassKey++
                     },
-                    contentDescription = "Centrar en tu ubicación",
+                    contentDescription = "Brújula / vista norte",
                 ) {
-                    Icon(Icons.Default.MyLocation, contentDescription = null, tint = MapsBlue)
+                    Icon(Icons.Default.Explore, contentDescription = null, tint = BravaOrange)
+                }
+                NavRoundMapButton(
+                    onClick = onToggleVoice,
+                    onLongClick = { BravaNavigationTts.openGoogleTtsSettings(context) },
+                    contentDescription = "Voz",
+                ) {
+                    Icon(
+                        imageVector =
+                            if (navVoiceOn) {
+                                Icons.AutoMirrored.Filled.VolumeUp
+                            } else {
+                                Icons.AutoMirrored.Filled.VolumeOff
+                            },
+                        contentDescription = null,
+                        tint = if (navVoiceOn) BravaOrange else TextMuted,
+                    )
+                }
+                if (showRecenter && !mapFollow) {
+                    NavRoundMapButton(
+                        onClick = {
+                            showRecenter = false
+                            mapFollow = true
+                            recenterKey++
+                        },
+                        contentDescription = "Centrar en tu ubicación",
+                    ) {
+                        Icon(Icons.Default.MyLocation, contentDescription = null, tint = MpBlue)
+                    }
                 }
             }
         }
 
         NavBottomTripBar(
-            etaMinutes = navEtaMinutes,
-            routeKm = navRouteKm,
-            parada = stop.parada,
-            cliente = stop.cliente,
-            onExit = onBack,
-            onLlegue = onLlegue,
-            navLoading = navLoading,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .bravaSafeBottom(),
+                    .fillMaxWidth(),
+            etaMinutes = navEtaMinutes,
+            routeKm = navRouteKm,
+            addressLine = addressLine,
+            onExit = onBack,
+            onLlegue = onLlegue,
+            navLoading = navLoading,
+            navBarBottom = navBarBottom,
+            sheetBodyHeight = sheetBodyHeight,
         )
     }
 }
@@ -221,7 +238,8 @@ fun NavigationScreen(
 private fun NavTopInstructionBanner(
     primary: String,
     thenInstruction: String?,
-    modifier: String?,
+    thenModifier: String?,
+    primaryModifier: String?,
     loading: Boolean,
 ) {
     Column(
@@ -237,7 +255,7 @@ private fun NavTopInstructionBanner(
                     .fillMaxWidth()
                     .shadow(6.dp, RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
                     .background(
-                        MapsBanner,
+                        SurfaceDark,
                         RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
                     )
                     .padding(horizontal = 14.dp, vertical = 12.dp),
@@ -245,15 +263,15 @@ private fun NavTopInstructionBanner(
         ) {
             if (loading) {
                 CircularProgressIndicator(
-                    color = Color.White,
+                    color = BravaOrange,
                     strokeWidth = 2.dp,
                     modifier = Modifier.size(36.dp),
                 )
             } else {
                 Icon(
-                    imageVector = maneuverIcon(modifier),
+                    imageVector = maneuverIcon(primaryModifier, primary),
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = BravaOrange,
                     modifier = Modifier.size(36.dp),
                 )
             }
@@ -274,7 +292,7 @@ private fun NavTopInstructionBanner(
                     Modifier
                         .fillMaxWidth()
                         .background(
-                            MapsBannerThen,
+                            BgDark,
                             RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
                         )
                         .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -282,19 +300,19 @@ private fun NavTopInstructionBanner(
             ) {
                 Text(
                     "Luego",
-                    color = Color.White.copy(alpha = 0.85f),
+                    color = BravaOrange.copy(alpha = 0.95f),
                     fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.Bold,
                 )
                 Icon(
-                    Icons.Default.TurnLeft,
+                    maneuverIcon(thenModifier, thenInstruction),
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(22.dp).padding(horizontal = 6.dp),
                 )
                 Text(
                     thenInstruction,
-                    color = Color.White,
+                    color = Color.White.copy(alpha = 0.92f),
                     fontSize = 14.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -307,7 +325,7 @@ private fun NavTopInstructionBanner(
                         .fillMaxWidth()
                         .height(4.dp)
                         .background(
-                            MapsBannerThen,
+                            BgDark,
                             RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp),
                         ),
             )
@@ -326,7 +344,7 @@ private fun NavSpeedChip(
                 .size(52.dp)
                 .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
-                .background(Color.White),
+                .background(NavSheetWhite),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -339,7 +357,7 @@ private fun NavSpeedChip(
             Text(
                 text = "km/h",
                 fontSize = 9.sp,
-                color = Color(0xFF5F6368),
+                color = NavSheetSubtext,
             )
         }
     }
@@ -359,7 +377,7 @@ private fun NavRoundMapButton(
                 .size(46.dp)
                 .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
-                .background(Color.White)
+                .background(NavSheetWhite)
                 .then(
                     if (onLongClick != null) {
                         Modifier.combinedClickable(
@@ -378,23 +396,26 @@ private fun NavRoundMapButton(
 
 @Composable
 private fun NavBottomTripBar(
+    modifier: Modifier = Modifier,
     etaMinutes: Int?,
     routeKm: Double?,
-    parada: Int?,
-    cliente: String?,
+    addressLine: String,
     onExit: () -> Unit,
     onLlegue: () -> Unit,
     navLoading: Boolean,
-    modifier: Modifier = Modifier,
+    navBarBottom: androidx.compose.ui.unit.Dp,
+    sheetBodyHeight: androidx.compose.ui.unit.Dp,
 ) {
-    Surface(
-        modifier = modifier,
-        color = Color.White,
-        shadowElevation = 12.dp,
-        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+    Column(
+        modifier =
+            modifier.background(NavSheetWhite),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(sheetBodyHeight)
+                    .padding(top = 12.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -427,29 +448,19 @@ private fun NavBottomTripBar(
                     val sub =
                         buildList {
                             routeKm?.let { add(String.format(Locale.US, "%.1f km", it)) }
-                            parada?.let { add("Parada $it") }
-                            cliente?.trim()?.takeIf { it.isNotEmpty() }?.let { add(it) }
+                            if (addressLine.isNotBlank()) add(addressLine)
                         }.joinToString(" · ")
                     if (sub.isNotBlank()) {
                         Text(
                             sub,
-                            color = Color(0xFF5F6368),
+                            color = NavSheetSubtext,
                             fontSize = 13.sp,
-                            maxLines = 1,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-                IconButton(
-                    onClick = onLlegue,
-                    enabled = !navLoading,
-                    modifier =
-                        Modifier
-                            .size(44.dp)
-                            .background(BravaOrange.copy(alpha = 0.15f), CircleShape),
-                ) {
-                    Icon(Icons.Default.Navigation, contentDescription = "Llegué", tint = BravaOrange)
-                }
+                Spacer(modifier = Modifier.size(44.dp))
             }
             Button(
                 onClick = onLlegue,
@@ -457,22 +468,31 @@ private fun NavBottomTripBar(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(start = 16.dp, end = 16.dp, top = 10.dp),
+                        .padding(start = 16.dp, end = 16.dp, top = 8.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
             ) {
-                Text("Llegué · Parada ${parada ?: "?"}", fontWeight = FontWeight.Bold)
+                Text("Llegué", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
+        Spacer(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(navBarBottom)
+                    .background(NavSheetWhite),
+        )
     }
 }
 
-private fun maneuverIcon(modifier: String?): ImageVector {
+private fun maneuverIcon(modifier: String?, instruction: String): ImageVector {
     val m = modifier.orEmpty().lowercase()
-    return when {
-        m.contains("uturn") -> Icons.Default.TurnLeft
-        m.contains("left") -> Icons.Default.TurnLeft
-        m.contains("right") -> Icons.Default.TurnRight
-        else -> Icons.Default.Navigation
+    if (m.contains("right")) return Icons.Default.TurnRight
+    if (m.contains("left") || m.contains("uturn")) return Icons.Default.TurnLeft
+    val t = instruction.lowercase()
+    if (t.contains("derecha")) return Icons.Default.TurnRight
+    if (t.contains("izquierda") || t.contains("u-turn") || t.contains("giro en u")) {
+        return Icons.Default.TurnLeft
     }
+    return Icons.Default.Navigation
 }

@@ -364,6 +364,7 @@ class MainActivity : ComponentActivity() {
                             navManeuver = ui.navManeuver,
                             navInstructionPrimary = ui.navInstructionPrimary,
                             navInstructionThen = ui.navInstructionThen,
+                            navInstructionThenModifier = ui.navInstructionThenModifier,
                             navManeuverModifier = ui.navManeuverModifier,
                             navSpeedKmh = ui.navSpeedKmh,
                             navEtaMinutes = ui.navEtaMinutes,
