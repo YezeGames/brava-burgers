@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  38,
-    "version_name":  "2.0.0-alpha38",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v38/brava-repartidor-native.apk",
-    "release_notes":  "Punto azul mas fluido (GPS inmediato + snap Valhalla). Rutas por menor km en cada parada (Valhalla shortest + OSRM alternativas)."
+    "version_code":  39,
+    "version_name":  "2.0.0-alpha39",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v39/brava-repartidor-native.apk",
+    "release_notes":  "Navegacion estilo Maps: instrucciones arriba, km/h, botones redondos, centrar, flecha GPS, rutas cortas alpha38+."
 }

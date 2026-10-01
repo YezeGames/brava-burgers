@@ -119,6 +119,28 @@ class NavRouteVoiceGuide(context: Context) {
         }, 500L)
     }
 
+    fun nextSignificantInstruction(afterStepIndex: Int): String? {
+        if (steps.isEmpty()) return null
+        var i = (afterStepIndex + 1).coerceAtMost(steps.lastIndex)
+        while (i < steps.size && OsrmNavText.isLowValueManeuver(steps[i].dto)) {
+            i++
+        }
+        if (i >= steps.size) return null
+        return OsrmNavText.maneuverText(steps[i].dto)
+    }
+
+    fun maneuverModifierAt(stepIndex: Int): String? =
+        steps.getOrNull(stepIndex)?.dto?.maneuver?.modifier
+
+    fun bannerPrimary(stepIndex: Int): String {
+        val step = steps.getOrNull(stepIndex)?.dto
+        return if (step == null) {
+            "Seguí la ruta resaltada"
+        } else {
+            OsrmNavText.maneuverText(step)
+        }
+    }
+
     fun onDriverPosition(lat: Double, lng: Double): Tick? {
         if (steps.isEmpty()) return null
         val snap =

@@ -55,6 +55,13 @@ data class RepartidorUiState(
     val tripStarted: Boolean = false,
     val navRoute: List<Pair<Double, Double>> = emptyList(),
     val navManeuver: String = "Calculando ruta…",
+    /** Banner superior (sin prefijo de distancia). */
+    val navInstructionPrimary: String = "",
+    val navInstructionThen: String? = null,
+    val navManeuverModifier: String? = null,
+    val navSpeedKmh: Int = 0,
+    val navEtaMinutes: Int? = null,
+    val navRouteKm: Double? = null,
     val navMeta: String = "",
     val navLoading: Boolean = false,
     val navDest: Pair<Double, Double>? = null,
@@ -608,11 +615,14 @@ class RepartidorViewModel(
         lat: Double,
         lng: Double,
         gpsBearing: Float?,
+        speedMps: Float?,
     ) {
         lastKnownDriverLatLng = Pair(lat, lng)
+        val speedKmh =
+            speedMps?.takeIf { it >= 0f }?.let { (it * 3.6f).toInt().coerceIn(0, 999) }
 
         navGpsMutex.withLock {
-            publishNavDriverOnMap(lat, lng, gpsBearing)
+            publishNavDriverOnMap(lat, lng, gpsBearing, speedKmh)
         }
 
         val snapped =
@@ -625,7 +635,13 @@ class RepartidorViewModel(
         val useLng = snapped?.second ?: lng
 
         navGpsMutex.withLock {
-            commitNavDriverFix(useLat, useLng, gpsBearing, updateMap = snapped != null)
+            commitNavDriverFix(
+                useLat,
+                useLng,
+                gpsBearing,
+                updateMap = snapped != null,
+                speedKmh = speedKmh,
+            )
         }
     }
 
@@ -634,12 +650,14 @@ class RepartidorViewModel(
         lat: Double,
         lng: Double,
         gpsBearing: Float?,
+        speedKmh: Int?,
     ) {
         val bearing = resolveNavBearing(lat, lng, gpsBearing, forDisplay = true)
         _ui.value =
             _ui.value.copy(
                 navDriver = Pair(lat, lng),
                 navDriverBearing = bearing,
+                navSpeedKmh = speedKmh ?: _ui.value.navSpeedKmh,
             )
     }
 
@@ -648,15 +666,21 @@ class RepartidorViewModel(
         lng: Double,
         gpsBearing: Float?,
         updateMap: Boolean,
+        speedKmh: Int?,
     ) {
         val bearing = resolveNavBearing(lat, lng, gpsBearing, forDisplay = false)
         lastNavFixForBearing = Pair(lat, lng)
         val tick = navVoice.onDriverPosition(lat, lng)
+        val stepIdx = tick?.stepIndex ?: 0
         _ui.value =
             _ui.value.copy(
                 navDriver = if (updateMap) Pair(lat, lng) else _ui.value.navDriver,
                 navDriverBearing = if (updateMap) bearing else _ui.value.navDriverBearing,
+                navSpeedKmh = speedKmh ?: _ui.value.navSpeedKmh,
                 navManeuver = tick?.instruction ?: _ui.value.navManeuver,
+                navInstructionPrimary = navVoice.bannerPrimary(stepIdx),
+                navInstructionThen = navVoice.nextSignificantInstruction(stepIdx),
+                navManeuverModifier = navVoice.maneuverModifierAt(stepIdx),
                 navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
             )
         maybeRerouteFromGps(lat, lng)
@@ -707,6 +731,12 @@ class RepartidorViewModel(
                 trackingOrn = orn,
                 navLoading = true,
                 navManeuver = "Ubicando dirección en el mapa…",
+                navInstructionPrimary = "Ubicando dirección…",
+                navInstructionThen = null,
+                navManeuverModifier = null,
+                navSpeedKmh = 0,
+                navEtaMinutes = null,
+                navRouteKm = null,
                 navMeta = "",
                 navRoute = emptyList(),
                 navDest = null,
@@ -719,9 +749,9 @@ class RepartidorViewModel(
         navValhallaMatchOn = false
         valhallaMatcher.setEnabled(false)
         valhallaMatcher.reset()
-        navLocationTracker.start { lat, lng, gpsBearing ->
+        navLocationTracker.start { lat, lng, gpsBearing, speedMps ->
             viewModelScope.launch {
-                applyNavDriverFix(lat, lng, gpsBearing)
+                applyNavDriverFix(lat, lng, gpsBearing, speedMps)
             }
         }
         viewModelScope.launch {
@@ -786,6 +816,11 @@ class RepartidorViewModel(
                             navLoading = false,
                             navRoute = route.coordinates,
                             navManeuver = route.firstManeuver,
+                            navInstructionPrimary = navVoice.bannerPrimary(0),
+                            navInstructionThen = navVoice.nextSignificantInstruction(0),
+                            navManeuverModifier = navVoice.maneuverModifierAt(0),
+                            navEtaMinutes = min,
+                            navRouteKm = km,
                             navMeta =
                                 String.format("~%d min · %.1f km · %s", min, km, route.sourceTag) +
                                     matchHint,
@@ -933,6 +968,11 @@ class RepartidorViewModel(
                         _ui.value.copy(
                             navRoute = route.coordinates,
                             navManeuver = route.firstManeuver,
+                            navInstructionPrimary = navVoice.bannerPrimary(0),
+                            navInstructionThen = navVoice.nextSignificantInstruction(0),
+                            navManeuverModifier = navVoice.maneuverModifierAt(0),
+                            navEtaMinutes = min,
+                            navRouteKm = km,
                             navMeta =
                                 String.format("~%d min · %.1f km · %s", min, km, route.sourceTag) +
                                     matchHint,
@@ -976,6 +1016,12 @@ class RepartidorViewModel(
                 navDriverBearing = null,
                 navMeta = "",
                 navManeuver = "",
+                navInstructionPrimary = "",
+                navInstructionThen = null,
+                navManeuverModifier = null,
+                navSpeedKmh = 0,
+                navEtaMinutes = null,
+                navRouteKm = null,
             )
     }
 

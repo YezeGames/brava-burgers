@@ -14,7 +14,7 @@ class NavLocationTracker(context: Context) {
     private val fused = LocationServices.getFusedLocationProviderClient(appContext)
     private var callback: LocationCallback? = null
 
-    fun start(onUpdate: (lat: Double, lng: Double, bearingDeg: Float?) -> Unit) {
+    fun start(onUpdate: (lat: Double, lng: Double, bearingDeg: Float?, speedMps: Float?) -> Unit) {
         if (!LocationHelper.hasLocationPermission(appContext)) return
         stop()
         val request =
@@ -33,7 +33,9 @@ class NavLocationTracker(context: Context) {
                         } else {
                             null
                         }
-                    onUpdate(loc.latitude, loc.longitude, brg)
+                    val speed =
+                        if (loc.hasSpeed() && loc.speed >= 0f) loc.speed else null
+                    onUpdate(loc.latitude, loc.longitude, brg, speed)
                 }
             }
         try {
