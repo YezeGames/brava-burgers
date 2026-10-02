@@ -35,6 +35,9 @@ export class LocationAnimator {
     }
 
     const jumpM = haversineM(this._display.lat, this._display.lng, lat, lng);
+    if (jumpM < 6) {
+      return;
+    }
     const start = { lat: this._display.lat, lng: this._display.lng };
     const duration = jumpM >= this.teleportJumpM ? 0 : this.durationMs;
 

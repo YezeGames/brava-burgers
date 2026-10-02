@@ -625,6 +625,7 @@ class RepartidorViewModel(
         lng: Double,
         gpsBearing: Float?,
         speedMps: Float?,
+        accuracyM: Float?,
     ) {
         lastKnownDriverLatLng = Pair(lat, lng)
         lastGpsBearing = gpsBearing
@@ -638,7 +639,7 @@ class RepartidorViewModel(
             }
 
         navGpsMutex.withLock {
-            navDisplayPipeline.onGpsFix(lat, lng, speedMps, gpsBearing)
+            navDisplayPipeline.onGpsFix(lat, lng, speedMps, gpsBearing, accuracyM)
             ensureNavDisplayFrameLoop()
             commitNavDriverFix(lat, lng, gpsBearing, speedKmh)
         }
@@ -748,9 +749,9 @@ class RepartidorViewModel(
         navValhallaMatchOn = false
         valhallaMatcher.setEnabled(false)
         valhallaMatcher.reset()
-        navLocationTracker.start { lat, lng, gpsBearing, speedMps ->
+        navLocationTracker.start { lat, lng, gpsBearing, speedMps, accuracyM ->
             viewModelScope.launch {
-                applyNavDriverFix(lat, lng, gpsBearing, speedMps)
+                applyNavDriverFix(lat, lng, gpsBearing, speedMps, accuracyM)
             }
         }
         viewModelScope.launch {

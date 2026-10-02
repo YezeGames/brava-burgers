@@ -25,6 +25,7 @@ var BravaNavCore = (() => {
     LocationAnimator: () => LocationAnimator,
     OffRouteDetector: () => OffRouteDetector,
     VoiceTrigger: () => VoiceTrigger,
+    applyStationaryGpsFilter: () => applyStationaryGpsFilter,
     bearingDeg: () => bearingDeg,
     createNavSession: () => createNavSession,
     getSmootherBearingForMap: () => getSmootherBearingForMap,
@@ -161,6 +162,9 @@ var BravaNavCore = (() => {
         return;
       }
       const jumpM = haversineM(this._display.lat, this._display.lng, lat, lng);
+      if (jumpM < 6) {
+        return;
+      }
       const start = { lat: this._display.lat, lng: this._display.lng };
       const duration = jumpM >= this.teleportJumpM ? 0 : this.durationMs;
       this._segment = {
@@ -785,29 +789,76 @@ var BravaNavCore = (() => {
     }
   };
 
+  // src/stationaryGpsFilter.js
+  var MOVING_MIN_SPEED_MPS = 1.45;
+  var REJECT_JUMP_STATIONARY_M = 35;
+  var POOR_ACCURACY_M = 48;
+  function applyStationaryGpsFilter(rawLat, rawLng, speedMps, accuracyM, anchor) {
+    const speed = speedMps != null && speedMps >= 0 ? speedMps : 0;
+    const moving = speed >= MOVING_MIN_SPEED_MPS;
+    const raw = { lat: rawLat, lng: rawLng };
+    if (moving) {
+      return { displayLatLng: raw, anchor: raw };
+    }
+    const acc = accuracyM != null && accuracyM >= 0 ? accuracyM : 25;
+    if (!anchor) {
+      return { displayLatLng: raw, anchor: raw };
+    }
+    const driftM = haversineM(anchor.lat, anchor.lng, rawLat, rawLng);
+    const rejectRadius = Math.max(
+      REJECT_JUMP_STATIONARY_M,
+      acc > POOR_ACCURACY_M ? acc * 1.8 : acc * 1.2
+    );
+    if (driftM > rejectRadius) {
+      return { displayLatLng: null, anchor };
+    }
+    return { displayLatLng: null, anchor };
+  }
+
   // src/navSession.js
   function createNavSession(opts = {}) {
     const animator = new LocationAnimator(opts.animator);
     const bearing = new BearingSmoother(opts.bearing);
     const offRoute = new OffRouteDetector(opts.offRoute);
     const voice = new VoiceTrigger(opts.voiceTiers);
+    let stationaryAnchor = null;
+    let courseBearing = null;
     return {
       animator,
       bearing,
       offRoute,
       voice,
+      setCourseBearing(deg) {
+        courseBearing = deg;
+      },
       reset() {
         animator.reset();
-        bearing.reset();
+        bearing.reset(courseBearing);
         offRoute.reset();
         voice.reset();
+        stationaryAnchor = null;
       },
       /**
        * Fix GPS crudo (1 Hz).
        * @param {{ lat: number, lng: number, speedKmh: number, bearing?: number | null, route: import('./geo.js').LatLng[], distToNextManeuverM?: number | null, framingPoints?: import('./geo.js').LatLng[], stepIndex?: number, distToManeuverM?: number }} fix
        */
       onGpsFix(fix) {
-        animator.pushGpsFix(fix.lat, fix.lng, fix.bearing ?? null);
+        const speedMps = (fix.speedKmh || 0) / 3.6;
+        const filtered = applyStationaryGpsFilter(
+          fix.lat,
+          fix.lng,
+          speedMps,
+          fix.accuracyM,
+          stationaryAnchor
+        );
+        stationaryAnchor = filtered.anchor;
+        if (filtered.displayLatLng) {
+          animator.pushGpsFix(
+            filtered.displayLatLng.lat,
+            filtered.displayLatLng.lng,
+            fix.bearing ?? null
+          );
+        }
         const off = offRoute.evaluate(
           fix.lat,
           fix.lng,
@@ -825,6 +876,13 @@ var BravaNavCore = (() => {
       tickDisplay(nowMs, { vehicleBearing, speedKmh, framingPoints = [] } = {}) {
         const sample = animator.tick(nowMs);
         if (!sample) return null;
+        if ((speedKmh ?? 0) < 5) {
+          return {
+            lat: sample.lat,
+            lng: sample.lng,
+            bearing: courseBearing ?? sample.bearing
+          };
+        }
         const smoothBearing = bearing.update({
           vehicleBearing: vehicleBearing ?? sample.bearing ?? null,
           speedKmh: speedKmh ?? 0,

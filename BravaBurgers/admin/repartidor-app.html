@@ -1965,7 +1965,7 @@
 			repartidorApi({ action: 'reportTrack', orn: orn, lat: lat, lng: lng }).catch(function () {});
 		}
 
-		function onPosition(lng, lat, heading, speedMps) {
+		function onPosition(lng, lat, heading, speedMps, accuracyM) {
 			rawGpsPos = { lng: lng, lat: lat };
 			userPos = rawGpsPos;
 			lastGpsHeading = heading != null && !isNaN(heading) && heading >= 0 ? heading : null;
@@ -1986,6 +1986,7 @@
 					lng: lng,
 					speedKmh: lastGpsSpeedKmh,
 					bearing: lastGpsHeading,
+					accuracyM: accuracyM != null && !isNaN(accuracyM) && accuracyM >= 0 ? accuracyM : null,
 					route: routeForNavCore(),
 					distToNextManeuverM: distMan,
 					stepIndex: idxForVoice,
@@ -2097,7 +2098,7 @@
 			if (watchId != null) navigator.geolocation.clearWatch(watchId);
 			watchId = navigator.geolocation.watchPosition(
 				function (p) {
-					onPosition(p.coords.longitude, p.coords.latitude, p.coords.heading, p.coords.speed);
+					onPosition(p.coords.longitude, p.coords.latitude, p.coords.heading, p.coords.speed, p.coords.accuracy);
 				},
 				function () {
 					$('gps-dot-list').classList.remove('live');
@@ -2211,8 +2212,11 @@
 			navVoiceSpoken = {};
 			steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
 			navCourseBearing = routeBearingAtStart();
-			if (bravaNav) bravaNav.reset();
 			bravaNav = typeof BravaNavCore !== 'undefined' ? BravaNavCore.createNavSession() : null;
+			if (bravaNav) {
+				bravaNav.setCourseBearing(navCourseBearing);
+				bravaNav.reset();
+			}
 			var totalKm = (route.distance / 1000).toFixed(1);
 			var totalMin = Math.round(route.duration / 60);
 			routeMetaLine = 'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min · OSRM';

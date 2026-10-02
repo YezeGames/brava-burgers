@@ -15,6 +15,7 @@ class BravaNavDisplayPipeline {
 
     private var courseBearing: Float? = null
     private var lastRoute: List<Pair<Double, Double>> = emptyList()
+    private var stationaryAnchor: Pair<Double, Double>? = null
 
     fun reset() {
         animator.reset()
@@ -23,6 +24,7 @@ class BravaNavDisplayPipeline {
         routeSnap.reset()
         courseBearing = null
         lastRoute = emptyList()
+        stationaryAnchor = null
     }
 
     fun onRouteLoaded(route: List<Pair<Double, Double>>) {
@@ -38,14 +40,26 @@ class BravaNavDisplayPipeline {
         rawLng: Double,
         speedMps: Float?,
         gpsBearing: Float?,
+        accuracyM: Float? = null,
     ) {
+        val filtered =
+            BravaStationaryGpsFilter.apply(
+                rawLat = rawLat,
+                rawLng = rawLng,
+                speedMps = speedMps,
+                accuracyM = accuracyM,
+                anchor = stationaryAnchor,
+            )
+        stationaryAnchor = filtered.anchor
+        val displayRaw = filtered.displayLatLng ?: return
+
         val speedMpsSafe = speedMps?.coerceAtLeast(0f) ?: 0f
         val moving = speedMpsSafe >= NavDriverDisplaySmoother.MOVING_MIN_SPEED_MPS
         val (targetLat, targetLng) =
             if (moving && lastRoute.size >= 2) {
-                routeSnap.mapPosition(rawLat, rawLng, speedMps, lastRoute)
+                routeSnap.mapPosition(displayRaw.first, displayRaw.second, speedMps, lastRoute)
             } else {
-                Pair(rawLat, rawLng)
+                displayRaw
             }
         val displayBearing =
             when {
@@ -59,6 +73,10 @@ class BravaNavDisplayPipeline {
 
     fun tickDisplay(speedKmh: Int, vehicleBearing: Float?): BravaLocationAnimator.DisplaySample? {
         val sample = animator.tick() ?: return null
+        if (speedKmh < 5) {
+            val frozen = courseBearing ?: sample.bearing
+            return sample.copy(bearing = frozen)
+        }
         val framing =
             if (lastRoute.size >= 2) {
                 val along = NavRouteProgress.distanceAlongRouteM(sample.lat, sample.lng, lastRoute)

@@ -2,6 +2,7 @@ import { BearingSmoother } from "./bearingSmoother.js";
 import { LocationAnimator } from "./locationAnimator.js";
 import { OffRouteDetector } from "./offRouteDetector.js";
 import { VoiceTrigger } from "./voiceTrigger.js";
+import { applyStationaryGpsFilter } from "./stationaryGpsFilter.js";
 
 /** Orquestador: GPS crudo → lógica; tick → display. */
 export function createNavSession(opts = {}) {
@@ -10,17 +11,25 @@ export function createNavSession(opts = {}) {
   const offRoute = new OffRouteDetector(opts.offRoute);
   const voice = new VoiceTrigger(opts.voiceTiers);
 
+  let stationaryAnchor = null;
+  let courseBearing = null;
+
   return {
     animator,
     bearing,
     offRoute,
     voice,
 
+    setCourseBearing(deg) {
+      courseBearing = deg;
+    },
+
     reset() {
       animator.reset();
-      bearing.reset();
+      bearing.reset(courseBearing);
       offRoute.reset();
       voice.reset();
+      stationaryAnchor = null;
     },
 
     /**
@@ -28,7 +37,22 @@ export function createNavSession(opts = {}) {
      * @param {{ lat: number, lng: number, speedKmh: number, bearing?: number | null, route: import('./geo.js').LatLng[], distToNextManeuverM?: number | null, framingPoints?: import('./geo.js').LatLng[], stepIndex?: number, distToManeuverM?: number }} fix
      */
     onGpsFix(fix) {
-      animator.pushGpsFix(fix.lat, fix.lng, fix.bearing ?? null);
+      const speedMps = (fix.speedKmh || 0) / 3.6;
+      const filtered = applyStationaryGpsFilter(
+        fix.lat,
+        fix.lng,
+        speedMps,
+        fix.accuracyM,
+        stationaryAnchor,
+      );
+      stationaryAnchor = filtered.anchor;
+      if (filtered.displayLatLng) {
+        animator.pushGpsFix(
+          filtered.displayLatLng.lat,
+          filtered.displayLatLng.lng,
+          fix.bearing ?? null,
+        );
+      }
 
       const off = offRoute.evaluate(
         fix.lat,
@@ -50,6 +74,13 @@ export function createNavSession(opts = {}) {
     tickDisplay(nowMs, { vehicleBearing, speedKmh, framingPoints = [] } = {}) {
       const sample = animator.tick(nowMs);
       if (!sample) return null;
+      if ((speedKmh ?? 0) < 5) {
+        return {
+          lat: sample.lat,
+          lng: sample.lng,
+          bearing: courseBearing ?? sample.bearing,
+        };
+      }
       const smoothBearing = bearing.update({
         vehicleBearing: vehicleBearing ?? sample.bearing ?? null,
         speedKmh: speedKmh ?? 0,

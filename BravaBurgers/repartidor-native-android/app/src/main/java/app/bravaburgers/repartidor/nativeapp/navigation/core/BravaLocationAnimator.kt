@@ -40,6 +40,9 @@ class BravaLocationAnimator(
             return
         }
         val jumpM = BravaGeo.haversineM(cur.lat, cur.lng, lat, lng)
+        if (jumpM < 6.0) {
+            return
+        }
         val duration = if (jumpM >= teleportJumpM) 0L else durationMs
         if (duration == 0L) {
             display = DisplaySample(lat, lng, bearing, nowMs)
