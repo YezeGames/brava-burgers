@@ -1,0 +1,21 @@
+{
+  "name": "@brava/nav-core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Navegación Brava: suavizado estilo Mapbox open-source (sin SDK Mapbox)",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "build:browser": "esbuild src/index.js --bundle --format=iife --global-name=BravaNavCore --outfile=../../admin/js/brava-nav-core.bundle.js --platform=browser"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  },
+  "dependencies": {
+    "@turf/turf": "^7.2.0"
+  }
+}

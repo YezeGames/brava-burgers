@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  49,
-    "version_name":  "2.0.0-alpha49",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v49/brava-repartidor-native.apk",
-    "release_notes":  "Navegacion parado (casa):\n- Sin snap a la calle por debajo de ~5 km/h; GPS real en el mapa.\n- Velocimetro 0 con ruido GPS; brujula/camara 3P estable (rumbo inicial fijo).\n- Al moverte, vuelve puck suave sobre la ruta."
+    "version_code":  50,
+    "version_name":  "2.0.0-alpha50",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v50/brava-repartidor-native.apk",
+    "release_notes":  "brava-nav-core (Mapbox-style open math, Apache 2.0):\n- TS module lib/brava-nav-core + bundle en admin/repartidor-app.html (MapLibre web).\n- APK: navigation/core pipeline, animador 60 FPS, off-route histéresis, bearing smoother."
 }

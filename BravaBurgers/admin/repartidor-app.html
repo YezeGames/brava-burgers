@@ -761,6 +761,7 @@
 
 	<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 	<script>window.mapboxgl = window.maplibregl;</script>
+	<script src="js/brava-nav-core.bundle.js"></script>
 	<script>
 	(function () {
 		'use strict';
@@ -850,11 +851,16 @@
 		var navOverviewTimer = null;
 		var lastNavPos = null;
 		var routeMetaLine = '';
-		/** Recálculo Mapbox si te alejás de la ruta (m). */
-		var REROUTE_OFF_ROUTE_M = 55;
-		var REROUTE_MIN_INTERVAL_MS = 15000;
 		var lastRerouteAt = 0;
 		var rerouteInFlight = false;
+		/** brava-nav-core: GPS crudo vs display animado (MapLibre). */
+		var bravaNav = null;
+		var bravaNavRaf = null;
+		var rawGpsPos = null;
+		var lastGpsHeading = null;
+		var lastGpsSpeedKmh = 0;
+		var navCourseBearing = null;
+		var navVoiceSpoken = {};
 		/** Tras entregar: origen hacia la siguiente parada (Mapbox; GPS si Seguir GPS está ON). */
 		var lastRouteOrigin = null;
 		var deliveredStopOrigins = {};
@@ -1726,6 +1732,10 @@
 		function resetNavigationCamera() {
 			navCameraActive = false;
 			lastNavPos = null;
+			stopNavDisplayLoop();
+			if (bravaNav) bravaNav.reset();
+			bravaNav = null;
+			navVoiceSpoken = {};
 			if (navOverviewTimer) clearTimeout(navOverviewTimer);
 			navOverviewTimer = null;
 			var btn = $('btn-nav-start');
@@ -1814,7 +1824,71 @@
 			window.speechSynthesis.speak(u);
 		}
 
-		function updateUserMarker(lng, lat, heading) {
+		function routeForNavCore() {
+			return routeCoords.map(function (c) {
+				return { lat: c[1], lng: c[0] };
+			});
+		}
+
+		function ensureBravaNavSession() {
+			if (typeof BravaNavCore === 'undefined') return null;
+			if (!bravaNav) bravaNav = BravaNavCore.createNavSession();
+			return bravaNav;
+		}
+
+		function stopNavDisplayLoop() {
+			if (bravaNavRaf) cancelAnimationFrame(bravaNavRaf);
+			bravaNavRaf = null;
+		}
+
+		function startNavDisplayLoop() {
+			if (bravaNavRaf) return;
+			function frame() {
+				if (!bravaNav || !$('screen-nav').classList.contains('is-active')) {
+					stopNavDisplayLoop();
+					return;
+				}
+				var display = bravaNav.tickDisplay(Date.now(), {
+					vehicleBearing: lastGpsHeading,
+					speedKmh: lastGpsSpeedKmh,
+					framingPoints: navFramingPoints(),
+				});
+				if (display) {
+					updateUserMarker(display.lng, display.lat, display.bearing, true);
+				}
+				bravaNavRaf = requestAnimationFrame(frame);
+			}
+			bravaNavRaf = requestAnimationFrame(frame);
+		}
+
+		function navFramingPoints() {
+			if (!routeCoords.length) return [];
+			var center = rawGpsPos || userPos;
+			if (!center) return [];
+			var best = 0;
+			var bestD = Infinity;
+			for (var i = 0; i < routeCoords.length; i++) {
+				var d = haversineM(center, { lng: routeCoords[i][0], lat: routeCoords[i][1] });
+				if (d < bestD) {
+					bestD = d;
+					best = i;
+				}
+			}
+			var end = Math.min(routeCoords.length - 1, best + 12);
+			if (end <= best) return [];
+			return [
+				{ lat: routeCoords[best][1], lng: routeCoords[best][0] },
+				{ lat: routeCoords[end][1], lng: routeCoords[end][0] },
+			];
+		}
+
+		function distToManeuverAlongRouteM(pos) {
+			var loc = steps[findStepIndex(pos)] && steps[findStepIndex(pos)].maneuver && steps[findStepIndex(pos)].maneuver.location;
+			if (!loc) return null;
+			return haversineM(pos, { lng: loc[0], lat: loc[1] });
+		}
+
+		function updateUserMarker(lng, lat, heading, fromDisplay) {
 			if (!map) return;
 			if (!markerUser) {
 				var el = document.createElement('div');
@@ -1833,20 +1907,25 @@
 			var brg = map.getBearing();
 			if (heading != null && !isNaN(heading) && heading >= 0) {
 				brg = heading;
-			} else if (lastNavPos) {
+			} else if (lastNavPos && !fromDisplay) {
 				var moved = haversineM(lastNavPos, { lng: lng, lat: lat });
 				if (moved > 4) brg = bearingDeg(lastNavPos, { lng: lng, lat: lat });
+			} else if (navCourseBearing != null) {
+				brg = navCourseBearing;
 			} else {
 				brg = routeBearingAtStart();
 			}
 			lastNavPos = { lng: lng, lat: lat };
+
+			var stepM = lastNavPos && rawGpsPos ? haversineM(lastNavPos, rawGpsPos) : 999;
+			var dur = fromDisplay && lastGpsSpeedKmh < 5 ? 0 : stepM < 2 ? 0 : 280;
 
 			map.easeTo({
 				center: [lng, lat],
 				bearing: brg,
 				pitch: NAV_PITCH,
 				zoom: NAV_ZOOM,
-				duration: 280,
+				duration: dur,
 				essential: true,
 			});
 		}
@@ -1886,15 +1965,47 @@
 			repartidorApi({ action: 'reportTrack', orn: orn, lat: lat, lng: lng }).catch(function () {});
 		}
 
-		function onPosition(lng, lat, heading) {
-			userPos = { lng: lng, lat: lat };
+		function onPosition(lng, lat, heading, speedMps) {
+			rawGpsPos = { lng: lng, lat: lat };
+			userPos = rawGpsPos;
+			lastGpsHeading = heading != null && !isNaN(heading) && heading >= 0 ? heading : null;
+			var speedMpsSafe = speedMps != null && !isNaN(speedMps) && speedMps >= 0 ? speedMps : 0;
+			lastGpsSpeedKmh = speedMpsSafe >= 1.45 ? Math.round(speedMpsSafe * 3.6) : 0;
+
 			maybeReportTrackPosition(lng, lat);
 			$('gps-dot-list').classList.add('live');
 			$('gps-dot-nav').classList.add('live');
-			if ($('screen-nav').classList.contains('is-active')) {
-				updateUserMarker(lng, lat, heading);
+
+			var navActive = $('screen-nav').classList.contains('is-active');
+			var session = navActive && routeCoords.length >= 2 ? ensureBravaNavSession() : null;
+			if (session) {
+				var idxForVoice = steps.length ? findStepIndex(userPos) : 0;
+				var distMan = distToManeuverAlongRouteM(userPos);
+				var fix = session.onGpsFix({
+					lat: lat,
+					lng: lng,
+					speedKmh: lastGpsSpeedKmh,
+					bearing: lastGpsHeading,
+					route: routeForNavCore(),
+					distToNextManeuverM: distMan,
+					stepIndex: idxForVoice,
+					distToManeuverM: distMan != null ? distMan : 0,
+				});
+				startNavDisplayLoop();
+				maybeRerouteFromGps(fix && fix.offRoute);
+				if (fix && fix.voiceEvents && fix.voiceEvents.length && steps.length) {
+					var stepV = steps[idxForVoice];
+					var instrV = maneuverText(stepV);
+					fix.voiceEvents.forEach(function (ev) {
+						if (ev === 'ahead') speak('En ' + Math.round(distMan || 150) + ' metros, ' + instrV);
+						else if (ev === 'now') speak(instrV);
+					});
+				}
+			} else if (navActive) {
+				updateUserMarker(lng, lat, heading, false);
 			}
-			if (!steps.length || !$('screen-nav').classList.contains('is-active')) return;
+
+			if (!steps.length || !navActive) return;
 			var idx = findStepIndex(userPos);
 			var step = steps[idx];
 			var instr = maneuverText(step);
@@ -1903,18 +2014,20 @@
 			$('nav-meta').textContent =
 				routeMetaLine + (routeMetaLine ? ' · ' : '') + 'Paso ' + (idx + 1) + '/' + steps.length + (dist ? ' · ' + dist : '');
 
-			var loc = step.maneuver && step.maneuver.location;
-			if (loc) {
-				var dMan = haversineM(userPos, { lng: loc[0], lat: loc[1] });
-				if (dMan < 90 && !stepAnnounced[idx]) {
-					stepAnnounced[idx] = true;
-					if (lastSpokenStep !== idx) {
-						lastSpokenStep = idx;
-						speak(instr);
+			if (!session) {
+				var loc = step.maneuver && step.maneuver.location;
+				if (loc) {
+					var dMan = haversineM(userPos, { lng: loc[0], lat: loc[1] });
+					if (dMan < 90 && !stepAnnounced[idx]) {
+						stepAnnounced[idx] = true;
+						if (lastSpokenStep !== idx) {
+							lastSpokenStep = idx;
+							speak(instr);
+						}
 					}
 				}
+				maybeRerouteFromGps(null);
 			}
-			maybeRerouteFromGps();
 		}
 
 		function pointToSegmentDistanceM(p, a, b) {
@@ -1946,13 +2059,19 @@
 			return minD;
 		}
 
-		function maybeRerouteFromGps() {
+		function maybeRerouteFromGps(offRouteResult) {
 			if (!currentOrder || !$('screen-nav').classList.contains('is-active')) return;
-			if (!userPos || rerouteInFlight || simOn) return;
+			if (!rawGpsPos || rerouteInFlight || simOn) return;
 			if (!navCameraActive && !followGps) return;
-			if (distanceToRouteM(userPos) < REROUTE_OFF_ROUTE_M) return;
-			var now = Date.now();
-			if (now - lastRerouteAt < REROUTE_MIN_INTERVAL_MS) return;
+			if (offRouteResult) {
+				if (!offRouteResult.shouldReroute) return;
+				if (bravaNav) bravaNav.offRoute.markRerouteRequested();
+			} else {
+				if (distanceToRouteM(rawGpsPos) < 32) return;
+				if (lastGpsSpeedKmh < 4) return;
+				if (Date.now() - lastRerouteAt < 5500) return;
+			}
+			lastRerouteAt = Date.now();
 			rerouteFromCurrentPosition();
 		}
 
@@ -1978,7 +2097,7 @@
 			if (watchId != null) navigator.geolocation.clearWatch(watchId);
 			watchId = navigator.geolocation.watchPosition(
 				function (p) {
-					onPosition(p.coords.longitude, p.coords.latitude, p.coords.heading);
+					onPosition(p.coords.longitude, p.coords.latitude, p.coords.heading, p.coords.speed);
 				},
 				function () {
 					$('gps-dot-list').classList.remove('live');
@@ -2089,7 +2208,11 @@
 			currentRouteFrom = fromPt;
 			stepAnnounced = {};
 			lastSpokenStep = -1;
+			navVoiceSpoken = {};
 			steps = (route.legs && route.legs[0] && route.legs[0].steps) || [];
+			navCourseBearing = routeBearingAtStart();
+			if (bravaNav) bravaNav.reset();
+			bravaNav = typeof BravaNavCore !== 'undefined' ? BravaNavCore.createNavSession() : null;
 			var totalKm = (route.distance / 1000).toFixed(1);
 			var totalMin = Math.round(route.duration / 60);
 			routeMetaLine = 'Desde ' + fromPt.label + ' · ' + totalKm + ' km · ~' + totalMin + ' min · OSRM';
