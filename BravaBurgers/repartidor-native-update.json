@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  48,
-    "version_name":  "2.0.0-alpha48",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v48/brava-repartidor-native.apk",
-    "release_notes":  "Pack C (navegación tipo Maps):\n- Puck suave sobre la ruta naranja; GPS crudo para voz y recálculo (sin map-matching que salte).\n- Recálculo más sensible + cartel «Recalculando ruta…» al desviarte.\n- Cámara 3ª persona y polyline sin parpadeo.\n\nHome:\n- Sin pedidos: «No hay pedidos pendientes» / «Cuando entre uno nuevo, te avisamos 🔥»."
+    "version_code":  49,
+    "version_name":  "2.0.0-alpha49",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v49/brava-repartidor-native.apk",
+    "release_notes":  "Navegacion parado (casa):\n- Sin snap a la calle por debajo de ~5 km/h; GPS real en el mapa.\n- Velocimetro 0 con ruido GPS; brujula/camara 3P estable (rumbo inicial fijo).\n- Al moverte, vuelve puck suave sobre la ruta."
 }

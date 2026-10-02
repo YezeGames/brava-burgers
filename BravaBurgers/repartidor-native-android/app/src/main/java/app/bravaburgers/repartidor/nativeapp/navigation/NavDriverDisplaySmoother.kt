@@ -32,8 +32,11 @@ class NavDriverDisplaySmoother {
             }
         lastFixAtMs = now
 
-        if (route.size < 2) {
-            return blendToward(gpsLat, gpsLng, 0.42)
+        val speedMpsSafe = speedMps?.coerceAtLeast(0f) ?: 0f
+        if (route.size < 2 || speedMpsSafe < MOVING_MIN_SPEED_MPS) {
+            // En casa / parado: GPS real, sin pegar a la polyline (evita “estar en la calle”).
+            val alpha = if (speedMpsSafe < 0.35f) 0.88 else 0.45
+            return blendToward(gpsLat, gpsLng, alpha)
         }
 
         val proj = NavRouteProgress.projectOntoRoute(gpsLat, gpsLng, route)
@@ -82,6 +85,8 @@ class NavDriverDisplaySmoother {
     }
 
     companion object {
+        /** ~5 km/h: por debajo no snap a ruta. */
+        const val MOVING_MIN_SPEED_MPS = 1.45f
         private const val ON_ROUTE_MAX_OFF_M = 48.0
         private const val MAX_ALONG_BACK_M = 5.0
     }

@@ -119,6 +119,8 @@ class RepartidorViewModel(
     private var navInterpJob: Job? = null
     private var navInterpTarget: Pair<Double, Double>? = null
     private var navDisplayBearingHint: Float? = null
+    /** Rumbo inicial de la ruta; fijo mientras estás parado (cámara 3ª persona estable). */
+    private var navCourseBearing: Float? = null
 
     private val _routeSyncEvents = MutableSharedFlow<RouteSyncEvent>(extraBufferCapacity = 4)
     val routeSyncEvents = _routeSyncEvents.asSharedFlow()
@@ -629,9 +631,14 @@ class RepartidorViewModel(
         speedMps: Float?,
     ) {
         lastKnownDriverLatLng = Pair(lat, lng)
+        val speedMpsSafe = speedMps?.coerceAtLeast(0f) ?: 0f
+        val moving = speedMpsSafe >= NavDriverDisplaySmoother.MOVING_MIN_SPEED_MPS
         val speedKmh =
-            speedMps?.takeIf { it >= 0f && it >= 1.2f }?.let { (it * 3.6f).toInt().coerceIn(0, 999) }
-                ?: 0
+            if (moving) {
+                (speedMpsSafe * 3.6f).toInt().coerceIn(0, 999)
+            } else {
+                0
+            }
 
         navGpsMutex.withLock {
             val route = _ui.value.navRoute
@@ -643,9 +650,13 @@ class RepartidorViewModel(
                     route,
                 )
             navDisplayBearingHint =
-                navDisplaySmoother.displayBearing(route)
-                    ?: resolveNavBearing(lat, lng, gpsBearing, forDisplay = false)
-            ensureNavInterpLoop()
+                if (!moving) {
+                    navCourseBearing ?: _ui.value.navDriverBearing
+                } else {
+                    navDisplaySmoother.displayBearing(route)
+                        ?: resolveNavBearing(lat, lng, gpsBearing, forDisplay = false)
+                }
+            ensureNavInterpLoop(moving)
             commitNavDriverFix(lat, lng, gpsBearing, speedKmh)
         }
     }
@@ -676,7 +687,7 @@ class RepartidorViewModel(
         maybeRerouteFromGps(lat, lng, speedKmh)
     }
 
-    private fun ensureNavInterpLoop() {
+    private fun ensureNavInterpLoop(moving: Boolean) {
         if (navInterpJob?.isActive == true) return
         navInterpJob =
             viewModelScope.launch {
@@ -689,15 +700,27 @@ class RepartidorViewModel(
                             if (cur == null) {
                                 target
                             } else {
-                                val t = NAV_MAP_INTERP_ALPHA
+                                val t =
+                                    if (moving) {
+                                        NAV_MAP_INTERP_ALPHA
+                                    } else {
+                                        NAV_MAP_INTERP_ALPHA_IDLE
+                                    }
                                 Pair(
                                     cur.first + (target.first - cur.first) * t,
                                     cur.second + (target.second - cur.second) * t,
                                 )
                             }
-                        val brg = navDisplayBearingHint ?: _ui.value.navDriverBearing
+                        val brgHint = navDisplayBearingHint ?: _ui.value.navDriverBearing
+                        val brg =
+                            if (!moving) {
+                                brgHint
+                            } else {
+                                lerpBearingDeg(_ui.value.navDriverBearing, brgHint, 0.35f)
+                            }
                         if (cur == null ||
-                            kotlin.math.abs(cur.first - next.first) + kotlin.math.abs(cur.second - next.second) > 1e-7
+                            kotlin.math.abs(cur.first - next.first) + kotlin.math.abs(cur.second - next.second) > 1e-7 ||
+                            (!moving && brg != null && brg != _ui.value.navDriverBearing)
                         ) {
                             _ui.value =
                                 _ui.value.copy(
@@ -711,12 +734,22 @@ class RepartidorViewModel(
             }
     }
 
+    private fun lerpBearingDeg(from: Float?, to: Float?, alpha: Float): Float? {
+        if (to == null) return from
+        if (from == null) return to
+        var delta = (to - from).toDouble()
+        while (delta > 180) delta -= 360
+        while (delta < -180) delta += 360
+        return ((from + delta * alpha + 360) % 360).toFloat()
+    }
+
     private fun stopNavInterp() {
         navInterpJob?.cancel()
         navInterpJob = null
         navInterpTarget = null
         navDisplayBearingHint = null
         navDisplaySmoother.reset()
+        navCourseBearing = null
     }
 
     private fun resolveNavBearing(
@@ -843,11 +876,14 @@ class RepartidorViewModel(
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
                     disableNavMapMatching()
                     navDisplaySmoother.reset()
+                    navCourseBearing =
+                        NavRouteProgress.travelBearingDeg(route.coordinates, 0.0)?.toFloat()
                     navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng))
                     _ui.value =
                         _ui.value.copy(
                             navLoading = false,
                             navRoute = route.coordinates,
+                            navDriverBearing = navCourseBearing ?: _ui.value.navDriverBearing,
                             navManeuver = route.firstManeuver,
                             navInstructionPrimary = navVoice.bannerPrimary(0),
                             navInstructionThen = navVoice.nextSignificantInstruction(0),
@@ -1012,11 +1048,14 @@ class RepartidorViewModel(
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
                     disableNavMapMatching()
                     navDisplaySmoother.reset()
+                    navCourseBearing =
+                        NavRouteProgress.travelBearingDeg(route.coordinates, 0.0)?.toFloat()
                     navVoice.announceReroute(route)
                     navOffRouteAnnounced = false
                     _ui.value =
                         _ui.value.copy(
                             navRoute = route.coordinates,
+                            navDriverBearing = navCourseBearing ?: _ui.value.navDriverBearing,
                             navManeuver = route.firstManeuver,
                             navInstructionPrimary = navVoice.bannerPrimary(0),
                             navInstructionThen = navVoice.nextSignificantInstruction(0),
@@ -1092,6 +1131,7 @@ class RepartidorViewModel(
         private const val REROUTE_MIN_INTERVAL_MOVING_MS = 5_500L
         private const val NAV_MAP_INTERP_MS = 42L
         private const val NAV_MAP_INTERP_ALPHA = 0.28
+        private const val NAV_MAP_INTERP_ALPHA_IDLE = 0.12
     }
 }
 

@@ -146,6 +146,7 @@ fun NavigationScreen(
             compassResetKey = compassKey,
             navigationFollow = mapFollow,
             driverBearing = navDriverBearing,
+            driverSpeedKmh = navSpeedKmh,
             navigationMode = true,
             bottomOverlayPx = bottomOverlayPx,
             onUserMovedMap = {

@@ -64,6 +64,7 @@ fun BravaMapView(
     compassResetKey: Int = 0,
     navigationFollow: Boolean = false,
     driverBearing: Float? = null,
+    driverSpeedKmh: Int = 0,
     navigationMode: Boolean = false,
     bottomOverlayPx: Int = 0,
     onUserMovedMap: () -> Unit = {},
@@ -94,6 +95,7 @@ fun BravaMapView(
     var styleReady by remember { mutableStateOf(false) }
     var didOverview by remember { mutableStateOf(false) }
     var gestureBound by remember { mutableStateOf(false) }
+    var lastNavCameraBearing by remember { mutableStateOf<Double?>(null) }
 
     DisposableEffect(lifecycleOwner, mapView) {
         mapView.onCreate(null)
@@ -162,6 +164,7 @@ fun BravaMapView(
         styleReady,
         navigationFollow,
         driverBearing,
+        driverSpeedKmh,
         route,
         navigationMode,
         topPadPx,
@@ -171,7 +174,16 @@ fun BravaMapView(
         val map = mapRef ?: return@LaunchedEffect
         map.setPadding(0, topPadPx, 0, bottomPadPx)
         if (navigationFollow && driver != null && route.size >= 2) {
-            applyNavigationCamera(map, driver, driverBearing, route, animate = true)
+            lastNavCameraBearing =
+                applyNavigationCamera(
+                    map,
+                    driver,
+                    driverBearing,
+                    route,
+                    driverSpeedKmh,
+                    lastNavCameraBearing,
+                    animate = true,
+                )
         } else if (!navigationFollow && !didOverview && route.size >= 2 && !navigationMode) {
             safeFitCamera(map, route, destination, driver)
             didOverview = true
@@ -180,12 +192,21 @@ fun BravaMapView(
         }
     }
 
-    LaunchedEffect(recenterKey, styleReady, navigationFollow, driver, driverBearing, route) {
+    LaunchedEffect(recenterKey, styleReady, navigationFollow, driver, driverBearing, route, driverSpeedKmh) {
         if (!styleReady || recenterKey == 0) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
         if (!navigationFollow || driver == null || route.size < 2) return@LaunchedEffect
         map.setPadding(0, topPadPx, 0, bottomPadPx)
-        applyNavigationCamera(map, driver, driverBearing, route, animate = true)
+        lastNavCameraBearing =
+            applyNavigationCamera(
+                map,
+                driver,
+                driverBearing,
+                route,
+                driverSpeedKmh,
+                lastNavCameraBearing,
+                animate = true,
+            )
     }
 
     LaunchedEffect(compassResetKey, styleReady, driver) {
@@ -205,6 +226,8 @@ fun BravaMapView(
     LaunchedEffect(navigationFollow) {
         if (!navigationFollow) {
             didOverview = false
+        } else {
+            lastNavCameraBearing = null
         }
     }
 
@@ -222,15 +245,24 @@ private fun applyNavigationCamera(
     driver: Pair<Double, Double>,
     driverBearing: Float?,
     route: List<Pair<Double, Double>>,
+    speedKmh: Int,
+    lastBearing: Double?,
     animate: Boolean,
-) {
+): Double {
     map.uiSettings.isRotateGesturesEnabled = true
     map.uiSettings.isTiltGesturesEnabled = true
-    val along = NavRouteProgress.distanceAlongRouteM(driver.first, driver.second, route)
+    val prevTarget = map.cameraPosition.target ?: LatLng(driver.first, driver.second)
+    val stepM = haversineM(prevTarget.latitude, prevTarget.longitude, driver.first, driver.second)
     val brg =
-        driverBearing?.toDouble()
-            ?: NavRouteProgress.travelBearingDeg(route, along)
-            ?: map.cameraPosition.bearing
+        resolveNavCameraBearing(
+            map = map,
+            driver = driver,
+            driverBearing = driverBearing,
+            route = route,
+            speedKmh = speedKmh,
+            stepM = stepM,
+            lastBearing = lastBearing,
+        )
     val pos =
         CameraPosition.Builder()
             .target(LatLng(driver.first, driver.second))
@@ -241,10 +273,8 @@ private fun applyNavigationCamera(
     val update = CameraUpdateFactory.newCameraPosition(pos)
     if (!animate) {
         map.moveCamera(update)
-        return
+        return brg
     }
-    val prev = map.cameraPosition.target ?: LatLng(driver.first, driver.second)
-    val stepM = haversineM(prev.latitude, prev.longitude, driver.first, driver.second)
     when {
         stepM < 1.5 -> map.moveCamera(update)
         else -> {
@@ -255,6 +285,38 @@ private fun applyNavigationCamera(
             map.animateCamera(update, ms)
         }
     }
+    return brg
+}
+
+private fun resolveNavCameraBearing(
+    map: MapLibreMap,
+    driver: Pair<Double, Double>,
+    driverBearing: Float?,
+    route: List<Pair<Double, Double>>,
+    speedKmh: Int,
+    stepM: Double,
+    lastBearing: Double?,
+): Double {
+    val courseStart = NavRouteProgress.travelBearingDeg(route, 0.0)
+    val along = NavRouteProgress.distanceAlongRouteM(driver.first, driver.second, route)
+    val raw =
+        driverBearing?.toDouble()
+            ?: NavRouteProgress.travelBearingDeg(route, along)
+            ?: courseStart
+            ?: map.cameraPosition.bearing
+
+    if (speedKmh < 5) {
+        return lastBearing ?: courseStart ?: raw
+    }
+    if (stepM < 2.5 && lastBearing != null) {
+        return lastBearing
+    }
+    if (lastBearing == null) return raw
+    var delta = raw - lastBearing
+    while (delta > 180) delta -= 360
+    while (delta < -180) delta += 360
+    if (kotlin.math.abs(delta) < 4.0) return lastBearing
+    return (lastBearing + delta.coerceIn(-12.0, 12.0) + 360.0) % 360.0
 }
 
 private fun haversineM(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
