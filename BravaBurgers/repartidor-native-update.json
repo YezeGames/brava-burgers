@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  51,
-    "version_name":  "2.0.0-alpha51",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v51/brava-repartidor-native.apk",
-    "release_notes":  "alpha51: parado en casa — flecha y mapa sin drift GPS; brújula congelada \u003c5 km/h; filtro brava-nav-core (APK + web repartidor)."
+    "version_code":  52,
+    "version_name":  "2.0.0-alpha52",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v52/brava-repartidor-native.apk",
+    "release_notes":  "alpha52: GPS parado bloqueado, flecha con snap al step actual, Valhalla locate solo visual, animador 60 FPS."
 }
