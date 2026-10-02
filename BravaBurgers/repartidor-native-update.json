@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  46,
-    "version_name":  "2.0.0-alpha46",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v46/brava-repartidor-native.apk",
-    "release_notes":  "Logo Brava Riders en login y lista de ruta."
+    "version_code":  48,
+    "version_name":  "2.0.0-alpha48",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v48/brava-repartidor-native.apk",
+    "release_notes":  "Pack C (navegación tipo Maps):\n- Puck suave sobre la ruta naranja; GPS crudo para voz y recálculo (sin map-matching que salte).\n- Recálculo más sensible + cartel «Recalculando ruta…» al desviarte.\n- Cámara 3ª persona y polyline sin parpadeo.\n\nHome:\n- Sin pedidos: «No hay pedidos pendientes» / «Cuando entre uno nuevo, te avisamos 🔥»."
 }

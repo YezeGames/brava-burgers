@@ -18,6 +18,13 @@ object NavRouteProgress {
         val alongRouteM: Double,
     )
 
+    data class RouteProjection(
+        val lat: Double,
+        val lng: Double,
+        val alongRouteM: Double,
+        val offRouteM: Double,
+    )
+
     /** Posición de cada maniobra proyectada sobre la geometría de la ruta. */
     fun maneuverAlongRouteM(
         steps: List<NavStep>,
@@ -43,10 +50,18 @@ object NavRouteProgress {
         lat: Double,
         lng: Double,
         route: List<Pair<Double, Double>>,
-    ): Double {
-        if (route.size < 2) return 0.0
+    ): Double = projectOntoRoute(lat, lng, route)?.alongRouteM ?: 0.0
+
+    fun projectOntoRoute(
+        lat: Double,
+        lng: Double,
+        route: List<Pair<Double, Double>>,
+    ): RouteProjection? {
+        if (route.size < 2) return null
         var bestAlong = 0.0
         var bestOff = Double.POSITIVE_INFINITY
+        var bestLat = lat
+        var bestLng = lng
         var cum = 0.0
         for (i in 0 until route.size - 1) {
             val a = route[i]
@@ -58,10 +73,40 @@ object NavRouteProgress {
             if (off < bestOff) {
                 bestOff = off
                 bestAlong = along
+                bestLat = projLat
+                bestLng = projLng
             }
             cum += segLen
         }
-        return bestAlong
+        return RouteProjection(bestLat, bestLng, bestAlong, bestOff)
+    }
+
+    fun pointAtAlongRoute(
+        alongM: Double,
+        route: List<Pair<Double, Double>>,
+    ): Pair<Double, Double>? {
+        if (route.isEmpty()) return null
+        if (route.size == 1) return route.first()
+        var cum = 0.0
+        for (i in 0 until route.size - 1) {
+            val a = route[i]
+            val b = route[i + 1]
+            val segLen = haversineM(a.first, a.second, b.first, b.second)
+            if (alongM <= cum + segLen || i == route.size - 2) {
+                val t =
+                    if (segLen <= 0.5) {
+                        0.0
+                    } else {
+                        ((alongM - cum) / segLen).coerceIn(0.0, 1.0)
+                    }
+                return Pair(
+                    a.first + t * (b.first - a.first),
+                    a.second + t * (b.second - a.second),
+                )
+            }
+            cum += segLen
+        }
+        return route.last()
     }
 
     fun findUpcomingStepIndex(alongM: Double, maneuverAlongM: DoubleArray): Int {

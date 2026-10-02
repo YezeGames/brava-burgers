@@ -51,7 +51,8 @@ private const val NAV_PUCK_IMAGE = "brava-nav-puck"
 
 private const val NAV_ZOOM = 18.65
 private const val NAV_PITCH = 62.0
-private const val NAV_ANIM_MS = 110
+private const val NAV_ANIM_MS_MIN = 120
+private const val NAV_ANIM_MS_MAX = 420
 
 @Composable
 fun BravaMapView(
@@ -238,11 +239,35 @@ private fun applyNavigationCamera(
             .bearing(brg)
             .build()
     val update = CameraUpdateFactory.newCameraPosition(pos)
-    if (animate) {
-        map.animateCamera(update, NAV_ANIM_MS)
-    } else {
+    if (!animate) {
         map.moveCamera(update)
+        return
     }
+    val prev = map.cameraPosition.target ?: LatLng(driver.first, driver.second)
+    val stepM = haversineM(prev.latitude, prev.longitude, driver.first, driver.second)
+    when {
+        stepM < 1.5 -> map.moveCamera(update)
+        else -> {
+            val ms =
+                (stepM * 14.0)
+                    .toInt()
+                    .coerceIn(NAV_ANIM_MS_MIN, NAV_ANIM_MS_MAX)
+            map.animateCamera(update, ms)
+        }
+    }
+}
+
+private fun haversineM(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
+    val r = 6371000.0
+    val dLat = Math.toRadians(lat2 - lat1)
+    val dLng = Math.toRadians(lng2 - lng1)
+    val a =
+        kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
+            kotlin.math.cos(Math.toRadians(lat1)) *
+            kotlin.math.cos(Math.toRadians(lat2)) *
+            kotlin.math.sin(dLng / 2) *
+            kotlin.math.sin(dLng / 2)
+    return 2 * r * kotlin.math.asin(kotlin.math.sqrt(a.coerceIn(0.0, 1.0)))
 }
 
 private fun ensureNavPuckImage(context: Context, style: Style) {
@@ -301,16 +326,23 @@ private fun applyRouteGeometry(
 private fun updateDriverMarker(
     style: Style,
     driver: Pair<Double, Double>?,
-    bearing: Float?,
+    @Suppress("UNUSED_PARAMETER") bearing: Float?,
     navigationMode: Boolean,
 ) {
-    if (style.getLayer(DRIVER_LAYER) != null) style.removeLayer(DRIVER_LAYER)
-    if (style.getSource(DRIVER_SOURCE) != null) style.removeSource(DRIVER_SOURCE)
-    if (driver == null) return
+    if (driver == null) {
+        if (style.getLayer(DRIVER_LAYER) != null) style.removeLayer(DRIVER_LAYER)
+        if (style.getSource(DRIVER_SOURCE) != null) style.removeSource(DRIVER_SOURCE)
+        return
+    }
 
     val point = Point.fromLngLat(driver.second, driver.first)
-    style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
+    val existing = style.getSource(DRIVER_SOURCE) as? GeoJsonSource
+    if (existing != null) {
+        existing.setGeoJson(Feature.fromGeometry(point))
+        return
+    }
 
+    style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
     if (navigationMode) {
         style.addLayer(
             SymbolLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(

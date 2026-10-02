@@ -86,7 +86,7 @@ fun RouteListScreen(
                 Text(session.nombre.ifBlank { session.login }, fontWeight = FontWeight.Bold, color = TextPrimary)
                 Text(
                     when {
-                        stops.isEmpty() && !loading -> "Sin ordenes activas"
+                        stops.isEmpty() && !loading -> "Sin pedidos pendientes"
                         stops.size == 1 -> "1 Orden · Activa"
                         else -> "${stops.size} Órdenes · Activas"
                     },
@@ -156,19 +156,22 @@ fun RouteListScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
-                                if (tripStarted || !hasPending) {
-                                    "¡Listo! Completaste todas las entregas."
-                                } else {
-                                    "No hay paradas en tu ruta"
-                                },
+                                "No hay pedidos pendientes",
                                 color = TextPrimary,
                                 fontWeight = FontWeight.SemiBold,
+                                fontSize = 16.sp,
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                "Deslizá hacia abajo para actualizar o usá Cerrar sesión para cambiar de cuenta.",
+                                "Cuando entre uno nuevo, te avisamos 🔥",
                                 color = TextMuted,
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(
+                                "Deslizá hacia abajo para actualizar.",
+                                color = TextMuted,
+                                fontSize = 12.sp,
                             )
                         }
                     }
