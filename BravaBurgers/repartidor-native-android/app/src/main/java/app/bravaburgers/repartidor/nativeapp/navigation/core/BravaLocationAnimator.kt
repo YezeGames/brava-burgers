@@ -33,6 +33,27 @@ class BravaLocationAnimator(
         segment = null
     }
 
+    /** Corta animación en curso (p. ej. GPS falso con speed). */
+    fun snapTo(lat: Double, lng: Double, bearing: Float? = null, nowMs: Long = System.currentTimeMillis()) {
+        display = DisplaySample(lat, lng, bearing ?: display?.bearing, nowMs)
+        segment = null
+    }
+
+    /** Mapbox [NavigationLocationProvider]: teleport → duration 0. */
+    fun pushEnhancedFix(
+        lat: Double,
+        lng: Double,
+        bearing: Float? = null,
+        isTeleport: Boolean = false,
+        nowMs: Long = System.currentTimeMillis(),
+    ) {
+        if (isTeleport) {
+            snapTo(lat, lng, bearing, nowMs)
+            return
+        }
+        pushGpsFix(lat, lng, bearing, nowMs)
+    }
+
     fun pushGpsFix(lat: Double, lng: Double, bearing: Float? = null, nowMs: Long = System.currentTimeMillis()) {
         val cur = display
         if (cur == null) {

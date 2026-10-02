@@ -2,7 +2,7 @@ import { BearingSmoother } from "./bearingSmoother.js";
 import { LocationAnimator } from "./locationAnimator.js";
 import { OffRouteDetector } from "./offRouteDetector.js";
 import { VoiceTrigger } from "./voiceTrigger.js";
-import { applyStationaryGpsFilter } from "./stationaryGpsFilter.js";
+import { StationaryGpsController } from "./stationaryGpsFilter.js";
 
 /** Orquestador: GPS crudo → lógica; tick → display. */
 export function createNavSession(opts = {}) {
@@ -11,7 +11,7 @@ export function createNavSession(opts = {}) {
   const offRoute = new OffRouteDetector(opts.offRoute);
   const voice = new VoiceTrigger(opts.voiceTiers);
 
-  let stationaryAnchor = null;
+  const stationary = new StationaryGpsController();
   let courseBearing = null;
 
   return {
@@ -24,12 +24,16 @@ export function createNavSession(opts = {}) {
       courseBearing = deg;
     },
 
+    get isStationaryLocked() {
+      return stationary.isLocked;
+    },
+
     reset() {
       animator.reset();
       bearing.reset(courseBearing);
       offRoute.reset();
       voice.reset();
-      stationaryAnchor = null;
+      stationary.reset();
     },
 
     /**
@@ -38,15 +42,10 @@ export function createNavSession(opts = {}) {
      */
     onGpsFix(fix) {
       const speedMps = (fix.speedKmh || 0) / 3.6;
-      const filtered = applyStationaryGpsFilter(
-        fix.lat,
-        fix.lng,
-        speedMps,
-        fix.accuracyM,
-        stationaryAnchor,
-      );
-      stationaryAnchor = filtered.anchor;
-      if (filtered.displayLatLng) {
+      const filtered = stationary.onFix(fix.lat, fix.lng, speedMps, fix.accuracyM);
+      if (filtered.locked && filtered.anchor) {
+        animator.snapTo(filtered.anchor.lat, filtered.anchor.lng, fix.bearing ?? null);
+      } else if (filtered.displayLatLng) {
         animator.pushGpsFix(
           filtered.displayLatLng.lat,
           filtered.displayLatLng.lng,

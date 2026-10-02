@@ -81,6 +81,24 @@ object NavRouteProgress {
         return RouteProjection(bestLat, bestLng, bestAlong, bestOff)
     }
 
+    /** Sub-polyline entre dos distancias acumuladas (para snap estilo MapLibre SnapToRoute). */
+    fun routeSegmentBetween(
+        route: List<Pair<Double, Double>>,
+        startAlongM: Double,
+        endAlongM: Double,
+        maxPoints: Int = 24,
+    ): List<Pair<Double, Double>> {
+        if (route.size < 2 || endAlongM <= startAlongM) return emptyList()
+        val start = startAlongM.coerceAtLeast(0.0)
+        val end = endAlongM.coerceAtLeast(start)
+        val span = (end - start).coerceAtLeast(1.0)
+        val steps = maxOf(2, minOf(maxPoints, (span / 12.0).toInt() + 2))
+        return (0 until steps).mapNotNull { i ->
+            val t = i.toDouble() / (steps - 1).coerceAtLeast(1)
+            pointAtAlongRoute(start + span * t, route)
+        }
+    }
+
     fun pointAtAlongRoute(
         alongM: Double,
         route: List<Pair<Double, Double>>,
@@ -162,7 +180,7 @@ object NavRouteProgress {
         return (Math.toDegrees(kotlin.math.atan2(y, x)) + 360.0) % 360.0
     }
 
-    private fun projectOnSegment(
+    internal fun projectOnSegment(
         lat: Double,
         lng: Double,
         lat1: Double,

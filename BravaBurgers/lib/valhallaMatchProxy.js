@@ -116,19 +116,15 @@ async function valhallaTraceSnap(points) {
   }
 }
 
-/** API app: { lat, lng } o { trail: [{lat,lng},...] } */
+/** API app: puck en vivo → solo /locate (trace_route salta maniobras). */
 async function valhallaMatchForApp(body) {
-  var trail = body.trail;
-  if (Array.isArray(trail) && trail.length >= 2) {
-    return valhallaTraceSnap(trail);
-  }
   var lat = parseFloat(body.lat);
   var lng = parseFloat(body.lng);
   if (isNaN(lat) || isNaN(lng)) {
     return { ok: false, error: 'missing_coords', status: 400 };
   }
-  if (Array.isArray(trail) && trail.length === 1) {
-    return valhallaTraceSnap(trail.concat([{ lat: lat, lng: lng }]));
+  if (body.mode === 'trace' && Array.isArray(body.trail) && body.trail.length >= 2) {
+    return valhallaTraceSnap(body.trail);
   }
   return valhallaLocate(lat, lng);
 }

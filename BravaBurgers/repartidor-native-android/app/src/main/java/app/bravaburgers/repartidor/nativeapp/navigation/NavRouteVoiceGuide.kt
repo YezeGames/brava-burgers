@@ -145,6 +145,13 @@ class NavRouteVoiceGuide(context: Context) {
         }
     }
 
+    fun routeProgressSnapshot(lat: Double, lng: Double): NavRouteProgress.Snapshot? {
+        if (route.size < 2 || maneuverAlongM.isEmpty() || steps.isEmpty()) return null
+        return NavRouteProgress.snapshot(lat, lng, route, steps, maneuverAlongM)
+    }
+
+    fun matcherManeuverAlongM(): DoubleArray = maneuverAlongM
+
     fun onDriverPosition(lat: Double, lng: Double): Tick? {
         if (steps.isEmpty()) return null
         val snap =

@@ -24,8 +24,8 @@ var BravaNavCore = (() => {
     DEFAULT_VOICE_TIERS: () => DEFAULT_VOICE_TIERS,
     LocationAnimator: () => LocationAnimator,
     OffRouteDetector: () => OffRouteDetector,
+    StationaryGpsController: () => StationaryGpsController,
     VoiceTrigger: () => VoiceTrigger,
-    applyStationaryGpsFilter: () => applyStationaryGpsFilter,
     bearingDeg: () => bearingDeg,
     createNavSession: () => createNavSession,
     getSmootherBearingForMap: () => getSmootherBearingForMap,
@@ -152,6 +152,15 @@ var BravaNavCore = (() => {
     }
     reset() {
       this._display = null;
+      this._segment = null;
+    }
+    snapTo(lat, lng, bearing = null, nowMs = Date.now()) {
+      this._display = {
+        lat,
+        lng,
+        bearing: bearing ?? this._display?.bearing ?? null,
+        atMs: nowMs
+      };
       this._segment = null;
     }
     /** Nuevo fix GPS (~1 Hz): destino de la animación visual. */
@@ -791,29 +800,80 @@ var BravaNavCore = (() => {
 
   // src/stationaryGpsFilter.js
   var MOVING_MIN_SPEED_MPS = 1.45;
-  var REJECT_JUMP_STATIONARY_M = 35;
-  var POOR_ACCURACY_M = 48;
-  function applyStationaryGpsFilter(rawLat, rawLng, speedMps, accuracyM, anchor) {
-    const speed = speedMps != null && speedMps >= 0 ? speedMps : 0;
-    const moving = speed >= MOVING_MIN_SPEED_MPS;
-    const raw = { lat: rawLat, lng: rawLng };
-    if (moving) {
-      return { displayLatLng: raw, anchor: raw };
+  var MIN_COMPUTED_MPS = 0.85;
+  var MIN_COMPUTED_VS_GPS_RATIO = 0.28;
+  var HIGH_TRUST_GPS_MPS = 7;
+  var MIN_UNLOCK_DISPLACEMENT_M = 22;
+  var UNLOCK_FIXES_REQUIRED = 3;
+  var REJECT_TELEPORT_STEP_M = 18;
+  var StationaryGpsController = class {
+    constructor() {
+      this.anchor = null;
+      this.lastRaw = null;
+      this.lastRawAtMs = 0;
+      this.unlockStreak = 0;
+      this.isLocked = true;
     }
-    const acc = accuracyM != null && accuracyM >= 0 ? accuracyM : 25;
-    if (!anchor) {
-      return { displayLatLng: raw, anchor: raw };
+    reset() {
+      this.anchor = null;
+      this.lastRaw = null;
+      this.lastRawAtMs = 0;
+      this.unlockStreak = 0;
+      this.isLocked = true;
     }
-    const driftM = haversineM(anchor.lat, anchor.lng, rawLat, rawLng);
-    const rejectRadius = Math.max(
-      REJECT_JUMP_STATIONARY_M,
-      acc > POOR_ACCURACY_M ? acc * 1.8 : acc * 1.2
-    );
-    if (driftM > rejectRadius) {
-      return { displayLatLng: null, anchor };
+    onFix(rawLat, rawLng, speedMps, accuracyM) {
+      const now = Date.now();
+      const gpsMps = speedMps != null && speedMps >= 0 ? speedMps : 0;
+      const raw = { lat: rawLat, lng: rawLng };
+      const dtSec = this.lastRawAtMs === 0 ? 0 : Math.min(Math.max(now - this.lastRawAtMs, 200), 4e3) / 1e3;
+      const stepM = this.lastRaw ? haversineM(this.lastRaw.lat, this.lastRaw.lng, rawLat, rawLng) : 0;
+      const computedMps = dtSec > 0 ? stepM / dtSec : 0;
+      const acc = accuracyM != null && accuracyM >= 0 ? accuracyM : 25;
+      const fromAnchorM = this.anchor ? haversineM(this.anchor.lat, this.anchor.lng, rawLat, rawLng) : 0;
+      const teleportM = Math.max(REJECT_TELEPORT_STEP_M, acc * 1.6);
+      if (this.anchor && this.isLocked && stepM > teleportM && dtSec < 2.8) {
+        this._rememberRaw(raw, now);
+        return { displayLatLng: null, anchor: this.anchor, locked: true };
+      }
+      const physicallyMoving = this._physicallyMoving(gpsMps, computedMps, fromAnchorM);
+      if (physicallyMoving && fromAnchorM >= MIN_UNLOCK_DISPLACEMENT_M) {
+        this.unlockStreak++;
+      } else {
+        this.unlockStreak = 0;
+      }
+      if (this.isLocked && this.unlockStreak >= UNLOCK_FIXES_REQUIRED) {
+        this.isLocked = false;
+      }
+      if (!this.isLocked && physicallyMoving) {
+        this.anchor = raw;
+        this._rememberRaw(raw, now);
+        return { displayLatLng: raw, anchor: raw, locked: false };
+      }
+      if (!this.isLocked && !physicallyMoving) {
+        this.isLocked = true;
+        this.unlockStreak = 0;
+      }
+      if (!this.anchor) {
+        this.anchor = raw;
+        this.isLocked = true;
+        this._rememberRaw(raw, now);
+        return { displayLatLng: raw, anchor: raw, locked: true };
+      }
+      this._rememberRaw(raw, now);
+      return { displayLatLng: null, anchor: this.anchor, locked: this.isLocked };
     }
-    return { displayLatLng: null, anchor };
-  }
+    _rememberRaw(raw, nowMs) {
+      this.lastRaw = raw;
+      this.lastRawAtMs = nowMs;
+    }
+    _physicallyMoving(gpsMps, computedMps, fromAnchorM) {
+      if (gpsMps < MOVING_MIN_SPEED_MPS) return false;
+      if (computedMps < MIN_COMPUTED_MPS) return false;
+      if (gpsMps > 0.5 && computedMps < gpsMps * MIN_COMPUTED_VS_GPS_RATIO) return false;
+      if (fromAnchorM < MIN_UNLOCK_DISPLACEMENT_M && gpsMps < HIGH_TRUST_GPS_MPS) return false;
+      return true;
+    }
+  };
 
   // src/navSession.js
   function createNavSession(opts = {}) {
@@ -821,7 +881,7 @@ var BravaNavCore = (() => {
     const bearing = new BearingSmoother(opts.bearing);
     const offRoute = new OffRouteDetector(opts.offRoute);
     const voice = new VoiceTrigger(opts.voiceTiers);
-    let stationaryAnchor = null;
+    const stationary = new StationaryGpsController();
     let courseBearing = null;
     return {
       animator,
@@ -831,12 +891,15 @@ var BravaNavCore = (() => {
       setCourseBearing(deg) {
         courseBearing = deg;
       },
+      get isStationaryLocked() {
+        return stationary.isLocked;
+      },
       reset() {
         animator.reset();
         bearing.reset(courseBearing);
         offRoute.reset();
         voice.reset();
-        stationaryAnchor = null;
+        stationary.reset();
       },
       /**
        * Fix GPS crudo (1 Hz).
@@ -844,15 +907,10 @@ var BravaNavCore = (() => {
        */
       onGpsFix(fix) {
         const speedMps = (fix.speedKmh || 0) / 3.6;
-        const filtered = applyStationaryGpsFilter(
-          fix.lat,
-          fix.lng,
-          speedMps,
-          fix.accuracyM,
-          stationaryAnchor
-        );
-        stationaryAnchor = filtered.anchor;
-        if (filtered.displayLatLng) {
+        const filtered = stationary.onFix(fix.lat, fix.lng, speedMps, fix.accuracyM);
+        if (filtered.locked && filtered.anchor) {
+          animator.snapTo(filtered.anchor.lat, filtered.anchor.lng, fix.bearing ?? null);
+        } else if (filtered.displayLatLng) {
           animator.pushGpsFix(
             filtered.displayLatLng.lat,
             filtered.displayLatLng.lng,

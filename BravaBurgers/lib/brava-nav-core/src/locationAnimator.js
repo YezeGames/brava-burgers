@@ -26,6 +26,16 @@ export class LocationAnimator {
     this._segment = null;
   }
 
+  snapTo(lat, lng, bearing = null, nowMs = Date.now()) {
+    this._display = {
+      lat,
+      lng,
+      bearing: bearing ?? this._display?.bearing ?? null,
+      atMs: nowMs,
+    };
+    this._segment = null;
+  }
+
   /** Nuevo fix GPS (~1 Hz): destino de la animación visual. */
   pushGpsFix(lat, lng, bearing = null, nowMs = Date.now()) {
     const to = { lat, lng };

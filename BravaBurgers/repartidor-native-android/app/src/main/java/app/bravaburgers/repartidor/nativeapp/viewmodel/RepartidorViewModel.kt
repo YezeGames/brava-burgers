@@ -116,6 +116,8 @@ class RepartidorViewModel(
     private var routeListReady = false
     private val navDisplayPipeline = BravaNavDisplayPipeline()
     private var navFrameJob: Job? = null
+    private var valhallaLocateJob: Job? = null
+    private var valhallaLocateSeq = 0
     private var lastGpsBearing: Float? = null
 
     private val _routeSyncEvents = MutableSharedFlow<RouteSyncEvent>(extraBufferCapacity = 4)
@@ -631,18 +633,57 @@ class RepartidorViewModel(
         lastGpsBearing = gpsBearing
         val speedMpsSafe = speedMps?.coerceAtLeast(0f) ?: 0f
         val moving = speedMpsSafe >= app.bravaburgers.repartidor.nativeapp.navigation.NavDriverDisplaySmoother.MOVING_MIN_SPEED_MPS
-        val speedKmh =
-            if (moving) {
-                (speedMpsSafe * 3.6f).toInt().coerceIn(0, 999)
-            } else {
-                0
-            }
 
+        var speedKmh = 0
+        val matchCtx =
+            navVoice.routeProgressSnapshot(lat, lng)?.let { snap ->
+                app.bravaburgers.repartidor.nativeapp.navigation.core.NavMatchContext(
+                    maneuverAlongM = navVoice.matcherManeuverAlongM(),
+                    stepIndex = snap.stepIndex,
+                )
+            }
         navGpsMutex.withLock {
-            navDisplayPipeline.onGpsFix(lat, lng, speedMps, gpsBearing, accuracyM)
+            navDisplayPipeline.onGpsFix(lat, lng, speedMps, gpsBearing, accuracyM, matchCtx)
+            speedKmh =
+                if (navDisplayPipeline.isStationaryLocked || !moving) {
+                    0
+                } else {
+                    (speedMpsSafe * 3.6f).toInt().coerceIn(0, 999)
+                }
             ensureNavDisplayFrameLoop()
             commitNavDriverFix(lat, lng, gpsBearing, speedKmh)
         }
+        maybeValhallaLocateForDisplay(lat, lng, speedMps, gpsBearing, moving)
+    }
+
+    /** Mapbox `enhancedLocation`: Valhalla solo refina el puck, nunca voz/reruta. */
+    private fun maybeValhallaLocateForDisplay(
+        lat: Double,
+        lng: Double,
+        speedMps: Float?,
+        gpsBearing: Float?,
+        moving: Boolean,
+    ) {
+        if (!navValhallaMatchOn || !moving) return
+        val seq = ++valhallaLocateSeq
+        valhallaLocateJob?.cancel()
+        valhallaLocateJob =
+            viewModelScope.launch {
+                val located = valhallaMatcher.locateForDisplay(lat, lng, speedMps) ?: return@launch
+                if (seq != valhallaLocateSeq) return@launch
+                navGpsMutex.withLock {
+                    if (!navDisplayPipeline.isStationaryLocked) {
+                        navDisplayPipeline.applyValhallaLocate(
+                            located.first,
+                            located.second,
+                            lat,
+                            lng,
+                            speedMps,
+                            gpsBearing,
+                        )
+                    }
+                }
+            }
     }
 
     /** Voz y reruta con GPS crudo; la flecha en mapa la interpola [ensureNavInterpLoop]. */
@@ -698,12 +739,23 @@ class RepartidorViewModel(
     private fun stopNavDisplay() {
         navFrameJob?.cancel()
         navFrameJob = null
+        valhallaLocateJob?.cancel()
+        valhallaLocateJob = null
         navDisplayPipeline.reset()
         lastGpsBearing = null
     }
 
-    private fun disableNavMapMatching() {
+    private suspend fun enableNavValhallaDisplayMatch() {
+        osrm.ensureBasesLoaded()
+        navValhallaMatchOn = osrm.hasValhallaMapMatch()
+        valhallaMatcher.setEnabled(navValhallaMatchOn)
+        if (!navValhallaMatchOn) valhallaMatcher.reset()
+    }
+
+    private fun stopNavValhallaMatch() {
         navValhallaMatchOn = false
+        valhallaLocateJob?.cancel()
+        valhallaLocateJob = null
         valhallaMatcher.setEnabled(false)
         valhallaMatcher.reset()
     }
@@ -746,9 +798,7 @@ class RepartidorViewModel(
         lastNavRerouteAtMs = 0L
         navOffRouteAnnounced = false
         stopNavDisplay()
-        navValhallaMatchOn = false
-        valhallaMatcher.setEnabled(false)
-        valhallaMatcher.reset()
+        stopNavValhallaMatch()
         navLocationTracker.start { lat, lng, gpsBearing, speedMps, accuracyM ->
             viewModelScope.launch {
                 applyNavDriverFix(lat, lng, gpsBearing, speedMps, accuracyM)
@@ -807,7 +857,7 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    disableNavMapMatching()
+                    enableNavValhallaDisplayMatch()
                     navDisplayPipeline.onRouteLoaded(route.coordinates)
                     navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng))
                     _ui.value =
@@ -976,7 +1026,7 @@ class RepartidorViewModel(
                 .onSuccess { route ->
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    disableNavMapMatching()
+                    enableNavValhallaDisplayMatch()
                     navDisplayPipeline.onRouteLoaded(route.coordinates)
                     navVoice.announceReroute(route)
                     navOffRouteAnnounced = false
@@ -1024,9 +1074,7 @@ class RepartidorViewModel(
     private fun stopNavigationQuiet() {
         navLocationTracker.stop()
         stopNavDisplay()
-        navValhallaMatchOn = false
-        valhallaMatcher.setEnabled(false)
-        valhallaMatcher.reset()
+        stopNavValhallaMatch()
         navVoice.reset()
         _ui.value =
             _ui.value.copy(

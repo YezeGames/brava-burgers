@@ -1,6 +1,6 @@
 # brava-nav-core
 
-Matemática de navegación **$0** (Valhalla/OSRM + MapLibre). Piezas adaptadas del [Mapbox Navigation SDK](https://github.com/mapbox/mapbox-navigation-android) (**Apache 2.0**) donde el código es público.
+Matemática de navegación **$0** (Valhalla/OSRM + MapLibre). Piezas adaptadas del [Mapbox Navigation SDK](https://github.com/mapbox/mapbox-navigation-android) (**Apache 2.0**) donde el código es público. Ver **[MAPBOX_PARITY.md](./MAPBOX_PARITY.md)** (qué es 1:1 con el repo y qué no — el matcher nativo es cerrado).
 
 ## Módulos
 

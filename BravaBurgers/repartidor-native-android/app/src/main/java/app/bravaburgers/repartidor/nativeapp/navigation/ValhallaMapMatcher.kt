@@ -1,20 +1,22 @@
 package app.bravaburgers.repartidor.nativeapp.navigation
 
 import app.bravaburgers.repartidor.nativeapp.data.OsrmClient
+import app.bravaburgers.repartidor.nativeapp.navigation.core.BravaGeo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.ArrayDeque
 
 /**
- * Map-matching Valhalla en vivo: buffer de fixes → trace_route (map_snap) o /locate.
- * Progreso e instrucciones usan la posición **en calle**, no el GPS crudo.
+ * Map-matching **solo para el puck** (estilo Mapbox `enhancedLocation`).
+ *
+ * - Usa Valhalla **`/locate`** únicamente (no `trace_route` en vivo: eso re-traza y salta maniobras/voz).
+ * - GPS crudo sigue en voz, reruta y off-route.
  */
 class ValhallaMapMatcher(
     private val osrm: OsrmClient,
 ) {
-    private val trail = ArrayDeque<Pair<Double, Double>>(MAX_TRAIL)
     private var lastMatch: Pair<Double, Double>? = null
     private var lastMatchAtMs = 0L
+    private var lastRawAtMs = 0L
     private var enabled = false
 
     fun setEnabled(on: Boolean) {
@@ -23,44 +25,56 @@ class ValhallaMapMatcher(
     }
 
     fun reset() {
-        trail.clear()
         lastMatch = null
         lastMatchAtMs = 0L
+        lastRawAtMs = 0L
     }
 
-    fun recordRawFix(lat: Double, lng: Double) {
-        if (trail.isNotEmpty()) {
-            val prev = trail.last()
-            if (kotlin.math.abs(prev.first - lat) + kotlin.math.abs(prev.second - lng) < 1e-6) {
-                return
-            }
-        }
-        if (trail.size >= MAX_TRAIL) trail.removeFirst()
-        trail.addLast(Pair(lat, lng))
-    }
-
-    /** Posición para mapa / voz; null = usar GPS crudo. */
-    suspend fun matchedPosition(lat: Double, lng: Double): Pair<Double, Double>? {
-        if (!enabled || !osrm.hasValhallaService()) return null
-        recordRawFix(lat, lng)
+    /**
+     * Snap suave a calle para display. null = mantener posición actual del pipeline.
+     */
+    suspend fun locateForDisplay(
+        rawLat: Double,
+        rawLng: Double,
+        speedMps: Float?,
+    ): Pair<Double, Double>? {
+        if (!enabled || !osrm.hasValhallaMapMatch()) return null
         val now = System.currentTimeMillis()
         if (now - lastMatchAtMs < MIN_INTERVAL_MS) {
-            return null
+            return lastMatch
         }
-        val trailList = trail.toList()
-        val out =
+        lastRawAtMs = now
+        val located =
             withContext(Dispatchers.IO) {
-                osrm.valhallaMapMatch(trailList, lat, lng)
-            }
-        if (out != null) {
-            lastMatch = out
-            lastMatchAtMs = now
+                osrm.valhallaLocateOnly(rawLat, rawLng)
+            } ?: return lastMatch
+
+        if (BravaGeo.haversineM(rawLat, rawLng, located.first, located.second) > MAX_SNAP_FROM_RAW_M) {
+            return lastMatch
         }
-        return out
+
+        val prev = lastMatch
+        if (prev != null) {
+            val stepM = BravaGeo.haversineM(prev.first, prev.second, located.first, located.second)
+            val maxStep = maxStepM(speedMps)
+            if (stepM > maxStep) {
+                return lastMatch
+            }
+        }
+
+        lastMatch = located
+        lastMatchAtMs = now
+        return located
+    }
+
+    private fun maxStepM(speedMps: Float?): Double {
+        val v = speedMps?.coerceAtLeast(0f) ?: 0f
+        val fromSpeed = v * 2.2 + 6.0
+        return fromSpeed.coerceIn(8.0, 55.0)
     }
 
     companion object {
-        private const val MAX_TRAIL = 8
-        private const val MIN_INTERVAL_MS = 650L
+        private const val MIN_INTERVAL_MS = 750L
+        private const val MAX_SNAP_FROM_RAW_M = 42.0
     }
 }

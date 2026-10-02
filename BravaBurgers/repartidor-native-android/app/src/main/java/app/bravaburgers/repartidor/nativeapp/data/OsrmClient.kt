@@ -77,6 +77,10 @@ class OsrmClient {
 
     fun hasValhallaService(): Boolean = !bravaValhallaServiceBase.isNullOrBlank()
 
+    /** `/locate` directo o proxy Vercel `valhallaMatch` (sin trace_route en vivo). */
+    fun hasValhallaMapMatch(): Boolean =
+        hasValhallaService() || BuildConfig.API_BASE.trim().isNotBlank()
+
     /** Mismo perfil que Chrome WebView en la APK Capacitor. */
     fun fetchDrivingRoute(
         fromLng: Double,
@@ -201,7 +205,16 @@ class OsrmClient {
         }
     }
 
-    /** Map-matching Valhalla: trail + fix actual → lat/lng en calle. */
+    /** Puck en vivo: solo [/locate] — no trace (evita saltos de maniobra). */
+    fun valhallaLocateOnly(lat: Double, lng: Double): Pair<Double, Double>? {
+        val service = bravaValhallaServiceBase
+        if (!service.isNullOrBlank()) {
+            valhallaLocate(service, lat, lng)?.let { return it }
+        }
+        return valhallaLocateViaApi(lat, lng)
+    }
+
+    /** Legacy / herramientas; no usar en navegación en vivo. */
     fun valhallaMapMatch(
         trail: List<Pair<Double, Double>>,
         lat: Double,
@@ -247,6 +260,18 @@ class OsrmClient {
         return postValhallaJson(url, json, client = directPcHttp)?.let { ValhallaMatch.parseTraceLastPoint(it) }
     }
 
+    private fun valhallaLocateViaApi(lat: Double, lng: Double): Pair<Double, Double>? {
+        val api = BuildConfig.API_BASE.trim()
+        if (api.isBlank()) return null
+        val json =
+            JSONObject()
+                .put("action", "valhallaMatch")
+                .put("lat", lat)
+                .put("lng", lng)
+                .put("mode", "locate")
+        return postValhallaMatchApi(api, json)
+    }
+
     private fun valhallaMapMatchViaApi(
         trail: List<Pair<Double, Double>>,
         lat: Double,
@@ -266,6 +291,10 @@ class OsrmClient {
             }
             json.put("trail", arr)
         }
+        return postValhallaMatchApi(api, json)
+    }
+
+    private fun postValhallaMatchApi(api: String, json: JSONObject): Pair<Double, Double>? {
         return try {
             val req =
                 Request.Builder()
