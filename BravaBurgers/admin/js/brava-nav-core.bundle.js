@@ -30,6 +30,7 @@ var BravaNavCore = (() => {
     createNavSession: () => createNavSession,
     getSmootherBearingForMap: () => getSmootherBearingForMap,
     haversineM: () => haversineM,
+    minJumpThresholdM: () => minJumpThresholdM,
     shortestRotationDiff: () => shortestRotationDiff,
     wrapDeg: () => wrapDeg
   });
@@ -141,7 +142,13 @@ var BravaNavCore = (() => {
 
   // src/locationAnimator.js
   var DEFAULT_DURATION_MS = 1e3;
-  var TELEPORT_JUMP_M = 80;
+  var TELEPORT_JUMP_M = 120;
+  var SEGMENT_DURATION_MIN_MS = 400;
+  var SEGMENT_DURATION_MAX_MS = 1200;
+  function minJumpThresholdM(speedMps) {
+    const v = Math.max(0, speedMps ?? 0);
+    return Math.max(1, Math.min(6, v * 0.35));
+  }
   var LocationAnimator = class {
     /** @param {{ durationMs?: number, teleportJumpM?: number }} [opts] */
     constructor(opts = {}) {
@@ -149,10 +156,12 @@ var BravaNavCore = (() => {
       this.teleportJumpM = opts.teleportJumpM ?? TELEPORT_JUMP_M;
       this._display = null;
       this._segment = null;
+      this._lastPushAtMs = 0;
     }
     reset() {
       this._display = null;
       this._segment = null;
+      this._lastPushAtMs = 0;
     }
     snapTo(lat, lng, bearing = null, nowMs = Date.now()) {
       this._display = {
@@ -162,20 +171,27 @@ var BravaNavCore = (() => {
         atMs: nowMs
       };
       this._segment = null;
+      this._lastPushAtMs = nowMs;
+    }
+    /** @param {number} nowMs */
+    _segmentDurationMs(nowMs) {
+      const dt = this._lastPushAtMs === 0 ? this.durationMs : Math.min(4e3, Math.max(250, nowMs - this._lastPushAtMs));
+      return Math.min(SEGMENT_DURATION_MAX_MS, Math.max(SEGMENT_DURATION_MIN_MS, dt));
     }
     /** Nuevo fix GPS (~1 Hz): destino de la animación visual. */
-    pushGpsFix(lat, lng, bearing = null, nowMs = Date.now()) {
+    pushGpsFix(lat, lng, bearing = null, speedMps = null, nowMs = Date.now()) {
       const to = { lat, lng };
       if (!this._display) {
         this._display = { lat, lng, bearing, atMs: nowMs };
+        this._lastPushAtMs = nowMs;
         return;
       }
       const jumpM = haversineM(this._display.lat, this._display.lng, lat, lng);
-      if (jumpM < 6) {
+      if (jumpM < minJumpThresholdM(speedMps)) {
         return;
       }
       const start = { lat: this._display.lat, lng: this._display.lng };
-      const duration = jumpM >= this.teleportJumpM ? 0 : this.durationMs;
+      const duration = jumpM >= this.teleportJumpM ? 0 : this._segmentDurationMs(nowMs);
       this._segment = {
         from: start,
         to,
@@ -188,6 +204,7 @@ var BravaNavCore = (() => {
         this._display = { lat, lng, bearing, atMs: nowMs };
         this._segment = null;
       }
+      this._lastPushAtMs = nowMs;
     }
     /** Llamar en cada frame (~60 FPS). */
     tick(nowMs = Date.now()) {
@@ -200,10 +217,7 @@ var BravaNavCore = (() => {
       const t = total <= 0 ? 1 : Math.min(1, Math.max(0, (nowMs - seg.startMs) / total));
       const lat = seg.from.lat + (seg.to.lat - seg.from.lat) * t;
       const lng = seg.from.lng + (seg.to.lng - seg.from.lng) * t;
-      let bearing = this._display.bearing ?? null;
-      if (seg.bearingTo != null && Number.isFinite(seg.bearingTo)) {
-        bearing = seg.bearingTo;
-      }
+      const bearing = interpolateBearing(seg.bearingFrom, seg.bearingTo, t, this._display.bearing);
       this._display = { lat, lng, bearing, atMs: nowMs };
       if (t >= 1) {
         this._segment = null;
@@ -211,6 +225,12 @@ var BravaNavCore = (() => {
       return { ...this._display };
     }
   };
+  function interpolateBearing(from, to, t, fallback) {
+    if (to == null || !Number.isFinite(to)) return from ?? fallback ?? null;
+    if (from == null || !Number.isFinite(from)) return to;
+    const delta = shortestRotationDiff(to, from);
+    return wrapDeg(from + delta * t);
+  }
 
   // node_modules/@turf/helpers/dist/esm/index.js
   var earthRadius = 63710088e-1;
@@ -914,7 +934,8 @@ var BravaNavCore = (() => {
           animator.pushGpsFix(
             filtered.displayLatLng.lat,
             filtered.displayLatLng.lng,
-            fix.bearing ?? null
+            fix.bearing ?? null,
+            speedMps
           );
         }
         const off = offRoute.evaluate(

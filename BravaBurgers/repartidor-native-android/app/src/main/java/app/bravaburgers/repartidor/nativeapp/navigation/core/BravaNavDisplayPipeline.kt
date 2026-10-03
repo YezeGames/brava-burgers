@@ -61,16 +61,30 @@ class BravaNavDisplayPipeline {
 
 
 
-    fun onRouteLoaded(route: List<Pair<Double, Double>>) {
-
+    fun onRouteLoaded(
+        route: List<Pair<Double, Double>>,
+        transitionFromDisplay: Pair<Double, Double>? = null,
+    ) {
         lastRoute = route
-
         mapMatcher.onRouteLoaded(route)
-
         courseBearing = NavRouteProgress.travelBearingDeg(route, 0.0)?.toFloat()
-
         bearing.reset(courseBearing?.toDouble())
 
+        val from = transitionFromDisplay ?: animator.displayPosition()
+        if (from != null && route.size >= 2) {
+            val proj = NavRouteProgress.projectOntoRoute(from.first, from.second, route)
+            if (proj != null && proj.offRouteM <= NavDisplayThresholds.REROUTE_SOFT_SNAP_MAX_M) {
+                val brg =
+                    NavRouteProgress.travelBearingDeg(route, proj.alongRouteM + 8.0)?.toFloat()
+                        ?: courseBearing
+                animator.pushGpsFix(
+                    proj.lat,
+                    proj.lng,
+                    brg,
+                    speedMps = null,
+                )
+            }
+        }
     }
 
 
@@ -106,17 +120,12 @@ class BravaNavDisplayPipeline {
         }
 
         animator.pushEnhancedFix(
-
             matched.enhancedLat,
-
             matched.enhancedLng,
-
             matched.bearing,
-
             isTeleport = matched.isTeleport,
-
+            speedMps = speedMps,
         )
-
     }
 
     /** Valhalla `/locate` async — solo puck; voz/reruta siguen con GPS crudo. */
@@ -143,6 +152,7 @@ class BravaNavDisplayPipeline {
             matched.enhancedLng,
             matched.bearing,
             isTeleport = matched.isTeleport,
+            speedMps = speedMps,
         )
     }
 

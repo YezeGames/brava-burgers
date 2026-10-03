@@ -1917,8 +1917,7 @@
 			}
 			lastNavPos = { lng: lng, lat: lat };
 
-			var stepM = lastNavPos && rawGpsPos ? haversineM(lastNavPos, rawGpsPos) : 999;
-			var dur = fromDisplay && lastGpsSpeedKmh < 5 ? 0 : stepM < 2 ? 0 : 280;
+			var dur = fromDisplay ? 0 : 280;
 
 			map.easeTo({
 				center: [lng, lat],
@@ -1992,6 +1991,7 @@
 					stepIndex: idxForVoice,
 					distToManeuverM: distMan != null ? distMan : 0,
 				});
+				if (session.isStationaryLocked) lastGpsSpeedKmh = 0;
 				startNavDisplayLoop();
 				maybeRerouteFromGps(fix && fix.offRoute);
 				if (fix && fix.voiceEvents && fix.voiceEvents.length && steps.length) {

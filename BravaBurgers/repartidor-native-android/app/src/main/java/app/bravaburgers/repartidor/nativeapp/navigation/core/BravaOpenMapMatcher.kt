@@ -158,7 +158,7 @@ class BravaOpenMapMatcher(
 
     companion object {
         /** Mismo criterio que Mapbox: no animar saltos absurdos (p. ej. GPS a la calle en 1 fix). */
-        private const val TELEPORT_M = 45.0
+        private val TELEPORT_M = NavDisplayThresholds.TELEPORT_JUMP_M
         private const val MAX_VALHALLA_FROM_RAW_M = 42.0
         private const val ON_ROUTE_MAX_OFF_M = 55.0
         private const val PARALLEL_STREET_REJECT_M = 26.0

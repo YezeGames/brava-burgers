@@ -1,12 +1,20 @@
-import { haversineM } from "./geo.js";
+import { haversineM, shortestRotationDiff, wrapDeg } from "./geo.js";
 
 /**
  * Adaptado de Mapbox Navigation SDK (Apache 2.0)
- * — NavigationLocationProvider (keypoints + duración ~1s, velocidad constante).
+ * — NavigationLocationProvider (keypoints + duración ~Δt GPS).
  */
 
 const DEFAULT_DURATION_MS = 1000;
-const TELEPORT_JUMP_M = 80;
+const TELEPORT_JUMP_M = 120;
+const SEGMENT_DURATION_MIN_MS = 400;
+const SEGMENT_DURATION_MAX_MS = 1200;
+
+/** @param {number | null | undefined} speedMps */
+export function minJumpThresholdM(speedMps) {
+  const v = Math.max(0, speedMps ?? 0);
+  return Math.max(1, Math.min(6, v * 0.35));
+}
 
 /** @typedef {{ lat: number, lng: number, bearing?: number | null, atMs: number }} DisplaySample */
 
@@ -19,11 +27,13 @@ export class LocationAnimator {
     this._display = null;
     /** @type {{ from: import('./geo.js').LatLng, to: import('./geo.js').LatLng, startMs: number, endMs: number, bearingFrom: number | null, bearingTo: number | null } | null} */
     this._segment = null;
+    this._lastPushAtMs = 0;
   }
 
   reset() {
     this._display = null;
     this._segment = null;
+    this._lastPushAtMs = 0;
   }
 
   snapTo(lat, lng, bearing = null, nowMs = Date.now()) {
@@ -34,22 +44,33 @@ export class LocationAnimator {
       atMs: nowMs,
     };
     this._segment = null;
+    this._lastPushAtMs = nowMs;
+  }
+
+  /** @param {number} nowMs */
+  _segmentDurationMs(nowMs) {
+    const dt =
+      this._lastPushAtMs === 0
+        ? this.durationMs
+        : Math.min(4000, Math.max(250, nowMs - this._lastPushAtMs));
+    return Math.min(SEGMENT_DURATION_MAX_MS, Math.max(SEGMENT_DURATION_MIN_MS, dt));
   }
 
   /** Nuevo fix GPS (~1 Hz): destino de la animación visual. */
-  pushGpsFix(lat, lng, bearing = null, nowMs = Date.now()) {
+  pushGpsFix(lat, lng, bearing = null, speedMps = null, nowMs = Date.now()) {
     const to = { lat, lng };
     if (!this._display) {
       this._display = { lat, lng, bearing, atMs: nowMs };
+      this._lastPushAtMs = nowMs;
       return;
     }
 
     const jumpM = haversineM(this._display.lat, this._display.lng, lat, lng);
-    if (jumpM < 6) {
+    if (jumpM < minJumpThresholdM(speedMps)) {
       return;
     }
     const start = { lat: this._display.lat, lng: this._display.lng };
-    const duration = jumpM >= this.teleportJumpM ? 0 : this.durationMs;
+    const duration = jumpM >= this.teleportJumpM ? 0 : this._segmentDurationMs(nowMs);
 
     this._segment = {
       from: start,
@@ -64,6 +85,7 @@ export class LocationAnimator {
       this._display = { lat, lng, bearing, atMs: nowMs };
       this._segment = null;
     }
+    this._lastPushAtMs = nowMs;
   }
 
   /** Llamar en cada frame (~60 FPS). */
@@ -81,10 +103,7 @@ export class LocationAnimator {
     const lat = seg.from.lat + (seg.to.lat - seg.from.lat) * t;
     const lng = seg.from.lng + (seg.to.lng - seg.from.lng) * t;
 
-    let bearing = this._display.bearing ?? null;
-    if (seg.bearingTo != null && Number.isFinite(seg.bearingTo)) {
-      bearing = seg.bearingTo;
-    }
+    const bearing = interpolateBearing(seg.bearingFrom, seg.bearingTo, t, this._display.bearing);
 
     this._display = { lat, lng, bearing, atMs: nowMs };
 
@@ -94,4 +113,12 @@ export class LocationAnimator {
 
     return { ...this._display };
   }
+}
+
+/** @param {number | null | undefined} from @param {number | null | undefined} to @param {number} t @param {number | null | undefined} fallback */
+function interpolateBearing(from, to, t, fallback) {
+  if (to == null || !Number.isFinite(to)) return from ?? fallback ?? null;
+  if (from == null || !Number.isFinite(from)) return to;
+  const delta = shortestRotationDiff(to, from);
+  return wrapDeg(from + delta * t);
 }

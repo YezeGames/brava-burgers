@@ -27,6 +27,10 @@ En Brava:
 
 Mapbox en parado usa el **matcher nativo** (no publicado). Sin eso, pegar el puck a la polyline cuando el chip inventa ~5 km/h reproduce el bug de “deslizar a la calle”. Por eso el bloqueo de salida imita `isDegradedMapMatching` + no animar teleports.
 
+## Fluidez en calle / reroute
+
+Ver auditoría: [AUDIT_NAV_GPS_FLUIDEZ.md](./AUDIT_NAV_GPS_FLUIDEZ.md) (saltos ~1 Hz, cámara, umbrales, plan de fixes).
+
 ## Valhalla (substituto parcial del matcher nativo)
 
 | Uso | Endpoint | Capa |

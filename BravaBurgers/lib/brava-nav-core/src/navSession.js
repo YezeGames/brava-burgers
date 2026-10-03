@@ -50,6 +50,7 @@ export function createNavSession(opts = {}) {
           filtered.displayLatLng.lat,
           filtered.displayLatLng.lng,
           fix.bearing ?? null,
+          speedMps,
         );
       }
 

@@ -858,15 +858,22 @@ class RepartidorViewModel(
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
                     enableNavValhallaDisplayMatch()
-                    navDisplayPipeline.onRouteLoaded(route.coordinates)
+                    val driverNow = _ui.value.navDriver
+                    navDisplayPipeline.onRouteLoaded(
+                        route.coordinates,
+                        transitionFromDisplay = driverNow,
+                    )
                     navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng))
                     _ui.value =
                         _ui.value.copy(
                             navLoading = false,
                             navRoute = route.coordinates,
                             navDriverBearing =
-                                NavRouteProgress.travelBearingDeg(route.coordinates, 0.0)?.toFloat()
-                                    ?: _ui.value.navDriverBearing,
+                                navBearingAlongRoute(
+                                    route.coordinates,
+                                    driverNow,
+                                    _ui.value.navDriverBearing,
+                                ),
                             navManeuver = route.firstManeuver,
                             navInstructionPrimary = navVoice.bannerPrimary(0),
                             navInstructionThen = navVoice.nextSignificantInstruction(0),
@@ -943,6 +950,20 @@ class RepartidorViewModel(
             destLat = destLat,
             destLng = destLng,
         )
+    }
+
+    private fun navBearingAlongRoute(
+        route: List<Pair<Double, Double>>,
+        driver: Pair<Double, Double>?,
+        fallback: Float?,
+    ): Float? {
+        if (route.size < 2 || driver == null) {
+            return fallback
+                ?: NavRouteProgress.travelBearingDeg(route, 0.0)?.toFloat()
+        }
+        val proj = NavRouteProgress.projectOntoRoute(driver.first, driver.second, route) ?: return fallback
+        return NavRouteProgress.travelBearingDeg(route, proj.alongRouteM + 8.0)?.toFloat()
+            ?: fallback
     }
 
     private fun appendNavTurnMeta(
@@ -1027,15 +1048,22 @@ class RepartidorViewModel(
                     val km = route.distanceM / 1000.0
                     val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
                     enableNavValhallaDisplayMatch()
-                    navDisplayPipeline.onRouteLoaded(route.coordinates)
+                    val driverNow = _ui.value.navDriver
+                    navDisplayPipeline.onRouteLoaded(
+                        route.coordinates,
+                        transitionFromDisplay = driverNow,
+                    )
                     navVoice.announceReroute(route)
                     navOffRouteAnnounced = false
                     _ui.value =
                         _ui.value.copy(
                             navRoute = route.coordinates,
                             navDriverBearing =
-                                NavRouteProgress.travelBearingDeg(route.coordinates, 0.0)?.toFloat()
-                                    ?: _ui.value.navDriverBearing,
+                                navBearingAlongRoute(
+                                    route.coordinates,
+                                    driverNow,
+                                    _ui.value.navDriverBearing,
+                                ),
                             navManeuver = route.firstManeuver,
                             navInstructionPrimary = navVoice.bannerPrimary(0),
                             navInstructionThen = navVoice.nextSignificantInstruction(0),

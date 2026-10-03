@@ -51,8 +51,13 @@ private const val NAV_PUCK_IMAGE = "brava-nav-puck"
 
 private const val NAV_ZOOM = 18.65
 private const val NAV_PITCH = 62.0
-private const val NAV_ANIM_MS_MIN = 120
-private const val NAV_ANIM_MS_MAX = 420
+private const val NAV_RECENTER_ANIM_MS = 320
+
+/** Seguimiento 60 FPS: moveCamera. Gestos/recenter: animateCamera. */
+private enum class NavCameraUpdate {
+    SyncFollow,
+    AnimatedGesture,
+}
 
 @Composable
 fun BravaMapView(
@@ -157,55 +162,49 @@ fun BravaMapView(
         updateDriverMarker(style, driver, driverBearing, navigationMode)
     }
 
+    LaunchedEffect(styleReady, navigationMode, topPadPx, bottomPadPx) {
+        if (!styleReady) return@LaunchedEffect
+        mapRef?.setPadding(0, topPadPx, 0, bottomPadPx)
+    }
+
     LaunchedEffect(
         driver,
-        destination,
-        recenterKey,
+        driverBearing,
         styleReady,
         navigationFollow,
-        driverBearing,
-        driverSpeedKmh,
         route,
         navigationMode,
-        topPadPx,
-        bottomPadPx,
     ) {
-        if (!styleReady) return@LaunchedEffect
+        if (!styleReady || !navigationMode) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
-        map.setPadding(0, topPadPx, 0, bottomPadPx)
         if (navigationFollow && driver != null && route.size >= 2) {
             lastNavCameraBearing =
                 applyNavigationCamera(
-                    map,
-                    driver,
-                    driverBearing,
-                    route,
-                    driverSpeedKmh,
-                    lastNavCameraBearing,
-                    animate = true,
+                    map = map,
+                    driver = driver,
+                    driverBearing = driverBearing,
+                    lastBearing = lastNavCameraBearing,
+                    update = NavCameraUpdate.SyncFollow,
                 )
-        } else if (!navigationFollow && !didOverview && route.size >= 2 && !navigationMode) {
+        } else if (!navigationFollow && !didOverview && route.size >= 2) {
             safeFitCamera(map, route, destination, driver)
             didOverview = true
-        } else if (!navigationFollow && !navigationMode) {
+        } else if (!navigationFollow) {
             safeFitCamera(map, route, destination, driver)
         }
     }
 
-    LaunchedEffect(recenterKey, styleReady, navigationFollow, driver, driverBearing, route, driverSpeedKmh) {
-        if (!styleReady || recenterKey == 0) return@LaunchedEffect
+    LaunchedEffect(recenterKey, styleReady, navigationFollow, driver, driverBearing, route, navigationMode) {
+        if (!styleReady || recenterKey == 0 || !navigationMode) return@LaunchedEffect
         val map = mapRef ?: return@LaunchedEffect
         if (!navigationFollow || driver == null || route.size < 2) return@LaunchedEffect
-        map.setPadding(0, topPadPx, 0, bottomPadPx)
         lastNavCameraBearing =
             applyNavigationCamera(
-                map,
-                driver,
-                driverBearing,
-                route,
-                driverSpeedKmh,
-                lastNavCameraBearing,
-                animate = true,
+                map = map,
+                driver = driver,
+                driverBearing = driverBearing,
+                lastBearing = lastNavCameraBearing,
+                update = NavCameraUpdate.AnimatedGesture,
             )
     }
 
@@ -244,25 +243,15 @@ private fun applyNavigationCamera(
     map: MapLibreMap,
     driver: Pair<Double, Double>,
     driverBearing: Float?,
-    route: List<Pair<Double, Double>>,
-    speedKmh: Int,
     lastBearing: Double?,
-    animate: Boolean,
+    update: NavCameraUpdate,
 ): Double {
     map.uiSettings.isRotateGesturesEnabled = true
     map.uiSettings.isTiltGesturesEnabled = true
-    val prevTarget = map.cameraPosition.target ?: LatLng(driver.first, driver.second)
-    val stepM = haversineM(prevTarget.latitude, prevTarget.longitude, driver.first, driver.second)
     val brg =
-        resolveNavCameraBearing(
-            map = map,
-            driver = driver,
-            driverBearing = driverBearing,
-            route = route,
-            speedKmh = speedKmh,
-            stepM = stepM,
-            lastBearing = lastBearing,
-        )
+        driverBearing?.toDouble()
+            ?: lastBearing
+            ?: map.cameraPosition.bearing
     val pos =
         CameraPosition.Builder()
             .target(LatLng(driver.first, driver.second))
@@ -270,66 +259,13 @@ private fun applyNavigationCamera(
             .tilt(NAV_PITCH)
             .bearing(brg)
             .build()
-    val update = CameraUpdateFactory.newCameraPosition(pos)
-    if (!animate) {
-        map.moveCamera(update)
-        return brg
-    }
-    when {
-        stepM < 1.5 -> map.moveCamera(update)
-        else -> {
-            val ms =
-                (stepM * 14.0)
-                    .toInt()
-                    .coerceIn(NAV_ANIM_MS_MIN, NAV_ANIM_MS_MAX)
-            map.animateCamera(update, ms)
-        }
+    val cameraUpdate = CameraUpdateFactory.newCameraPosition(pos)
+    when (update) {
+        NavCameraUpdate.SyncFollow -> map.moveCamera(cameraUpdate)
+        NavCameraUpdate.AnimatedGesture ->
+            map.animateCamera(cameraUpdate, NAV_RECENTER_ANIM_MS)
     }
     return brg
-}
-
-private fun resolveNavCameraBearing(
-    map: MapLibreMap,
-    driver: Pair<Double, Double>,
-    driverBearing: Float?,
-    route: List<Pair<Double, Double>>,
-    speedKmh: Int,
-    stepM: Double,
-    lastBearing: Double?,
-): Double {
-    val courseStart = NavRouteProgress.travelBearingDeg(route, 0.0)
-    val along = NavRouteProgress.distanceAlongRouteM(driver.first, driver.second, route)
-    val raw =
-        driverBearing?.toDouble()
-            ?: NavRouteProgress.travelBearingDeg(route, along)
-            ?: courseStart
-            ?: map.cameraPosition.bearing
-
-    if (speedKmh < 5) {
-        return lastBearing ?: courseStart ?: raw
-    }
-    if (stepM < 2.5 && lastBearing != null) {
-        return lastBearing
-    }
-    if (lastBearing == null) return raw
-    var delta = raw - lastBearing
-    while (delta > 180) delta -= 360
-    while (delta < -180) delta += 360
-    if (kotlin.math.abs(delta) < 4.0) return lastBearing
-    return (lastBearing + delta.coerceIn(-12.0, 12.0) + 360.0) % 360.0
-}
-
-private fun haversineM(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Double {
-    val r = 6371000.0
-    val dLat = Math.toRadians(lat2 - lat1)
-    val dLng = Math.toRadians(lng2 - lng1)
-    val a =
-        kotlin.math.sin(dLat / 2) * kotlin.math.sin(dLat / 2) +
-            kotlin.math.cos(Math.toRadians(lat1)) *
-            kotlin.math.cos(Math.toRadians(lat2)) *
-            kotlin.math.sin(dLng / 2) *
-            kotlin.math.sin(dLng / 2)
-    return 2 * r * kotlin.math.asin(kotlin.math.sqrt(a.coerceIn(0.0, 1.0)))
 }
 
 private fun ensureNavPuckImage(context: Context, style: Style) {
@@ -350,38 +286,49 @@ private fun applyRouteGeometry(
     destination: Pair<Double, Double>?,
     navigationMode: Boolean,
 ) {
-    listOf(ROUTE_LAYER, DEST_LAYER).forEach { id ->
-        if (style.getLayer(id) != null) style.removeLayer(id)
-    }
-    listOf(ROUTE_SOURCE, DEST_SOURCE).forEach { id ->
-        if (style.getSource(id) != null) style.removeSource(id)
-    }
-
     if (route.size >= 2) {
         val points = route.map { (lat, lng) -> Point.fromLngLat(lng, lat) }
         val line = LineString.fromLngLats(points)
-        style.addSource(GeoJsonSource(ROUTE_SOURCE, Feature.fromGeometry(line)))
-        val lineColor = "#FF6B35"
-        style.addLayer(
-            LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
-                PropertyFactory.lineColor(lineColor),
-                PropertyFactory.lineWidth(if (navigationMode) 7f else 5f),
-                PropertyFactory.lineOpacity(0.92f),
-            ),
-        )
+        val feat = Feature.fromGeometry(line)
+        val routeSrc = style.getSource(ROUTE_SOURCE) as? GeoJsonSource
+        if (routeSrc != null) {
+            routeSrc.setGeoJson(feat)
+        } else {
+            style.addSource(GeoJsonSource(ROUTE_SOURCE, feat))
+            style.addLayer(
+                LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
+                    PropertyFactory.lineColor("#FF6B35"),
+                    PropertyFactory.lineWidth(if (navigationMode) 7f else 5f),
+                    PropertyFactory.lineOpacity(0.92f),
+                ),
+            )
+        }
+    } else {
+        if (style.getLayer(ROUTE_LAYER) != null) style.removeLayer(ROUTE_LAYER)
+        if (style.getSource(ROUTE_SOURCE) != null) style.removeSource(ROUTE_SOURCE)
     }
 
-    destination?.let { (lat, lng) ->
+    if (destination != null) {
+        val (lat, lng) = destination
         val point = Point.fromLngLat(lng, lat)
-        style.addSource(GeoJsonSource(DEST_SOURCE, Feature.fromGeometry(point)))
-        style.addLayer(
-            CircleLayer(DEST_LAYER, DEST_SOURCE).withProperties(
-                PropertyFactory.circleRadius(10f),
-                PropertyFactory.circleColor("#43A047"),
-                PropertyFactory.circleStrokeWidth(3f),
-                PropertyFactory.circleStrokeColor("#FFFFFF"),
-            ),
-        )
+        val feat = Feature.fromGeometry(point)
+        val destSrc = style.getSource(DEST_SOURCE) as? GeoJsonSource
+        if (destSrc != null) {
+            destSrc.setGeoJson(feat)
+        } else {
+            style.addSource(GeoJsonSource(DEST_SOURCE, feat))
+            style.addLayer(
+                CircleLayer(DEST_LAYER, DEST_SOURCE).withProperties(
+                    PropertyFactory.circleRadius(10f),
+                    PropertyFactory.circleColor("#43A047"),
+                    PropertyFactory.circleStrokeWidth(3f),
+                    PropertyFactory.circleStrokeColor("#FFFFFF"),
+                ),
+            )
+        }
+    } else {
+        if (style.getLayer(DEST_LAYER) != null) style.removeLayer(DEST_LAYER)
+        if (style.getSource(DEST_SOURCE) != null) style.removeSource(DEST_SOURCE)
     }
 }
 

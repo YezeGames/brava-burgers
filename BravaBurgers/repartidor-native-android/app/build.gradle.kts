@@ -13,8 +13,8 @@ android {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 52
-        versionName = "2.0.0-alpha52"
+        versionCode = 53
+        versionName = "2.0.0-alpha53"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField("String", "MAP_STYLE", "\"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json\"")
         buildConfigField("String", "OSRM_BASE", "\"https://router.project-osrm.org/route/v1/driving/\"")
