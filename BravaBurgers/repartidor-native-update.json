@@ -1,6 +1,8 @@
 ﻿{
-    "version_code":  54,
-    "version_name":  "2.0.0-alpha54",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v54/brava-repartidor-native.apk",
-    "release_notes":  "alpha54: capas puck sobre ruta, snap 15m + bearing, heading Valhalla, reroute origen anti-loop, coast GPS, cámara 0.8m/s freeze, mute locate post-reroute."
+    "version_code":  55,
+    "version_name":  "2.0.0-alpha55",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v55/brava-repartidor-native.apk",
+    "release_notes":  "alpha55: mapa MapTiler Streets v4 (edificios 3D), OTA obligatoria (gate + cierra sesión), navegación alpha54. Key MapTiler en local.properties al compilar.",
+    "min_version_code":  55,
+    "force_update":  true
 }

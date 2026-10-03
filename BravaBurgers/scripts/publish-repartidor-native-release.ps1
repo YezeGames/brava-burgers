@@ -76,10 +76,12 @@ if ($releaseExists) {
 }
 
 $manifest = [ordered]@{
-    version_code   = $VersionCode
-    version_name   = $VersionName
-    apk_url        = $downloadUrl
-    release_notes  = if ($ReleaseNotes) { $ReleaseNotes } else { "Actualización $VersionName" }
+    version_code       = $VersionCode
+    version_name       = $VersionName
+    apk_url            = $downloadUrl
+    release_notes      = if ($ReleaseNotes) { $ReleaseNotes } else { "Actualización $VersionName" }
+    min_version_code   = $VersionCode
+    force_update       = $true
 }
 $manifest | ConvertTo-Json | Set-Content -Path $jsonPath -Encoding UTF8
 

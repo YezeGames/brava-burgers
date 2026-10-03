@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -5,18 +7,33 @@ plugins {
     id("com.google.gms.google-services")
 }
 
-android {
-    namespace = "app.bravaburgers.repartidor.nativeapp"
+val localProperties =
+    Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) {
+            file.inputStream().use { load(it) }
+        }
+    }
+
+val maptilerApiKey = localProperties.getProperty("MAPTILER_API_KEY")?.trim().orEmpty()
+val mapStyleUrl =
+    if (maptilerApiKey.isNotEmpty()) {
+        "https://api.maptiler.com/maps/streets-v4/style.json?key=$maptilerApiKey"
+    } else {
+        "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
+    }
+
+android {    namespace = "app.bravaburgers.repartidor.nativeapp"
     compileSdk = 35
 
     defaultConfig {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 54
-        versionName = "2.0.0-alpha54"
+        versionCode = 55
+        versionName = "2.0.0-alpha55"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
-        buildConfigField("String", "MAP_STYLE", "\"https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json\"")
+        buildConfigField("String", "MAP_STYLE", "\"$mapStyleUrl\"")
         buildConfigField("String", "OSRM_BASE", "\"https://router.project-osrm.org/route/v1/driving/\"")
         buildConfigField("String", "ROUTE_API", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField(

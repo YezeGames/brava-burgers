@@ -26,6 +26,12 @@ APK debug: `app/build/outputs/apk/debug/app-debug.apk`
 
 La app lee **`repartidor-native-update.json`** (GitHub `main` + Vercel) y descarga **`apk_url`** (Release `repartidor-native-v{versionCode}` · asset `brava-repartidor-native.apk`).
 
+Con **`force_update: true`** y **`min_version_code`** (el script de publish los setea):
+
+- Al abrir la app: pantalla tipo login (logo) + chequeo OTA; **sin** campos de usuario hasta que no haya bloqueo.
+- Si hay update obligatorio: **cierra sesión** (mapa/ruta/GPS), cartel **Actualizar ahora** (sin «Después»).
+- Al volver de segundo plano se vuelve a chequear.
+
 ### Cada APK nueva (agente / PC — sin GitHub Actions)
 
 1. Subí **`versionCode`** / **`versionName`** en `app/build.gradle.kts`.
@@ -69,10 +75,20 @@ Usa el **mismo Supabase gratis** que el admin (Realtime incluido en el plan free
 2. Reemplazar `app/google-services.json` con el descargado.
 3. Permisos: **ubicación** + **notificaciones**; batería sin restricción recomendado en moto.
 
-## API key
+## MapTiler (mapa base)
 
-Si en Vercel tenés `REPARTIDOR_APP_KEY`, agregá en `app/build.gradle.kts` un `buildConfigField` o seteá `repository.apiKey` en código de debug.
+La key **no va en Git**. Copiá `local.properties.example` → `local.properties` y completá:
+
+```properties
+MAPTILER_API_KEY=tu_key_de_maptiler
+```
+
+Sin key, el build usa fallback CARTO Voyager. La key queda embebida en la APK (normal en mapas móviles); restringila en MapTiler por dominio/app si podés.
+
+## API key (backend)
+
+Si en Vercel tenés `REPARTIDOR_APP_KEY`, setealo en el servidor; no hace falta en el repo para compilar la APK.
 
 ## Próximo paso
 
-Integrar **MapLibre Android** con `MAP_STYLE` (CARTO Voyager) y servicio en primer plano para ubicación.
+Integrar **MapLibre Android** con `MAP_STYLE` (MapTiler Streets v4 — edificios/parcelas) y servicio en primer plano para ubicación.

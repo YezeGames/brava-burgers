@@ -13,6 +13,8 @@ data class AppUpdateOffer(
     val versionName: String,
     val apkUrl: String,
     val releaseNotes: String,
+    /** Sin actualizar no se usa la app (sin botón «Después»). */
+    val required: Boolean = true,
 )
 
 private data class UpdateManifestDto(
@@ -20,6 +22,8 @@ private data class UpdateManifestDto(
     @Json(name = "version_name") val versionName: String = "",
     @Json(name = "apk_url") val apkUrl: String = "",
     @Json(name = "release_notes") val releaseNotes: String = "",
+    @Json(name = "min_version_code") val minVersionCode: Int = 0,
+    @Json(name = "force_update") val forceUpdate: Boolean = true,
 )
 
 object AppUpdateChecker {
@@ -58,14 +62,28 @@ object AppUpdateChecker {
                 if (body.isBlank()) return null
                 val manifest = moshi.fromJson(body) ?: return null
                 val apk = manifest.apkUrl.trim()
-                if (manifest.versionCode <= BuildConfig.VERSION_CODE || apk.isEmpty()) {
+                if (apk.isEmpty()) return null
+                val installed = BuildConfig.VERSION_CODE
+                val minRequired =
+                    maxOf(
+                        manifest.minVersionCode,
+                        if (manifest.versionCode > installed) manifest.versionCode else 0,
+                    )
+                if (installed >= minRequired && manifest.versionCode <= installed) {
                     return null
                 }
+                val targetCode =
+                    if (manifest.versionCode > installed) {
+                        manifest.versionCode
+                    } else {
+                        minRequired
+                    }
                 AppUpdateOffer(
-                    versionCode = manifest.versionCode,
+                    versionCode = targetCode,
                     versionName = manifest.versionName.ifBlank { "nueva" },
                     apkUrl = apk,
                     releaseNotes = manifest.releaseNotes.trim(),
+                    required = manifest.forceUpdate,
                 )
             }
         } catch (_: Exception) {

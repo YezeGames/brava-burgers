@@ -1,0 +1,5 @@
+## Copiá a `local.properties` (no se sube a Git).
+sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
+
+# MapTiler Streets v4 — https://cloud.maptiler.com/account/keys
+MAPTILER_API_KEY=

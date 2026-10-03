@@ -10,7 +10,9 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
@@ -33,6 +35,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import app.bravaburgers.repartidor.nativeapp.ui.screens.AppUpdateGateScreen
 import app.bravaburgers.repartidor.nativeapp.ui.screens.HandoffScreen
 import app.bravaburgers.repartidor.nativeapp.ui.screens.LoginScreen
 import app.bravaburgers.repartidor.nativeapp.ui.screens.NavigationScreen
@@ -45,6 +48,10 @@ import app.bravaburgers.repartidor.nativeapp.util.BatteryOptHelper
 import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
 import app.bravaburgers.repartidor.nativeapp.session.RouteSyncEvent
 import androidx.navigation.NavHostController
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalLifecycleOwner
 
 private fun currentRouteOrn(nav: NavHostController): String? {
     val route = nav.currentBackStackEntry?.destination?.route ?: return null
@@ -120,7 +127,22 @@ class MainActivity : ComponentActivity() {
                     viewModel(factory = RepartidorViewModelFactory(app.repository, app.realtime))
                 val ui by vm.ui.collectAsState()
                 val ctx = LocalContext.current
+                val lifecycleOwner = LocalLifecycleOwner.current
                 val authKey = ui.session?.token ?: "__logged_out__"
+                val gateMode =
+                    ui.appUpdateChecking && ui.appUpdate == null ||
+                        ui.appUpdate?.required == true
+
+                DisposableEffect(lifecycleOwner) {
+                    val observer =
+                        LifecycleEventObserver { _, event ->
+                            if (event == Lifecycle.Event.ON_RESUME) {
+                                vm.refreshAppUpdate()
+                            }
+                        }
+                    lifecycleOwner.lifecycle.addObserver(observer)
+                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                }
 
                 var notificationsReady by remember {
                     mutableStateOf(PushRegistrar.canPostNotifications(ctx))
@@ -149,21 +171,55 @@ class MainActivity : ComponentActivity() {
                     else notificationsReady = PushRegistrar.canPostNotifications(ctx)
                 }
 
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (gateMode) {
+                        AppUpdateGateScreen(
+                            statusLine =
+                                when {
+                                    ui.appUpdateChecking && ui.appUpdate == null ->
+                                        "Comprobando si hay una versión nueva…"
+                                    ui.appUpdate?.required == true ->
+                                        "Hay una actualización obligatoria."
+                                    else -> "Brava Repartidor"
+                                },
+                            showSpinner = ui.appUpdateChecking && ui.appUpdate == null,
+                        )
+                    }
+
                 ui.appUpdate?.let { update ->
                     val needInstallPerm =
                         !AppApkInstaller.canInstallPackages(ctx) && !ui.appUpdateBusy
+                    val mandatory = update.required
                     AlertDialog(
-                        onDismissRequest = { vm.dismissAppUpdate() },
-                        title = { Text("Actualización disponible") },
+                        onDismissRequest = {
+                            if (!mandatory) vm.dismissAppUpdate()
+                        },
+                        title = {
+                            Text(
+                                if (mandatory) {
+                                    "Tenés que actualizar la app"
+                                } else {
+                                    "Actualización disponible"
+                                },
+                            )
+                        },
                         text = {
                             Column {
                                 Text(
                                     buildString {
+                                        if (mandatory && !ui.appUpdateBusy) {
+                                            append(
+                                                "Esta versión ya no sirve para repartir. " +
+                                                    "Instalá la ",
+                                            )
+                                        }
                                         append("Versión ")
                                         append(update.versionName)
                                         append(
                                             if (ui.appUpdateBusy) {
                                                 " — descargando…"
+                                            } else if (mandatory) {
+                                                " para seguir."
                                             } else {
                                                 ". Se instala desde la app (un toque)."
                                             },
@@ -226,7 +282,7 @@ class MainActivity : ComponentActivity() {
                             }
                         },
                         dismissButton =
-                            if (!ui.appUpdateBusy) {
+                            if (!ui.appUpdateBusy && !mandatory) {
                                 {
                                     TextButton(onClick = { vm.dismissAppUpdate() }) {
                                         Text("Después")
@@ -238,6 +294,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
+                if (!gateMode) {
                 key(authKey) {
                     val nav = rememberNavController()
                     val start = if (ui.session != null) "route" else "login"
@@ -421,6 +478,8 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                     }
+                }
+                }
                 }
             }
         }

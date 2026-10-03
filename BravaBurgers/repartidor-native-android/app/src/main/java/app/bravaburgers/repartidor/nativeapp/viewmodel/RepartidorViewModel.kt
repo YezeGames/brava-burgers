@@ -81,6 +81,8 @@ data class RepartidorUiState(
     val appUpdateProgress: Int = 0,
     val appUpdateIndeterminate: Boolean = false,
     val appUpdateError: String? = null,
+    /** true al abrir / reanudar hasta terminar chequeo OTA. */
+    val appUpdateChecking: Boolean = true,
 )
 
 @OptIn(FlowPreview::class)
@@ -151,16 +153,16 @@ class RepartidorViewModel(
 
                     if (bootstrappedToken != s.token) {
                         bootstrappedToken = s.token
-                        launch { osrm.ensureBasesLoaded() }
-                        launch { osrm.prefetchBravaPrimary() }
-                        PushRegistrar.registerAfterLogin(ctx, repo, s.token)
-                        val rt = loginRealtime
-                        loginRealtime = null
-                        realtime?.start(s.token, rt)
-                        SessionWorkScheduler.schedule(ctx)
-                        applyRefresh(s.token, pull = false, refreshing = true)
-                        checkForAppUpdate()
-                    } else if (_ui.value.stops.isEmpty()) {
+                        if (shouldBlockForMandatoryUpdate()) {
+                            _ui.value.appUpdate?.let { mandatory ->
+                                if (_ui.value.session != null) {
+                                    viewModelScope.launch { clearSessionForMandatoryUpdate(mandatory) }
+                                }
+                            }
+                        } else if (!_ui.value.appUpdateChecking) {
+                            bootstrapLoggedInSession(ctx, s.token)
+                        }
+                    } else if (_ui.value.stops.isEmpty() && !shouldBlockForMandatoryUpdate()) {
                         refreshRoute(s.token, pull = false)
                     }
                 } else if (bootstrappedToken != null) {
@@ -173,6 +175,7 @@ class RepartidorViewModel(
                 }
             }
         }
+        refreshAppUpdate()
         viewModelScope.launch {
             RouteEvents.refresh
                 .debounce(350)
@@ -191,6 +194,7 @@ class RepartidorViewModel(
     }
 
     fun login(login: String, password: String) {
+        if (shouldBlockForMandatoryUpdate()) return
         viewModelScope.launch {
             _ui.value = _ui.value.copy(loading = true, error = null)
             repo.login(login, password)
@@ -206,6 +210,7 @@ class RepartidorViewModel(
 
     fun dismissAppUpdate() {
         if (_ui.value.appUpdateBusy) return
+        if (_ui.value.appUpdate?.required == true) return
         _ui.value =
             _ui.value.copy(
                 appUpdate = null,
@@ -267,7 +272,7 @@ class RepartidorViewModel(
                 _ui.value =
                     _ui.value.copy(
                         appUpdateBusy = false,
-                        appUpdate = null,
+                        appUpdate = if (offer.required) offer else null,
                     )
             } catch (e: Exception) {
                 _ui.value =
@@ -279,12 +284,78 @@ class RepartidorViewModel(
         }
     }
 
-    private fun checkForAppUpdate() {
-        if (_ui.value.appUpdate != null) return
-        viewModelScope.launch(Dispatchers.IO) {
-            val offer = AppUpdateChecker.fetchOfferIfNewer() ?: return@launch
-            _ui.value = _ui.value.copy(appUpdate = offer)
+    private fun shouldBlockForMandatoryUpdate(): Boolean =
+        _ui.value.appUpdateChecking || _ui.value.appUpdate?.required == true
+
+    /** OTA al abrir y al volver del instalador / segundo plano. */
+    fun refreshAppUpdate() {
+        viewModelScope.launch {
+            val keepOffer = _ui.value.appUpdate?.takeIf { it.required }
+            _ui.value =
+                _ui.value.copy(
+                    appUpdateChecking = true,
+                    appUpdateError = null,
+                    appUpdate = keepOffer,
+                )
+            val offer =
+                withContext(Dispatchers.IO) {
+                    AppUpdateChecker.fetchOfferIfNewer()
+                }
+            if (offer?.required == true) {
+                clearSessionForMandatoryUpdate(offer)
+            } else {
+                _ui.value =
+                    _ui.value.copy(
+                        appUpdate = offer,
+                        appUpdateChecking = false,
+                    )
+                val token = _ui.value.session?.token
+                if (token != null && bootstrappedToken == token && _ui.value.stops.isEmpty()) {
+                    bootstrapLoggedInSession(repo.appContext, token)
+                }
+            }
         }
+    }
+
+    private fun bootstrapLoggedInSession(ctx: Context, token: String) {
+        viewModelScope.launch {
+            launch { osrm.ensureBasesLoaded() }
+            launch { osrm.prefetchBravaPrimary() }
+            PushRegistrar.registerAfterLogin(ctx, repo, token)
+            val rt = loginRealtime
+            loginRealtime = null
+            realtime?.start(token, rt)
+            SessionWorkScheduler.schedule(ctx)
+            applyRefresh(token, pull = false, refreshing = true)
+        }
+    }
+
+    /** Cierra sesión y navegación; deja solo el cartel OTA obligatorio. */
+    private suspend fun clearSessionForMandatoryUpdate(offer: AppUpdateOffer) {
+        if (!offer.required) return
+        authEpoch++
+        suppressSessionRestore = true
+        bootstrappedToken = null
+        routeListReady = false
+        navGeneration++
+        navLocationTracker.stop()
+        stopNavDisplay()
+        stopNavValhallaMatch()
+        navVoice.reset()
+        lastKnownDriverLatLng = null
+        val ctx = repo.appContext
+        RepartoSessionForegroundService.stopSession(ctx)
+        SessionWorkScheduler.cancel(ctx)
+        realtime?.stop()
+        withContext(Dispatchers.IO) {
+            runCatching { repo.logout() }
+        }
+        suppressSessionRestore = false
+        _ui.value =
+            RepartidorUiState(
+                appUpdate = offer,
+                appUpdateChecking = false,
+            )
     }
 
     fun logout() {
@@ -318,6 +389,7 @@ class RepartidorViewModel(
     }
 
     private fun refreshRoute(token: String, pull: Boolean) {
+        if (shouldBlockForMandatoryUpdate()) return
         viewModelScope.launch {
             applyRefresh(token, pull = pull, refreshing = pull)
         }

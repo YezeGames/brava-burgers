@@ -3,6 +3,7 @@ package app.bravaburgers.repartidor.nativeapp.ui.map
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.util.Log
 import android.view.ViewGroup
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.compose.runtime.Composable
@@ -22,7 +23,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.R
-import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
@@ -31,7 +31,6 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.Property
-import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.PropertyFactory
@@ -52,6 +51,16 @@ private const val NAV_PUCK_IMAGE = "brava-nav-puck"
 private const val NAV_ZOOM = 18.65
 private const val NAV_PITCH = 62.0
 private const val NAV_RECENTER_ANIM_MS = 320
+
+/** MapTiler Streets v4 — anclaje para ruta/puck sobre polígonos de edificios. */
+private val MAPTILER_BUILDING_ANCHOR_LAYERS =
+    listOf(
+        "Building 3D",
+        "Building number",
+        "Building",
+    )
+
+private const val MAP_LOG_TAG = "BravaMap"
 
 /** Seguimiento 60 FPS: moveCamera. Gestos/recenter: animateCamera. */
 private enum class NavCameraUpdate {
@@ -128,6 +137,10 @@ fun BravaMapView(
             mapRef = map
             configureBravaMapUi(map, mapView)
             map.setStyle(Style.Builder().fromUri(BuildConfig.MAP_STYLE)) { style ->
+                Log.i(
+                    MAP_LOG_TAG,
+                    "Map style loaded · ${BuildConfig.VERSION_NAME} · ${BuildConfig.MAP_STYLE}",
+                )
                 ensureNavPuckImage(context, style)
                 styleReady = true
                 applyRouteGeometry(style, route, destination, navigationMode)
@@ -294,21 +307,11 @@ private fun applyRouteGeometry(
         if (routeSrc != null) {
             routeSrc.setGeoJson(feat)
             if (navigationMode) {
-                ensureDriverLayerAboveRoute(style)
+                ensureNavLayerOrder(style, navigationMode)
             }
         } else {
             style.addSource(GeoJsonSource(ROUTE_SOURCE, feat))
-            val routeLayer =
-                LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
-                    PropertyFactory.lineColor("#FF6B35"),
-                    PropertyFactory.lineWidth(if (navigationMode) 7f else 5f),
-                    PropertyFactory.lineOpacity(0.92f),
-                )
-            if (style.getLayer(DRIVER_LAYER) != null) {
-                style.addLayerBelow(routeLayer, DRIVER_LAYER)
-            } else {
-                style.addLayer(routeLayer)
-            }
+            addRouteLineLayer(style, navigationMode)
         }
     } else {
         if (style.getLayer(ROUTE_LAYER) != null) style.removeLayer(ROUTE_LAYER)
@@ -360,22 +363,8 @@ private fun updateDriverMarker(
 
     style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
     if (navigationMode) {
-        val driverLayer =
-            SymbolLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
-                PropertyFactory.iconImage(NAV_PUCK_IMAGE),
-                PropertyFactory.iconSize(0.92f),
-                PropertyFactory.iconAllowOverlap(true),
-                PropertyFactory.iconIgnorePlacement(true),
-                PropertyFactory.iconAnchor("center"),
-                PropertyFactory.iconRotate(0f),
-                PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_VIEWPORT),
-                PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
-            )
-        if (style.getLayer(ROUTE_LAYER) != null) {
-            style.addLayerAbove(driverLayer, ROUTE_LAYER)
-        } else {
-            style.addLayer(driverLayer)
-        }
+        addDriverNavLayer(style)
+        ensureNavLayerOrder(style, navigationMode = true)
     } else {
         style.addLayer(
             CircleLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
@@ -388,22 +377,77 @@ private fun updateDriverMarker(
     }
 }
 
-private fun ensureDriverLayerAboveRoute(style: Style) {
-    if (style.getLayer(DRIVER_LAYER) == null || style.getLayer(ROUTE_LAYER) == null) return
-    style.removeLayer(DRIVER_LAYER)
-    if (style.getSource(DRIVER_SOURCE) == null) return
-    val driverLayer =
-        SymbolLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
-            PropertyFactory.iconImage(NAV_PUCK_IMAGE),
-            PropertyFactory.iconSize(0.92f),
-            PropertyFactory.iconAllowOverlap(true),
-            PropertyFactory.iconIgnorePlacement(true),
-            PropertyFactory.iconAnchor("center"),
-            PropertyFactory.iconRotate(0f),
-            PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_VIEWPORT),
-            PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
-        )
-    style.addLayerAbove(driverLayer, ROUTE_LAYER)
+private fun routeLineLayer(navigationMode: Boolean): LineLayer =
+    LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
+        PropertyFactory.lineColor("#FF6B35"),
+        PropertyFactory.lineWidth(if (navigationMode) 7f else 5f),
+        PropertyFactory.lineOpacity(0.92f),
+    )
+
+private fun driverNavSymbolLayer(): SymbolLayer =
+    SymbolLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
+        PropertyFactory.iconImage(NAV_PUCK_IMAGE),
+        PropertyFactory.iconSize(0.92f),
+        PropertyFactory.iconAllowOverlap(true),
+        PropertyFactory.iconIgnorePlacement(true),
+        PropertyFactory.iconAnchor("center"),
+        PropertyFactory.iconRotate(0f),
+        PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_VIEWPORT),
+        PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
+    )
+
+/** Capa base MapTiler más alta relacionada con edificios (insertar ruta encima). */
+private fun mapTilerBuildingAnchorLayer(style: Style): String? =
+    MAPTILER_BUILDING_ANCHOR_LAYERS.firstOrNull { style.getLayer(it) != null }
+
+private fun addRouteLineLayer(style: Style, navigationMode: Boolean) {
+    val layer = routeLineLayer(navigationMode)
+    when {
+        style.getLayer(DRIVER_LAYER) != null ->
+            style.addLayerBelow(layer, DRIVER_LAYER)
+        navigationMode -> {
+            val anchor = mapTilerBuildingAnchorLayer(style)
+            if (anchor != null) {
+                style.addLayerAbove(layer, anchor)
+            } else {
+                style.addLayer(layer)
+            }
+        }
+        else -> style.addLayer(layer)
+    }
+}
+
+private fun addDriverNavLayer(style: Style) {
+    val layer = driverNavSymbolLayer()
+    when {
+        style.getLayer(ROUTE_LAYER) != null ->
+            style.addLayerAbove(layer, ROUTE_LAYER)
+        else -> {
+            val anchor = mapTilerBuildingAnchorLayer(style)
+            if (anchor != null) {
+                style.addLayerAbove(layer, anchor)
+            } else {
+                style.addLayer(layer)
+            }
+        }
+    }
+}
+
+/**
+ * Orden nav: edificios < polyline < puck (alpha54 + MapTiler streets-v4).
+ */
+private fun ensureNavLayerOrder(style: Style, navigationMode: Boolean) {
+    if (!navigationMode) return
+    if (style.getLayer(ROUTE_LAYER) != null) {
+        style.removeLayer(ROUTE_LAYER)
+        addRouteLineLayer(style, navigationMode = true)
+    }
+    if (style.getLayer(DRIVER_LAYER) != null) {
+        style.removeLayer(DRIVER_LAYER)
+        if (style.getSource(DRIVER_SOURCE) != null) {
+            addDriverNavLayer(style)
+        }
+    }
 }
 
 private fun safeFitCamera(
