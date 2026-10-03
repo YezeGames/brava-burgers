@@ -2,6 +2,7 @@ package app.bravaburgers.repartidor.nativeapp.data
 
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.navigation.OsrmNavText
+import app.bravaburgers.repartidor.nativeapp.navigation.core.BravaGeo
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -140,6 +141,7 @@ class OsrmClient {
         fromLat: Double,
         toLng: Double,
         toLat: Double,
+        headingDeg: Float? = null,
     ): Result<RouteResult> {
         if (bravaPrimaryBase.isNullOrBlank() && bravaValhallaRouteUrl.isNullOrBlank()) {
             refreshBasesIfNeeded(force = true)
@@ -147,7 +149,16 @@ class OsrmClient {
         val attempts = mutableListOf<() -> Result<RouteResult>>()
         bravaValhallaRouteUrl?.let { url ->
             attempts.add {
-                fetchDirectValhalla(url, fromLng, fromLat, toLng, toLat, "Valhalla PC", directPcHttp)
+                fetchDirectValhalla(
+                    url,
+                    fromLng,
+                    fromLat,
+                    toLng,
+                    toLat,
+                    "Valhalla PC",
+                    directPcHttp,
+                    headingDeg,
+                )
             }
         }
         bravaPrimaryBase?.let { base ->
@@ -157,7 +168,7 @@ class OsrmClient {
                 }
             }
         }
-        attempts.add { fetchViaPedidoPost(fromLng, fromLat, toLng, toLat) }
+        attempts.add { fetchViaPedidoPost(fromLng, fromLat, toLng, toLat, headingDeg) }
         if (bravaValhallaRouteUrl.isNullOrBlank()) {
             for (base in publicBases) {
                 attempts.add { fetchDirectOsrm(base, fromLng, fromLat, toLng, toLat, "OSRM público") }
@@ -389,14 +400,20 @@ class OsrmClient {
         toLat: Double,
         sourceTag: String,
         client: OkHttpClient = http,
+        headingDeg: Float? = null,
     ): Result<RouteResult> {
         val url = routeUrl.trim().trimEnd('/')
+        val origin =
+            JSONObject().put("lon", fromLng).put("lat", fromLat).put("type", "break")
+        headingDeg?.takeIf { it.isFinite() }?.let { h ->
+            origin.put("heading", BravaGeo.wrapDeg(h.toDouble()).toInt())
+        }
         val json =
             JSONObject()
                 .put(
                     "locations",
                     JSONArray()
-                        .put(JSONObject().put("lon", fromLng).put("lat", fromLat).put("type", "break"))
+                        .put(origin)
                         .put(JSONObject().put("lon", toLng).put("lat", toLat).put("type", "break")),
                 )
                 .put("costing", "auto")
@@ -495,6 +512,7 @@ class OsrmClient {
         fromLat: Double,
         toLng: Double,
         toLat: Double,
+        headingDeg: Float? = null,
     ): Result<RouteResult> {
         val api = BuildConfig.API_BASE.trim()
         if (api.isBlank()) return Result.failure(Exception("api_missing"))
@@ -505,6 +523,7 @@ class OsrmClient {
                 .put("fromLat", fromLat)
                 .put("toLng", toLng)
                 .put("toLat", toLat)
+        headingDeg?.takeIf { it.isFinite() }?.let { json.put("fromHeading", it.toDouble()) }
         return try {
             val req =
                 Request.Builder()

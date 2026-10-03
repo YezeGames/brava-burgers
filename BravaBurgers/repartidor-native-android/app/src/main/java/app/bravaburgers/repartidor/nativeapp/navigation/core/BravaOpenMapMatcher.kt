@@ -15,6 +15,7 @@ class BravaOpenMapMatcher(
     private var lastEnhancedLng: Double? = null
     private var lastRoute: List<Pair<Double, Double>> = emptyList()
     private var courseBearing: Float? = null
+    private var navStrictUntilMs: Long = 0L
 
     fun onRouteLoaded(route: List<Pair<Double, Double>>) {
         lastRoute = route
@@ -22,6 +23,7 @@ class BravaOpenMapMatcher(
         courseBearing = NavRouteProgress.travelBearingDeg(route, 0.0)?.toFloat()
         lastEnhancedLat = null
         lastEnhancedLng = null
+        navStrictUntilMs = System.currentTimeMillis() + NavDisplayThresholds.NAV_STARTUP_STRICT_MS
     }
 
     fun reset() {
@@ -29,6 +31,7 @@ class BravaOpenMapMatcher(
         courseBearing = null
         lastEnhancedLat = null
         lastEnhancedLng = null
+        navStrictUntilMs = 0L
         routeSnap.reset()
     }
 
@@ -78,8 +81,9 @@ class BravaOpenMapMatcher(
             } else {
                 null
             }
+        val strictStartup = System.currentTimeMillis() < navStrictUntilMs
         val (lat, lng, bearing) =
-            if (stepSnap != null) {
+            if (stepSnap != null && (!strictStartup || stepSnap.offRouteM <= NavDisplayThresholds.MAX_SNAP_OFF_ROUTE_M)) {
                 Triple(stepSnap.lat, stepSnap.lng, stepSnap.bearing)
             } else {
                 Triple(displayRaw.first, displayRaw.second, gpsBearing ?: courseBearing)
@@ -108,7 +112,7 @@ class BravaOpenMapMatcher(
         var lng = locateLng
         if (lastRoute.size >= 2) {
             val proj = NavRouteProgress.projectOntoRoute(rawLat, rawLng, lastRoute)
-            if (proj != null && proj.offRouteM < ON_ROUTE_MAX_OFF_M) {
+            if (proj != null && proj.offRouteM <= NavDisplayThresholds.MAX_SNAP_OFF_ROUTE_M + 10.0) {
                 val routePt = Pair(proj.lat, proj.lng)
                 val locateOffRouteM =
                     BravaGeo.haversineM(locateLat, locateLng, routePt.first, routePt.second)
@@ -160,7 +164,6 @@ class BravaOpenMapMatcher(
         /** Mismo criterio que Mapbox: no animar saltos absurdos (p. ej. GPS a la calle en 1 fix). */
         private val TELEPORT_M = NavDisplayThresholds.TELEPORT_JUMP_M
         private const val MAX_VALHALLA_FROM_RAW_M = 42.0
-        private const val ON_ROUTE_MAX_OFF_M = 55.0
         private const val PARALLEL_STREET_REJECT_M = 26.0
     }
 }

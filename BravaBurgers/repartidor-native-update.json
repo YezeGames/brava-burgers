@@ -1,6 +1,6 @@
 ﻿{
-    "version_code":  53,
-    "version_name":  "2.0.0-alpha53",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v53/brava-repartidor-native.apk",
-    "release_notes":  "alpha53: navegación fluida — cámara 60fps sync, animador adaptativo, reroute sin flash, bearing suave."
+    "version_code":  54,
+    "version_name":  "2.0.0-alpha54",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v54/brava-repartidor-native.apk",
+    "release_notes":  "alpha54: capas puck sobre ruta, snap 15m + bearing, heading Valhalla, reroute origen anti-loop, coast GPS, cámara 0.8m/s freeze, mute locate post-reroute."
 }

@@ -1,6 +1,7 @@
 package app.bravaburgers.repartidor.nativeapp.navigation.core
 
 import kotlin.math.asin
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -30,5 +31,31 @@ object BravaGeo {
         var a = angleDeg % 360.0
         if (a < 0) a += 360.0
         return a
+    }
+
+    /** Punto a distancia [distanceM] y bearing [bearingDeg] desde (lat, lng). */
+    fun destinationPoint(
+        lat: Double,
+        lng: Double,
+        bearingDeg: Double,
+        distanceM: Double,
+    ): Pair<Double, Double> {
+        if (distanceM <= 0.0 || !bearingDeg.isFinite()) return Pair(lat, lng)
+        val r = 6371000.0
+        val br = Math.toRadians(bearingDeg)
+        val lat1 = Math.toRadians(lat)
+        val lng1 = Math.toRadians(lng)
+        val lat2 =
+            asin(
+                sin(lat1) * cos(distanceM / r) +
+                    cos(lat1) * sin(distanceM / r) * cos(br),
+            )
+        val lng2 =
+            lng1 +
+                atan2(
+                    sin(br) * sin(distanceM / r) * cos(lat1),
+                    cos(distanceM / r) - sin(lat1) * sin(lat2),
+                )
+        return Pair(Math.toDegrees(lat2), Math.toDegrees(lng2))
     }
 }

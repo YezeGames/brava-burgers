@@ -1,4 +1,4 @@
-import { haversineM, shortestRotationDiff, wrapDeg } from "./geo.js";
+import { destinationPoint, haversineM, shortestRotationDiff, wrapDeg } from "./geo.js";
 
 /**
  * Adaptado de Mapbox Navigation SDK (Apache 2.0)
@@ -9,6 +9,8 @@ const DEFAULT_DURATION_MS = 1000;
 const TELEPORT_JUMP_M = 120;
 const SEGMENT_DURATION_MIN_MS = 400;
 const SEGMENT_DURATION_MAX_MS = 1200;
+const COAST_MIN_SPEED_MPS = 1.45;
+const COAST_MAX_DT_MS = 120;
 
 /** @param {number | null | undefined} speedMps */
 export function minJumpThresholdM(speedMps) {
@@ -28,12 +30,19 @@ export class LocationAnimator {
     /** @type {{ from: import('./geo.js').LatLng, to: import('./geo.js').LatLng, startMs: number, endMs: number, bearingFrom: number | null, bearingTo: number | null } | null} */
     this._segment = null;
     this._lastPushAtMs = 0;
+    this._lastTickAtMs = 0;
+    this._coastSpeedMps = 0;
+    /** @type {number | null} */
+    this._coastBearing = null;
   }
 
   reset() {
     this._display = null;
     this._segment = null;
     this._lastPushAtMs = 0;
+    this._lastTickAtMs = 0;
+    this._coastSpeedMps = 0;
+    this._coastBearing = null;
   }
 
   snapTo(lat, lng, bearing = null, nowMs = Date.now()) {
@@ -59,6 +68,8 @@ export class LocationAnimator {
   /** Nuevo fix GPS (~1 Hz): destino de la animación visual. */
   pushGpsFix(lat, lng, bearing = null, speedMps = null, nowMs = Date.now()) {
     const to = { lat, lng };
+    if (speedMps != null) this._coastSpeedMps = Math.max(0, speedMps);
+    if (bearing != null && Number.isFinite(bearing)) this._coastBearing = bearing;
     if (!this._display) {
       this._display = { lat, lng, bearing, atMs: nowMs };
       this._lastPushAtMs = nowMs;
@@ -89,11 +100,25 @@ export class LocationAnimator {
   }
 
   /** Llamar en cada frame (~60 FPS). */
-  tick(nowMs = Date.now()) {
+  tick(nowMs = Date.now(), speedMps = null) {
     if (!this._display) return null;
 
     const seg = this._segment;
     if (!seg) {
+      const v = Math.max(0, speedMps ?? this._coastSpeedMps);
+      const brg = this._coastBearing ?? this._display.bearing;
+      if (v >= COAST_MIN_SPEED_MPS && brg != null && Number.isFinite(brg)) {
+        const prev = this._lastTickAtMs || nowMs;
+        const dtMs = Math.min(COAST_MAX_DT_MS, Math.max(0, nowMs - prev));
+        this._lastTickAtMs = nowMs;
+        if (dtMs > 0) {
+          const distM = v * (dtMs / 1000);
+          const next = destinationPoint(this._display.lat, this._display.lng, brg, distM);
+          this._display = { lat: next.lat, lng: next.lng, bearing: brg, atMs: nowMs };
+        }
+      } else {
+        this._lastTickAtMs = nowMs;
+      }
       return { ...this._display };
     }
 
@@ -106,6 +131,7 @@ export class LocationAnimator {
     const bearing = interpolateBearing(seg.bearingFrom, seg.bearingTo, t, this._display.bearing);
 
     this._display = { lat, lng, bearing, atMs: nowMs };
+    this._lastTickAtMs = nowMs;
 
     if (t >= 1) {
       this._segment = null;

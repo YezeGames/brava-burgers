@@ -27,6 +27,25 @@ export function wrapDeg(angleDeg) {
   return a;
 }
 
+export function destinationPoint(lat, lng, bearingDeg, distanceM) {
+  if (distanceM <= 0 || !Number.isFinite(bearingDeg)) return { lat, lng };
+  const r = 6371000;
+  const br = (bearingDeg * Math.PI) / 180;
+  const lat1 = (lat * Math.PI) / 180;
+  const lng1 = (lng * Math.PI) / 180;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(distanceM / r) +
+      Math.cos(lat1) * Math.sin(distanceM / r) * Math.cos(br),
+  );
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(br) * Math.sin(distanceM / r) * Math.cos(lat1),
+      Math.cos(distanceM / r) - Math.sin(lat1) * Math.sin(lat2),
+    );
+  return { lat: (lat2 * 180) / Math.PI, lng: (lng2 * 180) / Math.PI };
+}
+
 export function bearingDeg(lat1, lng1, lat2, lng2) {
   const phi1 = (lat1 * Math.PI) / 180;
   const phi2 = (lat2 * Math.PI) / 180;

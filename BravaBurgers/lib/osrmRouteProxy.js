@@ -209,7 +209,7 @@ async function fetchOpenRouteService(pathCoords) {
 /**
  * API Brava de rutas: cache → Valhalla (PC) → OSRM propio → OSRM público → ORS.
  */
-async function fetchOsrmRaw(pathCoords) {
+async function fetchOsrmRaw(pathCoords, fromHeadingDeg) {
   var cached = getRouteCached(pathCoords);
   if (cached) {
     return {
@@ -232,6 +232,7 @@ async function fetchOsrmRaw(pathCoords) {
           parseFloat(a[1]),
           parseFloat(b[0]),
           parseFloat(b[1]),
+          { fromHeadingDeg: fromHeadingDeg },
         );
         if (v.ok) {
           setRouteCached(pathCoords, v.data, 'valhalla');
@@ -282,11 +283,15 @@ async function fetchOsrmRouteForApp(query) {
   const fromLat = parseFloat(query.fromLat);
   const toLng = parseFloat(query.toLng);
   const toLat = parseFloat(query.toLat);
+  const fromHeading =
+    query.fromHeading != null && query.fromHeading !== ''
+      ? parseFloat(query.fromHeading)
+      : undefined;
   if ([fromLng, fromLat, toLng, toLat].some(function (v) { return isNaN(v); })) {
     return { ok: false, error: 'missing_coords', status: 400 };
   }
   const pathCoords = fromLng + ',' + fromLat + ';' + toLng + ',' + toLat;
-  const raw = await fetchOsrmRaw(pathCoords);
+  const raw = await fetchOsrmRaw(pathCoords, fromHeading);
   if (!raw.ok) return raw;
 
   const route = raw.data.routes[0];

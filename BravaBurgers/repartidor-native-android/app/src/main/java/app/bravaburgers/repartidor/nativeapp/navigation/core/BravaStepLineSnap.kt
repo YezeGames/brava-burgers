@@ -1,7 +1,7 @@
 package app.bravaburgers.repartidor.nativeapp.navigation.core
 
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
-import kotlin.math.max
+import kotlin.math.min
 
 /**
  * Snap estilo [maplibre SnapToRoute](https://github.com/maplibre/maplibre-navigation-android)
@@ -58,16 +58,19 @@ object BravaStepLineSnap {
             }
         }
 
-        val acc = accuracyM?.coerceAtLeast(0f) ?: 25f
-        val maxSnap = max(50.0, acc * 2.0)
+        val maxSnap = maxSnapDistanceM(accuracyM)
         if (bestOff > maxSnap) {
             return null
         }
 
         val alongOnRoute = NavRouteProgress.distanceAlongRouteM(bestLat, bestLng, route)
-        val bearing =
+        val routeBearing =
             NavRouteProgress.travelBearingDeg(route, alongOnRoute + 8.0)?.toFloat()
-                ?: gpsBearing
+        if (!bearingCoherent(routeBearing, gpsBearing)) {
+            return null
+        }
+
+        val bearing = routeBearing ?: gpsBearing
         return Result(bestLat, bestLng, bearing, bestOff)
     }
 
@@ -78,11 +81,32 @@ object BravaStepLineSnap {
         gpsBearing: Float?,
     ): Result? {
         val proj = NavRouteProgress.projectOntoRoute(rawLat, rawLng, route) ?: return null
-        val accGate = 50.0
-        if (proj.offRouteM > accGate) return null
-        val bearing =
+        if (proj.offRouteM > maxSnapDistanceM(null)) return null
+        val routeBearing =
             NavRouteProgress.travelBearingDeg(route, proj.alongRouteM + 8.0)?.toFloat()
-                ?: gpsBearing
+        if (!bearingCoherent(routeBearing, gpsBearing)) {
+            return null
+        }
+        val bearing = routeBearing ?: gpsBearing
         return Result(proj.lat, proj.lng, bearing, proj.offRouteM)
+    }
+
+    private fun maxSnapDistanceM(accuracyM: Float?): Double {
+        val acc = accuracyM?.coerceAtLeast(0f) ?: 25f
+        val adaptive = acc * NavDisplayThresholds.MAX_SNAP_OFF_ROUTE_ACCURACY_FACTOR
+        return min(
+            NavDisplayThresholds.MAX_SNAP_OFF_ROUTE_M,
+            kotlin.math.max(NavDisplayThresholds.MAX_SNAP_OFF_ROUTE_MIN_M, adaptive),
+        )
+    }
+
+    private fun bearingCoherent(routeBearing: Float?, gpsBearing: Float?): Boolean {
+        if (routeBearing == null || gpsBearing == null) return true
+        if (!routeBearing.isFinite() || !gpsBearing.isFinite()) return true
+        val delta =
+            kotlin.math.abs(
+                BravaGeo.shortestRotationDiff(routeBearing.toDouble(), gpsBearing.toDouble()),
+            )
+        return delta <= NavDisplayThresholds.BEARING_ROUTE_GPS_MAX_DELTA_DEG
     }
 }

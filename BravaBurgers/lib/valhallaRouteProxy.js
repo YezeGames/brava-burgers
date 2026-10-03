@@ -12,10 +12,16 @@ function bravaValhallaRouteUrl() {
   return base;
 }
 
-function buildValhallaBody(fromLng, fromLat, toLng, toLat) {
+function buildValhallaBody(fromLng, fromLat, toLng, toLat, fromHeadingDeg) {
+  var origin = { lon: fromLng, lat: fromLat, type: 'break' };
+  if (fromHeadingDeg != null && Number.isFinite(Number(fromHeadingDeg))) {
+    var h = Number(fromHeadingDeg) % 360;
+    if (h < 0) h += 360;
+    origin.heading = Math.round(h);
+  }
   return {
     locations: [
-      { lon: fromLng, lat: fromLat, type: 'break' },
+      origin,
       { lon: toLng, lat: toLat, type: 'break' },
     ],
     costing: 'auto',
@@ -33,6 +39,8 @@ function buildValhallaBody(fromLng, fromLat, toLng, toLat) {
 async function fetchValhallaRoute(fromLng, fromLat, toLng, toLat, opts) {
   var url = (opts && opts.url) || bravaValhallaRouteUrl();
   if (!url) return { ok: false, error: 'valhalla_not_configured' };
+  var heading =
+    opts && opts.fromHeadingDeg != null ? opts.fromHeadingDeg : undefined;
 
   try {
     var res = await fetch(url, {
@@ -42,7 +50,7 @@ async function fetchValhallaRoute(fromLng, fromLat, toLng, toLat, opts) {
         Accept: 'application/json',
         'User-Agent': 'BravaBurgers-Repartidor/1.0 (valhalla-proxy)',
       },
-      body: JSON.stringify(buildValhallaBody(fromLng, fromLat, toLng, toLat)),
+      body: JSON.stringify(buildValhallaBody(fromLng, fromLat, toLng, toLat, heading)),
       cache: 'no-store',
       signal: AbortSignal.timeout((opts && opts.timeoutMs) || 14000),
     });
@@ -141,7 +149,13 @@ async function fetchValhallaRouteForApp(query) {
   })) {
     return { ok: false, error: 'missing_coords', status: 400 };
   }
-  var raw = await fetchValhallaRoute(fromLng, fromLat, toLng, toLat);
+  var heading =
+    query.fromHeading != null && query.fromHeading !== ''
+      ? parseFloat(query.fromHeading)
+      : undefined;
+  var raw = await fetchValhallaRoute(fromLng, fromLat, toLng, toLat, {
+    fromHeadingDeg: heading,
+  });
   if (!raw.ok) return raw;
 
   var route = raw.data.routes[0];

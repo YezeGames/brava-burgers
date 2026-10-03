@@ -293,15 +293,22 @@ private fun applyRouteGeometry(
         val routeSrc = style.getSource(ROUTE_SOURCE) as? GeoJsonSource
         if (routeSrc != null) {
             routeSrc.setGeoJson(feat)
+            if (navigationMode) {
+                ensureDriverLayerAboveRoute(style)
+            }
         } else {
             style.addSource(GeoJsonSource(ROUTE_SOURCE, feat))
-            style.addLayer(
+            val routeLayer =
                 LineLayer(ROUTE_LAYER, ROUTE_SOURCE).withProperties(
                     PropertyFactory.lineColor("#FF6B35"),
                     PropertyFactory.lineWidth(if (navigationMode) 7f else 5f),
                     PropertyFactory.lineOpacity(0.92f),
-                ),
-            )
+                )
+            if (style.getLayer(DRIVER_LAYER) != null) {
+                style.addLayerBelow(routeLayer, DRIVER_LAYER)
+            } else {
+                style.addLayer(routeLayer)
+            }
         }
     } else {
         if (style.getLayer(ROUTE_LAYER) != null) style.removeLayer(ROUTE_LAYER)
@@ -353,7 +360,7 @@ private fun updateDriverMarker(
 
     style.addSource(GeoJsonSource(DRIVER_SOURCE, Feature.fromGeometry(point)))
     if (navigationMode) {
-        style.addLayer(
+        val driverLayer =
             SymbolLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
                 PropertyFactory.iconImage(NAV_PUCK_IMAGE),
                 PropertyFactory.iconSize(0.92f),
@@ -363,8 +370,12 @@ private fun updateDriverMarker(
                 PropertyFactory.iconRotate(0f),
                 PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_VIEWPORT),
                 PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
-            ),
-        )
+            )
+        if (style.getLayer(ROUTE_LAYER) != null) {
+            style.addLayerAbove(driverLayer, ROUTE_LAYER)
+        } else {
+            style.addLayer(driverLayer)
+        }
     } else {
         style.addLayer(
             CircleLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
@@ -375,6 +386,24 @@ private fun updateDriverMarker(
             ),
         )
     }
+}
+
+private fun ensureDriverLayerAboveRoute(style: Style) {
+    if (style.getLayer(DRIVER_LAYER) == null || style.getLayer(ROUTE_LAYER) == null) return
+    style.removeLayer(DRIVER_LAYER)
+    if (style.getSource(DRIVER_SOURCE) == null) return
+    val driverLayer =
+        SymbolLayer(DRIVER_LAYER, DRIVER_SOURCE).withProperties(
+            PropertyFactory.iconImage(NAV_PUCK_IMAGE),
+            PropertyFactory.iconSize(0.92f),
+            PropertyFactory.iconAllowOverlap(true),
+            PropertyFactory.iconIgnorePlacement(true),
+            PropertyFactory.iconAnchor("center"),
+            PropertyFactory.iconRotate(0f),
+            PropertyFactory.iconRotationAlignment(Property.ICON_ROTATION_ALIGNMENT_VIEWPORT),
+            PropertyFactory.iconPitchAlignment(Property.ICON_PITCH_ALIGNMENT_VIEWPORT),
+        )
+    style.addLayerAbove(driverLayer, ROUTE_LAYER)
 }
 
 private fun safeFitCamera(

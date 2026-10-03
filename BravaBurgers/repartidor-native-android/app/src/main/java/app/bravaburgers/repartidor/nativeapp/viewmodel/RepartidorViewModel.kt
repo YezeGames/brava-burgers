@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import app.bravaburgers.repartidor.nativeapp.BravaConstants
 import app.bravaburgers.repartidor.nativeapp.data.GeocodeClient
 import app.bravaburgers.repartidor.nativeapp.data.OsrmClient
+import app.bravaburgers.repartidor.nativeapp.data.RouteResult
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
@@ -16,6 +17,7 @@ import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
 import app.bravaburgers.repartidor.nativeapp.navigation.core.BravaNavDisplayPipeline
+import app.bravaburgers.repartidor.nativeapp.navigation.core.NavDisplayThresholds
 import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
 import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteVoiceGuide
 import app.bravaburgers.repartidor.nativeapp.navigation.ValhallaMapMatcher
@@ -119,6 +121,9 @@ class RepartidorViewModel(
     private var valhallaLocateJob: Job? = null
     private var valhallaLocateSeq = 0
     private var lastGpsBearing: Float? = null
+    private var lastNavSpeedMps: Float = 0f
+    private var navStartupOriginFixUsed = false
+    private var valhallaLocateMutedUntilMs = 0L
 
     private val _routeSyncEvents = MutableSharedFlow<RouteSyncEvent>(extraBufferCapacity = 4)
     val routeSyncEvents = _routeSyncEvents.asSharedFlow()
@@ -632,6 +637,7 @@ class RepartidorViewModel(
         lastKnownDriverLatLng = Pair(lat, lng)
         lastGpsBearing = gpsBearing
         val speedMpsSafe = speedMps?.coerceAtLeast(0f) ?: 0f
+        lastNavSpeedMps = speedMpsSafe
         val moving = speedMpsSafe >= app.bravaburgers.repartidor.nativeapp.navigation.NavDriverDisplaySmoother.MOVING_MIN_SPEED_MPS
 
         var speedKmh = 0
@@ -665,6 +671,7 @@ class RepartidorViewModel(
         moving: Boolean,
     ) {
         if (!navValhallaMatchOn || !moving) return
+        if (System.currentTimeMillis() < valhallaLocateMutedUntilMs) return
         val seq = ++valhallaLocateSeq
         valhallaLocateJob?.cancel()
         valhallaLocateJob =
@@ -722,6 +729,7 @@ class RepartidorViewModel(
                     val sample =
                         navDisplayPipeline.tickDisplay(
                             speedKmh = _ui.value.navSpeedKmh,
+                            speedMps = lastNavSpeedMps,
                             vehicleBearing = lastGpsBearing,
                         )
                     if (sample != null) {
@@ -743,6 +751,9 @@ class RepartidorViewModel(
         valhallaLocateJob = null
         navDisplayPipeline.reset()
         lastGpsBearing = null
+        lastNavSpeedMps = 0f
+        navStartupOriginFixUsed = false
+        valhallaLocateMutedUntilMs = 0L
     }
 
     private suspend fun enableNavValhallaDisplayMatch() {
@@ -797,6 +808,8 @@ class RepartidorViewModel(
         navRerouteInFlight = false
         lastNavRerouteAtMs = 0L
         navOffRouteAnnounced = false
+        navStartupOriginFixUsed = false
+        valhallaLocateMutedUntilMs = 0L
         stopNavDisplay()
         stopNavValhallaMatch()
         navLocationTracker.start { lat, lng, gpsBearing, speedMps, accuracyM ->
@@ -851,41 +864,25 @@ class RepartidorViewModel(
                     fromLat = from.first,
                     toLng = destLng,
                     toLat = destLat,
+                    headingDeg = navRouteHeadingDeg(),
                 )
             if (!navStillActive(gen, orn)) return@launch
             result
                 .onSuccess { route ->
-                    val km = route.distanceM / 1000.0
-                    val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    enableNavValhallaDisplayMatch()
-                    val driverNow = _ui.value.navDriver
-                    navDisplayPipeline.onRouteLoaded(
-                        route.coordinates,
-                        transitionFromDisplay = driverNow,
+                    applyNavRouteSuccess(
+                        route = route,
+                        driverNow = _ui.value.navDriver,
+                        isReroute = false,
+                        announceReroute = false,
+                        startVoice = { navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng)) },
                     )
-                    navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng))
-                    _ui.value =
-                        _ui.value.copy(
-                            navLoading = false,
-                            navRoute = route.coordinates,
-                            navDriverBearing =
-                                navBearingAlongRoute(
-                                    route.coordinates,
-                                    driverNow,
-                                    _ui.value.navDriverBearing,
-                                ),
-                            navManeuver = route.firstManeuver,
-                            navInstructionPrimary = navVoice.bannerPrimary(0),
-                            navInstructionThen = navVoice.nextSignificantInstruction(0),
-                            navInstructionThenModifier =
-                                navVoice.nextSignificantStepIndex(0)?.let {
-                                    navVoice.maneuverModifierAt(it)
-                                },
-                            navManeuverModifier = navVoice.maneuverModifierAt(0),
-                            navEtaMinutes = min,
-                            navRouteKm = km,
-                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
-                        )
+                    maybeCorrectStartupRouteOrigin(
+                        gpsLat = from.first,
+                        gpsLng = from.second,
+                        dest = destCoords,
+                        gen = gen,
+                        orn = orn,
+                    )
                 }
                 .onFailure {
                     _ui.value =
@@ -987,6 +984,90 @@ class RepartidorViewModel(
         return (base + stepPart + distPart).trim()
     }
 
+    private fun navRouteHeadingDeg(): Float? {
+        if (lastNavSpeedMps < NavDisplayThresholds.HEADING_MIN_SPEED_MPS) return null
+        val b = lastGpsBearing ?: return null
+        return b.takeIf { it.isFinite() }
+    }
+
+    private suspend fun applyNavRouteSuccess(
+        route: RouteResult,
+        driverNow: Pair<Double, Double>?,
+        isReroute: Boolean,
+        announceReroute: Boolean,
+        startVoice: (() -> Unit)? = null,
+    ) {
+        val km = route.distanceM / 1000.0
+        val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
+        enableNavValhallaDisplayMatch()
+        if (isReroute) {
+            valhallaLocateMutedUntilMs =
+                System.currentTimeMillis() + NavDisplayThresholds.VALHALLA_LOCATE_MUTE_AFTER_REROUTE_MS
+            valhallaLocateJob?.cancel()
+        }
+        navDisplayPipeline.onRouteLoaded(
+            route.coordinates,
+            transitionFromDisplay = driverNow,
+            easeFromDisplay = true,
+        )
+        if (announceReroute) {
+            navVoice.announceReroute(route)
+        } else {
+            startVoice?.invoke()
+        }
+        navOffRouteAnnounced = false
+        _ui.value =
+            _ui.value.copy(
+                navLoading = false,
+                navRoute = route.coordinates,
+                navDriverBearing =
+                    navBearingAlongRoute(
+                        route.coordinates,
+                        driverNow,
+                        _ui.value.navDriverBearing,
+                    ),
+                navManeuver = route.firstManeuver,
+                navInstructionPrimary = navVoice.bannerPrimary(0),
+                navInstructionThen = navVoice.nextSignificantInstruction(0),
+                navInstructionThenModifier =
+                    navVoice.nextSignificantStepIndex(0)?.let {
+                        navVoice.maneuverModifierAt(it)
+                    },
+                navManeuverModifier = navVoice.maneuverModifierAt(0),
+                navEtaMinutes = min,
+                navRouteKm = km,
+                navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
+            )
+    }
+
+    /** Un reroute automático si la polyline arranca lejos del GPS (anti-loop). */
+    private fun maybeCorrectStartupRouteOrigin(
+        gpsLat: Double,
+        gpsLng: Double,
+        dest: Pair<Double, Double>,
+        gen: Int,
+        orn: String,
+    ) {
+        if (navStartupOriginFixUsed || navRerouteInFlight) return
+        val route = _ui.value.navRoute
+        if (route.size < 2) return
+        val proj = NavRouteProgress.projectOntoRoute(gpsLat, gpsLng, route) ?: return
+        if (proj.offRouteM <= NavDisplayThresholds.ROUTE_ORIGIN_MISMATCH_M) return
+        val now = System.currentTimeMillis()
+        if (now - lastNavRerouteAtMs < 5500L) return
+        navStartupOriginFixUsed = true
+        navDisplayPipeline.offRoute.markRerouteRequested(now)
+        lastNavRerouteAtMs = now
+        rerouteFromCurrentPosition(
+            lat = gpsLat,
+            lng = gpsLng,
+            dest = dest,
+            generation = gen,
+            orn = orn,
+            startupCorrection = true,
+        )
+    }
+
     private fun maybeRerouteFromGps(
         lat: Double,
         lng: Double,
@@ -1024,6 +1105,9 @@ class RepartidorViewModel(
         lat: Double,
         lng: Double,
         dest: Pair<Double, Double>,
+        generation: Int? = null,
+        orn: String? = null,
+        startupCorrection: Boolean = false,
     ) {
         navRerouteInFlight = true
         lastNavRerouteAtMs = System.currentTimeMillis()
@@ -1041,41 +1125,18 @@ class RepartidorViewModel(
                     fromLat = lat,
                     toLng = dest.second,
                     toLat = dest.first,
+                    headingDeg = navRouteHeadingDeg(),
                 )
             navRerouteInFlight = false
+            if (generation != null && orn != null && !navStillActive(generation, orn)) return@launch
             result
                 .onSuccess { route ->
-                    val km = route.distanceM / 1000.0
-                    val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-                    enableNavValhallaDisplayMatch()
-                    val driverNow = _ui.value.navDriver
-                    navDisplayPipeline.onRouteLoaded(
-                        route.coordinates,
-                        transitionFromDisplay = driverNow,
+                    applyNavRouteSuccess(
+                        route = route,
+                        driverNow = _ui.value.navDriver,
+                        isReroute = true,
+                        announceReroute = !startupCorrection,
                     )
-                    navVoice.announceReroute(route)
-                    navOffRouteAnnounced = false
-                    _ui.value =
-                        _ui.value.copy(
-                            navRoute = route.coordinates,
-                            navDriverBearing =
-                                navBearingAlongRoute(
-                                    route.coordinates,
-                                    driverNow,
-                                    _ui.value.navDriverBearing,
-                                ),
-                            navManeuver = route.firstManeuver,
-                            navInstructionPrimary = navVoice.bannerPrimary(0),
-                            navInstructionThen = navVoice.nextSignificantInstruction(0),
-                            navInstructionThenModifier =
-                                navVoice.nextSignificantStepIndex(0)?.let {
-                                    navVoice.maneuverModifierAt(it)
-                                },
-                            navManeuverModifier = navVoice.maneuverModifierAt(0),
-                            navEtaMinutes = min,
-                            navRouteKm = km,
-                            navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
-                        )
                 }
                 .onFailure {
                     navOffRouteAnnounced = false
