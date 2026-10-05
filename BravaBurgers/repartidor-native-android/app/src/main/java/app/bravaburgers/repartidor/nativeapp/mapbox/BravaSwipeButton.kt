@@ -3,6 +3,7 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import androidx.core.graphics.ColorUtils
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.MotionEvent
@@ -113,7 +114,14 @@ class BravaSwipeButton
                 } else {
                     (thumb.translationX / max).coerceIn(0f, 1f)
                 }
-            trackLabel.alpha = 1f - progress * 0.92f
+            trackLabel.alpha = 1f
+            trackLabel.setTextColor(
+                ColorUtils.blendARGB(
+                    Color.parseColor("#A0A0A0"),
+                    Color.WHITE,
+                    progress,
+                ),
+            )
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -137,7 +145,7 @@ class BravaSwipeButton
                         confirmed = true
                         thumb.translationX = maxTravel()
                         updateSwipeVisuals()
-                        trackLabel.alpha = 0f
+                        trackLabel.setTextColor(Color.WHITE)
                         onConfirmed?.invoke()
                     } else {
                         thumb.animate().translationX(0f).setDuration(180).withEndAction {

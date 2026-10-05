@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  72,
-    "version_name":  "2.0.0-alpha70",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v72/brava-repartidor-native.apk",
-    "release_notes":  "Hotfix ANR: sin reflexión Mapbox, NavigationView fullscreen, ruta tras mapa listo (alpha70)",
-    "min_version_code":  72,
+    "version_code":  73,
+    "version_name":  "2.0.0-alpha71",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v73/brava-repartidor-native.apk",
+    "release_notes":  "Swipe llegada: texto gris→blanco al deslizar (sin fade)",
+    "min_version_code":  73,
     "force_update":  true
 }
