@@ -44,9 +44,14 @@ async function main() {
       version_name: opts.versionName,
     }),
   });
-  const data = await res.json().catch(function () {
-    return { ok: false, error: 'invalid_json' };
-  });
+  const raw = await res.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    console.error('HTTP', res.status, raw.slice(0, 400));
+    process.exit(1);
+  }
   console.log(JSON.stringify(data, null, 2));
   process.exit(res.ok && data.ok ? 0 : 1);
 }
