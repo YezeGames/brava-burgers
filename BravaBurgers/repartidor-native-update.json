@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  64,
-    "version_name":  "2.0.0-alpha62",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v64/brava-repartidor-native.apk",
-    "release_notes":  "alpha62: UI Mapbox — ocultar ETA/calle Mapbox, barra Brava alineada, km/h, controles compactos sobre panel, demo-mapbox-nav-brava.html.",
-    "min_version_code":  64,
+    "version_code":  65,
+    "version_name":  "2.0.0-alpha63",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v65/brava-repartidor-native.apk",
+    "release_notes":  "alpha63: UI nav Brava — FABs redondos, maniobras propias, ruta naranja, km/h circular, Llegué deslizable, sin Salir.",
+    "min_version_code":  65,
     "force_update":  true
 }

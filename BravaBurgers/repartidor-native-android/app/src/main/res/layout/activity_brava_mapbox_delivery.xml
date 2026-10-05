@@ -11,22 +11,95 @@
         android:layout_height="match_parent"
         app:accessToken="@string/mapbox_access_token" />
 
+    <LinearLayout
+        android:id="@+id/bravaManeuverCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginTop="8dp"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/bravaManeuverPrimary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/brava_nav_maneuver_primary_bg"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="12dp"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/bravaManeuverThen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/brava_nav_maneuver_sub_bg"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="10dp"
+            android:textColor="#B0BEC5"
+            android:textSize="13sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
     <TextView
         android:id="@+id/bravaNavSpeed"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="16dp"
+        android:background="@drawable/brava_nav_speed_circle"
+        android:gravity="center"
+        android:lineSpacingExtra="-2dp"
+        android:text="0\nkm/h"
+        android:textAlignment="center"
+        android:textColor="#1A2330"
+        android:textSize="14sp"
+        android:textStyle="bold" />
+
+    <LinearLayout
+        android:id="@+id/bravaMapControls"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom|start"
-        android:layout_marginStart="14dp"
-        android:background="@drawable/brava_nav_speed_chip"
-        android:gravity="center"
-        android:minWidth="52dp"
-        android:paddingHorizontal="10dp"
-        android:paddingVertical="8dp"
-        android:text="—\nkm/h"
-        android:textAlignment="center"
-        android:textColor="#FFFFFF"
-        android:textSize="15sp"
-        android:textStyle="bold" />
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="14dp"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <ImageButton
+            android:id="@+id/bravaBtnCompass"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/brava_nav_fab_circle"
+            android:contentDescription="Brújula"
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_brava_nav_compass" />
+
+        <ImageButton
+            android:id="@+id/bravaBtnVolume"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/brava_nav_fab_circle"
+            android:contentDescription="Volumen"
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_brava_nav_volume" />
+
+        <ImageButton
+            android:id="@+id/bravaBtnRecenter"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/brava_nav_fab_circle"
+            android:contentDescription="Centrar ubicación"
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_brava_nav_recenter" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/bravaBottomPanel"
@@ -37,7 +110,7 @@
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
         android:paddingTop="14dp"
-        android:paddingBottom="24dp">
+        android:paddingBottom="22dp">
 
         <TextView
             android:id="@+id/bravaNavEta"
@@ -46,7 +119,7 @@
             android:gravity="center"
             android:text="— min"
             android:textColor="#FF6B35"
-            android:textSize="22sp"
+            android:textSize="24sp"
             android:textStyle="bold" />
 
         <TextView
@@ -64,34 +137,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:paddingTop="6dp"
+            android:paddingTop="4dp"
             android:textColor="#9CA3AF"
             android:textSize="13sp" />
 
-        <LinearLayout
+        <app.bravaburgers.repartidor.nativeapp.mapbox.BravaSwipeLlegueView
+            android:id="@+id/bravaSwipeLlegue"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="12dp"
-            android:gravity="center"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/bravaNavClose"
-                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="8dp"
-                android:layout_weight="1"
-                android:text="Salir" />
-
-            <Button
-                android:id="@+id/bravaNavLlegue"
-                style="@style/Widget.MaterialComponents.Button"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:backgroundTint="#FF6B35"
-                android:text="Llegué" />
-        </LinearLayout>
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp" />
     </LinearLayout>
 </FrameLayout>

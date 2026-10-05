@@ -37,6 +37,8 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     var onRouteProgress: ((distanceRemainingM: Double?, durationRemainingSec: Double?) -> Unit)? = null
 
+    var onManeuver: ((BravaNavManeuver?) -> Unit)? = null
+
     var onDrivingSpeedKmh: ((Int?) -> Unit)? = null
 
     var onRouteFailure: ((message: String) -> Unit)? = null
@@ -47,6 +49,19 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                 progress.distanceRemaining.toDouble(),
                 progress.durationRemaining.toDouble(),
             )
+            val banner = progress.bannerInstructions
+            val stepDist =
+                progress.currentLegProgress
+                    ?.currentStepProgress
+                    ?.distanceRemaining
+                    ?.toDouble()
+            val maneuver =
+                BravaNavManeuverFormat.fromBanner(
+                    primaryText = banner?.primary()?.text(),
+                    subText = banner?.sub()?.text(),
+                    distanceMeters = stepDist,
+                )
+            onManeuver?.invoke(maneuver)
         }
 
     private val locationObserver =
