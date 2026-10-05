@@ -12,11 +12,9 @@ object BravaMapboxControls {
         compass: ImageButton,
         volume: ImageButton,
         recenter: ImageButton,
-        refreshCameraPadding: () -> Unit,
     ) {
         recenter.setOnClickListener {
-            refreshCameraPadding()
-            BravaMapboxViewportPadding.recenterFollowing()
+            navigationView.api.recenterCamera()
         }
         volume.setOnClickListener {
             val player = navigationView.api.getCurrentVoiceInstructionsPlayer()
@@ -27,8 +25,7 @@ object BravaMapboxControls {
             }
         }
         compass.setOnClickListener {
-            refreshCameraPadding()
-            BravaMapboxViewportPadding.resetNorthUp()
+            navigationView.api.recenterCamera()
         }
     }
 }

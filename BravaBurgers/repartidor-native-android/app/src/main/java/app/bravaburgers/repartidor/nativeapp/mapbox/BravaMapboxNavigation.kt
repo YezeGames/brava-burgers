@@ -30,10 +30,21 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     @Volatile
     private var boundNavigationView: NavigationView? = null
 
+    @Volatile
+    private var mapSurfaceReady = false
+
     private data class PendingRoute(val origin: Point, val dest: Point)
     private var pending: PendingRoute? = null
     private var registered = false
     private var routeRequestInFlight = false
+
+    fun resetSession() {
+        pending = null
+        routeRequestInFlight = false
+        mapSurfaceReady = false
+    }
+
+    fun isMapReady(): Boolean = mapSurfaceReady
 
     var onRouteProgress: ((distanceRemainingM: Double?, durationRemainingSec: Double?) -> Unit)? = null
 
@@ -102,9 +113,19 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         flushPendingRoute()
     }
 
+    fun notifyMapSurfaceReady() {
+        mapSurfaceReady = true
+        flushPendingRoute()
+    }
+
+    fun notifyMapSurfaceDetached() {
+        mapSurfaceReady = false
+    }
+
     fun unbindNavigationView(view: NavigationView) {
         if (boundNavigationView === view) {
             boundNavigationView = null
+            mapSurfaceReady = false
         }
     }
 
@@ -139,6 +160,10 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
             Log.i(TAG, "NavigationView not bound yet; route queued")
             return
         }
+        if (!mapSurfaceReady) {
+            Log.i(TAG, "Map surface not ready; route queued")
+            return
+        }
         val nav = MapboxNavigationApp.current() ?: run {
             Log.i(TAG, "MapboxNavigation not ready; route queued")
             return
@@ -161,6 +186,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                     routeRequestInFlight = false
                     if (routes.isEmpty()) {
                         Log.e(TAG, "Empty routes")
+                        onRouteFailure?.invoke("Mapbox no devolvió ruta.")
                         return
                     }
                     val view = boundNavigationView

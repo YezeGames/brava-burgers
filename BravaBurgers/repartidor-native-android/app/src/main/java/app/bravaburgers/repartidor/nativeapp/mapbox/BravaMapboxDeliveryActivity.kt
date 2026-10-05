@@ -13,6 +13,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
+import androidx.core.view.updateLayoutParams
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.R
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
@@ -20,6 +21,10 @@ import com.mapbox.navigation.dropin.NavigationView
 
 class BravaMapboxDeliveryActivity : AppCompatActivity() {
     private lateinit var navigationView: NavigationView
+    private lateinit var bottomPanel: View
+    private lateinit var maneuverCard: LinearLayout
+    private lateinit var mapControls: LinearLayout
+    private lateinit var speedOrb: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -37,6 +42,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             return
         }
         MapboxNavigationApp.attach(this)
+        BravaMapboxNavigation.resetSession()
 
         val destLat = intent.getDoubleExtra(EXTRA_DEST_LAT, Double.NaN)
         val destLng = intent.getDoubleExtra(EXTRA_DEST_LNG, Double.NaN)
@@ -44,6 +50,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         val originLng = intent.getDoubleExtra(EXTRA_ORIGIN_LNG, Double.NaN)
         if (destLat.isNaN() || destLng.isNaN() || originLat.isNaN() || originLng.isNaN()) {
             Toast.makeText(this, "Destino inválido", Toast.LENGTH_SHORT).show()
+            MapboxNavigationApp.detach(this)
             setResult(RESULT_CANCELED)
             finish()
             return
@@ -61,30 +68,23 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_brava_mapbox_delivery)
         navigationView = findViewById(R.id.bravaNavigationView)
+        bottomPanel = findViewById(R.id.bravaBottomPanel)
+        maneuverCard = findViewById(R.id.bravaManeuverCard)
+        mapControls = findViewById(R.id.bravaMapControls)
+        speedOrb = findViewById(R.id.bravaNavSpeed)
+
         BravaMapboxDropInUi.applyBravaOptions(navigationView)
-        BravaMapboxNavigation.bindNavigationView(navigationView)
         BravaMapboxViewportPadding.register(navigationView)
+        BravaMapboxNavigation.bindNavigationView(navigationView)
 
-        val mapHost = findViewById<View>(R.id.bravaMapHost)
-        val maneuverCard = findViewById<LinearLayout>(R.id.bravaManeuverCard)
-        val mapControls = findViewById<LinearLayout>(R.id.bravaMapControls)
-        wireViewportPadding(navigationView, mapHost, maneuverCard, mapControls)
-
-        val refreshCameraPadding = {
-            applyViewportPaddingNow(
-                navigationView,
-                mapHost,
-                maneuverCard,
-                mapControls,
-            )
-        }
         BravaMapboxControls.wire(
             navigationView,
             findViewById(R.id.bravaBtnCompass),
             findViewById(R.id.bravaBtnVolume),
-            findViewById(R.id.bravaBtnRecenter),
-            refreshCameraPadding = refreshCameraPadding,
+            findViewById<ImageButton>(R.id.bravaBtnRecenter),
         )
+
+        wireMapInsets()
 
         val maneuverPrimary = findViewById<TextView>(R.id.bravaManeuverPrimary)
         val maneuverThen = findViewById<TextView>(R.id.bravaManeuverThen)
@@ -111,21 +111,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             runOnUiThread {
                 if (m == null) {
                     maneuverCard.visibility = View.GONE
-                    applyViewportPaddingNow(
-                        navigationView,
-                        findViewById(R.id.bravaMapHost),
-                        maneuverCard,
-                        findViewById(R.id.bravaMapControls),
-                    )
                     return@runOnUiThread
                 }
                 maneuverCard.visibility = View.VISIBLE
-                applyViewportPaddingNow(
-                    navigationView,
-                    findViewById(R.id.bravaMapHost),
-                    maneuverCard,
-                    findViewById(R.id.bravaMapControls),
-                )
                 maneuverPrimaryIcon.setImageResource(m.primaryIconRes)
                 maneuverPrimary.text = m.primaryLine
                 if (!m.thenLine.isNullOrBlank()) {
@@ -139,7 +127,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onDrivingSpeedKmh = { kmh ->
             runOnUiThread {
-                findViewById<TextView>(R.id.bravaNavSpeed).text =
+                speedOrb.text =
                     if (kmh != null) {
                         "$kmh\nkm/h"
                     } else {
@@ -154,7 +142,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
             runOnUiThread {
-                applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
+                applyMapContentInsets()
             }
         }
 
@@ -166,6 +154,39 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         startGuidanceWhenReady(originLat, originLng, destLat, destLng)
     }
 
+    private fun wireMapInsets() {
+        bottomPanel.doOnLayout { applyMapContentInsets() }
+        maneuverCard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            applyMapContentInsets()
+        }
+    }
+
+    private fun applyMapContentInsets() {
+        val density = resources.displayMetrics.density
+        val statusTop =
+            ViewCompat.getRootWindowInsets(navigationView)
+                ?.getInsets(WindowInsetsCompat.Type.statusBars())
+                ?.top
+                ?: 0
+        val topPad =
+            statusTop +
+                if (maneuverCard.visibility == View.VISIBLE) {
+                    maneuverCard.height + (12 * density).toInt()
+                } else {
+                    (48 * density).toInt()
+                }
+        val bottomPad = bottomPanel.height + (16 * density).toInt()
+        BravaMapboxViewportPadding.applyContentInsets(topPad, bottomPad)
+
+        val floatAbovePanel = bottomPad + (12 * density).toInt()
+        speedOrb.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
+            bottomMargin = floatAbovePanel
+        }
+        mapControls.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
+            bottomMargin = floatAbovePanel
+        }
+    }
+
     private fun startGuidanceWhenReady(
         originLat: Double,
         originLng: Double,
@@ -175,7 +196,8 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         var attempts = 0
         fun tick() {
             if (isFinishing || isDestroyed) return
-            if (MapboxNavigationApp.current() != null || attempts >= 50) {
+            val navReady = MapboxNavigationApp.current() != null
+            if (navReady && BravaMapboxNavigation.isMapReady()) {
                 BravaMapboxNavigation.requestActiveGuidance(
                     context = this,
                     originLat = originLat,
@@ -185,58 +207,15 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 )
                 return
             }
-            attempts++
+            if (attempts++ >= 80) {
+                Toast.makeText(this, "Mapbox no respondió. Probá de nuevo.", Toast.LENGTH_LONG).show()
+                setResult(RESULT_CANCELED)
+                finish()
+                return
+            }
             navigationView.postDelayed({ tick() }, 50)
         }
-        navigationView.post { tick() }
-    }
-
-    private fun wireViewportPadding(
-        navigationView: NavigationView,
-        mapHost: View,
-        maneuverCard: View,
-        mapControls: View,
-    ) {
-        mapHost.doOnLayout {
-            applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
-        }
-    }
-
-    private fun applyViewportPaddingNow(
-        navigationView: NavigationView,
-        mapHost: View,
-        maneuverCard: View,
-        mapControls: View,
-    ) {
-        val statusTop =
-            ViewCompat.getRootWindowInsets(navigationView)
-                ?.getInsets(WindowInsetsCompat.Type.statusBars())
-                ?.top
-                ?.toDouble()
-                ?: 0.0
-        val density = resources.displayMetrics.density.toDouble()
-        val topRaw =
-            statusTop +
-                if (maneuverCard.visibility == View.VISIBLE) {
-                    maneuverCard.height.toDouble() + 12 * density
-                } else {
-                    48 * density
-                }
-        val bottomRaw =
-            maxOf(
-                mapControls.height.toDouble() + 20 * density,
-                72 * density,
-            )
-        // Top == bottom → el puck queda centrado en la banda útil del mapa (como referencia Imagen1).
-        val vertical = maxOf(topRaw, bottomRaw)
-        val side = maxOf(40 * density, mapControls.width.toDouble() + 24 * density)
-        BravaMapboxViewportPadding.apply(
-            navigationView,
-            topPx = vertical,
-            bottomPx = vertical,
-            leftPx = side,
-            rightPx = side,
-        )
+        navigationView.postDelayed({ tick() }, 350)
     }
 
     override fun onDestroy() {
@@ -244,12 +223,16 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         BravaMapboxNavigation.onManeuver = null
         BravaMapboxNavigation.onDrivingSpeedKmh = null
         BravaMapboxNavigation.onRouteFailure = null
-        BravaMapboxNavigation.stopActiveGuidance()
+        BravaMapboxNavigation.onActiveGuidanceStarted = null
         if (::navigationView.isInitialized) {
+            try {
+                navigationView.api.startFreeDrive()
+            } catch (_: Exception) {
+            }
             BravaMapboxViewportPadding.unregister(navigationView)
             BravaMapboxNavigation.unbindNavigationView(navigationView)
         }
-        BravaMapboxNavigation.onActiveGuidanceStarted = null
+        BravaMapboxNavigation.stopActiveGuidance()
         MapboxNavigationApp.detach(this)
         super.onDestroy()
     }
