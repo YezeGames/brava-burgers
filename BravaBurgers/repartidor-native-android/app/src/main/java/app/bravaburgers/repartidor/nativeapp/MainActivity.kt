@@ -98,6 +98,8 @@ private fun redirectAfterRemovedStop(
     event: RouteSyncEvent,
     screenOrn: String?,
 ) {
+    val route = nav.currentBackStackEntry?.destination?.route.orEmpty()
+    if (route.startsWith("handoff/")) return
     val hit =
         screenOrn != null &&
             event.removed.any { it.orn == screenOrn }
@@ -391,13 +393,9 @@ class MainActivity : ComponentActivity() {
                         if (stop == null) {
                             LaunchedEffect(orn) {
                                 vm.stopNavigation(ctx)
-                                val next = vm.nextStop()
-                                if (next != null) {
-                                    vm.setActiveOrn(next.orn)
-                                    goToNavForStop(nav, next.orn)
-                                } else {
-                                    goToRouteHome(nav)
-                                }
+                                kotlinx.coroutines.delay(350)
+                                if (vm.stopFor(orn) != null) return@LaunchedEffect
+                                goToRouteHome(nav)
                             }
                             return@composable
                         }
@@ -414,11 +412,11 @@ class MainActivity : ComponentActivity() {
                             },
                             onLlegue = {
                                 vm.stopNavigation(ctx)
-                                vm.confirmarLlegada(orn) {
-                                    nav.navigate("handoff/$orn") {
-                                        popUpTo("route")
-                                    }
+                                nav.navigate("handoff/$orn") {
+                                    popUpTo("route") { inclusive = false }
+                                    launchSingleTop = true
                                 }
+                                vm.confirmarLlegada(orn) { }
                             },
                         )
                     }
@@ -431,13 +429,9 @@ class MainActivity : ComponentActivity() {
                         if (stop == null) {
                             LaunchedEffect(orn) {
                                 vm.stopNavigation(ctx)
-                                val next = vm.nextStop()
-                                if (next != null) {
-                                    vm.setActiveOrn(next.orn)
-                                    goToNavForStop(nav, next.orn)
-                                } else {
-                                    goToRouteHome(nav)
-                                }
+                                kotlinx.coroutines.delay(350)
+                                if (vm.stopFor(orn) != null) return@LaunchedEffect
+                                goToRouteHome(nav)
                             }
                             return@composable
                         }

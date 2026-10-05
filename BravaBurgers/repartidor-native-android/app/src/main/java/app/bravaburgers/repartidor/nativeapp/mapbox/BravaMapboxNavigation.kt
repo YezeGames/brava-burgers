@@ -43,6 +43,8 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     var onRouteFailure: ((message: String) -> Unit)? = null
 
+    var onActiveGuidanceStarted: (() -> Unit)? = null
+
     private val routeProgressObserver =
         RouteProgressObserver { progress ->
             onRouteProgress?.invoke(
@@ -175,6 +177,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                     }
                     result.onValue {
                         Log.i(TAG, "Active guidance via NavigationView.api")
+                        onActiveGuidanceStarted?.invoke()
                     }
                 }
 

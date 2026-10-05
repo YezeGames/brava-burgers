@@ -68,7 +68,7 @@ fun NavigationScreen(
         onStartNavigation()
     }
 
-    LaunchedEffect(navLoading, navDest, navDriver, mapLaunched, mapSessionDone) {
+    LaunchedEffect(navLoading, navDest, navDriver, mapLaunched, mapSessionDone, stop.orn) {
         if (mapSessionDone || mapLaunched || navLoading) return@LaunchedEffect
         val dest = navDest ?: return@LaunchedEffect
         val origin = navDriver ?: return@LaunchedEffect

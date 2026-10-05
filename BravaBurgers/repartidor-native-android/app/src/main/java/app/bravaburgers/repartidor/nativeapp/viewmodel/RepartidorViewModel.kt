@@ -94,6 +94,8 @@ class RepartidorViewModel(
     private var navGeneration = 0
     private var routeListReady = false
     private var homeMapPreviewActive = false
+    /** Parada recién entregada: no avisar "Pedido cancelado" al sacarla de la ruta. */
+    private var pendingEntregaRemovedOrn: String? = null
 
     private val _routeSyncEvents = MutableSharedFlow<RouteSyncEvent>(extraBufferCapacity = 4)
     val routeSyncEvents = _routeSyncEvents.asSharedFlow()
@@ -425,7 +427,11 @@ class RepartidorViewModel(
             result
         }
 
-    private fun applyStopsFromServer(token: String, list: List<RouteStop>) {
+    private fun applyStopsFromServer(
+        token: String,
+        list: List<RouteStop>,
+        expectedRemovedOrns: Set<String> = emptySet(),
+    ) {
         if (_ui.value.session?.token != token) return
         val previous = _ui.value.stops
         val merged =
@@ -434,12 +440,17 @@ class RepartidorViewModel(
                 if (prev?.items.isNullOrEmpty()) incoming else incoming.copy(items = prev.items)
             }
         val newOrns = merged.map { it.orn }.toSet()
+        val silentRemovals =
+            expectedRemovedOrns + setOfNotNull(pendingEntregaRemovedOrn)
         val removed =
             if (routeListReady) {
-                previous.filter { it.orn !in newOrns }
+                previous.filter { it.orn !in newOrns && it.orn !in silentRemovals }
             } else {
                 emptyList()
             }
+        if (pendingEntregaRemovedOrn != null && previous.any { it.orn == pendingEntregaRemovedOrn && it.orn !in newOrns }) {
+            pendingEntregaRemovedOrn = null
+        }
         routeListReady = true
 
         if (removed.isNotEmpty()) {
@@ -629,8 +640,9 @@ class RepartidorViewModel(
                 _ui.value = _ui.value.copy(loading = true, error = null)
                 repo.markEntregada(token, orn)
             }.onSuccess { pedidos ->
+                pendingEntregaRemovedOrn = orn
                 if (!pedidos.isNullOrEmpty()) {
-                    applyStopsFromServer(token, pedidos)
+                    applyStopsFromServer(token, pedidos, expectedRemovedOrns = setOf(orn))
                     val next = pickNextStop(pedidos)
                     _ui.value =
                         _ui.value.copy(
@@ -666,6 +678,7 @@ class RepartidorViewModel(
                         }
                 }
             }.onFailure {
+                pendingEntregaRemovedOrn = null
                 _ui.value = _ui.value.copy(loading = false, error = it.message)
             }
         }

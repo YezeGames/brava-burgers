@@ -39,10 +39,10 @@ object BravaMapboxDropInUi {
             showEndNavigationButton = false
             showManeuver = false
             showCameraModeActionButton = false
-            // Mapbox los deja activos para proxy (BravaMapboxControls los oculta visualmente).
-            showCompassActionButton = true
-            showToggleAudioActionButton = true
-            showRecenterActionButton = true
+            showActionButtons = false
+            showCompassActionButton = false
+            showToggleAudioActionButton = false
+            showRecenterActionButton = false
             routeLineOptions = bravaRouteLineOptions
             distanceFormatterOptions =
                 DistanceFormatterOptions.Builder(ctx)

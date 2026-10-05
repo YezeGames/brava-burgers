@@ -84,6 +84,7 @@
         android:layout_height="56dp"
         android:layout_gravity="bottom|start"
         android:layout_marginStart="16dp"
+        android:elevation="12dp"
         android:background="@drawable/brava_nav_orb_bg"
         android:gravity="center"
         android:lineSpacingExtra="-2dp"
@@ -92,48 +93,6 @@
         android:textColor="#FFFFFF"
         android:textSize="14sp"
         android:textStyle="bold" />
-
-    <LinearLayout
-        android:id="@+id/bravaMapControls"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_marginEnd="14dp"
-        android:gravity="center_horizontal"
-        android:orientation="vertical">
-
-        <ImageButton
-            android:id="@+id/bravaBtnCompass"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/brava_nav_orb_bg"
-            android:contentDescription="Brújula"
-            android:padding="12dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_brava_nav_compass" />
-
-        <ImageButton
-            android:id="@+id/bravaBtnVolume"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/brava_nav_orb_bg"
-            android:contentDescription="Volumen"
-            android:padding="12dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_brava_nav_volume" />
-
-        <ImageButton
-            android:id="@+id/bravaBtnRecenter"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/brava_nav_orb_bg"
-            android:contentDescription="Centrar ubicación"
-            android:padding="12dp"
-            android:scaleType="centerInside"
-            android:src="@drawable/ic_brava_nav_recenter" />
-    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/bravaBottomPanel"
@@ -180,5 +139,53 @@
             android:layout_width="match_parent"
             android:layout_height="56dp"
             android:layout_marginTop="12dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/bravaMapControls"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_marginEnd="14dp"
+        android:clickable="false"
+        android:elevation="12dp"
+        android:focusable="false"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <ImageButton
+            android:id="@+id/bravaBtnCompass"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/brava_nav_orb_bg"
+            android:contentDescription="Brújula"
+            android:elevation="12dp"
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_brava_nav_compass" />
+
+        <ImageButton
+            android:id="@+id/bravaBtnVolume"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/brava_nav_orb_bg"
+            android:contentDescription="Volumen"
+            android:elevation="12dp"
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_brava_nav_volume" />
+
+        <ImageButton
+            android:id="@+id/bravaBtnRecenter"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/brava_nav_orb_bg"
+            android:contentDescription="Centrar ubicación"
+            android:elevation="12dp"
+            android:padding="12dp"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_brava_nav_recenter" />
     </LinearLayout>
 </FrameLayout>

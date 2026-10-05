@@ -10,6 +10,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
@@ -61,11 +63,14 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         navigationView = findViewById(R.id.bravaNavigationView)
         BravaMapboxDropInUi.applyBravaOptions(navigationView)
         BravaMapboxNavigation.bindNavigationView(navigationView)
+        BravaMapboxViewportPadding.register(navigationView)
 
         val bottomPanel = findViewById<View>(R.id.bravaBottomPanel)
+        val maneuverCard = findViewById<LinearLayout>(R.id.bravaManeuverCard)
         val speedChip = findViewById<TextView>(R.id.bravaNavSpeed)
         val mapControls = findViewById<LinearLayout>(R.id.bravaMapControls)
         pinFloatingControlsAbovePanel(bottomPanel, speedChip, mapControls)
+        wireViewportPadding(navigationView, maneuverCard, bottomPanel, mapControls)
 
         BravaMapboxControls.wire(
             navigationView,
@@ -74,7 +79,6 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             findViewById(R.id.bravaBtnRecenter),
         )
 
-        val maneuverCard = findViewById<LinearLayout>(R.id.bravaManeuverCard)
         val maneuverPrimary = findViewById<TextView>(R.id.bravaManeuverPrimary)
         val maneuverThen = findViewById<TextView>(R.id.bravaManeuverThen)
         val maneuverThenRow = findViewById<LinearLayout>(R.id.bravaManeuverThenRow)
@@ -129,6 +133,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
             }
         }
+        BravaMapboxNavigation.onActiveGuidanceStarted = {
+            runOnUiThread { applyViewportPaddingNow(navigationView, maneuverCard, bottomPanel, mapControls) }
+        }
 
         findViewById<BravaSwipeButton>(R.id.bravaSwipeLlegue).onConfirmed = {
             setResult(RESULT_OK, Intent().putExtra(EXTRA_ORN, intent.getStringExtra(EXTRA_ORN)))
@@ -144,6 +151,46 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 destLng = destLng,
             )
         }
+    }
+
+    private fun wireViewportPadding(
+        navigationView: NavigationView,
+        maneuverCard: View,
+        bottomPanel: View,
+        mapControls: View,
+    ) {
+        val apply = { applyViewportPaddingNow(navigationView, maneuverCard, bottomPanel, mapControls) }
+        bottomPanel.doOnLayout { apply() }
+        maneuverCard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
+        bottomPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
+        mapControls.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
+    }
+
+    private fun applyViewportPaddingNow(
+        navigationView: NavigationView,
+        maneuverCard: View,
+        bottomPanel: View,
+        mapControls: View,
+    ) {
+        val statusTop =
+            ViewCompat.getRootWindowInsets(navigationView)
+                ?.getInsets(WindowInsetsCompat.Type.statusBars())
+                ?.top
+                ?.toDouble()
+                ?: 0.0
+        val density = resources.displayMetrics.density.toDouble()
+        val top =
+            statusTop +
+                if (maneuverCard.visibility == View.VISIBLE) {
+                    maneuverCard.height.toDouble() + 16 * density
+                } else {
+                    72 * density
+                }
+        val bottom =
+            bottomPanel.height.toDouble() +
+                mapControls.height.toDouble() +
+                24 * density
+        BravaMapboxViewportPadding.apply(navigationView, top, bottom)
     }
 
     private fun pinFloatingControlsAbovePanel(
@@ -172,8 +219,10 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         BravaMapboxNavigation.onRouteFailure = null
         BravaMapboxNavigation.stopActiveGuidance()
         if (::navigationView.isInitialized) {
+            BravaMapboxViewportPadding.unregister(navigationView)
             BravaMapboxNavigation.unbindNavigationView(navigationView)
         }
+        BravaMapboxNavigation.onActiveGuidanceStarted = null
         super.onDestroy()
     }
 
