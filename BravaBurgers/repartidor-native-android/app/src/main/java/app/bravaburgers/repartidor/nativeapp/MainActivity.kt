@@ -403,22 +403,10 @@ class MainActivity : ComponentActivity() {
                         }
                         NavigationScreen(
                             stop = stop,
-                            navRoute = ui.navRoute,
-                            navManeuver = ui.navManeuver,
-                            navInstructionPrimary = ui.navInstructionPrimary,
-                            navInstructionThen = ui.navInstructionThen,
-                            navInstructionThenModifier = ui.navInstructionThenModifier,
-                            navManeuverModifier = ui.navManeuverModifier,
-                            navSpeedKmh = ui.navSpeedKmh,
-                            navEtaMinutes = ui.navEtaMinutes,
-                            navRouteKm = ui.navRouteKm,
-                            navMeta = ui.navMeta,
                             navLoading = ui.navLoading,
                             navDest = ui.navDest,
                             navDriver = ui.navDriver,
-                            navDriverBearing = ui.navDriverBearing,
-                            navVoiceOn = ui.navVoiceOn,
-                            onToggleVoice = vm::toggleNavVoice,
+                            navErrorHint = ui.navManeuver.takeIf { !ui.navLoading && ui.navDest == null },
                             onStartNavigation = { vm.beginNavigation(ctx, orn) },
                             onBack = {
                                 vm.stopNavigation(ctx)

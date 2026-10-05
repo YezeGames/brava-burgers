@@ -46,8 +46,8 @@ En el teléfono: **Actualizar ahora** → descarga desde GitHub Releases → ins
 | Hecho | Pendiente |
 |-------|-----------|
 | Login · lista · pull-to-refresh · multi-parada | |
-| **Voz GPS** (TTS turn-by-turn, chip Voz ON/OFF en mapa) | |
-| MapLibre · OSRM · maniobra · geocode | Mismo `applicationId` prod |
+| **Mapbox Navigation SDK** (drop-in, Activity dedicada) | |
+| Geocode destino (API Brava) | Mismo `applicationId` prod |
 | **Ruta:** Supabase **Realtime** (websocket) + **FCM** — **sin poll** | |
 | **GPS:** FGS solo en camino · `reportTrack` ~16 s | |
 | Entrega COBRAR/PAGO · Llamar · auto sig. parada | |
@@ -75,20 +75,14 @@ Usa el **mismo Supabase gratis** que el admin (Realtime incluido en el plan free
 2. Reemplazar `app/google-services.json` con el descargado.
 3. Permisos: **ubicación** + **notificaciones**; batería sin restricción recomendado en moto.
 
-## MapTiler (mapa base)
+## Mapbox (obligatorio al compilar)
 
-La key **no va en Git**. Copiá `local.properties.example` → `local.properties` y completá:
-
-```properties
-MAPTILER_API_KEY=tu_key_de_maptiler
-```
-
-Sin key, el build usa fallback CARTO Voyager. La key queda embebida en la APK (normal en mapas móviles); restringila en MapTiler por dominio/app si podés.
+En `local.properties`: `MAPBOX_ACCESS_TOKEN` (pk) y `MAPBOX_DOWNLOADS_TOKEN` (sk). Ver `MAPBOX_ALPHA57.md`.
 
 ## API key (backend)
 
 Si en Vercel tenés `REPARTIDOR_APP_KEY`, setealo en el servidor; no hace falta en el repo para compilar la APK.
 
-## Próximo paso
+## Navegación
 
-Integrar **MapLibre Android** con `MAP_STYLE` (MapTiler Streets v4 — edificios/parcelas) y servicio en primer plano para ubicación.
+**Iniciar / Continuar entrega** → `BravaMapboxDeliveryActivity` (Mapbox full-screen). No hay OSRM/Valhalla/MapLibre en esta app.

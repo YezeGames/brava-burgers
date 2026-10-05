@@ -3,6 +3,5 @@ sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
 
 # Mapbox — https://account.mapbox.com/access-tokens/
 MAPBOX_ACCESS_TOKEN=
-
 # Secret token con scope DOWNLOADS:READ — https://account.mapbox.com/access-tokens/
 MAPBOX_DOWNLOADS_TOKEN=

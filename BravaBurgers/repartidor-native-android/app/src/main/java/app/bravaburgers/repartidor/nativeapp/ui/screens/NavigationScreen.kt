@@ -1,429 +1,116 @@
 package app.bravaburgers.repartidor.nativeapp.ui.screens
 
-import androidx.compose.foundation.ExperimentalFoundationApi
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Navigation
-import androidx.compose.material.icons.filled.TurnLeft
-import androidx.compose.material.icons.filled.TurnRight
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
-import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
-import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigation
-import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigationView
+import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxDeliveryActivity
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
-import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
-import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
-import app.bravaburgers.repartidor.nativeapp.ui.theme.MpBlue
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
-import java.util.Locale
 
-private val NavFabWhite = Color.White
-private val NavCardShape = RoundedCornerShape(18.dp)
-private val NavCardBorder = Color(0xFF3A3F4A)
-
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * Prepara destino (geocode) y abre [BravaMapboxDeliveryActivity] — mapa Mapbox fuera de Compose.
+ */
 @Composable
 fun NavigationScreen(
     stop: RouteStop,
-    navRoute: List<Pair<Double, Double>>,
-    navManeuver: String,
-    navInstructionPrimary: String,
-    navInstructionThen: String?,
-    navInstructionThenModifier: String?,
-    navManeuverModifier: String?,
-    navSpeedKmh: Int,
-    navEtaMinutes: Int?,
-    navRouteKm: Double?,
-    navMeta: String,
     navLoading: Boolean,
     navDest: Pair<Double, Double>?,
     navDriver: Pair<Double, Double>?,
-    navDriverBearing: Float? = null,
-    navVoiceOn: Boolean,
-    onToggleVoice: () -> Unit,
+    navErrorHint: String?,
     onStartNavigation: () -> Unit,
     onBack: () -> Unit,
     onLlegue: () -> Unit,
 ) {
     val context = LocalContext.current
-    val navBarBottom =
-        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val sheetBodyHeight = 158.dp
+    var mapLaunched by remember(stop.orn) { mutableStateOf(false) }
+
+    val mapLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+            mapLaunched = false
+            if (result.resultCode == Activity.RESULT_OK) {
+                onLlegue()
+            } else {
+                onBack()
+            }
+        }
 
     LaunchedEffect(stop.orn) {
+        mapLaunched = false
         onStartNavigation()
     }
 
-    LaunchedEffect(navLoading, navDest, navDriver, stop.orn) {
-        val dest = navDest
-        val origin = navDriver
-        if (!navLoading && dest != null && origin != null) {
-            BravaMapboxNavigation.requestActiveGuidance(
+    LaunchedEffect(navLoading, navDest, navDriver, mapLaunched) {
+        if (mapLaunched || navLoading) return@LaunchedEffect
+        val dest = navDest ?: return@LaunchedEffect
+        val origin = navDriver ?: return@LaunchedEffect
+        mapLaunched = true
+        val address =
+            listOfNotNull(
+                stop.direccion?.trim()?.takeIf { it.isNotEmpty() },
+                stop.localidad?.trim()?.takeIf { it.isNotEmpty() },
+            ).joinToString(" · ")
+        mapLauncher.launch(
+            BravaMapboxDeliveryActivity.intent(
                 context = context,
+                orn = stop.orn,
                 originLat = origin.first,
                 originLng = origin.second,
                 destLat = dest.first,
                 destLng = dest.second,
-            )
-        }
-    }
-
-    val primaryText =
-        when {
-            navLoading -> "Calculando ruta…"
-            navInstructionPrimary.isNotBlank() -> navInstructionPrimary
-            navManeuver.isNotBlank() -> navManeuver
-            else -> "Seguí la ruta resaltada"
-        }
-
-    val addressStreet =
-        listOfNotNull(
-            stop.direccion?.trim()?.takeIf { it.isNotEmpty() },
-            stop.piso?.trim()?.takeIf { it.isNotEmpty() }?.let { "Piso $it" },
-        ).joinToString(" · ")
-    val addressZone = stop.localidad?.trim()?.takeIf { it.isNotEmpty() }.orEmpty()
-
-    Box(modifier = Modifier.fillMaxSize().background(BgDark)) {
-        BravaMapboxNavigationView(modifier = Modifier.fillMaxSize())
-
-        NavTopInstructionBanner(
-            primary = primaryText,
-            thenInstruction = navInstructionThen,
-            thenModifier = navInstructionThenModifier,
-            primaryModifier = navManeuverModifier,
-            loading = navLoading,
-        )
-
-        NavBottomTripBar(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth(),
-            etaMinutes = navEtaMinutes,
-            routeKm = navRouteKm,
-            addressStreet = addressStreet,
-            addressZone = addressZone,
-            onExit = onBack,
-            onLlegue = onLlegue,
-            navLoading = navLoading,
-            navBarBottom = navBarBottom,
-            sheetBodyHeight = sheetBodyHeight,
+                addressLine = address,
+            ),
         )
     }
-}
 
-@Composable
-private fun NavTopInstructionBanner(
-    primary: String,
-    thenInstruction: String?,
-    thenModifier: String?,
-    primaryModifier: String?,
-    loading: Boolean,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .bravaSafeTop()
-                .padding(start = 12.dp, end = 12.dp, top = 8.dp)
-                .shadow(10.dp, NavCardShape)
-                .clip(NavCardShape)
-                .border(1.dp, NavCardBorder, NavCardShape)
-                .background(BgDark, NavCardShape),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .background(SurfaceDark.copy(alpha = 0.55f))
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (loading) {
-                CircularProgressIndicator(
-                    color = BravaOrange,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(36.dp),
-                )
-            } else {
-                Icon(
-                    imageVector = maneuverIcon(primaryModifier, primary),
-                    contentDescription = null,
-                    tint = BravaOrange,
-                    modifier = Modifier.size(36.dp),
-                )
-            }
-            Text(
-                text = primary,
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 17.sp,
-                lineHeight = 22.sp,
-                maxLines = 3,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 12.dp),
-            )
-        }
-        if (!thenInstruction.isNullOrBlank()) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(LineDark.copy(alpha = 0.85f))
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Luego",
-                    color = BravaOrange.copy(alpha = 0.95f),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                )
-                Icon(
-                    maneuverIcon(thenModifier, thenInstruction),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp).padding(horizontal = 6.dp),
-                )
-                Text(
-                    thenInstruction,
-                    color = Color.White.copy(alpha = 0.92f),
-                    fontSize = 14.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        } else {
-            Spacer(modifier = Modifier.fillMaxWidth().height(6.dp))
-        }
-    }
-}
-
-@Composable
-private fun NavSpeedChip(
-    speedKmh: Int,
-    modifier: Modifier = Modifier,
-) {
     Box(
-        modifier =
-            modifier
-                .size(52.dp)
-                .shadow(4.dp, CircleShape)
-                .clip(CircleShape)
-                .background(NavFabWhite),
+        modifier = Modifier.fillMaxSize().background(BgDark),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            CircularProgressIndicator(color = BravaOrange)
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = speedKmh.coerceAtLeast(0).toString(),
-                fontWeight = FontWeight.Bold,
+                if (navLoading) "Preparando Mapbox…" else "Abriendo navegación…",
+                color = TextPrimary,
                 fontSize = 16.sp,
-                color = Color(0xFF202124),
             )
-            Text(
-                text = "km/h",
-                fontSize = 9.sp,
-                color = TextMuted,
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun NavRoundMapButton(
-    onClick: () -> Unit,
-    contentDescription: String,
-    onLongClick: (() -> Unit)? = null,
-    highlighted: Boolean = false,
-    content: @Composable () -> Unit,
-) {
-    Box(
-        modifier =
-            Modifier
-                .size(46.dp)
-                .shadow(4.dp, CircleShape)
-                .clip(CircleShape)
-                .background(NavFabWhite)
-                .then(
-                    if (highlighted) {
-                        Modifier.border(2.dp, BravaOrange, CircleShape)
-                    } else {
-                        Modifier
-                    },
+            navErrorHint?.let { hint ->
+                Text(
+                    hint,
+                    color = TextMuted,
+                    fontSize = 13.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(24.dp, 8.dp, 24.dp, 0.dp),
                 )
-                .then(
-                    if (onLongClick != null) {
-                        Modifier.combinedClickable(
-                            onClick = onClick,
-                            onLongClick = onLongClick,
-                        )
-                    } else {
-                        Modifier.combinedClickable(onClick = onClick)
-                    },
-                ),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun NavBottomTripBar(
-    modifier: Modifier = Modifier,
-    etaMinutes: Int?,
-    routeKm: Double?,
-    addressStreet: String,
-    addressZone: String,
-    onExit: () -> Unit,
-    onLlegue: () -> Unit,
-    navLoading: Boolean,
-    navBarBottom: androidx.compose.ui.unit.Dp,
-    sheetBodyHeight: androidx.compose.ui.unit.Dp,
-) {
-    Column(
-        modifier =
-            modifier
-                .padding(horizontal = 10.dp)
-                .shadow(12.dp, NavCardShape)
-                .clip(NavCardShape)
-                .border(1.dp, NavCardBorder, NavCardShape)
-                .background(BgDark, NavCardShape),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(sheetBodyHeight)
-                    .padding(top = 10.dp, bottom = 4.dp),
-        ) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                IconButton(
-                    onClick = onExit,
-                    modifier =
-                        Modifier
-                            .align(Alignment.CenterStart)
-                            .size(44.dp)
-                            .background(LineDark, CircleShape),
-                ) {
-                    Icon(Icons.Default.Close, contentDescription = "Salir", tint = TextPrimary)
-                }
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 48.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text =
-                            if (etaMinutes != null) {
-                                "$etaMinutes min"
-                            } else {
-                                "— min"
-                            },
-                        color = BravaOrange,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 26.sp,
-                        textAlign = TextAlign.Center,
-                    )
-                    val sub =
-                        buildList {
-                            if (addressStreet.isNotBlank()) add(addressStreet)
-                            if (addressZone.isNotBlank()) add(addressZone)
-                            routeKm?.let { add(String.format(Locale.US, "%.1f km", it)) }
-                        }.joinToString(" · ")
-                    if (sub.isNotBlank()) {
-                        Text(
-                            sub,
-                            color = TextMuted,
-                            fontSize = 13.sp,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
             }
-            Button(
-                onClick = onLlegue,
-                enabled = !navLoading,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(start = 14.dp, end = 14.dp, top = 6.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
-            ) {
-                Text("Llegué", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            TextButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) {
+                Text("Cancelar", color = TextMuted)
             }
         }
-        Spacer(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(navBarBottom)
-                    .background(BgDark),
-        )
     }
-}
-
-private fun maneuverIcon(modifier: String?, instruction: String): ImageVector {
-    val m = modifier.orEmpty().lowercase()
-    if (m.contains("right")) return Icons.Default.TurnRight
-    if (m.contains("left") || m.contains("uturn")) return Icons.Default.TurnLeft
-    val t = instruction.lowercase()
-    if (t.contains("derecha")) return Icons.Default.TurnRight
-    if (t.contains("izquierda") || t.contains("u-turn") || t.contains("giro en u")) {
-        return Icons.Default.TurnLeft
-    }
-    return Icons.Default.Navigation
 }

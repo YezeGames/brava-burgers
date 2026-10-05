@@ -32,7 +32,7 @@ class BravaRepartidorApp : Application() {
                 NavigationOptions.Builder(this)
                     .accessToken(BuildConfig.MAPBOX_ACCESS_TOKEN)
                     .build(),
-            ).attachAllActivities(this)
+            )
         }
         BravaNotifications.ensureChannels(this)
         repository = RepartidorRepository(this)
