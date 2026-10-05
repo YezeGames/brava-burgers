@@ -46,14 +46,8 @@ data class RepartidorUiState(
     val error: String? = null,
     val activeOrn: String? = null,
     val tripStarted: Boolean = false,
-    val navRoute: List<Pair<Double, Double>> = emptyList(),
-    val navManeuver: String = "Calculando ruta…",
-    /** Banner superior (sin prefijo de distancia). */
-    val navInstructionPrimary: String = "",
-    val navInstructionThen: String? = null,
-    val navInstructionThenModifier: String? = null,
-    val navManeuverModifier: String? = null,
-    val navSpeedKmh: Int = 0,
+    /** Mensaje de preparación / error de geocode antes de abrir Mapbox. */
+    val navManeuver: String = "",
     val navEtaMinutes: Int? = null,
     val navRouteKm: Double? = null,
     val navMeta: String = "",
@@ -61,9 +55,7 @@ data class RepartidorUiState(
     val navDest: Pair<Double, Double>? = null,
     /** Repartidor (GPS vivo) — lat,lng */
     val navDriver: Pair<Double, Double>? = null,
-    val navDriverBearing: Float? = null,
     val trackingOrn: String? = null,
-    val navVoiceOn: Boolean = true,
     val appUpdate: AppUpdateOffer? = null,
     val appUpdateBusy: Boolean = false,
     val appUpdateProgress: Int = 0,
@@ -744,16 +736,10 @@ class RepartidorViewModel(
             _ui.value.copy(
                 trackingOrn = orn,
                 navLoading = true,
-                navManeuver = "Ubicando dirección en el mapa…",
-                navInstructionPrimary = "Ubicando dirección…",
-                navInstructionThen = null,
-                navInstructionThenModifier = null,
-                navManeuverModifier = null,
-                navSpeedKmh = 0,
+                navManeuver = "Ubicando dirección…",
                 navEtaMinutes = null,
                 navRouteKm = null,
                 navMeta = "",
-                navRoute = emptyList(),
                 navDest = null,
                 navDriver = null,
             )
@@ -765,7 +751,6 @@ class RepartidorViewModel(
                             _ui.value =
                                 _ui.value.copy(
                                     navLoading = false,
-                                    navRoute = emptyList(),
                                     navDest = null,
                                 )
                         }
@@ -792,7 +777,7 @@ class RepartidorViewModel(
             _ui.value =
                 _ui.value.copy(
                     navLoading = false,
-                    navInstructionPrimary = "Mapbox Navigation",
+                    navManeuver = "",
                 )
         }
     }
@@ -822,10 +807,6 @@ class RepartidorViewModel(
             .getOrNull()
     }
 
-    fun toggleNavVoice() {
-        _ui.value = _ui.value.copy(navVoiceOn = !_ui.value.navVoiceOn)
-    }
-
     fun stopNavigation(context: Context) {
         navGeneration++
         stopNavigationQuiet()
@@ -844,17 +825,10 @@ class RepartidorViewModel(
             _ui.value.copy(
                 trackingOrn = null,
                 navLoading = false,
-                navRoute = emptyList(),
                 navDest = null,
                 navDriver = null,
-                navDriverBearing = null,
                 navMeta = "",
                 navManeuver = "",
-                navInstructionPrimary = "",
-                navInstructionThen = null,
-                navInstructionThenModifier = null,
-                navManeuverModifier = null,
-                navSpeedKmh = 0,
                 navEtaMinutes = null,
                 navRouteKm = null,
             )

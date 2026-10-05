@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  62,
-    "version_name":  "2.0.0-alpha60",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v62/brava-repartidor-native.apk",
-    "release_notes":  "alpha60: Mapbox en Activity nativa (BravaMapboxDeliveryActivity), sin Compose/AndroidView. Rutas via NavigationView.api.startActiveGuidance. Limpieza docs legacy OSRM/MapLibre.",
-    "min_version_code":  62,
+    "version_code":  63,
+    "version_name":  "2.0.0-alpha61",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v63/brava-repartidor-native.apk",
+    "release_notes":  "alpha61: Mapbox attachAllActivities, startFreeDrive al salir, accessToken en NavigationView, limpieza estado nav legacy.",
+    "min_version_code":  63,
     "force_update":  true
 }

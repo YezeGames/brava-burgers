@@ -33,6 +33,8 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     var onRouteProgress: ((distanceRemainingM: Double?, durationRemainingSec: Double?) -> Unit)? = null
 
+    var onRouteFailure: ((message: String) -> Unit)? = null
+
     private val routeProgressObserver =
         RouteProgressObserver { progress ->
             onRouteProgress?.invoke(
@@ -121,6 +123,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                     result.onError { err ->
                         Log.e(TAG, "startActiveGuidance failed: $err")
                         pending = trip
+                        onRouteFailure?.invoke(err.toString())
                     }
                     result.onValue {
                         Log.i(TAG, "Active guidance via NavigationView.api")
@@ -133,6 +136,9 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                 ) {
                     routeRequestInFlight = false
                     Log.e(TAG, "Route failure: $reasons")
+                    onRouteFailure?.invoke(
+                        reasons.firstOrNull()?.message ?: "No pudimos calcular la ruta (Mapbox).",
+                    )
                 }
 
                 override fun onCanceled(
@@ -149,6 +155,6 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     fun stopActiveGuidance() {
         pending = null
         routeRequestInFlight = false
-        MapboxNavigationApp.current()?.setNavigationRoutes(emptyList())
+        boundNavigationView?.api?.startFreeDrive()
     }
 }

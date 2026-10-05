@@ -9,6 +9,7 @@ import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundSer
 import app.bravaburgers.repartidor.nativeapp.session.SessionServicePrefs
 import app.bravaburgers.repartidor.nativeapp.session.InstallSessionGuard
 import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
+import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigation
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import kotlinx.coroutines.CoroutineScope
@@ -27,12 +28,16 @@ class BravaRepartidorApp : Application() {
     override fun onCreate() {
         super.onCreate()
         InstallSessionGuard.clearSessionIfNewBuild(this)
-        if (BuildConfig.MAPBOX_ACCESS_TOKEN.isNotBlank() && !MapboxNavigationApp.isSetup()) {
-            MapboxNavigationApp.setup(
-                NavigationOptions.Builder(this)
-                    .accessToken(BuildConfig.MAPBOX_ACCESS_TOKEN)
-                    .build(),
-            )
+        if (BuildConfig.MAPBOX_ACCESS_TOKEN.isNotBlank()) {
+            if (!MapboxNavigationApp.isSetup()) {
+                MapboxNavigationApp.setup(
+                    NavigationOptions.Builder(this)
+                        .accessToken(BuildConfig.MAPBOX_ACCESS_TOKEN)
+                        .build(),
+                )
+            }
+            MapboxNavigationApp.attachAllActivities(this)
+            BravaMapboxNavigation.ensureRegistered()
         }
         BravaNotifications.ensureChannels(this)
         repository = RepartidorRepository(this)

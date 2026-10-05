@@ -24,11 +24,12 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`
 ## Qué cambió
 
 - **Eliminado:** MapLibre, OSRM, Valhalla, animadores/matcher caseros, `BravaMapView`.
-- **Nuevo:** `com.mapbox.navigation:ui-dropin:2.20.4` + `NavigationView` en navegación y pestaña Mapa (free drive).
-- **Flujo:** geocode destino → `MapboxNavigationApp.requestRoutes` → **`NavigationView.api.startActiveGuidance(routes)`** (no usar `startTripSession()` manual con drop-in).
-- **No mezclar** core SDK “a mano” con drop-in: crashea el state machine de Mapbox.
+- **Nuevo:** `com.mapbox.navigation:ui-dropin:2.20.4` + `NavigationView` en `BravaMapboxDeliveryActivity` (Activity nativa, no Compose).
+- **App:** `MapboxNavigationApp.setup` + `attachAllActivities` + observer en `BravaRepartidorApp`.
+- **Flujo:** geocode destino → `requestRoutes` → **`NavigationView.api.startActiveGuidance(routes)`**. Al salir: **`startFreeDrive()`** (no `setNavigationRoutes` manual).
+- **No mezclar** `startTripSession()` manual con drop-in.
 
 ## Pantallas
 
-- **Iniciar entrega / Continuar** → `nav/{orn}` con mapa Mapbox full-screen + barra Brava (Llegué).
-- Mapbox administra voz turn-by-turn en el drop-in UI (toggle voz Brava queda como preferencia UI legacy).
+- **Iniciar recorrido / Continuar** → pantalla de carga → `BravaMapboxDeliveryActivity` (mapa + Llegué).
+- Pestaña Mapa en home: texto guía (un solo `NavigationView` por sesión de entrega).
