@@ -21,27 +21,61 @@
         android:orientation="vertical"
         android:visibility="gone">
 
-        <TextView
-            android:id="@+id/bravaManeuverPrimary"
+        <LinearLayout
+            android:id="@+id/bravaManeuverPrimaryRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/brava_nav_maneuver_primary_bg"
-            android:paddingHorizontal="14dp"
-            android:paddingVertical="12dp"
-            android:textColor="#FFFFFF"
-            android:textSize="16sp"
-            android:textStyle="bold" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="12dp">
 
-        <TextView
-            android:id="@+id/bravaManeuverThen"
+            <ImageView
+                android:id="@+id/bravaManeuverPrimaryIcon"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_brava_maneuver_turn_right" />
+
+            <TextView
+                android:id="@+id/bravaManeuverPrimary"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:textColor="#FFFFFF"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/bravaManeuverThenRow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/brava_nav_maneuver_sub_bg"
-            android:paddingHorizontal="14dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingHorizontal="12dp"
             android:paddingVertical="10dp"
-            android:textColor="#B0BEC5"
-            android:textSize="13sp"
-            android:visibility="gone" />
+            android:visibility="gone">
+
+            <ImageView
+                android:id="@+id/bravaManeuverThenIcon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_brava_maneuver_turn_right" />
+
+            <TextView
+                android:id="@+id/bravaManeuverThen"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1"
+                android:textColor="#B0BEC5"
+                android:textSize="13sp" />
+        </LinearLayout>
     </LinearLayout>
 
     <TextView
@@ -50,12 +84,12 @@
         android:layout_height="56dp"
         android:layout_gravity="bottom|start"
         android:layout_marginStart="16dp"
-        android:background="@drawable/brava_nav_speed_circle"
+        android:background="@drawable/brava_nav_orb_bg"
         android:gravity="center"
         android:lineSpacingExtra="-2dp"
         android:text="0\nkm/h"
         android:textAlignment="center"
-        android:textColor="#1A2330"
+        android:textColor="#FFFFFF"
         android:textSize="14sp"
         android:textStyle="bold" />
 
@@ -72,7 +106,7 @@
             android:id="@+id/bravaBtnCompass"
             android:layout_width="48dp"
             android:layout_height="48dp"
-            android:background="@drawable/brava_nav_fab_circle"
+            android:background="@drawable/brava_nav_orb_bg"
             android:contentDescription="Brújula"
             android:padding="12dp"
             android:scaleType="centerInside"
@@ -83,7 +117,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:background="@drawable/brava_nav_fab_circle"
+            android:background="@drawable/brava_nav_orb_bg"
             android:contentDescription="Volumen"
             android:padding="12dp"
             android:scaleType="centerInside"
@@ -94,7 +128,7 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginTop="8dp"
-            android:background="@drawable/brava_nav_fab_circle"
+            android:background="@drawable/brava_nav_orb_bg"
             android:contentDescription="Centrar ubicación"
             android:padding="12dp"
             android:scaleType="centerInside"
@@ -141,7 +175,7 @@
             android:textColor="#9CA3AF"
             android:textSize="13sp" />
 
-        <app.bravaburgers.repartidor.nativeapp.mapbox.BravaSwipeLlegueView
+        <app.bravaburgers.repartidor.nativeapp.mapbox.BravaSwipeButton
             android:id="@+id/bravaSwipeLlegue"
             android:layout_width="match_parent"
             android:layout_height="56dp"

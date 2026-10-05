@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  65,
-    "version_name":  "2.0.0-alpha63",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v65/brava-repartidor-native.apk",
-    "release_notes":  "alpha63: UI nav Brava — FABs redondos, maniobras propias, ruta naranja, km/h circular, Llegué deslizable, sin Salir.",
-    "min_version_code":  65,
+    "version_code":  66,
+    "version_name":  "2.0.0-alpha64",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v66/brava-repartidor-native.apk",
+    "release_notes":  "alpha64: BravaSwipeButton (Llegué a destino), fix bucle handoff, FABs negro/naranja, maniobras con flecha, controles Mapbox.",
+    "min_version_code":  66,
     "force_update":  true
 }

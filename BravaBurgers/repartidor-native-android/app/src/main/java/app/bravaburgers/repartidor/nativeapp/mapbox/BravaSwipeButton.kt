@@ -1,61 +1,68 @@
 package app.bravaburgers.repartidor.nativeapp.mapbox
 
 import android.content.Context
+import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.widget.FrameLayout
+import android.widget.ImageView
 import android.widget.TextView
-import androidx.core.content.ContextCompat
-import app.bravaburgers.repartidor.nativeapp.R
+
 /**
- * Deslizá a la derecha para confirmar llegada (estilo demo Brava).
+ * Swipe de llegada al domicilio del cliente (solo navegación / Mapbox).
+ * La confirmación "Entregado" sigue en [app.bravaburgers.repartidor.nativeapp.ui.screens.HandoffScreen].
  */
-class BravaSwipeLlegueView
+class BravaSwipeButton
     @JvmOverloads
     constructor(
         context: Context,
         attrs: AttributeSet? = null,
     ) : FrameLayout(context, attrs) {
-        private val track = TextView(context)
-        private val thumb = TextView(context)
+        private val trackLabel = TextView(context)
+        private val thumb = FrameLayout(context)
+        private val thumbIcon = ImageView(context)
         private var confirmed = false
         private var dragStartX = 0f
         private var thumbStartX = 0f
         var onConfirmed: (() -> Unit)? = null
 
         init {
-            val pad = (14 * resources.displayMetrics.density).toInt()
+            val density = resources.displayMetrics.density
+            val pad = (6 * density).toInt()
             val trackBg =
                 GradientDrawable().apply {
-                    cornerRadius = 28 * resources.displayMetrics.density
-                    setColor(0x33FF6B35)
+                    cornerRadius = 28 * density
+                    setColor(Color.parseColor("#121212"))
                 }
             background = trackBg
-            track.text = "Deslizá para confirmar llegada →"
-            track.gravity = Gravity.CENTER
-            track.setTextColor(0xCCFFFFFF.toInt())
-            track.textSize = 14f
-            addView(track, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
+            trackLabel.text = "Llegué a destino"
+            trackLabel.gravity = Gravity.CENTER
+            trackLabel.setTextColor(Color.parseColor("#A0A0A0"))
+            trackLabel.textSize = 15f
+            addView(trackLabel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+
+            val thumbSize = (52 * density).toInt()
             val thumbBg =
                 GradientDrawable().apply {
-                    cornerRadius = 24 * resources.displayMetrics.density
-                    setColor(ContextCompat.getColor(context, R.color.brava_orange))
+                    shape = GradientDrawable.OVAL
+                    setColor(Color.parseColor("#FF5722"))
                 }
             thumb.background = thumbBg
-            thumb.text = "Llegué"
-            thumb.gravity = Gravity.CENTER
-            thumb.setTextColor(0xFFFFFFFF.toInt())
-            thumb.textSize = 15f
-            thumb.setTypeface(thumb.typeface, android.graphics.Typeface.BOLD)
-            val thumbW = (120 * resources.displayMetrics.density).toInt()
-            val thumbH = (48 * resources.displayMetrics.density).toInt()
-            val lp = LayoutParams(thumbW, thumbH)
+            thumbIcon.setImageResource(app.bravaburgers.repartidor.nativeapp.R.drawable.ic_brava_swipe_arrow_forward)
+            thumbIcon.scaleType = ImageView.ScaleType.CENTER_INSIDE
+            val iconPad = (14 * density).toInt()
+            thumb.addView(
+                thumbIcon,
+                LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT).apply {
+                    setMargins(iconPad, iconPad, iconPad, iconPad)
+                },
+            )
+            val lp = LayoutParams(thumbSize, thumbSize)
             lp.gravity = Gravity.START or Gravity.CENTER_VERTICAL
-            lp.marginStart = pad / 2
+            lp.marginStart = pad
             addView(thumb, lp)
         }
 
@@ -66,17 +73,26 @@ class BravaSwipeLlegueView
             oldh: Int,
         ) {
             super.onSizeChanged(w, h, oldw, oldh)
-            resetThumb()
-        }
-
-        private fun resetThumb() {
-            if (confirmed) return
-            thumb.translationX = 0f
+            if (!confirmed) {
+                thumb.translationX = 0f
+                updateLabelFade()
+            }
         }
 
         private fun maxTravel(): Float {
-            val pad = (14 * resources.displayMetrics.density)
-            return (width - thumb.width - pad * 1.5f).coerceAtLeast(0f)
+            val pad = 6 * resources.displayMetrics.density
+            return (width - thumb.width - pad * 2).coerceAtLeast(0f)
+        }
+
+        private fun updateLabelFade() {
+            val max = maxTravel()
+            val progress =
+                if (max <= 0f) {
+                    0f
+                } else {
+                    (thumb.translationX / max).coerceIn(0f, 1f)
+                }
+            trackLabel.alpha = 1f - progress * 0.92f
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {
@@ -92,16 +108,19 @@ class BravaSwipeLlegueView
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.x - dragStartX
                     thumb.translationX = (thumbStartX + dx).coerceIn(0f, maxTravel())
+                    updateLabelFade()
                     return true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     if (thumb.translationX >= maxTravel() * 0.82f) {
                         confirmed = true
                         thumb.translationX = maxTravel()
-                        track.text = "¡Listo!"
+                        trackLabel.alpha = 0f
                         onConfirmed?.invoke()
                     } else {
-                        thumb.animate().translationX(0f).setDuration(180).start()
+                        thumb.animate().translationX(0f).setDuration(180).withEndAction {
+                            updateLabelFade()
+                        }.start()
                     }
                     return true
                 }

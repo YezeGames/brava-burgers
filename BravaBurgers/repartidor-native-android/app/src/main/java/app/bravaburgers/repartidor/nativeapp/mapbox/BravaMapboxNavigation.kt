@@ -55,11 +55,15 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                     ?.currentStepProgress
                     ?.distanceRemaining
                     ?.toDouble()
+            val step = progress.currentLegProgress?.currentStepProgress?.step
+            val maneuverStep = step?.maneuver()
             val maneuver =
                 BravaNavManeuverFormat.fromBanner(
                     primaryText = banner?.primary()?.text(),
                     subText = banner?.sub()?.text(),
                     distanceMeters = stepDist,
+                    maneuverType = maneuverStep?.type(),
+                    modifier = maneuverStep?.modifier(),
                 )
             onManeuver?.invoke(maneuver)
         }

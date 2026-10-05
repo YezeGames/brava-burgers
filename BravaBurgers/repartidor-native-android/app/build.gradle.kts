@@ -28,8 +28,8 @@ android {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 65
-        versionName = "2.0.0-alpha63"
+        versionCode = 66
+        versionName = "2.0.0-alpha64"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxAccessToken\"")
         buildConfigField(
@@ -97,6 +97,7 @@ dependencies {
     val mapboxNavVersion = "2.20.4"
     implementation("com.mapbox.navigation:ui-dropin:$mapboxNavVersion")
     implementation("com.mapbox.navigation:ui-maps:$mapboxNavVersion")
+    implementation("com.mapbox.navigation:ui-voice:$mapboxNavVersion")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))

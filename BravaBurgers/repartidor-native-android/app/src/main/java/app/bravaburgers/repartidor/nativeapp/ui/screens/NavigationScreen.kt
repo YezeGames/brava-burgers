@@ -48,24 +48,28 @@ fun NavigationScreen(
 ) {
     val context = LocalContext.current
     var mapLaunched by remember(stop.orn) { mutableStateOf(false) }
+    var mapSessionDone by remember(stop.orn) { mutableStateOf(false) }
 
     val mapLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            mapLaunched = false
             if (result.resultCode == Activity.RESULT_OK) {
+                mapSessionDone = true
+                mapLaunched = true
                 onLlegue()
             } else {
+                mapLaunched = false
                 onBack()
             }
         }
 
     LaunchedEffect(stop.orn) {
         mapLaunched = false
+        mapSessionDone = false
         onStartNavigation()
     }
 
-    LaunchedEffect(navLoading, navDest, navDriver, mapLaunched) {
-        if (mapLaunched || navLoading) return@LaunchedEffect
+    LaunchedEffect(navLoading, navDest, navDriver, mapLaunched, mapSessionDone) {
+        if (mapSessionDone || mapLaunched || navLoading) return@LaunchedEffect
         val dest = navDest ?: return@LaunchedEffect
         val origin = navDriver ?: return@LaunchedEffect
         mapLaunched = true

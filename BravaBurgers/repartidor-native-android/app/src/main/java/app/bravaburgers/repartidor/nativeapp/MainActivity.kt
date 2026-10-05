@@ -413,6 +413,7 @@ class MainActivity : ComponentActivity() {
                                 nav.popBackStack()
                             },
                             onLlegue = {
+                                vm.stopNavigation(ctx)
                                 vm.confirmarLlegada(orn) {
                                     nav.navigate("handoff/$orn") {
                                         popUpTo("route")
