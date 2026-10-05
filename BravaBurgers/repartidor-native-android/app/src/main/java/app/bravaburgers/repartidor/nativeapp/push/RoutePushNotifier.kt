@@ -36,6 +36,9 @@ object RoutePushNotifier {
                 }
             }
             "route_clear" -> "Ruta vacía" to "Cocina limpió tu ruta en la app."
+            "app_update" ->
+                "Actualización de Brava Repartidor" to
+                    "Hay una versión nueva. Abrí la app para instalarla."
             "fcm", "" -> null
             else -> "Brava Repartidor" to "Hay novedades en tu ruta."
         }

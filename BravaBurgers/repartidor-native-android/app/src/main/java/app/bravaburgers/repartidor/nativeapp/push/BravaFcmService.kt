@@ -19,6 +19,14 @@ class BravaFcmService : FirebaseMessagingService() {
 
     override fun onMessageReceived(message: RemoteMessage) {
         val type = message.data["type"] ?: "fcm"
+        if (type == "app_update") {
+            RouteEvents.requestRefresh("app_update")
+            val parsed = RoutePushNotifier.parse(message)
+            if (parsed != null && !AppForeground.isInForeground) {
+                showPushNotification(parsed.first, parsed.second, type)
+            }
+            return
+        }
         RouteEvents.requestRefresh(type)
         val parsed = RoutePushNotifier.parse(message) ?: return
         val routeAlert = RoutePushNotifier.isRouteAlert(type)
@@ -65,6 +73,7 @@ class BravaFcmService : FirebaseMessagingService() {
             "route_modified" -> 88011
             "route_removed" -> 88012
             "route_clear" -> 88013
+            "app_update" -> 88014
             else -> 88002
         }
 

@@ -4,7 +4,8 @@
 param(
     [string]$ReleaseNotes = "",
     [switch]$SkipBuild,
-    [switch]$PushGit
+    [switch]$PushGit,
+    [switch]$SkipFcm
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,6 +25,52 @@ function Get-GradleVersion {
     $text = Get-Content $Path -Raw
     if ($text -match 'versionCode\s*=\s*(\d+)') { $script:VersionCode = [int]$Matches[1] } else { throw "versionCode no encontrado" }
     if ($text -match 'versionName\s*=\s*"([^"]+)"') { $script:VersionName = $Matches[1] } else { throw "versionName no encontrado" }
+}
+
+function Invoke-RepartidorAppUpdateFcm {
+    param(
+        [int]$Code,
+        [string]$Name
+    )
+    $notifyScript = Join-Path $root "scripts\notify-repartidor-app-update.js"
+    if (-not (Test-Path $notifyScript)) {
+        Write-Host "FCM: no se encontró notify-repartidor-app-update.js" -ForegroundColor Yellow
+        return
+    }
+    $saJson = Join-Path $root "secrets\firebase-admin.json"
+    if (Test-Path $saJson) {
+        $env:FIREBASE_SERVICE_ACCOUNT_JSON = Get-Content -Path $saJson -Raw -Encoding UTF8
+    }
+    foreach ($envFile in @(".env.local", ".env")) {
+        $p = Join-Path $root $envFile
+        if (-not (Test-Path $p)) { continue }
+        Get-Content $p -Encoding UTF8 | ForEach-Object {
+            $line = $_.Trim()
+            if (-not $line -or $line.StartsWith("#")) { return }
+            $eq = $line.IndexOf("=")
+            if ($eq -le 0) { return }
+            $k = $line.Substring(0, $eq).Trim()
+            $v = $line.Substring($eq + 1).Trim().Trim('"').Trim("'")
+            if ($k) {
+                $existing = [Environment]::GetEnvironmentVariable($k, "Process")
+                if ([string]::IsNullOrEmpty($existing)) {
+                    [Environment]::SetEnvironmentVariable($k, $v, "Process")
+                }
+            }
+        }
+    }
+    Write-Host "FCM app_update → repartidores (version $Name)..." -ForegroundColor Cyan
+    Push-Location $root
+    try {
+        node $notifyScript --version-code $Code --version-name $Name
+        if ($LASTEXITCODE -eq 2) {
+            Write-Host "FCM omitido: FIREBASE_SERVICE_ACCOUNT_JSON / secrets/firebase-admin.json" -ForegroundColor Yellow
+        } elseif ($LASTEXITCODE -ne 0) {
+            Write-Host "FCM app_update falló (exit $LASTEXITCODE)." -ForegroundColor Yellow
+        }
+    } finally {
+        Pop-Location
+    }
 }
 
 Get-GradleVersion $gradleFile
@@ -102,9 +149,27 @@ if ($PushGit) {
             $relJson = "BravaBurgers/repartidor-native-update.json"
             if (-not (Test-Path $relJson)) { $relJson = "repartidor-native-update.json" }
         }
-        Copy-Item $jsonPath (Join-Path $gitRoot $relJson) -Force
+        $destJson = Join-Path $gitRoot $relJson
+        if ($jsonPath -ne $destJson) {
+            Copy-Item $jsonPath $destJson -Force
+        }
         git add $relJson
-        git add -- "*repartidor-native-android/app/build.gradle.kts" 2>$null
+        foreach ($rel in @(
+            "repartidor-native-android",
+            "BravaBurgers/repartidor-native-android",
+            "lib/repartidorPushTokens.js",
+            "BravaBurgers/lib/repartidorPushTokens.js",
+            "lib/repartidorRoutePush.js",
+            "BravaBurgers/lib/repartidorRoutePush.js",
+            "scripts/notify-repartidor-app-update.js",
+            "BravaBurgers/scripts/notify-repartidor-app-update.js",
+            "scripts/publish-repartidor-native-release.ps1",
+            "BravaBurgers/scripts/publish-repartidor-native-release.ps1"
+        )) {
+            if (Test-Path (Join-Path $gitRoot $rel)) {
+                git add -- $rel
+            }
+        }
         git commit -m "repartidor nativo: release $ReleaseTag ($VersionName)" 2>$null
         if ($LASTEXITCODE -ne 0) {
             Write-Host "Sin cambios git o commit omitido." -ForegroundColor Yellow
@@ -117,4 +182,10 @@ if ($PushGit) {
 } else {
     Write-Host ""
     Write-Host "Push: commit repartidor-native-update.json + push main (o -PushGit en este script)."
+}
+
+if (-not $SkipFcm) {
+    Invoke-RepartidorAppUpdateFcm -Code $VersionCode -Name $VersionName
+} else {
+    Write-Host "FCM omitido (-SkipFcm)." -ForegroundColor DarkGray
 }

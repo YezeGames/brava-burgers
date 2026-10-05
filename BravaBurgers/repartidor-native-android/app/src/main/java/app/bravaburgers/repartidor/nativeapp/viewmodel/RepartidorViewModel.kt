@@ -7,28 +7,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import app.bravaburgers.repartidor.nativeapp.BravaConstants
 import app.bravaburgers.repartidor.nativeapp.data.GeocodeClient
-import app.bravaburgers.repartidor.nativeapp.data.OsrmClient
-import app.bravaburgers.repartidor.nativeapp.data.RouteResult
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
-import app.bravaburgers.repartidor.nativeapp.location.NavLocationTracker
-import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteProgress
-import app.bravaburgers.repartidor.nativeapp.navigation.core.BravaNavDisplayPipeline
-import app.bravaburgers.repartidor.nativeapp.navigation.core.NavDisplayThresholds
+import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigation
 import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
-import app.bravaburgers.repartidor.nativeapp.navigation.NavRouteVoiceGuide
-import app.bravaburgers.repartidor.nativeapp.navigation.ValhallaMapMatcher
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
 import app.bravaburgers.repartidor.nativeapp.session.RouteEvents
 import app.bravaburgers.repartidor.nativeapp.session.RouteGpsSync
 import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,9 +33,6 @@ import app.bravaburgers.repartidor.nativeapp.update.AppUpdateOffer
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -81,8 +69,12 @@ data class RepartidorUiState(
     val appUpdateProgress: Int = 0,
     val appUpdateIndeterminate: Boolean = false,
     val appUpdateError: String? = null,
-    /** true al abrir / reanudar hasta terminar chequeo OTA. */
+    /** true solo en el primer chequeo OTA del proceso (no al volver de segundo plano). */
     val appUpdateChecking: Boolean = true,
+    val homeMapDriver: Pair<Double, Double>? = null,
+    val homeMapBearing: Float? = null,
+    val homeMapSpeedKmh: Int = 0,
+    val homeMapWaitingGps: Boolean = false,
 )
 
 @OptIn(FlowPreview::class)
@@ -92,14 +84,8 @@ class RepartidorViewModel(
 ) : ViewModel() {
     private val _ui = MutableStateFlow(RepartidorUiState())
     val ui: StateFlow<RepartidorUiState> = _ui.asStateFlow()
-    private val osrm = OsrmClient()
-    private val valhallaMatcher = ValhallaMapMatcher(osrm)
-    private var navValhallaMatchOn = false
-    private val navGpsMutex = Mutex()
     private val geocode = GeocodeClient()
     private val geocodeCache = mutableMapOf<String, Pair<Double, Double>>()
-    private val navLocationTracker = NavLocationTracker(repo.appContext)
-    private val navVoice = NavRouteVoiceGuide(repo.appContext)
     private val routeRefreshMutex = Mutex()
     private var loginRealtime: RealtimeConfigDto? = null
     private var bootstrappedToken: String? = null
@@ -109,23 +95,11 @@ class RepartidorViewModel(
     /** Invalida refreshes en vuelo al cerrar sesión (estilo Uber: UI primero). */
     private var authEpoch = 0
     private var suppressSessionRestore = false
-    private var navRerouteInFlight = false
-    private var lastNavRerouteAtMs = 0L
-    private var navOffRouteAnnounced = false
-    /** Último fix GPS útil para arrancar OSRM sin esperar getCurrentLocation. */
     private var lastKnownDriverLatLng: Pair<Double, Double>? = null
-    private var lastNavFixForBearing: Pair<Double, Double>? = null
-    /** Invalida coroutines de OSRM/geocode si cambió la parada o se cerró navegación. */
+    /** Invalida coroutines de geocode si cambió la parada o se cerró navegación. */
     private var navGeneration = 0
     private var routeListReady = false
-    private val navDisplayPipeline = BravaNavDisplayPipeline()
-    private var navFrameJob: Job? = null
-    private var valhallaLocateJob: Job? = null
-    private var valhallaLocateSeq = 0
-    private var lastGpsBearing: Float? = null
-    private var lastNavSpeedMps: Float = 0f
-    private var navStartupOriginFixUsed = false
-    private var valhallaLocateMutedUntilMs = 0L
+    private var homeMapPreviewActive = false
 
     private val _routeSyncEvents = MutableSharedFlow<RouteSyncEvent>(extraBufferCapacity = 4)
     val routeSyncEvents = _routeSyncEvents.asSharedFlow()
@@ -134,7 +108,21 @@ class RepartidorViewModel(
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
-        navVoice.ensureInit()
+        BravaMapboxNavigation.onRouteProgress = { distanceM, durationSec ->
+            val km = distanceM?.div(1000.0)
+            val min = durationSec?.div(60.0)?.toInt()?.coerceAtLeast(1)
+            _ui.value =
+                _ui.value.copy(
+                    navRouteKm = km ?: _ui.value.navRouteKm,
+                    navEtaMinutes = min ?: _ui.value.navEtaMinutes,
+                    navMeta =
+                        if (km != null && min != null) {
+                            String.format("~%d min · %.1f km · Mapbox", min, km)
+                        } else {
+                            _ui.value.navMeta
+                        },
+                )
+        }
         viewModelScope.launch {
             sessionFlow.collect { s ->
                 if (suppressSessionRestore && s != null) return@collect
@@ -175,11 +163,15 @@ class RepartidorViewModel(
                 }
             }
         }
-        refreshAppUpdate()
+        refreshAppUpdate(showBootGate = true)
         viewModelScope.launch {
             RouteEvents.refresh
                 .debounce(350)
                 .collect { reason ->
+                    if (reason == "app_update") {
+                        refreshAppUpdate(showBootGate = false, forceNetwork = true)
+                        return@collect
+                    }
                     if (suppressBackgroundRefresh > 0) return@collect
                     if (reason == "foreground") {
                         val now = System.currentTimeMillis()
@@ -287,26 +279,33 @@ class RepartidorViewModel(
     private fun shouldBlockForMandatoryUpdate(): Boolean =
         _ui.value.appUpdateChecking || _ui.value.appUpdate?.required == true
 
-    /** OTA al abrir y al volver del instalador / segundo plano. */
-    fun refreshAppUpdate() {
+    /**
+     * OTA: una vez al abrir la app ([showBootGate]) o en silencio cuando el servidor avisa (FCM `app_update`).
+     * No se llama al reanudar desde segundo plano — evita gate + pérdida de navegación Mapbox.
+     */
+    fun refreshAppUpdate(showBootGate: Boolean = false, forceNetwork: Boolean = false) {
         viewModelScope.launch {
-            val keepOffer = _ui.value.appUpdate?.takeIf { it.required }
-            _ui.value =
-                _ui.value.copy(
-                    appUpdateChecking = true,
-                    appUpdateError = null,
-                    appUpdate = keepOffer,
-                )
+            val mandatoryPending = _ui.value.appUpdate?.takeIf { it.required }
+            if (showBootGate && mandatoryPending == null) {
+                _ui.value =
+                    _ui.value.copy(
+                        appUpdateChecking = true,
+                        appUpdateError = null,
+                        appUpdate = null,
+                    )
+            } else {
+                _ui.value = _ui.value.copy(appUpdateError = null)
+            }
             val offer =
                 withContext(Dispatchers.IO) {
-                    AppUpdateChecker.fetchOfferIfNewer()
+                    AppUpdateChecker.fetchOfferIfNewer(repo.appContext, forceNetwork)
                 }
             if (offer?.required == true) {
                 clearSessionForMandatoryUpdate(offer)
             } else {
                 _ui.value =
                     _ui.value.copy(
-                        appUpdate = offer,
+                        appUpdate = offer ?: mandatoryPending,
                         appUpdateChecking = false,
                     )
                 val token = _ui.value.session?.token
@@ -319,8 +318,6 @@ class RepartidorViewModel(
 
     private fun bootstrapLoggedInSession(ctx: Context, token: String) {
         viewModelScope.launch {
-            launch { osrm.ensureBasesLoaded() }
-            launch { osrm.prefetchBravaPrimary() }
             PushRegistrar.registerAfterLogin(ctx, repo, token)
             val rt = loginRealtime
             loginRealtime = null
@@ -338,10 +335,7 @@ class RepartidorViewModel(
         bootstrappedToken = null
         routeListReady = false
         navGeneration++
-        navLocationTracker.stop()
-        stopNavDisplay()
-        stopNavValhallaMatch()
-        navVoice.reset()
+        BravaMapboxNavigation.stopActiveGuidance()
         lastKnownDriverLatLng = null
         val ctx = repo.appContext
         RepartoSessionForegroundService.stopSession(ctx)
@@ -364,8 +358,7 @@ class RepartidorViewModel(
         bootstrappedToken = null
         routeListReady = false
         navGeneration++
-        navLocationTracker.stop()
-        navVoice.reset()
+        BravaMapboxNavigation.stopActiveGuidance()
         lastKnownDriverLatLng = null
         val ctx = repo.appContext
         RepartoSessionForegroundService.stopSession(ctx)
@@ -690,157 +683,45 @@ class RepartidorViewModel(
 
     fun nextStop(): RouteStop? = pickNextStop(_ui.value.stops)
 
-    /** Primera parada pendiente: en_camino primero, si no la de menor número (como web). */
+    fun startHomeMapPreview() {
+        if (_ui.value.trackingOrn != null) return
+        homeMapPreviewActive = true
+        _ui.value =
+            _ui.value.copy(
+                homeMapWaitingGps = true,
+                homeMapDriver = lastKnownDriverLatLng,
+            )
+        viewModelScope.launch {
+            val loc =
+                lastKnownDriverLatLng
+                    ?: withContext(Dispatchers.IO) {
+                        LocationHelper.lastLatLng(repo.appContext)
+                    }
+            if (!homeMapPreviewActive || _ui.value.trackingOrn != null) return@launch
+            if (loc != null) {
+                lastKnownDriverLatLng = loc
+                _ui.value =
+                    _ui.value.copy(
+                        homeMapDriver = loc,
+                        homeMapWaitingGps = false,
+                    )
+            } else {
+                _ui.value = _ui.value.copy(homeMapWaitingGps = false)
+            }
+        }
+    }
+
+    fun stopHomeMapPreview() {
+        homeMapPreviewActive = false
+        _ui.value = _ui.value.copy(homeMapWaitingGps = false)
+    }
+
     fun pickNextStop(stops: List<RouteStop>): RouteStop? {
         if (stops.isEmpty()) return null
         val enCamino =
             stops.filter { it.estado.equals("en_camino", ignoreCase = true) }
         if (enCamino.isNotEmpty()) return enCamino.minByOrNull { it.parada ?: 999 }
         return stops.minByOrNull { it.parada ?: 999 }
-    }
-
-    private suspend fun applyNavDriverFix(
-        lat: Double,
-        lng: Double,
-        gpsBearing: Float?,
-        speedMps: Float?,
-        accuracyM: Float?,
-    ) {
-        lastKnownDriverLatLng = Pair(lat, lng)
-        lastGpsBearing = gpsBearing
-        val speedMpsSafe = speedMps?.coerceAtLeast(0f) ?: 0f
-        lastNavSpeedMps = speedMpsSafe
-        val moving = speedMpsSafe >= app.bravaburgers.repartidor.nativeapp.navigation.NavDriverDisplaySmoother.MOVING_MIN_SPEED_MPS
-
-        var speedKmh = 0
-        val matchCtx =
-            navVoice.routeProgressSnapshot(lat, lng)?.let { snap ->
-                app.bravaburgers.repartidor.nativeapp.navigation.core.NavMatchContext(
-                    maneuverAlongM = navVoice.matcherManeuverAlongM(),
-                    stepIndex = snap.stepIndex,
-                )
-            }
-        navGpsMutex.withLock {
-            navDisplayPipeline.onGpsFix(lat, lng, speedMps, gpsBearing, accuracyM, matchCtx)
-            speedKmh =
-                if (navDisplayPipeline.isStationaryLocked || !moving) {
-                    0
-                } else {
-                    (speedMpsSafe * 3.6f).toInt().coerceIn(0, 999)
-                }
-            ensureNavDisplayFrameLoop()
-            commitNavDriverFix(lat, lng, gpsBearing, speedKmh)
-        }
-        maybeValhallaLocateForDisplay(lat, lng, speedMps, gpsBearing, moving)
-    }
-
-    /** Mapbox `enhancedLocation`: Valhalla solo refina el puck, nunca voz/reruta. */
-    private fun maybeValhallaLocateForDisplay(
-        lat: Double,
-        lng: Double,
-        speedMps: Float?,
-        gpsBearing: Float?,
-        moving: Boolean,
-    ) {
-        if (!navValhallaMatchOn || !moving) return
-        if (System.currentTimeMillis() < valhallaLocateMutedUntilMs) return
-        val seq = ++valhallaLocateSeq
-        valhallaLocateJob?.cancel()
-        valhallaLocateJob =
-            viewModelScope.launch {
-                val located = valhallaMatcher.locateForDisplay(lat, lng, speedMps) ?: return@launch
-                if (seq != valhallaLocateSeq) return@launch
-                navGpsMutex.withLock {
-                    if (!navDisplayPipeline.isStationaryLocked) {
-                        navDisplayPipeline.applyValhallaLocate(
-                            located.first,
-                            located.second,
-                            lat,
-                            lng,
-                            speedMps,
-                            gpsBearing,
-                        )
-                    }
-                }
-            }
-    }
-
-    /** Voz y reruta con GPS crudo; la flecha en mapa la interpola [ensureNavInterpLoop]. */
-    private fun commitNavDriverFix(
-        lat: Double,
-        lng: Double,
-        gpsBearing: Float?,
-        speedKmh: Int,
-    ) {
-        lastNavFixForBearing = Pair(lat, lng)
-        val tick = navVoice.onDriverPosition(lat, lng)
-        val stepIdx = tick?.stepIndex ?: 0
-        _ui.value =
-            _ui.value.copy(
-                navSpeedKmh = speedKmh,
-                navManeuver = tick?.instruction ?: _ui.value.navManeuver,
-                navInstructionPrimary = navVoice.bannerPrimary(stepIdx),
-                navInstructionThen = navVoice.nextSignificantInstruction(stepIdx),
-                navInstructionThenModifier =
-                    navVoice.nextSignificantStepIndex(stepIdx)?.let {
-                        navVoice.maneuverModifierAt(it)
-                    },
-                navManeuverModifier = navVoice.maneuverModifierAt(stepIdx),
-                navMeta = appendNavTurnMeta(_ui.value.navMeta, tick),
-            )
-        maybeRerouteFromGps(lat, lng, speedKmh, tick?.distanceToManeuverM?.toDouble())
-    }
-
-    /** ~60 FPS — puck/cámara (brava-nav-core / Mapbox-style animator). */
-    private fun ensureNavDisplayFrameLoop() {
-        if (navFrameJob?.isActive == true) return
-        navFrameJob =
-            viewModelScope.launch {
-                while (isActive) {
-                    if (_ui.value.trackingOrn.isNullOrBlank()) break
-                    val sample =
-                        navDisplayPipeline.tickDisplay(
-                            speedKmh = _ui.value.navSpeedKmh,
-                            speedMps = lastNavSpeedMps,
-                            vehicleBearing = lastGpsBearing,
-                        )
-                    if (sample != null) {
-                        _ui.value =
-                            _ui.value.copy(
-                                navDriver = Pair(sample.lat, sample.lng),
-                                navDriverBearing = sample.bearing,
-                            )
-                    }
-                    delay(NAV_DISPLAY_FRAME_MS)
-                }
-            }
-    }
-
-    private fun stopNavDisplay() {
-        navFrameJob?.cancel()
-        navFrameJob = null
-        valhallaLocateJob?.cancel()
-        valhallaLocateJob = null
-        navDisplayPipeline.reset()
-        lastGpsBearing = null
-        lastNavSpeedMps = 0f
-        navStartupOriginFixUsed = false
-        valhallaLocateMutedUntilMs = 0L
-    }
-
-    private suspend fun enableNavValhallaDisplayMatch() {
-        osrm.ensureBasesLoaded()
-        navValhallaMatchOn = osrm.hasValhallaMapMatch()
-        valhallaMatcher.setEnabled(navValhallaMatchOn)
-        if (!navValhallaMatchOn) valhallaMatcher.reset()
-    }
-
-    private fun stopNavValhallaMatch() {
-        navValhallaMatchOn = false
-        valhallaLocateJob?.cancel()
-        valhallaLocateJob = null
-        valhallaMatcher.setEnabled(false)
-        valhallaMatcher.reset()
     }
 
     private fun patchStopCoords(orn: String, lat: Double, lng: Double) {
@@ -876,37 +757,9 @@ class RepartidorViewModel(
                 navDest = null,
                 navDriver = null,
             )
-        navVoice.setEnabled(_ui.value.navVoiceOn)
-        navRerouteInFlight = false
-        lastNavRerouteAtMs = 0L
-        navOffRouteAnnounced = false
-        navStartupOriginFixUsed = false
-        valhallaLocateMutedUntilMs = 0L
-        stopNavDisplay()
-        stopNavValhallaMatch()
-        navLocationTracker.start { lat, lng, gpsBearing, speedMps, accuracyM ->
-            viewModelScope.launch {
-                applyNavDriverFix(lat, lng, gpsBearing, speedMps, accuracyM)
-            }
-        }
         viewModelScope.launch {
             val destCoords =
-                coroutineScope {
-                    launch { osrm.ensureBasesLoaded() }
-                    launch { osrm.prefetchBravaPrimary() }
-                    val destJob = async { resolveDestination(stop) }
-                    val fromJob =
-                        async(Dispatchers.IO) {
-                            lastKnownDriverLatLng
-                                ?: LocationHelper.lastLatLng(context)
-                                ?: Pair(BravaConstants.KITCHEN_LAT, BravaConstants.KITCHEN_LNG)
-                        }
-                    val fromEarly = fromJob.await()
-                    if (!navStillActive(gen, orn)) return@coroutineScope null
-                    lastKnownDriverLatLng = fromEarly
-                    _ui.value = _ui.value.copy(navDriver = fromEarly)
-                    destJob.await()
-                }
+                resolveDestination(stop)
                     ?: run {
                         if (navStillActive(gen, orn)) {
                             _ui.value =
@@ -923,49 +776,30 @@ class RepartidorViewModel(
             val destLng = destCoords.second
             patchStopCoords(orn, destLat, destLng)
             RepartoSessionForegroundService.setActiveOrn(context, orn)
+            val origin =
+                lastKnownDriverLatLng
+                    ?: withContext(Dispatchers.IO) {
+                        LocationHelper.lastLatLng(context)
+                    }
+                    ?: Pair(BravaConstants.KITCHEN_LAT, BravaConstants.KITCHEN_LNG)
+            lastKnownDriverLatLng = origin
             _ui.value =
                 _ui.value.copy(
-                    navManeuver = "Calculando ruta…",
                     navDest = destCoords,
+                    navDriver = origin,
                 )
-            val from = _ui.value.navDriver ?: lastKnownDriverLatLng
-                ?: Pair(BravaConstants.KITCHEN_LAT, BravaConstants.KITCHEN_LNG)
-            val result =
-                osrm.fetchDrivingRouteFast(
-                    fromLng = from.second,
-                    fromLat = from.first,
-                    toLng = destLng,
-                    toLat = destLat,
-                    headingDeg = navRouteHeadingDeg(),
-                )
+            BravaMapboxNavigation.requestActiveGuidance(
+                originLat = origin.first,
+                originLng = origin.second,
+                destLat = destLat,
+                destLng = destLng,
+            )
             if (!navStillActive(gen, orn)) return@launch
-            result
-                .onSuccess { route ->
-                    applyNavRouteSuccess(
-                        route = route,
-                        driverNow = _ui.value.navDriver,
-                        isReroute = false,
-                        announceReroute = false,
-                        startVoice = { navVoice.startRoute(route, stop.parada, navArrivalContext(stop, destLat, destLng)) },
-                    )
-                    maybeCorrectStartupRouteOrigin(
-                        gpsLat = from.first,
-                        gpsLng = from.second,
-                        dest = destCoords,
-                        gen = gen,
-                        orn = orn,
-                    )
-                }
-                .onFailure {
-                    _ui.value =
-                        _ui.value.copy(
-                            navLoading = false,
-                            navManeuver =
-                                "No se pudo trazar la ruta por calles. Reintentá en unos segundos " +
-                                    "o volvé atrás y entrá de nuevo.",
-                            navRoute = emptyList(),
-                        )
-                }
+            _ui.value =
+                _ui.value.copy(
+                    navLoading = false,
+                    navInstructionPrimary = "Mapbox Navigation",
+                )
         }
     }
 
@@ -995,229 +829,7 @@ class RepartidorViewModel(
     }
 
     fun toggleNavVoice() {
-        val on = !_ui.value.navVoiceOn
-        navVoice.setEnabled(on)
-        _ui.value = _ui.value.copy(navVoiceOn = on)
-    }
-
-    private fun navArrivalContext(
-        stop: RouteStop,
-        destLat: Double,
-        destLng: Double,
-    ): NavRouteVoiceGuide.ArrivalContext {
-        val cliente = stop.cliente?.trim()?.takeIf { it.isNotEmpty() }
-        val dir = stop.direccion?.trim()?.takeIf { it.isNotEmpty() }
-        val label =
-            when {
-                cliente != null && dir != null -> "$cliente, $dir"
-                cliente != null -> cliente
-                dir != null -> dir
-                else -> null
-            }
-        return NavRouteVoiceGuide.ArrivalContext(
-            clientLabel = label,
-            destLat = destLat,
-            destLng = destLng,
-        )
-    }
-
-    private fun navBearingAlongRoute(
-        route: List<Pair<Double, Double>>,
-        driver: Pair<Double, Double>?,
-        fallback: Float?,
-    ): Float? {
-        if (route.size < 2 || driver == null) {
-            return fallback
-                ?: NavRouteProgress.travelBearingDeg(route, 0.0)?.toFloat()
-        }
-        val proj = NavRouteProgress.projectOntoRoute(driver.first, driver.second, route) ?: return fallback
-        return NavRouteProgress.travelBearingDeg(route, proj.alongRouteM + 8.0)?.toFloat()
-            ?: fallback
-    }
-
-    private fun appendNavTurnMeta(
-        current: String,
-        tick: NavRouteVoiceGuide.Tick?,
-    ): String {
-        val base =
-            current
-                .split(" · Paso ")
-                .first()
-                .split(" · Próx. maniobra")
-                .first()
-                .replace(" · Recalculando ruta…", "")
-                .trim()
-        if (tick == null || tick.stepCount <= 0) return base
-        val stepPart = " · Paso ${tick.stepIndex + 1}/${tick.stepCount}"
-        val distPart =
-            tick.distanceToManeuverM?.let { d ->
-                if (d > 0) " · Próx. maniobra ~$d m" else ""
-            }.orEmpty()
-        return (base + stepPart + distPart).trim()
-    }
-
-    private fun navRouteHeadingDeg(): Float? {
-        if (lastNavSpeedMps < NavDisplayThresholds.HEADING_MIN_SPEED_MPS) return null
-        val b = lastGpsBearing ?: return null
-        return b.takeIf { it.isFinite() }
-    }
-
-    private suspend fun applyNavRouteSuccess(
-        route: RouteResult,
-        driverNow: Pair<Double, Double>?,
-        isReroute: Boolean,
-        announceReroute: Boolean,
-        startVoice: (() -> Unit)? = null,
-    ) {
-        val km = route.distanceM / 1000.0
-        val min = (route.durationSec / 60.0).toInt().coerceAtLeast(1)
-        enableNavValhallaDisplayMatch()
-        if (isReroute) {
-            valhallaLocateMutedUntilMs =
-                System.currentTimeMillis() + NavDisplayThresholds.VALHALLA_LOCATE_MUTE_AFTER_REROUTE_MS
-            valhallaLocateJob?.cancel()
-        }
-        navDisplayPipeline.onRouteLoaded(
-            route.coordinates,
-            transitionFromDisplay = driverNow,
-            easeFromDisplay = true,
-        )
-        if (announceReroute) {
-            navVoice.announceReroute(route)
-        } else {
-            startVoice?.invoke()
-        }
-        navOffRouteAnnounced = false
-        _ui.value =
-            _ui.value.copy(
-                navLoading = false,
-                navRoute = route.coordinates,
-                navDriverBearing =
-                    navBearingAlongRoute(
-                        route.coordinates,
-                        driverNow,
-                        _ui.value.navDriverBearing,
-                    ),
-                navManeuver = route.firstManeuver,
-                navInstructionPrimary = navVoice.bannerPrimary(0),
-                navInstructionThen = navVoice.nextSignificantInstruction(0),
-                navInstructionThenModifier =
-                    navVoice.nextSignificantStepIndex(0)?.let {
-                        navVoice.maneuverModifierAt(it)
-                    },
-                navManeuverModifier = navVoice.maneuverModifierAt(0),
-                navEtaMinutes = min,
-                navRouteKm = km,
-                navMeta = String.format("~%d min · %.1f km · %s", min, km, route.sourceTag),
-            )
-    }
-
-    /** Un reroute automático si la polyline arranca lejos del GPS (anti-loop). */
-    private fun maybeCorrectStartupRouteOrigin(
-        gpsLat: Double,
-        gpsLng: Double,
-        dest: Pair<Double, Double>,
-        gen: Int,
-        orn: String,
-    ) {
-        if (navStartupOriginFixUsed || navRerouteInFlight) return
-        val route = _ui.value.navRoute
-        if (route.size < 2) return
-        val proj = NavRouteProgress.projectOntoRoute(gpsLat, gpsLng, route) ?: return
-        if (proj.offRouteM <= NavDisplayThresholds.ROUTE_ORIGIN_MISMATCH_M) return
-        val now = System.currentTimeMillis()
-        if (now - lastNavRerouteAtMs < 5500L) return
-        navStartupOriginFixUsed = true
-        navDisplayPipeline.offRoute.markRerouteRequested(now)
-        lastNavRerouteAtMs = now
-        rerouteFromCurrentPosition(
-            lat = gpsLat,
-            lng = gpsLng,
-            dest = dest,
-            generation = gen,
-            orn = orn,
-            startupCorrection = true,
-        )
-    }
-
-    private fun maybeRerouteFromGps(
-        lat: Double,
-        lng: Double,
-        speedKmh: Int,
-        distToManeuverM: Double?,
-    ) {
-        val state = _ui.value
-        if (state.navLoading || state.trackingOrn.isNullOrBlank()) return
-        val route = state.navRoute
-        if (route.size < 2 || navRerouteInFlight) return
-        val dest = state.navDest ?: return
-        val off =
-            navDisplayPipeline.offRoute.evaluate(
-                gpsLat = lat,
-                gpsLng = lng,
-                speedKmh = speedKmh,
-                route = route,
-                distToNextManeuverM = distToManeuverM,
-            )
-        if (!off.offRoute) {
-            navOffRouteAnnounced = false
-            return
-        }
-        if (!off.shouldReroute) return
-        if (!navOffRouteAnnounced) {
-            navOffRouteAnnounced = true
-            navVoice.speakOffRoute()
-        }
-        navDisplayPipeline.offRoute.markRerouteRequested()
-        lastNavRerouteAtMs = System.currentTimeMillis()
-        rerouteFromCurrentPosition(lat, lng, dest)
-    }
-
-    private fun rerouteFromCurrentPosition(
-        lat: Double,
-        lng: Double,
-        dest: Pair<Double, Double>,
-        generation: Int? = null,
-        orn: String? = null,
-        startupCorrection: Boolean = false,
-    ) {
-        navRerouteInFlight = true
-        lastNavRerouteAtMs = System.currentTimeMillis()
-        val prevMeta = _ui.value.navMeta
-        _ui.value =
-            _ui.value.copy(
-                navMeta =
-                    if (prevMeta.contains("Recalculando")) prevMeta
-                    else "$prevMeta · Recalculando ruta…".trim().removePrefix("·").trim(),
-            )
-        viewModelScope.launch {
-            val result =
-                osrm.fetchDrivingRouteFast(
-                    fromLng = lng,
-                    fromLat = lat,
-                    toLng = dest.second,
-                    toLat = dest.first,
-                    headingDeg = navRouteHeadingDeg(),
-                )
-            navRerouteInFlight = false
-            if (generation != null && orn != null && !navStillActive(generation, orn)) return@launch
-            result
-                .onSuccess { route ->
-                    applyNavRouteSuccess(
-                        route = route,
-                        driverNow = _ui.value.navDriver,
-                        isReroute = true,
-                        announceReroute = !startupCorrection,
-                    )
-                }
-                .onFailure {
-                    navOffRouteAnnounced = false
-                    _ui.value =
-                        _ui.value.copy(
-                            navMeta = prevMeta.ifBlank { _ui.value.navMeta },
-                        )
-                }
-        }
+        _ui.value = _ui.value.copy(navVoiceOn = !_ui.value.navVoiceOn)
     }
 
     fun stopNavigation(context: Context) {
@@ -1233,10 +845,7 @@ class RepartidorViewModel(
     }
 
     private fun stopNavigationQuiet() {
-        navLocationTracker.stop()
-        stopNavDisplay()
-        stopNavValhallaMatch()
-        navVoice.reset()
+        BravaMapboxNavigation.stopActiveGuidance()
         _ui.value =
             _ui.value.copy(
                 trackingOrn = null,
@@ -1255,15 +864,6 @@ class RepartidorViewModel(
                 navEtaMinutes = null,
                 navRouteKm = null,
             )
-    }
-
-    override fun onCleared() {
-        navVoice.shutdown()
-        super.onCleared()
-    }
-
-    companion object {
-        private const val NAV_DISPLAY_FRAME_MS = 16L
     }
 }
 

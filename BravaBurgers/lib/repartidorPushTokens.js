@@ -62,6 +62,27 @@ async function listPushTokensForTelefono(telefono) {
   return { ok: true, tokens: tokens };
 }
 
+/** Todos los dispositivos registrados (p. ej. aviso OTA). */
+async function listAllPushTokens() {
+  const q = 'select=fcm_token&order=updated_at.desc&limit=500';
+  const r = await restSelect('repartidor_push_tokens', q);
+  if (!r.ok) {
+    if (isPushTableMissing(r)) {
+      return { ok: false, error: 'repartidor_push_schema_missing', tokens: [] };
+    }
+    return { ok: false, error: r.error || 'select_failed', tokens: [] };
+  }
+  const seen = new Set();
+  const tokens = [];
+  for (let i = 0; i < (r.data || []).length; i++) {
+    const t = String(r.data[i].fcm_token || '').trim();
+    if (!t || seen.has(t)) continue;
+    seen.add(t);
+    tokens.push(t);
+  }
+  return { ok: true, tokens: tokens };
+}
+
 async function deleteInvalidPushToken(fcmToken) {
   const token = String(fcmToken || '').trim();
   if (!token) return { ok: true };
@@ -72,6 +93,7 @@ async function deleteInvalidPushToken(fcmToken) {
 module.exports = {
   upsertRepartidorPushToken,
   listPushTokensForTelefono,
+  listAllPushTokens,
   deleteInvalidPushToken,
   isPushTableMissing,
 };

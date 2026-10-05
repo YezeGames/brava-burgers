@@ -37,10 +37,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -48,16 +44,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
-import app.bravaburgers.repartidor.nativeapp.navigation.BravaNavigationTts
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
-import app.bravaburgers.repartidor.nativeapp.ui.map.BravaMapView
+import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigation
+import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigationView
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
@@ -65,7 +60,6 @@ import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.MpBlue
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
-import kotlinx.coroutines.delay
 import java.util.Locale
 
 private val NavFabWhite = Color.White
@@ -97,27 +91,24 @@ fun NavigationScreen(
     onLlegue: () -> Unit,
 ) {
     val context = LocalContext.current
-    val density = LocalDensity.current
     val navBarBottom =
         WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val sheetBodyHeight = 158.dp
-    val sheetTotalHeight = sheetBodyHeight + navBarBottom
-    val bottomOverlayPx = with(density) { sheetTotalHeight.toPx().toInt() }
-    val floatRowBottom = sheetTotalHeight + 10.dp
-
-    var mapFollow by remember(stop.orn) { mutableStateOf(false) }
-    var recenterKey by remember(stop.orn) { mutableIntStateOf(0) }
-    var compassKey by remember(stop.orn) { mutableIntStateOf(0) }
 
     LaunchedEffect(stop.orn) {
         onStartNavigation()
     }
 
-    LaunchedEffect(navLoading, navRoute.size) {
-        mapFollow = false
-        if (!navLoading && navRoute.size >= 2) {
-            delay(900)
-            mapFollow = true
+    LaunchedEffect(navLoading, navDest, navDriver) {
+        val dest = navDest
+        val origin = navDriver
+        if (!navLoading && dest != null && origin != null) {
+            BravaMapboxNavigation.requestActiveGuidance(
+                originLat = origin.first,
+                originLng = origin.second,
+                destLat = dest.first,
+                destLng = dest.second,
+            )
         }
     }
 
@@ -137,24 +128,7 @@ fun NavigationScreen(
     val addressZone = stop.localidad?.trim()?.takeIf { it.isNotEmpty() }.orEmpty()
 
     Box(modifier = Modifier.fillMaxSize().background(BgDark)) {
-        BravaMapView(
-            modifier = Modifier.fillMaxSize(),
-            route = navRoute,
-            destination = navDest,
-            driver = navDriver,
-            recenterKey = recenterKey,
-            compassResetKey = compassKey,
-            navigationFollow = mapFollow,
-            driverBearing = navDriverBearing,
-            driverSpeedKmh = navSpeedKmh,
-            navigationMode = true,
-            bottomOverlayPx = bottomOverlayPx,
-            onUserMovedMap = {
-                if (!navLoading && navRoute.size >= 2) {
-                    mapFollow = false
-                }
-            },
-        )
+        BravaMapboxNavigationView(modifier = Modifier.fillMaxSize())
 
         NavTopInstructionBanner(
             primary = primaryText,
@@ -163,59 +137,6 @@ fun NavigationScreen(
             primaryModifier = navManeuverModifier,
             loading = navLoading,
         )
-
-        NavSpeedChip(
-            speedKmh = navSpeedKmh,
-            modifier =
-                Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 12.dp, bottom = floatRowBottom),
-        )
-
-        Column(
-            modifier =
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 12.dp, bottom = floatRowBottom),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            NavRoundMapButton(
-                onClick = {
-                    mapFollow = false
-                    compassKey++
-                },
-                contentDescription = "Brújula / vista norte",
-            ) {
-                Icon(Icons.Default.Explore, contentDescription = null, tint = BravaOrange)
-            }
-            NavRoundMapButton(
-                onClick = onToggleVoice,
-                onLongClick = { BravaNavigationTts.openGoogleTtsSettings(context) },
-                contentDescription = "Voz",
-            ) {
-                Icon(
-                    imageVector =
-                        if (navVoiceOn) {
-                            Icons.AutoMirrored.Filled.VolumeUp
-                        } else {
-                            Icons.AutoMirrored.Filled.VolumeOff
-                        },
-                    contentDescription = null,
-                    tint = if (navVoiceOn) BravaOrange else TextMuted,
-                )
-            }
-            NavRoundMapButton(
-                onClick = {
-                    mapFollow = true
-                    recenterKey++
-                },
-                contentDescription = "Centrar en tu ubicación",
-                highlighted = !mapFollow,
-            ) {
-                Icon(Icons.Default.MyLocation, contentDescription = null, tint = MpBlue)
-            }
-        }
 
         NavBottomTripBar(
             modifier =

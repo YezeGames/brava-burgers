@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  55,
-    "version_name":  "2.0.0-alpha55",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v55/brava-repartidor-native.apk",
-    "release_notes":  "alpha55: mapa MapTiler Streets v4 (edificios 3D), OTA obligatoria (gate + cierra sesión), navegación alpha54. Key MapTiler en local.properties al compilar.",
-    "min_version_code":  55,
+    "version_code":  59,
+    "version_name":  "2.0.0-alpha57",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v59/brava-repartidor-native.apk",
+    "release_notes":  "ActualizaciÃ³n 2.0.0-alpha57",
+    "min_version_code":  59,
     "force_update":  true
 }

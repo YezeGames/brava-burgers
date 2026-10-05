@@ -48,10 +48,6 @@ import app.bravaburgers.repartidor.nativeapp.util.BatteryOptHelper
 import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
 import app.bravaburgers.repartidor.nativeapp.session.RouteSyncEvent
 import androidx.navigation.NavHostController
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.ui.platform.LocalLifecycleOwner
 
 private fun currentRouteOrn(nav: NavHostController): String? {
     val route = nav.currentBackStackEntry?.destination?.route ?: return null
@@ -127,22 +123,10 @@ class MainActivity : ComponentActivity() {
                     viewModel(factory = RepartidorViewModelFactory(app.repository, app.realtime))
                 val ui by vm.ui.collectAsState()
                 val ctx = LocalContext.current
-                val lifecycleOwner = LocalLifecycleOwner.current
                 val authKey = ui.session?.token ?: "__logged_out__"
                 val gateMode =
                     ui.appUpdateChecking && ui.appUpdate == null ||
                         ui.appUpdate?.required == true
-
-                DisposableEffect(lifecycleOwner) {
-                    val observer =
-                        LifecycleEventObserver { _, event ->
-                            if (event == Lifecycle.Event.ON_RESUME) {
-                                vm.refreshAppUpdate()
-                            }
-                        }
-                    lifecycleOwner.lifecycle.addObserver(observer)
-                    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
-                }
 
                 var notificationsReady by remember {
                     mutableStateOf(PushRegistrar.canPostNotifications(ctx))
@@ -397,6 +381,8 @@ class MainActivity : ComponentActivity() {
                                 }
                             },
                             onContinuar = { goToActiveStop(vm, nav) },
+                            onStartHomeMapPreview = vm::startHomeMapPreview,
+                            onStopHomeMapPreview = vm::stopHomeMapPreview,
                         )
                     }
                     composable("nav/{orn}") { entry ->

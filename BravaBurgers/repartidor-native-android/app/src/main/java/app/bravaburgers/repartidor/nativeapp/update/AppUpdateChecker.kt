@@ -46,7 +46,8 @@ object AppUpdateChecker {
         ).distinct()
 
     /** Compara con [BuildConfig.VERSION_CODE]; null si no hay update o falla la red. */
-    fun fetchOfferIfNewer(): AppUpdateOffer? {
+    @Suppress("UNUSED_PARAMETER")
+    fun fetchOfferIfNewer(context: android.content.Context, forceNetwork: Boolean = false): AppUpdateOffer? {
         for (url in manifestUrls()) {
             parseManifest(url)?.let { return it }
         }

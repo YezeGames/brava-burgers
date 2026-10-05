@@ -31,6 +31,10 @@
             android:name="com.google.firebase.messaging.default_notification_color"
             android:resource="@color/ic_launcher_background" />
 
+        <meta-data
+            android:name="com.mapbox.token"
+            android:value="${MAPBOX_ACCESS_TOKEN}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

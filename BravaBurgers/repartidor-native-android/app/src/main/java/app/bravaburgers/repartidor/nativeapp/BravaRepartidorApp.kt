@@ -4,16 +4,16 @@ import android.app.Application
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.push.BravaNotifications
 import app.bravaburgers.repartidor.nativeapp.realtime.RepartidorRealtimeCoordinator
-import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.AppForeground
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
 import app.bravaburgers.repartidor.nativeapp.session.SessionServicePrefs
 import app.bravaburgers.repartidor.nativeapp.session.InstallSessionGuard
 import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
+import com.mapbox.navigation.base.options.NavigationOptions
+import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import org.maplibre.android.MapLibre
 
 class BravaRepartidorApp : Application() {
     lateinit var repository: RepartidorRepository
@@ -27,7 +27,13 @@ class BravaRepartidorApp : Application() {
     override fun onCreate() {
         super.onCreate()
         InstallSessionGuard.clearSessionIfNewBuild(this)
-        MapLibre.getInstance(this)
+        if (BuildConfig.MAPBOX_ACCESS_TOKEN.isNotBlank() && !MapboxNavigationApp.isSetup()) {
+            MapboxNavigationApp.setup(
+                NavigationOptions.Builder(this)
+                    .accessToken(BuildConfig.MAPBOX_ACCESS_TOKEN)
+                    .build(),
+            )
+        }
         BravaNotifications.ensureChannels(this)
         repository = RepartidorRepository(this)
         realtime =

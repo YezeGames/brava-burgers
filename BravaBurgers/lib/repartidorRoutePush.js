@@ -1,7 +1,11 @@
 'use strict';
 
 const { isFcmConfigured, sendFcmToToken } = require('./firebaseFcm');
-const { listPushTokensForTelefono, deleteInvalidPushToken } = require('./repartidorPushTokens');
+const {
+  listPushTokensForTelefono,
+  listAllPushTokens,
+  deleteInvalidPushToken,
+} = require('./repartidorPushTokens');
 
 function buildRoutePushMessage(assignOut) {
   const n = Number(assignOut.assigned) || 0;
@@ -88,7 +92,53 @@ async function notifyRepartidorRouteAssigned(repartidorTel, assignOut) {
   return { ok: anyOk, results: results, message: msg };
 }
 
+/**
+ * FCM `app_update` a todos los tokens (publish repartidor nativo).
+ * @param {{ versionCode?: number, versionName?: string }} opts
+ */
+async function notifyRepartidorAppUpdate(opts) {
+  if (!isFcmConfigured()) {
+    return { ok: false, skipped: true, error: 'firebase_not_configured' };
+  }
+  const versionCode = Number(opts && opts.versionCode) || 0;
+  const versionName = String((opts && opts.versionName) || '').trim();
+  const listed = await listAllPushTokens();
+  if (!listed.ok) return listed;
+  if (!listed.tokens.length) {
+    return { ok: true, skipped: true, reason: 'no_device_tokens' };
+  }
+  const body =
+    versionName !== ''
+      ? 'Versión ' + versionName + ' disponible. Abrí la app para instalarla.'
+      : 'Hay una versión nueva. Abrí Brava Repartidor.';
+  const msg = {
+    title: 'Actualización de Brava Repartidor',
+    body: body,
+    data: {
+      type: 'app_update',
+      version_code: String(versionCode || ''),
+      version_name: versionName,
+    },
+  };
+  const results = [];
+  for (let i = 0; i < listed.tokens.length; i++) {
+    const tok = listed.tokens[i];
+    const sent = await sendFcmToToken(tok, msg);
+    results.push({ token: tok.slice(0, 12) + '…', ok: sent.ok, error: sent.error });
+    if (!sent.ok && sent.code === 'messaging/registration-token-not-registered') {
+      await deleteInvalidPushToken(tok);
+    }
+  }
+  const anyOk = results.some(function (r) {
+    return r.ok;
+  });
+  return { ok: anyOk, sent: results.filter(function (r) {
+    return r.ok;
+  }).length, total: listed.tokens.length, results: results, message: msg };
+}
+
 module.exports = {
   notifyRepartidorRouteAssigned,
+  notifyRepartidorAppUpdate,
   buildRoutePushMessage,
 };

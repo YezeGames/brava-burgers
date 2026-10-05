@@ -15,26 +15,20 @@ val localProperties =
         }
     }
 
-val maptilerApiKey = localProperties.getProperty("MAPTILER_API_KEY")?.trim().orEmpty()
-val mapStyleUrl =
-    if (maptilerApiKey.isNotEmpty()) {
-        "https://api.maptiler.com/maps/streets-v4/style.json?key=$maptilerApiKey"
-    } else {
-        "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json"
-    }
+val mapboxAccessToken = localProperties.getProperty("MAPBOX_ACCESS_TOKEN")?.trim().orEmpty()
 
-android {    namespace = "app.bravaburgers.repartidor.nativeapp"
+android {
+    namespace = "app.bravaburgers.repartidor.nativeapp"
     compileSdk = 35
 
     defaultConfig {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 55
-        versionName = "2.0.0-alpha55"
+        versionCode = 59
+        versionName = "2.0.0-alpha57"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
-        buildConfigField("String", "MAP_STYLE", "\"$mapStyleUrl\"")
-        buildConfigField("String", "OSRM_BASE", "\"https://router.project-osrm.org/route/v1/driving/\"")
+        buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxAccessToken\"")
         buildConfigField("String", "ROUTE_API", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField(
             "String",
@@ -46,6 +40,7 @@ android {    namespace = "app.bravaburgers.repartidor.nativeapp"
             "UPDATE_MANIFEST_GITHUB",
             "\"https://raw.githubusercontent.com/YezeGames/brava-burgers/main/BravaBurgers/repartidor-native-update.json\"",
         )
+        manifestPlaceholders["MAPBOX_ACCESS_TOKEN"] = mapboxAccessToken
     }
 
     buildFeatures {
@@ -96,7 +91,8 @@ dependencies {
 
     implementation("androidx.datastore:datastore-preferences:1.1.1")
 
-    implementation("org.maplibre.gl:android-sdk:11.7.1")
+    val mapboxNavVersion = "2.20.4"
+    implementation("com.mapbox.navigation:ui-dropin:$mapboxNavVersion")
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))

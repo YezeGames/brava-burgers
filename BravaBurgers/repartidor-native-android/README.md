@@ -28,16 +28,16 @@ La app lee **`repartidor-native-update.json`** (GitHub `main` + Vercel) y descar
 
 Con **`force_update: true`** y **`min_version_code`** (el script de publish los setea):
 
-- Al abrir la app: pantalla tipo login (logo) + chequeo OTA; **sin** campos de usuario hasta que no haya bloqueo.
+- Al abrir la app (arranque en frío): pantalla tipo login (logo) + chequeo OTA; **sin** campos de usuario hasta que no haya bloqueo.
 - Si hay update obligatorio: **cierra sesión** (mapa/ruta/GPS), cartel **Actualizar ahora** (sin «Después»).
-- Al volver de segundo plano se vuelve a chequear.
+- **No** se chequea al minimizar / apagar pantalla (navegación Mapbox sigue). Tras publicar APK, enviá FCM data-only `type=app_update` para avisar sin recalcular rutas.
 
 ### Cada APK nueva (agente / PC — sin GitHub Actions)
 
 1. Subí **`versionCode`** / **`versionName`** en `app/build.gradle.kts`.
 2. Desde `BravaBurgers`:  
    `.\scripts\publish-repartidor-native-release.ps1 -PushGit`  
-   (compila, sube Release `repartidor-native-v{code}`, actualiza JSON, push). Necesitás `gh auth login`.
+   (compila, sube Release `repartidor-native-v{code}`, actualiza JSON, push, **FCM `app_update`** a tokens en Supabase). Necesitás `gh auth login` y `secrets/firebase-admin.json` + vars Supabase (`.env.local` o entorno). `-SkipFcm` si publicás sin push.
 
 En el teléfono: **Actualizar ahora** → descarga desde GitHub Releases → instalador Android.
 

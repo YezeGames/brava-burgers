@@ -19,10 +19,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -59,7 +66,10 @@ fun RouteListScreen(
     onLogout: () -> Unit,
     onIniciarRecorrido: () -> Unit,
     onContinuar: () -> Unit,
+    onStartHomeMapPreview: () -> Unit = {},
+    onStopHomeMapPreview: () -> Unit = {},
 ) {
+    var homeTab by rememberSaveable { mutableStateOf(0) }
     val hasPending =
         stops.any { s ->
             s.estado.equals("en_camino", true) || s.estado.equals("en_preparacion", true)
@@ -120,6 +130,34 @@ fun RouteListScreen(
                 fontWeight = FontWeight.SemiBold,
             )
         }
+        TabRow(
+            selectedTabIndex = homeTab,
+            containerColor = SurfaceDark,
+            contentColor = BravaOrange,
+        ) {
+            Tab(
+                selected = homeTab == 0,
+                onClick = {
+                    if (homeTab == 1) onStopHomeMapPreview()
+                    homeTab = 0
+                },
+                text = { Text("Paradas") },
+            )
+            Tab(
+                selected = homeTab == 1,
+                onClick = { homeTab = 1 },
+                text = { Text("Mapa") },
+            )
+        }
+        if (homeTab == 1) {
+            DisposableEffect(Unit) {
+                onStartHomeMapPreview()
+                onDispose { onStopHomeMapPreview() }
+            }
+            DriverMapTabScreen(
+                modifier = Modifier.weight(1f),
+            )
+        } else {
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = onRefresh,
@@ -200,6 +238,7 @@ fun RouteListScreen(
                     fontWeight = FontWeight.Bold,
                 )
             }
+        }
         }
     }
 }
