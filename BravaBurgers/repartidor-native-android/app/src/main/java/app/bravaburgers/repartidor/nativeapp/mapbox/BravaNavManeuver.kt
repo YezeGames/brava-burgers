@@ -33,12 +33,13 @@ object BravaNavManeuverFormat {
                 primary
             }
         val then = subText?.trim()?.takeIf { it.isNotEmpty() }
-        val icon = iconFor(maneuverType, modifier, primary)
+        val primaryIcon = iconFor(maneuverType, modifier, primary)
+        val thenIcon = iconFor(null, null, then ?: primary)
         return BravaNavManeuver(
             primaryLine = main,
             thenLine = then,
-            primaryIconRes = icon,
-            thenIconRes = R.drawable.ic_brava_maneuver_turn_right,
+            primaryIconRes = primaryIcon,
+            thenIconRes = thenIcon,
         )
     }
 
@@ -47,11 +48,35 @@ object BravaNavManeuverFormat {
         modifier: String?,
         fallbackText: String,
     ): Int {
-        val blob = "${type.orEmpty()} ${modifier.orEmpty()} $fallbackText".lowercase()
+        val t = type?.lowercase()?.replace('_', ' ')?.trim().orEmpty()
+        val mod = modifier?.lowercase()?.replace('_', ' ')?.trim().orEmpty()
+        val blob = "$t $mod ${fallbackText.lowercase()}"
+
+        if (t.contains("roundabout") || t.contains("rotary") || blob.contains("rotonda")) {
+            return R.drawable.ic_brava_maneuver_roundabout
+        }
+        if (mod.contains("uturn") || mod.contains("u turn") || blob.contains("u-turn")) {
+            return R.drawable.ic_brava_maneuver_uturn
+        }
+        when {
+            mod.contains("sharp left") || (blob.contains("cerrada") && blob.contains("izquierda")) ->
+                return R.drawable.ic_brava_maneuver_sharp_left
+            mod.contains("sharp right") || (blob.contains("cerrada") && blob.contains("derecha")) ->
+                return R.drawable.ic_brava_maneuver_sharp_right
+            mod.contains("slight left") || mod == "left" && t.contains("fork") ->
+                return R.drawable.ic_brava_maneuver_slight_left
+            mod.contains("slight right") || mod == "right" && t.contains("fork") ->
+                return R.drawable.ic_brava_maneuver_slight_right
+            mod.contains("left") || blob.contains("izquierda") ->
+                return R.drawable.ic_brava_maneuver_turn_left
+            mod.contains("right") || blob.contains("derecha") ->
+                return R.drawable.ic_brava_maneuver_turn_right
+            mod.contains("straight") || t.contains("merge") || t.contains("continue") ->
+                return R.drawable.ic_brava_maneuver_straight
+        }
         return when {
-            blob.contains("uturn") || blob.contains("u-turn") -> R.drawable.ic_brava_maneuver_turn_left
-            blob.contains("left") || blob.contains("izquierda") -> R.drawable.ic_brava_maneuver_turn_left
-            blob.contains("right") || blob.contains("derecha") -> R.drawable.ic_brava_maneuver_turn_right
+            blob.contains("izquierda") -> R.drawable.ic_brava_maneuver_turn_left
+            blob.contains("derecha") -> R.drawable.ic_brava_maneuver_turn_right
             else -> R.drawable.ic_brava_maneuver_straight
         }
     }

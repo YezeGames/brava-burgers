@@ -491,6 +491,7 @@ class RepartidorViewModel(
                 connected = true,
                 tripStarted =
                     if (merged.isEmpty()) {
+                        homeMapPreviewActive = false
                         false
                     } else {
                         merged.any { s ->

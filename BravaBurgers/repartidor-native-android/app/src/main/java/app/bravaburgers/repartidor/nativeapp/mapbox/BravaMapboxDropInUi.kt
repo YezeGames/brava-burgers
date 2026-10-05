@@ -1,6 +1,7 @@
 package app.bravaburgers.repartidor.nativeapp.mapbox
 
 import android.graphics.Color
+import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.mapbox.navigation.base.formatter.DistanceFormatterOptions
 import com.mapbox.navigation.dropin.NavigationView
 import com.mapbox.navigation.ui.maps.route.line.model.MapboxRouteLineOptions
@@ -33,6 +34,11 @@ object BravaMapboxDropInUi {
                 )
                 .build()
         navigationView.customizeViewOptions {
+            infoPanelForcedState = BottomSheetBehavior.STATE_HIDDEN
+            isInfoPanelHideable = true
+            showArrivalText = false
+            showPoiName = false
+            showInfoPanelInFreeDrive = false
             showTripProgress = false
             showRoadName = false
             showSpeedLimit = false

@@ -12,16 +12,11 @@ object BravaMapboxControls {
         compass: ImageButton,
         volume: ImageButton,
         recenter: ImageButton,
+        refreshCameraPadding: () -> Unit,
     ) {
-        compass.isClickable = true
-        volume.isClickable = true
-        recenter.isClickable = true
-        compass.bringToFront()
-        volume.bringToFront()
-        recenter.bringToFront()
-
         recenter.setOnClickListener {
-            navigationView.api.recenterCamera()
+            refreshCameraPadding()
+            BravaMapboxViewportPadding.recenterFollowing()
         }
         volume.setOnClickListener {
             val player = navigationView.api.getCurrentVoiceInstructionsPlayer()
@@ -32,8 +27,8 @@ object BravaMapboxControls {
             }
         }
         compass.setOnClickListener {
-            BravaMapboxViewportPadding.resetNorth()
-            navigationView.api.recenterCamera()
+            refreshCameraPadding()
+            BravaMapboxViewportPadding.resetNorthUp()
         }
     }
 }

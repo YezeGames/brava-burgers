@@ -36,7 +36,6 @@ class BravaRepartidorApp : Application() {
                         .build(),
                 )
             }
-            MapboxNavigationApp.attachAllActivities(this)
             BravaMapboxNavigation.ensureRegistered()
         }
         BravaNotifications.ensureChannels(this)

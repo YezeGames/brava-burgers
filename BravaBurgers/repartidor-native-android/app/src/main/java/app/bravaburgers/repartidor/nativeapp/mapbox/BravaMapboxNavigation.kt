@@ -203,9 +203,9 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         )
     }
 
+    /** Cierra la guía sin pasar a “navegación libre” (solo sesión Mapbox en [BravaMapboxDeliveryActivity]). */
     fun stopActiveGuidance() {
         pending = null
         routeRequestInFlight = false
-        boundNavigationView?.api?.startFreeDrive()
     }
 }

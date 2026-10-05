@@ -20,6 +20,7 @@ class BravaSwipeButton
         context: Context,
         attrs: AttributeSet? = null,
     ) : FrameLayout(context, attrs) {
+        private val progressFill = FrameLayout(context)
         private val trackLabel = TextView(context)
         private val thumb = FrameLayout(context)
         private val thumbIcon = ImageView(context)
@@ -34,9 +35,17 @@ class BravaSwipeButton
             val trackBg =
                 GradientDrawable().apply {
                     cornerRadius = 28 * density
-                    setColor(Color.parseColor("#1E1E1E"))
+                    setColor(Color.parseColor("#121212"))
                 }
             background = trackBg
+
+            val fillBg =
+                GradientDrawable().apply {
+                    cornerRadius = 28 * density
+                    setColor(Color.parseColor("#FF5722"))
+                }
+            progressFill.background = fillBg
+            addView(progressFill, LayoutParams(0, LayoutParams.MATCH_PARENT))
 
             trackLabel.text = "Llegué a destino"
             trackLabel.gravity = Gravity.CENTER
@@ -51,7 +60,7 @@ class BravaSwipeButton
                     setColor(Color.parseColor("#FF5722"))
                 }
             thumb.background = thumbBg
-            thumb.elevation = 4 * density
+            thumb.elevation = 6 * density
             thumbIcon.setImageResource(app.bravaburgers.repartidor.nativeapp.R.drawable.ic_brava_swipe_arrow_forward)
             thumbIcon.scaleType = ImageView.ScaleType.CENTER_INSIDE
             val iconPad = (14 * density).toInt()
@@ -76,7 +85,7 @@ class BravaSwipeButton
             super.onSizeChanged(w, h, oldw, oldh)
             if (!confirmed) {
                 thumb.translationX = 0f
-                updateLabelFade()
+                updateSwipeVisuals()
             }
         }
 
@@ -85,7 +94,18 @@ class BravaSwipeButton
             return (width - thumb.width - pad * 2).coerceAtLeast(0f)
         }
 
-        private fun updateLabelFade() {
+        private fun progressWidthPx(): Int {
+            val pad = 6 * resources.displayMetrics.density
+            return (pad + thumb.translationX + thumb.width).toInt().coerceIn(0, width)
+        }
+
+        private fun updateSwipeVisuals() {
+            val fillW = progressWidthPx()
+            progressFill.layoutParams =
+                (progressFill.layoutParams as LayoutParams).apply {
+                    width = fillW
+                }
+            progressFill.requestLayout()
             val max = maxTravel()
             val progress =
                 if (max <= 0f) {
@@ -109,18 +129,19 @@ class BravaSwipeButton
                 MotionEvent.ACTION_MOVE -> {
                     val dx = event.x - dragStartX
                     thumb.translationX = (thumbStartX + dx).coerceIn(0f, maxTravel())
-                    updateLabelFade()
+                    updateSwipeVisuals()
                     return true
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     if (thumb.translationX >= maxTravel() * 0.82f) {
                         confirmed = true
                         thumb.translationX = maxTravel()
+                        updateSwipeVisuals()
                         trackLabel.alpha = 0f
                         onConfirmed?.invoke()
                     } else {
                         thumb.animate().translationX(0f).setDuration(180).withEndAction {
-                            updateLabelFade()
+                            updateSwipeVisuals()
                         }.start()
                     }
                     return true

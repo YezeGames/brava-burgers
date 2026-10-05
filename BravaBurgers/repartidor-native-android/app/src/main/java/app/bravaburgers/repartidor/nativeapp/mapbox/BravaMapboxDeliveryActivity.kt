@@ -36,6 +36,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             finish()
             return
         }
+        MapboxNavigationApp.attach(this)
 
         val destLat = intent.getDoubleExtra(EXTRA_DEST_LAT, Double.NaN)
         val destLng = intent.getDoubleExtra(EXTRA_DEST_LNG, Double.NaN)
@@ -61,6 +62,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         setContentView(R.layout.activity_brava_mapbox_delivery)
         navigationView = findViewById(R.id.bravaNavigationView)
         BravaMapboxDropInUi.applyBravaOptions(navigationView)
+        BravaMapboxHideInfoPanel.forceHidden(navigationView)
         BravaMapboxNavigation.bindNavigationView(navigationView)
         BravaMapboxViewportPadding.register(navigationView)
 
@@ -69,11 +71,20 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         val mapControls = findViewById<LinearLayout>(R.id.bravaMapControls)
         wireViewportPadding(navigationView, mapHost, maneuverCard, mapControls)
 
+        val refreshCameraPadding = {
+            applyViewportPaddingNow(
+                navigationView,
+                mapHost,
+                maneuverCard,
+                mapControls,
+            )
+        }
         BravaMapboxControls.wire(
             navigationView,
             findViewById(R.id.bravaBtnCompass),
             findViewById(R.id.bravaBtnVolume),
             findViewById(R.id.bravaBtnRecenter),
+            refreshCameraPadding = refreshCameraPadding,
         )
 
         val maneuverPrimary = findViewById<TextView>(R.id.bravaManeuverPrimary)
@@ -144,7 +155,11 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
             runOnUiThread {
+                BravaMapboxHideInfoPanel.forceHidden(navigationView)
                 applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
+                navigationView.postDelayed({
+                    applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
+                }, 500)
             }
         }
 
@@ -189,16 +204,28 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 ?.toDouble()
                 ?: 0.0
         val density = resources.displayMetrics.density.toDouble()
-        val top =
+        val topRaw =
             statusTop +
                 if (maneuverCard.visibility == View.VISIBLE) {
                     maneuverCard.height.toDouble() + 12 * density
                 } else {
-                    56 * density
+                    48 * density
                 }
-        // Panel ETA/swipe está fuera del mapa; solo reservamos espacio para FABs y chip de velocidad.
-        val bottom = (mapControls.height.toDouble() + 72 * density).coerceAtMost(mapHost.height * 0.35)
-        BravaMapboxViewportPadding.apply(navigationView, top, bottom)
+        val bottomRaw =
+            maxOf(
+                mapControls.height.toDouble() + 20 * density,
+                72 * density,
+            )
+        // Top == bottom → el puck queda centrado en la banda útil del mapa (como referencia Imagen1).
+        val vertical = maxOf(topRaw, bottomRaw)
+        val side = maxOf(40 * density, mapControls.width.toDouble() + 24 * density)
+        BravaMapboxViewportPadding.apply(
+            navigationView,
+            topPx = vertical,
+            bottomPx = vertical,
+            leftPx = side,
+            rightPx = side,
+        )
     }
 
     override fun onDestroy() {
@@ -212,6 +239,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             BravaMapboxNavigation.unbindNavigationView(navigationView)
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = null
+        MapboxNavigationApp.detach(this)
         super.onDestroy()
     }
 

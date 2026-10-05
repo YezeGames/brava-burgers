@@ -152,7 +152,7 @@
         android:id="@+id/bravaBottomPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="#F20B141A"
+        android:background="#0B141A"
         android:orientation="vertical"
         android:paddingHorizontal="16dp"
         android:paddingTop="14dp"
