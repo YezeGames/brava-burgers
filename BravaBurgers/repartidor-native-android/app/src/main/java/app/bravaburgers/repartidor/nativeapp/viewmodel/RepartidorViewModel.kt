@@ -13,6 +13,8 @@ import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigation
+import app.bravaburgers.repartidor.nativeapp.mapbox.BravaNavTripFormat
+import kotlin.math.roundToInt
 import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
@@ -101,19 +103,17 @@ class RepartidorViewModel(
 
     init {
         BravaMapboxNavigation.onRouteProgress = { distanceM, durationSec ->
-            val km = distanceM?.div(1000.0)
-            val min = durationSec?.div(60.0)?.toInt()?.coerceAtLeast(1)
-            _ui.value =
-                _ui.value.copy(
-                    navRouteKm = km ?: _ui.value.navRouteKm,
-                    navEtaMinutes = min ?: _ui.value.navEtaMinutes,
-                    navMeta =
-                        if (km != null && min != null) {
-                            String.format("~%d min · %.1f km · Mapbox", min, km)
-                        } else {
-                            _ui.value.navMeta
-                        },
-                )
+            if (distanceM != null && durationSec != null) {
+                val summary = BravaNavTripFormat.format(distanceM, durationSec)
+                val km = distanceM / 1000.0
+                val min = (durationSec / 60.0).roundToInt().coerceAtLeast(1)
+                _ui.value =
+                    _ui.value.copy(
+                        navRouteKm = km,
+                        navEtaMinutes = min,
+                        navMeta = summary.primaryLine,
+                    )
+            }
         }
         viewModelScope.launch {
             sessionFlow.collect { s ->

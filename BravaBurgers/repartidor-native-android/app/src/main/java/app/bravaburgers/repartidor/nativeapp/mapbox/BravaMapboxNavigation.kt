@@ -13,8 +13,12 @@ import com.mapbox.navigation.base.route.RouterOrigin
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
+import android.location.Location
+import com.mapbox.navigation.core.trip.session.LocationMatcherResult
+import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
 import com.mapbox.navigation.dropin.NavigationView
+import kotlin.math.roundToInt
 
 /**
  * Rutas con Mapbox drop-in: [NavigationView.api.startActiveGuidance] (no [MapboxNavigation.startTripSession] manual).
@@ -33,6 +37,8 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     var onRouteProgress: ((distanceRemainingM: Double?, durationRemainingSec: Double?) -> Unit)? = null
 
+    var onDrivingSpeedKmh: ((Int?) -> Unit)? = null
+
     var onRouteFailure: ((message: String) -> Unit)? = null
 
     private val routeProgressObserver =
@@ -42,6 +48,27 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                 progress.durationRemaining.toDouble(),
             )
         }
+
+    private val locationObserver =
+        object : LocationObserver {
+            override fun onNewRawLocation(rawLocation: Location) {
+                publishSpeedKmh(rawLocation.speed)
+            }
+
+            override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
+                publishSpeedKmh(locationMatcherResult.enhancedLocation.speed)
+            }
+        }
+
+    private fun publishSpeedKmh(speedMps: Float?) {
+        val kmh =
+            if (speedMps != null && speedMps >= 0f) {
+                (speedMps * 3.6f).roundToInt().coerceIn(0, 199)
+            } else {
+                null
+            }
+        onDrivingSpeedKmh?.invoke(kmh)
+    }
 
     fun ensureRegistered() {
         if (registered) return
@@ -62,11 +89,13 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     override fun onAttached(mapboxNavigation: MapboxNavigation) {
         mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.registerLocationObserver(locationObserver)
         flushPendingRoute()
     }
 
     override fun onDetached(mapboxNavigation: MapboxNavigation) {
         mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.unregisterLocationObserver(locationObserver)
     }
 
     fun requestActiveGuidance(

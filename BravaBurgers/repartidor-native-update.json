@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  63,
-    "version_name":  "2.0.0-alpha61",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v63/brava-repartidor-native.apk",
-    "release_notes":  "alpha61: Mapbox attachAllActivities, startFreeDrive al salir, accessToken en NavigationView, limpieza estado nav legacy.",
-    "min_version_code":  63,
+    "version_code":  64,
+    "version_name":  "2.0.0-alpha62",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v64/brava-repartidor-native.apk",
+    "release_notes":  "alpha62: UI Mapbox — ocultar ETA/calle Mapbox, barra Brava alineada, km/h, controles compactos sobre panel, demo-mapbox-nav-brava.html.",
+    "min_version_code":  64,
     "force_update":  true
 }
