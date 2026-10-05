@@ -15,7 +15,10 @@ val localProperties =
         }
     }
 
-val mapboxAccessToken = localProperties.getProperty("MAPBOX_ACCESS_TOKEN")?.trim().orEmpty()
+val mapboxAccessToken =
+    localProperties.getProperty("MAPBOX_ACCESS_TOKEN")?.trim()
+        ?: System.getenv("MAPBOX_ACCESS_TOKEN")?.trim()
+        ?: ""
 
 android {
     namespace = "app.bravaburgers.repartidor.nativeapp"
@@ -25,8 +28,8 @@ android {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 59
-        versionName = "2.0.0-alpha57"
+        versionCode = 60
+        versionName = "2.0.0-alpha58"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxAccessToken\"")
         buildConfigField("String", "ROUTE_API", "\"https://www.bravaburgers.com.ar/api/pedido\"")

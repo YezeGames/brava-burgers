@@ -107,6 +107,14 @@ $downloadUrl = "https://github.com/$repo/releases/download/$ReleaseTag/$assetNam
 Write-Host "Publicando $VersionName (code $VersionCode) tag $ReleaseTag"
 
 if (-not $SkipBuild) {
+    $localProps = Join-Path $native "local.properties"
+    $mapboxOk = $false
+    if (Test-Path $localProps) {
+        $mapboxOk = (Select-String -Path $localProps -Pattern '^\s*MAPBOX_ACCESS_TOKEN\s*=\s*\S+' -Quiet)
+    }
+    if (-not $mapboxOk -and -not $env:MAPBOX_ACCESS_TOKEN) {
+        throw "Falta MAPBOX_ACCESS_TOKEN en repartidor-native-android/local.properties (la APK crashea sin token)."
+    }
     Push-Location $native
     try {
         .\gradlew.bat assembleDebug --no-daemon
