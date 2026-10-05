@@ -27,46 +27,73 @@ function Get-GradleVersion {
     if ($text -match 'versionName\s*=\s*"([^"]+)"') { $script:VersionName = $Matches[1] } else { throw "versionName no encontrado" }
 }
 
+function Get-VercelTokenLine {
+    $p = Join-Path $root "secrets\vercel-token.txt"
+    if (-not (Test-Path $p)) { return "" }
+    foreach ($line in Get-Content $p -Encoding UTF8) {
+        $t = $line.Trim()
+        if ($t.StartsWith("vcp_")) { return $t }
+    }
+    return ""
+}
+
+function Ensure-RepartidorOtaHookSecret {
+    $hookFile = Join-Path $root "secrets\repartidor-ota-hook.txt"
+    if (Test-Path $hookFile) {
+        return (Get-Content $hookFile -Raw -Encoding UTF8).Trim()
+    }
+    $newHook = ([Guid]::NewGuid().ToString("n") + [Guid]::NewGuid().ToString("n"))
+    New-Item -ItemType Directory -Force -Path (Split-Path $hookFile) | Out-Null
+    Set-Content -Path $hookFile -Value $newHook -Encoding UTF8 -NoNewline
+    Write-Host "OTA hook: creado secrets/repartidor-ota-hook.txt" -ForegroundColor DarkGray
+    $vToken = Get-VercelTokenLine
+    if ($vToken) {
+        $env:VERCEL_TOKEN = $vToken
+        $upsert = Join-Path $root "scripts\upsert-vercel-env.js"
+        if (Test-Path $upsert) {
+            Push-Location $root
+            try {
+                node $upsert REPARTIDOR_OTA_HOOK_SECRET $newHook
+            } catch {
+                Write-Host "No se pudo subir REPARTIDOR_OTA_HOOK_SECRET a Vercel." -ForegroundColor Yellow
+            } finally {
+                Pop-Location
+            }
+        }
+    } else {
+        Write-Host "Subí REPARTIDOR_OTA_HOOK_SECRET a Vercel (mismo valor que el archivo hook)." -ForegroundColor Yellow
+    }
+    return $newHook
+}
+
 function Invoke-RepartidorAppUpdateFcm {
     param(
         [int]$Code,
         [string]$Name
     )
-    $notifyScript = Join-Path $root "scripts\notify-repartidor-app-update.js"
-    if (-not (Test-Path $notifyScript)) {
-        Write-Host "FCM: no se encontró notify-repartidor-app-update.js" -ForegroundColor Yellow
-        return
-    }
-    $saJson = Join-Path $root "secrets\firebase-admin.json"
-    if (Test-Path $saJson) {
-        $env:FIREBASE_SERVICE_ACCOUNT_JSON = Get-Content -Path $saJson -Raw -Encoding UTF8
-    }
-    foreach ($envFile in @(".env.local", ".env")) {
-        $p = Join-Path $root $envFile
-        if (-not (Test-Path $p)) { continue }
-        Get-Content $p -Encoding UTF8 | ForEach-Object {
-            $line = $_.Trim()
-            if (-not $line -or $line.StartsWith("#")) { return }
-            $eq = $line.IndexOf("=")
-            if ($eq -le 0) { return }
-            $k = $line.Substring(0, $eq).Trim()
-            $v = $line.Substring($eq + 1).Trim().Trim('"').Trim("'")
-            if ($k) {
-                $existing = [Environment]::GetEnvironmentVariable($k, "Process")
-                if ([string]::IsNullOrEmpty($existing)) {
-                    [Environment]::SetEnvironmentVariable($k, $v, "Process")
-                }
-            }
-        }
-    }
+    $localScript = Join-Path $root "scripts\notify-repartidor-app-update.js"
+    $remoteScript = Join-Path $root "scripts\notify-repartidor-app-update-remote.js"
+    $supabaseEnv = Join-Path $root "secrets\supabase.env"
     Write-Host "FCM app_update → repartidores (version $Name)..." -ForegroundColor Cyan
     Push-Location $root
     try {
-        node $notifyScript --version-code $Code --version-name $Name
-        if ($LASTEXITCODE -eq 2) {
-            Write-Host "FCM omitido: FIREBASE_SERVICE_ACCOUNT_JSON / secrets/firebase-admin.json" -ForegroundColor Yellow
-        } elseif ($LASTEXITCODE -ne 0) {
-            Write-Host "FCM app_update falló (exit $LASTEXITCODE)." -ForegroundColor Yellow
+        if ((Test-Path $localScript) -and (Test-Path $supabaseEnv)) {
+            $saJson = Join-Path $root "secrets\firebase-admin.json"
+            if (Test-Path $saJson) {
+                $env:FIREBASE_SERVICE_ACCOUNT_JSON = Get-Content -Path $saJson -Raw -Encoding UTF8
+            }
+            node $localScript --version-code $Code --version-name $Name
+            if ($LASTEXITCODE -eq 0) { return }
+        }
+        if (-not (Test-Path $remoteScript)) {
+            Write-Host "FCM: falta notify-repartidor-app-update-remote.js" -ForegroundColor Yellow
+            return
+        }
+        Ensure-RepartidorOtaHookSecret | Out-Null
+        Write-Host "FCM vía API producción (Supabase/FCM en Vercel)..." -ForegroundColor DarkGray
+        node $remoteScript --version-code $Code --version-name $Name
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "FCM remoto falló. ¿Deploy listo y REPARTIDOR_OTA_HOOK_SECRET en Vercel?" -ForegroundColor Yellow
         }
     } finally {
         Pop-Location
@@ -164,7 +191,17 @@ if ($PushGit) {
             "scripts/notify-repartidor-app-update.js",
             "BravaBurgers/scripts/notify-repartidor-app-update.js",
             "scripts/publish-repartidor-native-release.ps1",
-            "BravaBurgers/scripts/publish-repartidor-native-release.ps1"
+            "BravaBurgers/scripts/publish-repartidor-native-release.ps1",
+            "scripts/notify-repartidor-app-update-remote.js",
+            "BravaBurgers/scripts/notify-repartidor-app-update-remote.js",
+            "scripts/pull-supabase-env-from-vercel.js",
+            "BravaBurgers/scripts/pull-supabase-env-from-vercel.js",
+            "api/admin.js",
+            "BravaBurgers/api/admin.js",
+            "secrets/supabase.env.example",
+            "BravaBurgers/secrets/supabase.env.example",
+            "secrets/repartidor-ota-hook.txt.example",
+            "BravaBurgers/secrets/repartidor-ota-hook.txt.example"
         )) {
             if (Test-Path (Join-Path $gitRoot $rel)) {
                 git add -- $rel

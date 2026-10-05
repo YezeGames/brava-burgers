@@ -37,7 +37,7 @@ Con **`force_update: true`** y **`min_version_code`** (el script de publish los 
 1. Subí **`versionCode`** / **`versionName`** en `app/build.gradle.kts`.
 2. Desde `BravaBurgers`:  
    `.\scripts\publish-repartidor-native-release.ps1 -PushGit`  
-   (compila, sube Release `repartidor-native-v{code}`, actualiza JSON, push, **FCM `app_update`** a tokens en Supabase). Necesitás `gh auth login` y `secrets/firebase-admin.json` + vars Supabase (`.env.local` o entorno). `-SkipFcm` si publicás sin push.
+   (compila, sube Release, JSON, push, **FCM `app_update`** vía API producción o local). Necesitás `gh auth login`; hook OTA en `secrets/repartidor-ota-hook.txt` (el script lo crea y sube a Vercel la 1.ª vez). `-SkipFcm` para omitir push.
 
 En el teléfono: **Actualizar ahora** → descarga desde GitHub Releases → instalador Android.
 

@@ -40,7 +40,10 @@ const {
   migrateRepartidorPushTokensSchema,
   migrateRepartidorRealtimeEventsSchema,
 } = require('../lib/dbMigrate');
-const { notifyRepartidorRouteAssigned } = require('../lib/repartidorRoutePush');
+const {
+  notifyRepartidorRouteAssigned,
+  notifyRepartidorAppUpdate,
+} = require('../lib/repartidorRoutePush');
 const {
   listRepartidorUsers,
   createRepartidorUser,
@@ -70,6 +73,18 @@ function parseRequestBody(req) {
 
 async function handleSupabaseAdmin(body) {
   const { action, token } = body;
+
+  if (action === 'notifyRepartidorNativeUpdate') {
+    const hook = (process.env.REPARTIDOR_OTA_HOOK_SECRET || '').trim();
+    if (!hook) return { ok: false, error: 'hook_not_configured' };
+    if (String(body.hookSecret || '').trim() !== hook) {
+      return { ok: false, error: 'unauthorized' };
+    }
+    return notifyRepartidorAppUpdate({
+      versionCode: Number(body.version_code || body.versionCode) || 0,
+      versionName: String(body.version_name || body.versionName || '').trim(),
+    });
+  }
 
   if (action === 'login') {
     const login = checkAdminLogin(body.user, body.password);

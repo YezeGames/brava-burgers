@@ -58,6 +58,9 @@ function parseArgs() {
 
 loadDotEnv('.env.local');
 loadDotEnv('.env');
+loadDotEnv(path.join('..', '.env.local'));
+loadDotEnv(path.join('..', '.env'));
+loadDotEnv(path.join('secrets', 'supabase.env'));
 loadFirebaseServiceAccount();
 
 const { notifyRepartidorAppUpdate } = require('../lib/repartidorRoutePush');
