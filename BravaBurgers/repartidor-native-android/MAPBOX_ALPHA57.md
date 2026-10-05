@@ -25,7 +25,8 @@ APK: `app/build/outputs/apk/debug/app-debug.apk`
 
 - **Eliminado:** MapLibre, OSRM, Valhalla, animadores/matcher caseros, `BravaMapView`.
 - **Nuevo:** `com.mapbox.navigation:ui-dropin:2.20.4` + `NavigationView` en navegación y pestaña Mapa (free drive).
-- **Flujo:** `beginNavigation` geocodifica destino → `BravaMapboxNavigation.requestActiveGuidance(origin, dest)` → Mapbox active guidance (puck, cámara, reroute, standstill).
+- **Flujo:** geocode destino → `MapboxNavigationApp.requestRoutes` → **`NavigationView.api.startActiveGuidance(routes)`** (no usar `startTripSession()` manual con drop-in).
+- **No mezclar** core SDK “a mano” con drop-in: crashea el state machine de Mapbox.
 
 ## Pantallas
 

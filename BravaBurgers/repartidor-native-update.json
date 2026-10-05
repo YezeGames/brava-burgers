@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  60,
-    "version_name":  "2.0.0-alpha58",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v60/brava-repartidor-native.apk",
-    "release_notes":  "alpha58: fix crash al iniciar recorrido (Mapbox NavigationView + attachAllActivities, una sola instancia drop-in). Pestaña Mapa home sin segundo NavigationView. Publish exige MAPBOX_ACCESS_TOKEN al compilar.",
-    "min_version_code":  60,
+    "version_code":  61,
+    "version_name":  "2.0.0-alpha59",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v61/brava-repartidor-native.apk",
+    "release_notes":  "alpha59: FIX crash navegacion — rutas solo via NavigationView.api.startActiveGuidance (drop-in Mapbox). Sin startTripSession manual. Tema MaterialComponents. Sin restos OSRM/Valhalla.",
+    "min_version_code":  61,
     "force_update":  true
 }

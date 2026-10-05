@@ -99,11 +99,12 @@ fun NavigationScreen(
         onStartNavigation()
     }
 
-    LaunchedEffect(navLoading, navDest, navDriver) {
+    LaunchedEffect(navLoading, navDest, navDriver, stop.orn) {
         val dest = navDest
         val origin = navDriver
         if (!navLoading && dest != null && origin != null) {
             BravaMapboxNavigation.requestActiveGuidance(
+                context = context,
                 originLat = origin.first,
                 originLng = origin.second,
                 destLat = dest.first,

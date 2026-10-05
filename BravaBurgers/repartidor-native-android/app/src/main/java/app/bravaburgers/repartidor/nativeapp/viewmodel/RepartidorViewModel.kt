@@ -788,12 +788,6 @@ class RepartidorViewModel(
                     navDest = destCoords,
                     navDriver = origin,
                 )
-            BravaMapboxNavigation.requestActiveGuidance(
-                originLat = origin.first,
-                originLng = origin.second,
-                destLat = destLat,
-                destLng = destLng,
-            )
             if (!navStillActive(gen, orn)) return@launch
             _ui.value =
                 _ui.value.copy(

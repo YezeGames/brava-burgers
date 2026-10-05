@@ -9,7 +9,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
@@ -25,40 +24,17 @@ fun BravaMapboxNavigationView(
 ) {
     val token = BuildConfig.MAPBOX_ACCESS_TOKEN.trim()
     if (token.isBlank()) {
-        Box(
-            modifier = modifier.fillMaxSize().background(BgDark),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                "Mapbox no está configurado en esta APK.\nRecompilá con MAPBOX_ACCESS_TOKEN en local.properties.",
-                color = TextMuted,
-                modifier = Modifier.padding(24.dp),
-            )
-        }
+        MapboxConfigMissing(modifier, "Mapbox no está en esta APK (falta MAPBOX_ACCESS_TOKEN al compilar).")
         return
     }
     if (!com.mapbox.navigation.core.lifecycle.MapboxNavigationApp.isSetup()) {
-        Box(
-            modifier = modifier.fillMaxSize().background(BgDark),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                "Mapbox Navigation no inició.\nReinstalá la app o contactá soporte.",
-                color = TextMuted,
-                modifier = Modifier.padding(24.dp),
-            )
-        }
+        MapboxConfigMissing(modifier, "Mapbox Navigation no inició (token inválido o SDK).")
         return
     }
 
     val viewModelStoreOwner = LocalViewModelStoreOwner.current
     if (viewModelStoreOwner == null) {
-        Box(
-            modifier = modifier.fillMaxSize().background(BgDark),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("No se pudo abrir el mapa (Activity).", color = TextMuted)
-        }
+        MapboxConfigMissing(modifier, "No se pudo abrir el mapa (Activity).")
         return
     }
 
@@ -74,7 +50,22 @@ fun BravaMapboxNavigationView(
                 context = ctx,
                 accessToken = token,
                 viewModelStoreOwner = viewModelStoreOwner,
-            )
+            ).also { view ->
+                BravaMapboxNavigation.bindNavigationView(view)
+            }
+        },
+        onRelease = { view ->
+            BravaMapboxNavigation.unbindNavigationView(view as NavigationView)
         },
     )
+}
+
+@Composable
+private fun MapboxConfigMissing(modifier: Modifier, message: String) {
+    Box(
+        modifier = modifier.fillMaxSize().background(BgDark),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(message, color = TextMuted, modifier = Modifier.padding(24.dp))
+    }
 }
