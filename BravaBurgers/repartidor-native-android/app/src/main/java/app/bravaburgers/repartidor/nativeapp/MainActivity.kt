@@ -119,6 +119,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val app = application as BravaRepartidorApp
+        val recoveredFromProcessDeath = savedInstanceState != null
         setContent {
             BravaTheme {
                 val vm: RepartidorViewModel =
@@ -285,6 +286,15 @@ class MainActivity : ComponentActivity() {
                     val nav = rememberNavController()
                     val start = if (ui.session != null) "route" else "login"
                     var routeSyncDialog by remember { mutableStateOf<RouteSyncEvent?>(null) }
+
+                    LaunchedEffect(recoveredFromProcessDeath) {
+                        if (!recoveredFromProcessDeath) return@LaunchedEffect
+                        val route = nav.currentBackStackEntry?.destination?.route.orEmpty()
+                        if (route.startsWith("nav/") || route.startsWith("handoff/")) {
+                            vm.stopNavigation(ctx)
+                            goToRouteHome(nav)
+                        }
+                    }
 
                     LaunchedEffect(Unit) {
                         vm.routeSyncEvents.collect { event ->

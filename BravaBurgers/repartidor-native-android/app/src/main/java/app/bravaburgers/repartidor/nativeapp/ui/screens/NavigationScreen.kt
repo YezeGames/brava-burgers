@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +67,12 @@ fun NavigationScreen(
         mapLaunched = false
         mapSessionDone = false
         onStartNavigation()
+    }
+
+    LaunchedEffect(stop.orn, mapLaunched, mapSessionDone) {
+        if (mapSessionDone || mapLaunched) return@LaunchedEffect
+        delay(45_000)
+        if (!mapLaunched && !mapSessionDone) onBack()
     }
 
     LaunchedEffect(navLoading, navDest, navDriver, mapLaunched, mapSessionDone, stop.orn) {

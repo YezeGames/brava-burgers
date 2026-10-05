@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  70,
-    "version_name":  "2.0.0-alpha68",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v70/brava-repartidor-native.apk",
-    "release_notes":  "alpha68: encuadre puck simetrico, brujula/recentrar con NavigationCamera, maniobras, swipe progreso, sin nav libre ni panel negro Mapbox",
-    "min_version_code":  70,
+    "version_code":  71,
+    "version_name":  "2.0.0-alpha69",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v71/brava-repartidor-native.apk",
+    "release_notes":  "Hotfix: pantalla negra Mapbox, freeze al reabrir nav (alpha69 v71)",
+    "min_version_code":  71,
     "force_update":  true
 }

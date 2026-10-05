@@ -1,5 +1,6 @@
 package app.bravaburgers.repartidor.nativeapp.mapbox
 
+import android.os.SystemClock
 import android.util.Log
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.MapView
@@ -11,15 +12,18 @@ import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSou
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
 
 /**
- * Padding de cámara + recentrado real en modo following (drop-in [NavigationView.api.recenterCamera]
- * solo responde en idle/overview).
+ * Padding de cámara + recentrado en modo following.
  */
 object BravaMapboxViewportPadding {
     private const val TAG = "BravaMapboxViewport"
+    private const val APPLY_DEBOUNCE_MS = 120L
+
     private var mapViewRef: MapView? = null
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
     private var navigationCamera: NavigationCamera? = null
     private var lastNavigationView: NavigationView? = null
+    private var cameraLookupDone = false
+    private var lastApplyAt = 0L
 
     private val mapObserver =
         object : MapViewObserver() {
@@ -52,9 +56,16 @@ object BravaMapboxViewportPadding {
         leftPx: Double = 48.0,
         rightPx: Double = 48.0,
     ) {
+        val now = SystemClock.uptimeMillis()
+        if (now - lastApplyAt < APPLY_DEBOUNCE_MS) return
+        lastApplyAt = now
+
         lastNavigationView = navigationView
-        ensureCameraChain(navigationView)
-        MapboxNavigationApp.current()?.let { ensureCameraChain(it) }
+        if (!cameraLookupDone) {
+            ensureCameraChain(navigationView)
+            MapboxNavigationApp.current()?.let { ensureCameraChain(it) }
+            cameraLookupDone = viewportDataSource != null && navigationCamera != null
+        }
 
         val top = topPx.coerceAtLeast(40.0)
         val bottom = bottomPx.coerceAtLeast(40.0)
@@ -64,7 +75,6 @@ object BravaMapboxViewportPadding {
         val vds = viewportDataSource
         if (vds == null) {
             Log.w(TAG, "ViewportDataSource not found; split layout only")
-            navigationView.post { navigationView.api.recenterCamera() }
             return
         }
 
@@ -72,23 +82,19 @@ object BravaMapboxViewportPadding {
         vds.overviewPadding = EdgeInsets(top * 0.9, left, bottom * 0.9, right)
         vds.evaluate()
         snapCameraToFrame()
-        navigationView.postDelayed({ snapCameraToFrame() }, 180)
     }
 
     fun recenterFollowing() {
         viewportDataSource?.followingBearingPropertyOverride(null)
         viewportDataSource?.evaluate()
         snapCameraToFrame()
-        lastNavigationView?.postDelayed({ snapCameraToFrame() }, 120)
     }
 
-    /** Brújula: mapa al norte manteniendo el encuadre de ruta. */
     fun resetNorthUp() {
         val vds = viewportDataSource ?: return
         vds.followingBearingPropertyOverride(0.0)
         vds.evaluate()
         snapCameraToFrame()
-        lastNavigationView?.postDelayed({ snapCameraToFrame() }, 120)
     }
 
     private fun snapCameraToFrame() {
@@ -97,16 +103,20 @@ object BravaMapboxViewportPadding {
             camera.resetFrame()
         } catch (e: Exception) {
             Log.w(TAG, "resetFrame failed: ${e.message}")
-            camera.requestNavigationCameraToFollowing(
-                NavigationCameraTransitionOptions.Builder().maxDuration(0).build(),
-                NavigationCameraTransitionOptions.Builder().maxDuration(0).build(),
-            )
+            try {
+                camera.requestNavigationCameraToFollowing(
+                    NavigationCameraTransitionOptions.Builder().maxDuration(0).build(),
+                    NavigationCameraTransitionOptions.Builder().maxDuration(0).build(),
+                )
+            } catch (_: Exception) {
+            }
         }
     }
 
     private fun clearCameraCache() {
         viewportDataSource = null
         navigationCamera = null
+        cameraLookupDone = false
     }
 
     private fun ensureCameraChain(root: Any) {
@@ -116,7 +126,7 @@ object BravaMapboxViewportPadding {
             obj: Any?,
             depth: Int,
         ) {
-            if (obj == null || depth > 14) return
+            if (obj == null || depth > 8) return
             val id = System.identityHashCode(obj)
             if (!seen.add(id)) return
             when (obj) {
@@ -124,17 +134,13 @@ object BravaMapboxViewportPadding {
                 is NavigationCamera -> navigationCamera = obj
             }
             if (viewportDataSource != null && navigationCamera != null) return
-            var clazz: Class<*>? = obj.javaClass
-            while (clazz != null) {
-                for (field in clazz.declaredFields) {
-                    try {
-                        field.isAccessible = true
-                        scan(field.get(obj), depth + 1)
-                        if (viewportDataSource != null && navigationCamera != null) return
-                    } catch (_: Exception) {
-                    }
+            for (field in obj.javaClass.declaredFields) {
+                try {
+                    field.isAccessible = true
+                    scan(field.get(obj), depth + 1)
+                    if (viewportDataSource != null && navigationCamera != null) return
+                } catch (_: Exception) {
                 }
-                clazz = clazz.superclass
             }
         }
         scan(root, 0)

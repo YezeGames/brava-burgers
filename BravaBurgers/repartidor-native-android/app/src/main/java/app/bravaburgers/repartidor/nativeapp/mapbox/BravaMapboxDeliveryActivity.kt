@@ -62,7 +62,6 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         setContentView(R.layout.activity_brava_mapbox_delivery)
         navigationView = findViewById(R.id.bravaNavigationView)
         BravaMapboxDropInUi.applyBravaOptions(navigationView)
-        BravaMapboxHideInfoPanel.forceHidden(navigationView)
         BravaMapboxNavigation.bindNavigationView(navigationView)
         BravaMapboxViewportPadding.register(navigationView)
 
@@ -155,11 +154,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
             runOnUiThread {
-                BravaMapboxHideInfoPanel.forceHidden(navigationView)
                 applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
-                navigationView.postDelayed({
-                    applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
-                }, 500)
             }
         }
 
@@ -168,15 +163,32 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             finish()
         }
 
-        navigationView.post {
-            BravaMapboxNavigation.requestActiveGuidance(
-                context = this,
-                originLat = originLat,
-                originLng = originLng,
-                destLat = destLat,
-                destLng = destLng,
-            )
+        startGuidanceWhenReady(originLat, originLng, destLat, destLng)
+    }
+
+    private fun startGuidanceWhenReady(
+        originLat: Double,
+        originLng: Double,
+        destLat: Double,
+        destLng: Double,
+    ) {
+        var attempts = 0
+        fun tick() {
+            if (isFinishing || isDestroyed) return
+            if (MapboxNavigationApp.current() != null || attempts >= 50) {
+                BravaMapboxNavigation.requestActiveGuidance(
+                    context = this,
+                    originLat = originLat,
+                    originLng = originLng,
+                    destLat = destLat,
+                    destLng = destLng,
+                )
+                return
+            }
+            attempts++
+            navigationView.postDelayed({ tick() }, 50)
         }
+        navigationView.post { tick() }
     }
 
     private fun wireViewportPadding(
@@ -185,10 +197,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         maneuverCard: View,
         mapControls: View,
     ) {
-        val apply = { applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls) }
-        mapHost.doOnLayout { apply() }
-        maneuverCard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
-        mapControls.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
+        mapHost.doOnLayout {
+            applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
+        }
     }
 
     private fun applyViewportPaddingNow(
