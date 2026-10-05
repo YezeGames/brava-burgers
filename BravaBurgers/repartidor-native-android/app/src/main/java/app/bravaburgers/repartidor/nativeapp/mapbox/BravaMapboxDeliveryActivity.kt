@@ -13,7 +13,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
-import androidx.core.view.updateLayoutParams
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.R
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
@@ -65,12 +64,10 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         BravaMapboxNavigation.bindNavigationView(navigationView)
         BravaMapboxViewportPadding.register(navigationView)
 
-        val bottomPanel = findViewById<View>(R.id.bravaBottomPanel)
+        val mapHost = findViewById<View>(R.id.bravaMapHost)
         val maneuverCard = findViewById<LinearLayout>(R.id.bravaManeuverCard)
-        val speedChip = findViewById<TextView>(R.id.bravaNavSpeed)
         val mapControls = findViewById<LinearLayout>(R.id.bravaMapControls)
-        pinFloatingControlsAbovePanel(bottomPanel, speedChip, mapControls)
-        wireViewportPadding(navigationView, maneuverCard, bottomPanel, mapControls)
+        wireViewportPadding(navigationView, mapHost, maneuverCard, mapControls)
 
         BravaMapboxControls.wire(
             navigationView,
@@ -104,9 +101,21 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             runOnUiThread {
                 if (m == null) {
                     maneuverCard.visibility = View.GONE
+                    applyViewportPaddingNow(
+                        navigationView,
+                        findViewById(R.id.bravaMapHost),
+                        maneuverCard,
+                        findViewById(R.id.bravaMapControls),
+                    )
                     return@runOnUiThread
                 }
                 maneuverCard.visibility = View.VISIBLE
+                applyViewportPaddingNow(
+                    navigationView,
+                    findViewById(R.id.bravaMapHost),
+                    maneuverCard,
+                    findViewById(R.id.bravaMapControls),
+                )
                 maneuverPrimaryIcon.setImageResource(m.primaryIconRes)
                 maneuverPrimary.text = m.primaryLine
                 if (!m.thenLine.isNullOrBlank()) {
@@ -120,7 +129,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onDrivingSpeedKmh = { kmh ->
             runOnUiThread {
-                speedChip.text =
+                findViewById<TextView>(R.id.bravaNavSpeed).text =
                     if (kmh != null) {
                         "$kmh\nkm/h"
                     } else {
@@ -134,7 +143,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             }
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
-            runOnUiThread { applyViewportPaddingNow(navigationView, maneuverCard, bottomPanel, mapControls) }
+            runOnUiThread {
+                applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls)
+            }
         }
 
         findViewById<BravaSwipeButton>(R.id.bravaSwipeLlegue).onConfirmed = {
@@ -155,21 +166,20 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
 
     private fun wireViewportPadding(
         navigationView: NavigationView,
+        mapHost: View,
         maneuverCard: View,
-        bottomPanel: View,
         mapControls: View,
     ) {
-        val apply = { applyViewportPaddingNow(navigationView, maneuverCard, bottomPanel, mapControls) }
-        bottomPanel.doOnLayout { apply() }
+        val apply = { applyViewportPaddingNow(navigationView, mapHost, maneuverCard, mapControls) }
+        mapHost.doOnLayout { apply() }
         maneuverCard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
-        bottomPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
         mapControls.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
     }
 
     private fun applyViewportPaddingNow(
         navigationView: NavigationView,
+        mapHost: View,
         maneuverCard: View,
-        bottomPanel: View,
         mapControls: View,
     ) {
         val statusTop =
@@ -182,34 +192,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         val top =
             statusTop +
                 if (maneuverCard.visibility == View.VISIBLE) {
-                    maneuverCard.height.toDouble() + 16 * density
+                    maneuverCard.height.toDouble() + 12 * density
                 } else {
-                    72 * density
+                    56 * density
                 }
-        val bottom =
-            bottomPanel.height.toDouble() +
-                mapControls.height.toDouble() +
-                24 * density
+        // Panel ETA/swipe está fuera del mapa; solo reservamos espacio para FABs y chip de velocidad.
+        val bottom = (mapControls.height.toDouble() + 72 * density).coerceAtMost(mapHost.height * 0.35)
         BravaMapboxViewportPadding.apply(navigationView, top, bottom)
-    }
-
-    private fun pinFloatingControlsAbovePanel(
-        bottomPanel: View,
-        speedChip: View,
-        mapControls: View,
-    ) {
-        val apply = {
-            val gap = (12 * resources.displayMetrics.density).toInt()
-            val bottomInset = bottomPanel.height + gap
-            speedChip.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
-                bottomMargin = bottomInset
-            }
-            mapControls.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
-                bottomMargin = bottomInset
-            }
-        }
-        bottomPanel.doOnLayout { apply() }
-        bottomPanel.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> apply() }
     }
 
     override fun onDestroy() {

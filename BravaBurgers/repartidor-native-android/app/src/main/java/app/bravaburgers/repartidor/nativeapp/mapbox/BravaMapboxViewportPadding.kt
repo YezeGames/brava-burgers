@@ -5,6 +5,7 @@ import android.view.View
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.MapView
 import com.mapbox.maps.plugin.animation.camera
+import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.dropin.NavigationView
 import com.mapbox.navigation.dropin.map.MapViewObserver
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
@@ -43,14 +44,14 @@ object BravaMapboxViewportPadding {
         bottomPx: Double,
     ) {
         val side = 40.0
-        val top = topPx.coerceAtLeast(80.0)
-        val bottom = bottomPx.coerceAtLeast(160.0)
-        val applied =
-            patchViewportDataSource(navigationView, top, side, bottom, side)
+        val top = topPx.coerceAtLeast(48.0)
+        val bottom = bottomPx.coerceAtLeast(72.0)
+        var applied = patchViewportDataSource(navigationView, top, side, bottom, side)
+        MapboxNavigationApp.current()?.let { applied = patchViewportDataSource(it, top, side, bottom, side) || applied }
         if (applied) {
             navigationView.post { navigationView.api.recenterCamera() }
         } else {
-            Log.w(TAG, "ViewportDataSource not found; camera may look offset")
+            Log.w(TAG, "ViewportDataSource not found; relying on split map layout")
         }
     }
 

@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  67,
-    "version_name":  "2.0.0-alpha65",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v67/brava-repartidor-native.apk",
-    "release_notes":  "alpha65: camara encuadre, FABs Brava, sin Pedido cancelado al entregar, flujo handoff y swipe llegada",
-    "min_version_code":  67,
+    "version_code":  68,
+    "version_name":  "2.0.0-alpha66",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v68/brava-repartidor-native.apk",
+    "release_notes":  "alpha66: mapa partido (puck visible), swipe Llegue a destino refinado",
+    "min_version_code":  68,
     "force_update":  true
 }
