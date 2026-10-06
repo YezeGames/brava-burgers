@@ -2,71 +2,80 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 
 import android.util.Log
 import com.mapbox.maps.EdgeInsets
+import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.dropin.NavigationView
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 
 /**
- * Mapbox Navigation **por defecto** (focal, encuadre de ruta) + mapa **plano** (sin 3D).
- * Solo ajustamos [followingPadding] para que ruta y puck no queden bajo la UI Brava.
- *
- * https://docs.mapbox.com/android/navigation/guides/ui-components/camera/
+ * Mapbox Navigation por defecto + mapa plano. [followingPadding] evita que el puck quede bajo UI Brava.
  */
 object BravaMapboxCameraAnchor {
     private const val TAG = "BravaMapboxCamera"
-    private const val MAX_NODES = 72
-    private const val MAX_DEPTH = 5
+    private const val MAX_NODES = 96
+    private const val MAX_DEPTH = 6
 
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
-    private var lookupAttempted = false
     private var lastTopPx = -1.0
     private var lastBottomPx = -1.0
 
+    /** @return true si se aplicó al viewport de navegación Mapbox */
     fun applyBravaOverlayPadding(
         navigationView: NavigationView,
         topPx: Double,
         bottomPx: Double,
         sidePx: Double,
-    ) {
+    ): Boolean {
         val top = topPx.coerceAtLeast(48.0)
         val bottom = bottomPx.coerceAtLeast(48.0)
         val side = sidePx.coerceAtLeast(32.0)
-        if (viewportDataSource == null && !lookupAttempted) {
-            lookupAttempted = true
-            viewportDataSource = findViewportDataSource(navigationView)
-            if (viewportDataSource == null) {
-                Log.w(TAG, "ViewportDataSource not found")
-            }
-        }
-        val vds = viewportDataSource ?: return
+        val vds = ensureViewport(navigationView) ?: return false
         if (
             kotlin.math.abs(lastTopPx - top) < 2.0 &&
             kotlin.math.abs(lastBottomPx - bottom) < 2.0
         ) {
-            return
+            return true
         }
         lastTopPx = top
         lastBottomPx = bottom
 
         vds.followingPadding = EdgeInsets(top, side, bottom, side)
         vds.overviewPadding = EdgeInsets(top * 0.85, side, bottom * 0.85, side)
-
-        // Sin vista 3D: pitch fijo 0. Resto = defaults Mapbox (focal 0.5/1.0, encuadre de ruta).
         vds.options.followingFrameOptions.defaultPitch = 0.0
         vds.followingPitchPropertyOverride(0.0)
         vds.followingBearingPropertyOverride(null)
 
         try {
             vds.evaluate()
+            navigationView.post { navigationView.api.recenterCamera() }
         } catch (e: Exception) {
             Log.w(TAG, "evaluate failed: ${e.message}")
         }
+        return true
+    }
+
+    fun invalidatePaddingCache() {
+        lastTopPx = -1.0
+        lastBottomPx = -1.0
     }
 
     fun reset() {
         viewportDataSource = null
-        lookupAttempted = false
         lastTopPx = -1.0
         lastBottomPx = -1.0
+    }
+
+    private fun ensureViewport(navigationView: NavigationView): MapboxNavigationViewportDataSource? {
+        viewportDataSource?.let { return it }
+        viewportDataSource = findViewportDataSource(navigationView)
+        if (viewportDataSource == null) {
+            MapboxNavigationApp.current()?.let { nav ->
+                viewportDataSource = findViewportDataSource(nav)
+            }
+        }
+        if (viewportDataSource == null) {
+            Log.w(TAG, "ViewportDataSource not ready")
+        }
+        return viewportDataSource
     }
 
     private fun findViewportDataSource(root: Any): MapboxNavigationViewportDataSource? {

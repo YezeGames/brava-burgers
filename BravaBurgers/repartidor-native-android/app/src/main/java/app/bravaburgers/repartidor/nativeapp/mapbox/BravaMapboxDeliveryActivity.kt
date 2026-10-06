@@ -153,8 +153,10 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
             runOnUiThread {
-                scheduleMapInsets()
-                navigationView.postDelayed({ scheduleMapInsets() }, 600)
+                BravaMapboxCameraAnchor.invalidatePaddingCache()
+                scheduleMapInsets(force = true)
+                navigationView.postDelayed({ scheduleMapInsets(force = true) }, 400)
+                navigationView.postDelayed({ scheduleMapInsets(force = true) }, 1200)
             }
         }
         BravaMapboxNavigation.onRoutesRefreshed = {
@@ -175,41 +177,48 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         bottomPanel.doOnLayout { scheduleMapInsets() }
     }
 
-    private fun scheduleMapInsets() {
+    private fun scheduleMapInsets(force: Boolean = false) {
         insetRunnable?.let { insetHandler.removeCallbacks(it) }
         val run =
             Runnable {
-                applyMapContentInsets()
+                applyMapContentInsets(force)
             }
         insetRunnable = run
-        insetHandler.postDelayed(run, 80)
+        insetHandler.postDelayed(run, if (force) 0 else 80)
     }
 
-    private fun applyMapContentInsets() {
+    private fun applyMapContentInsets(force: Boolean = false) {
         if (!::navigationView.isInitialized) return
         val now = SystemClock.uptimeMillis()
-        if (now - lastInsetApplyAt < 100) return
+        if (!force && now - lastInsetApplyAt < 100) return
         lastInsetApplyAt = now
 
         val density = resources.displayMetrics.density
-        val statusTop =
-            ViewCompat.getRootWindowInsets(navigationView)
-                ?.getInsets(WindowInsetsCompat.Type.statusBars())
-                ?.top
-                ?: 0
+        val insets = ViewCompat.getRootWindowInsets(navigationView)
+        val statusTop = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
+        val navBarBottom = insets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
         val topPad = statusTop + (maneuverTopReserveDp * density).toInt()
-        val bottomPad = bottomPanel.height + (8 * density).toInt()
+        // Panel Brava + barra gestos + margen para que el puck (focal abajo) no quede tapado.
+        val bottomPad =
+            bottomPanel.height +
+                navBarBottom +
+                (28 * density).toInt()
         val side = (40 * density).toInt()
-        // Mapa edge-to-edge; la cámara usa followingPadding (Mapbox), no achicar el MapView.
-        BravaMapboxViewportPadding.applyContentInsets(0, 0, 0)
-        BravaMapboxCameraAnchor.applyBravaOverlayPadding(
-            navigationView,
-            topPx = topPad.toDouble(),
-            bottomPx = bottomPad.toDouble(),
-            sidePx = side.toDouble(),
-        )
 
-        val floatAbovePanel = bottomPad + (8 * density).toInt()
+        val applied =
+            BravaMapboxCameraAnchor.applyBravaOverlayPadding(
+                navigationView,
+                topPx = topPad.toDouble(),
+                bottomPx = bottomPad.toDouble(),
+                sidePx = side.toDouble(),
+            )
+        if (!applied) {
+            BravaMapboxViewportPadding.applyContentInsets(topPad, bottomPad, side)
+        } else {
+            BravaMapboxViewportPadding.applyContentInsets(0, 0, 0)
+        }
+
+        val floatAbovePanel = bottomPanel.height + navBarBottom + (12 * density).toInt()
         speedOrb.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
             bottomMargin = floatAbovePanel
         }

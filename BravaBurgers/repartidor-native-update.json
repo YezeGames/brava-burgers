@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  77,
-    "version_name":  "2.0.0-alpha75",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v77/brava-repartidor-native.apk",
-    "release_notes":  "Mapbox cámara default plana (sin 3D) + padding UI Brava",
-    "min_version_code":  77,
+    "version_code":  78,
+    "version_name":  "2.0.0-alpha76",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v78/brava-repartidor-native.apk",
+    "release_notes":  "Fix puck sobre panel Brava: followingPadding + retry viewport",
+    "min_version_code":  78,
     "force_update":  true
 }
