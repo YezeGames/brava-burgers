@@ -1,37 +1,18 @@
-# Mapbox — cámara para app de reparto (Brava)
+# Mapbox + UI Brava (repartidor)
 
-Referencia interna alineada con [Navigation camera](https://docs.mapbox.com/android/navigation/guides/ui-components/camera/) (SDK 2.20.x).
+## Producto
 
-## Drop-in + UI Brava
+- **Mapbox drop-in** a pantalla completa: cámara y puck **como Mapbox** (encuadre de ruta, focal por defecto).
+- **Sin 3D**: `defaultPitch = 0` + `followingPitchPropertyOverride(0)`.
+- **UI Brava encima**: maniobras, ETA, swipe, km/h, brújula / volumen / centrar (Mapbox oculta sus FABs).
 
-Usamos `NavigationView` a pantalla completa y **paneles propios** (maniobras, ETA, swipe). El panel inferior de Mapbox está oculto (`infoPanelForcedState = HIDDEN`).
+## Único ajuste de cámara
 
-La cámara **no** se configura con `customizeViewOptions` (solo estilos/ruta). Hay que tocar `MapboxNavigationViewportDataSource` del drop-in (ver `BravaMapboxCameraAnchor`).
+`followingPadding` = espacio para banner de maniobra (arriba) y panel ETA+swipe (abajo).  
+No usamos `MapView.setPadding` grande (rompe el tamaño del mapa).
 
-## Padding (espacio para UI)
+## Botones Brava
 
-```text
-followingPadding = EdgeInsets(top, side, bottom, side)
-```
+Llaman a la API drop-in: `navigationView.api.recenterCamera()` y voz Mapbox.
 
-- **top**: banner de maniobra + status bar (reserva fija ~88dp + insets).
-- **bottom**: panel ETA + swipe.
-- **side**: márgenes para FABs Brava.
-
-## Puck centrado (estilo Maps) vs default Mapbox
-
-| | Default Mapbox turn-by-turn | Brava (delivery, puck centrado) |
-|---|---------------------------|----------------------------------|
-| Focal point | `(0.5, 1.0)` — puck abajo | `(0.5, 0.5)` — centro de la banda útil |
-| `maximizeViewableGeometryWhenPitchZero` | `true` — cámara persigue geometría de ruta | `false` — respeta focal (menos “salto” tras giros) |
-| Pitch | puede ser 0 en ciudad | `0` (top-down); subir a ~35–45 si queremos look “navegación 3D” |
-
-Con `maximizeViewableGeometryWhenPitchZero = true` y pitch 0, **focalPoint no aplica** y el puck se mueve para encuadrar la ruta (síntoma: cámara rara después de doblar hasta que recalcula).
-
-## MapView.setPadding
-
-No usar padding simétrico grande en `MapView` (achica el mapa a un “cuadrado”). Solo `followingPadding` en el viewport de navegación.
-
-## Recálculo de ruta
-
-`RoutesObserver` + `recenterCamera()` tras cambio de rutas (off-route / reroute).
+Guía: [Navigation camera](https://docs.mapbox.com/android/navigation/guides/ui-components/camera/)

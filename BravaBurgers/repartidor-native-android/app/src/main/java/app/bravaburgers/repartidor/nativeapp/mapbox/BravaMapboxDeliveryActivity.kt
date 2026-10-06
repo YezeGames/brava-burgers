@@ -202,7 +202,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         val side = (40 * density).toInt()
         // Mapa edge-to-edge; la cámara usa followingPadding (Mapbox), no achicar el MapView.
         BravaMapboxViewportPadding.applyContentInsets(0, 0, 0)
-        BravaMapboxCameraAnchor.applyDeliveryFrame(
+        BravaMapboxCameraAnchor.applyBravaOverlayPadding(
             navigationView,
             topPx = topPad.toDouble(),
             bottomPx = bottomPad.toDouble(),

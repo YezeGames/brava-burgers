@@ -3,19 +3,13 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import android.util.Log
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.navigation.dropin.NavigationView
-import com.mapbox.navigation.ui.maps.camera.data.FollowingFrameOptions
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 
 /**
- * Cámara al estilo Mapbox para apps con UI propia (delivery / reparto).
+ * Mapbox Navigation **por defecto** (focal, encuadre de ruta) + mapa **plano** (sin 3D).
+ * Solo ajustamos [followingPadding] para que ruta y puck no queden bajo la UI Brava.
  *
- * Docs: https://docs.mapbox.com/android/navigation/guides/ui-components/camera/
- *
- * - [MapboxNavigationViewportDataSource.followingPadding] reserva espacio para maniobras (arriba) y panel ETA (abajo).
- * - Por defecto Mapbox usa focal (0.5, **1.0**) → puck **abajo** (comportamiento turn-by-turn clásico).
- * - Para puck **centrado** en la banda útil: focal (0.5, 0.5) y desactivar
- *   [FollowingFrameOptions.maximizeViewableGeometryWhenPitchZero] (si no, con pitch 0 la cámara
- *   persigue la geometría de la ruta y “salta” tras giros hasta que recalcula).
+ * https://docs.mapbox.com/android/navigation/guides/ui-components/camera/
  */
 object BravaMapboxCameraAnchor {
     private const val TAG = "BravaMapboxCamera"
@@ -27,7 +21,7 @@ object BravaMapboxCameraAnchor {
     private var lastTopPx = -1.0
     private var lastBottomPx = -1.0
 
-    fun applyDeliveryFrame(
+    fun applyBravaOverlayPadding(
         navigationView: NavigationView,
         topPx: Double,
         bottomPx: Double,
@@ -54,18 +48,15 @@ object BravaMapboxCameraAnchor {
         lastBottomPx = bottom
 
         vds.followingPadding = EdgeInsets(top, side, bottom, side)
-        vds.overviewPadding = EdgeInsets(top * 0.9, side, bottom * 0.9, side)
+        vds.overviewPadding = EdgeInsets(top * 0.85, side, bottom * 0.85, side)
 
-        vds.options.followingFrameOptions.apply {
-            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.5)
-            maximizeViewableGeometryWhenPitchZero = false
-            defaultPitch = 0.0
-        }
+        // Sin vista 3D: pitch fijo 0. Resto = defaults Mapbox (focal 0.5/1.0, encuadre de ruta).
+        vds.options.followingFrameOptions.defaultPitch = 0.0
+        vds.followingPitchPropertyOverride(0.0)
         vds.followingBearingPropertyOverride(null)
 
         try {
             vds.evaluate()
-            navigationView.post { navigationView.api.recenterCamera() }
         } catch (e: Exception) {
             Log.w(TAG, "evaluate failed: ${e.message}")
         }

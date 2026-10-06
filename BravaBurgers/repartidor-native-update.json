@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  76,
-    "version_name":  "2.0.0-alpha74",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v76/brava-repartidor-native.apk",
-    "release_notes":  "Cámara delivery Mapbox: focal 0.5/0.5, sin salto post-giro, mapa full bleed",
-    "min_version_code":  76,
+    "version_code":  77,
+    "version_name":  "2.0.0-alpha75",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v77/brava-repartidor-native.apk",
+    "release_notes":  "Mapbox cámara default plana (sin 3D) + padding UI Brava",
+    "min_version_code":  77,
     "force_update":  true
 }
