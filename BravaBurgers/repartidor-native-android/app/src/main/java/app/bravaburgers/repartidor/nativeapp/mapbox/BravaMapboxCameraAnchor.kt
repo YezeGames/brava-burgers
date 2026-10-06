@@ -4,6 +4,7 @@ import android.util.Log
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.dropin.NavigationView
+import com.mapbox.navigation.ui.maps.camera.data.FollowingFrameOptions
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 
 /**
@@ -40,7 +41,12 @@ object BravaMapboxCameraAnchor {
 
         vds.followingPadding = EdgeInsets(top, side, bottom, side)
         vds.overviewPadding = EdgeInsets(top * 0.85, side, bottom * 0.85, side)
-        vds.options.followingFrameOptions.defaultPitch = 0.0
+        vds.options.followingFrameOptions.apply {
+            defaultPitch = 0.0
+            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.82)
+            maximizeViewableGeometryWhenPitchZero = false
+            maxZoom = 15.4
+        }
         vds.followingPitchPropertyOverride(0.0)
         vds.followingBearingPropertyOverride(null)
 

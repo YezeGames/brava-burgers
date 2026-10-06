@@ -28,6 +28,10 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     private lateinit var maneuverCard: LinearLayout
     private lateinit var mapControls: LinearLayout
     private lateinit var speedOrb: TextView
+    private lateinit var bottomExpandSection: View
+    private lateinit var btnExpandPanel: ImageButton
+
+    private var bottomPanelExpanded = false
 
     private val insetHandler = Handler(Looper.getMainLooper())
     private var insetRunnable: Runnable? = null
@@ -82,6 +86,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         maneuverCard = findViewById(R.id.bravaManeuverCard)
         mapControls = findViewById(R.id.bravaMapControls)
         speedOrb = findViewById(R.id.bravaNavSpeed)
+        bottomExpandSection = findViewById(R.id.bravaBottomExpandSection)
+        btnExpandPanel = findViewById(R.id.bravaBtnExpandPanel)
+        btnExpandPanel.setOnClickListener { setBottomPanelExpanded(!bottomPanelExpanded) }
 
         BravaMapboxDropInUi.applyBravaOptions(navigationView)
         BravaMapboxViewportPadding.register(navigationView)
@@ -114,8 +121,11 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 if (distM == null || durSec == null) return@runOnUiThread
                 val summary = BravaNavTripFormat.format(distM, durSec)
                 etaView.text = summary.primaryLine
-                etaClockView.text = "Llegada ~${summary.etaClockLine}"
-                etaClockView.visibility = View.VISIBLE
+                val clock = summary.etaClockLine
+                if (clock != null) {
+                    etaClockView.text = "Llega antes de la(s) $clock"
+                    etaClockView.visibility = View.VISIBLE
+                }
             }
         }
         BravaMapboxNavigation.onManeuver = { m ->
@@ -173,8 +183,24 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         startGuidanceWhenReady(originLat, originLng, destLat, destLng)
     }
 
+    private fun setBottomPanelExpanded(expanded: Boolean) {
+        bottomPanelExpanded = expanded
+        bottomExpandSection.visibility = if (expanded) View.VISIBLE else View.GONE
+        btnExpandPanel.setImageResource(
+            if (expanded) {
+                R.drawable.ic_brava_panel_chevron_down
+            } else {
+                R.drawable.ic_brava_panel_chevron_up
+            },
+        )
+        bottomPanel.post { scheduleMapInsets(force = true) }
+    }
+
     private fun wireMapInsets() {
         bottomPanel.doOnLayout { scheduleMapInsets() }
+        bottomExpandSection.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            scheduleMapInsets(force = true)
+        }
     }
 
     private fun scheduleMapInsets(force: Boolean = false) {

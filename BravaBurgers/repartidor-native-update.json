@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  78,
-    "version_name":  "2.0.0-alpha76",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v78/brava-repartidor-native.apk",
-    "release_notes":  "Fix puck sobre panel Brava: followingPadding + retry viewport",
-    "min_version_code":  78,
+    "version_code":  79,
+    "version_name":  "2.0.0-alpha77",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v79/brava-repartidor-native.apk",
+    "release_notes":  "Panel inferior DiDi: barra min/km + chevron despliega Llegué; cámara delivery plana",
+    "min_version_code":  79,
     "force_update":  true
 }
