@@ -5,7 +5,6 @@
     android:layout_height="match_parent"
     android:background="#0B141A">
 
-    <!-- Mapbox drop-in a pantalla completa (evita loops de layout en altura parcial). -->
     <com.mapbox.navigation.dropin.NavigationView
         android:id="@+id/bravaNavigationView"
         android:layout_width="match_parent"
@@ -17,10 +16,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="top"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="8dp"
-        android:elevation="14dp"
+        android:layout_marginHorizontal="10dp"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/brava_nav_maneuver_shell"
+        android:elevation="18dp"
         android:orientation="vertical"
+        android:paddingStart="6dp"
         android:visibility="gone">
 
         <LinearLayout
@@ -29,16 +30,21 @@
             android:layout_height="wrap_content"
             android:background="@drawable/brava_nav_maneuver_primary_bg"
             android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="12dp">
+            android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/bravaManeuverPrimaryIcon"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_brava_maneuver_turn_right" />
+            <FrameLayout
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="@drawable/brava_nav_maneuver_icon_bg">
+
+                <ImageView
+                    android:id="@+id/bravaManeuverPrimaryIcon"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_brava_maneuver_turn_right" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/bravaManeuverPrimary"
@@ -46,8 +52,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="10dp"
                 android:layout_weight="1"
+                android:letterSpacing="0.01"
+                android:lineSpacingExtra="2dp"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textSize="17sp"
                 android:textStyle="bold" />
         </LinearLayout>
 
@@ -58,16 +66,21 @@
             android:background="@drawable/brava_nav_maneuver_sub_bg"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="10dp"
             android:visibility="gone">
 
-            <ImageView
-                android:id="@+id/bravaManeuverThenIcon"
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_brava_maneuver_turn_right" />
+            <FrameLayout
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@drawable/brava_nav_maneuver_icon_bg">
+
+                <ImageView
+                    android:id="@+id/bravaManeuverThenIcon"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_brava_maneuver_turn_right" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/bravaManeuverThen"
@@ -75,7 +88,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
                 android:layout_weight="1"
-                android:textColor="#B0BEC5"
+                android:textColor="#E8EDF2"
                 android:textSize="13sp" />
         </LinearLayout>
     </LinearLayout>
@@ -146,46 +159,59 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="#E60B141A"
-        android:elevation="16dp"
         android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="14dp"
-        android:paddingBottom="22dp">
+        android:paddingHorizontal="12dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="18dp">
 
-        <TextView
-            android:id="@+id/bravaNavEta"
+        <LinearLayout
+            android:id="@+id/bravaTripCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center"
-            android:text="— min"
-            android:textColor="#FF6B35"
-            android:textSize="24sp"
-            android:textStyle="bold" />
+            android:background="@drawable/brava_nav_trip_panel"
+            android:elevation="14dp"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
+            android:paddingHorizontal="18dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="14dp">
 
-        <TextView
-            android:id="@+id/bravaNavEtaClock"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingTop="2dp"
-            android:textColor="#9CA3AF"
-            android:textSize="12sp"
-            android:visibility="gone" />
+            <TextView
+                android:id="@+id/bravaNavEta"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:letterSpacing="0.02"
+                android:text="— min"
+                android:textColor="#FF6B35"
+                android:textSize="26sp"
+                android:textStyle="bold" />
 
-        <TextView
-            android:id="@+id/bravaNavAddress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
-            android:paddingTop="4dp"
-            android:textColor="#9CA3AF"
-            android:textSize="13sp" />
+            <TextView
+                android:id="@+id/bravaNavEtaClock"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:paddingTop="4dp"
+                android:textColor="#B8C4CE"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/bravaNavAddress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:lineSpacingExtra="2dp"
+                android:paddingTop="6dp"
+                android:textColor="#9CA3AF"
+                android:textSize="14sp" />
+        </LinearLayout>
 
         <app.bravaburgers.repartidor.nativeapp.mapbox.BravaSwipeButton
             android:id="@+id/bravaSwipeLlegue"
             android:layout_width="match_parent"
             android:layout_height="56dp"
-            android:layout_marginTop="12dp" />
+            android:layout_marginTop="10dp" />
     </LinearLayout>
 </FrameLayout>

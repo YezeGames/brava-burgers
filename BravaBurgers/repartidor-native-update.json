@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  73,
-    "version_name":  "2.0.0-alpha71",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v73/brava-repartidor-native.apk",
-    "release_notes":  "Swipe llegada: texto gris→blanco al deslizar (sin fade)",
-    "min_version_code":  73,
+    "version_code":  74,
+    "version_name":  "2.0.0-alpha72",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v74/brava-repartidor-native.apk",
+    "release_notes":  "Nav: puck centrado estilo Maps, cámara tras recálculo, UI maniobras y panel ETA (alpha72)",
+    "min_version_code":  74,
     "force_update":  true
 }

@@ -3,6 +3,9 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.View
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -25,6 +28,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     private lateinit var maneuverCard: LinearLayout
     private lateinit var mapControls: LinearLayout
     private lateinit var speedOrb: TextView
+
+    private val insetHandler = Handler(Looper.getMainLooper())
+    private var insetRunnable: Runnable? = null
+    private var lastInsetApplyAt = 0L
+
+    /** Reserva fija arriba: la cámara no salta cuando aparece/desaparece la tarjeta de maniobra. */
+    private val maneuverTopReserveDp = 112f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,6 +92,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             findViewById(R.id.bravaBtnCompass),
             findViewById(R.id.bravaBtnVolume),
             findViewById<ImageButton>(R.id.bravaBtnRecenter),
+            refreshCamera = { scheduleMapInsets() },
         )
 
         wireMapInsets()
@@ -142,7 +153,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
             runOnUiThread {
-                applyMapContentInsets()
+                scheduleMapInsets()
+                navigationView.postDelayed({ scheduleMapInsets() }, 600)
+            }
+        }
+        BravaMapboxNavigation.onRoutesRefreshed = {
+            runOnUiThread {
+                navigationView.api.recenterCamera()
             }
         }
 
@@ -155,30 +172,43 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     }
 
     private fun wireMapInsets() {
-        bottomPanel.doOnLayout { applyMapContentInsets() }
-        maneuverCard.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
-            applyMapContentInsets()
-        }
+        bottomPanel.doOnLayout { scheduleMapInsets() }
+    }
+
+    private fun scheduleMapInsets() {
+        insetRunnable?.let { insetHandler.removeCallbacks(it) }
+        val run =
+            Runnable {
+                applyMapContentInsets()
+            }
+        insetRunnable = run
+        insetHandler.postDelayed(run, 80)
     }
 
     private fun applyMapContentInsets() {
+        if (!::navigationView.isInitialized) return
+        val now = SystemClock.uptimeMillis()
+        if (now - lastInsetApplyAt < 100) return
+        lastInsetApplyAt = now
+
         val density = resources.displayMetrics.density
         val statusTop =
             ViewCompat.getRootWindowInsets(navigationView)
                 ?.getInsets(WindowInsetsCompat.Type.statusBars())
                 ?.top
                 ?: 0
-        val topPad =
-            statusTop +
-                if (maneuverCard.visibility == View.VISIBLE) {
-                    maneuverCard.height + (12 * density).toInt()
-                } else {
-                    (48 * density).toInt()
-                }
-        val bottomPad = bottomPanel.height + (16 * density).toInt()
-        BravaMapboxViewportPadding.applyContentInsets(topPad, bottomPad)
+        val topPad = statusTop + (maneuverTopReserveDp * density).toInt()
+        val bottomPad = bottomPanel.height + (12 * density).toInt()
+        val symmetric = maxOf(topPad, bottomPad)
+        val side = (44 * density).toInt()
+        BravaMapboxViewportPadding.applyContentInsets(symmetric, symmetric, side)
+        BravaMapboxCameraAnchor.applyFollowingCenter(
+            navigationView,
+            verticalPx = symmetric.toDouble(),
+            sidePx = side.toDouble(),
+        )
 
-        val floatAbovePanel = bottomPad + (12 * density).toInt()
+        val floatAbovePanel = bottomPad + (8 * density).toInt()
         speedOrb.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
             bottomMargin = floatAbovePanel
         }
@@ -224,6 +254,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         BravaMapboxNavigation.onDrivingSpeedKmh = null
         BravaMapboxNavigation.onRouteFailure = null
         BravaMapboxNavigation.onActiveGuidanceStarted = null
+        BravaMapboxNavigation.onRoutesRefreshed = null
+        insetRunnable?.let { insetHandler.removeCallbacks(it) }
+        BravaMapboxCameraAnchor.reset()
         if (::navigationView.isInitialized) {
             try {
                 navigationView.api.startFreeDrive()

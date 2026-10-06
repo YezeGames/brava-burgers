@@ -1,6 +1,7 @@
 package app.bravaburgers.repartidor.nativeapp.mapbox
 
 import android.content.Context
+import android.os.SystemClock
 import android.util.Log
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.geojson.Point
@@ -17,6 +18,7 @@ import android.location.Location
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
+import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.dropin.NavigationView
 import kotlin.math.roundToInt
 
@@ -55,6 +57,22 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     var onRouteFailure: ((message: String) -> Unit)? = null
 
     var onActiveGuidanceStarted: (() -> Unit)? = null
+
+    var onRoutesRefreshed: (() -> Unit)? = null
+
+    private var lastRoutesRecenterAt = 0L
+
+    private val routesObserver =
+        RoutesObserver { update ->
+            if (update.navigationRoutes.isEmpty()) return@RoutesObserver
+            val view = boundNavigationView ?: return@RoutesObserver
+            val now = SystemClock.uptimeMillis()
+            if (now - lastRoutesRecenterAt < 1200) return@RoutesObserver
+            lastRoutesRecenterAt = now
+            view.post {
+                onRoutesRefreshed?.invoke()
+            }
+        }
 
     private val routeProgressObserver =
         RouteProgressObserver { progress ->
@@ -131,12 +149,14 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     override fun onAttached(mapboxNavigation: MapboxNavigation) {
         mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.registerRoutesObserver(routesObserver)
         mapboxNavigation.registerLocationObserver(locationObserver)
         flushPendingRoute()
     }
 
     override fun onDetached(mapboxNavigation: MapboxNavigation) {
         mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.unregisterRoutesObserver(routesObserver)
         mapboxNavigation.unregisterLocationObserver(locationObserver)
     }
 

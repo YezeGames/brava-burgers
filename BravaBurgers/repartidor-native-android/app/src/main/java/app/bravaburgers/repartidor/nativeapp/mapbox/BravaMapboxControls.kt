@@ -12,8 +12,10 @@ object BravaMapboxControls {
         compass: ImageButton,
         volume: ImageButton,
         recenter: ImageButton,
+        refreshCamera: () -> Unit,
     ) {
         recenter.setOnClickListener {
+            refreshCamera()
             navigationView.api.recenterCamera()
         }
         volume.setOnClickListener {
@@ -25,6 +27,7 @@ object BravaMapboxControls {
             }
         }
         compass.setOnClickListener {
+            refreshCamera()
             navigationView.api.recenterCamera()
         }
     }
