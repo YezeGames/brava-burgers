@@ -34,7 +34,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     private var lastInsetApplyAt = 0L
 
     /** Reserva fija arriba: la cámara no salta cuando aparece/desaparece la tarjeta de maniobra. */
-    private val maneuverTopReserveDp = 112f
+    private val maneuverTopReserveDp = 88f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -198,13 +198,14 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 ?.top
                 ?: 0
         val topPad = statusTop + (maneuverTopReserveDp * density).toInt()
-        val bottomPad = bottomPanel.height + (12 * density).toInt()
-        val symmetric = maxOf(topPad, bottomPad)
-        val side = (44 * density).toInt()
-        BravaMapboxViewportPadding.applyContentInsets(symmetric, symmetric, side)
+        val bottomPad = bottomPanel.height + (8 * density).toInt()
+        val side = (32 * density).toInt()
+        // Mapa a pantalla completa: padding real arriba/abajo (NO duplicar max en ambos lados).
+        BravaMapboxViewportPadding.applyContentInsets(topPad, bottomPad, side)
         BravaMapboxCameraAnchor.applyFollowingCenter(
             navigationView,
-            verticalPx = symmetric.toDouble(),
+            topPx = topPad.toDouble(),
+            bottomPx = bottomPad.toDouble(),
             sidePx = side.toDouble(),
         )
 

@@ -16,14 +16,17 @@ object BravaMapboxCameraAnchor {
 
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
     private var lookupAttempted = false
-    private var lastVerticalPx = -1.0
+    private var lastTopPx = -1.0
+    private var lastBottomPx = -1.0
 
     fun applyFollowingCenter(
         navigationView: NavigationView,
-        verticalPx: Double,
+        topPx: Double,
+        bottomPx: Double,
         sidePx: Double,
     ) {
-        val vertical = verticalPx.coerceAtLeast(56.0)
+        val top = topPx.coerceAtLeast(48.0)
+        val bottom = bottomPx.coerceAtLeast(48.0)
         val side = sidePx.coerceAtLeast(32.0)
         if (viewportDataSource == null && !lookupAttempted) {
             lookupAttempted = true
@@ -33,13 +36,19 @@ object BravaMapboxCameraAnchor {
             }
         }
         val vds = viewportDataSource ?: return
-        if (kotlin.math.abs(lastVerticalPx - vertical) < 2.0) {
+        if (
+            kotlin.math.abs(lastTopPx - top) < 2.0 &&
+            kotlin.math.abs(lastBottomPx - bottom) < 2.0
+        ) {
             return
         }
-        lastVerticalPx = vertical
+        lastTopPx = top
+        lastBottomPx = bottom
+        // Simétrico solo en el viewport de cámara (centra el puck en la banda útil), no en el MapView.
+        val vertical = maxOf(top, bottom)
         val insets = EdgeInsets(vertical, side, vertical, side)
         vds.followingPadding = insets
-        vds.overviewPadding = insets
+        vds.overviewPadding = EdgeInsets(top, side, bottom, side)
         vds.followingBearingPropertyOverride(null)
         try {
             vds.evaluate()
@@ -52,7 +61,8 @@ object BravaMapboxCameraAnchor {
     fun reset() {
         viewportDataSource = null
         lookupAttempted = false
-        lastVerticalPx = -1.0
+        lastTopPx = -1.0
+        lastBottomPx = -1.0
     }
 
     private fun findViewportDataSource(root: Any): MapboxNavigationViewportDataSource? {
