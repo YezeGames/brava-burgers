@@ -3,11 +3,19 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import android.util.Log
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.navigation.dropin.NavigationView
+import com.mapbox.navigation.ui.maps.camera.data.FollowingFrameOptions
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 
 /**
- * Centra el puck en la banda útil (estilo Maps): padding simétrico en el viewport de navegación.
- * Búsqueda acotada (una vez) — no recorremos todo el grafo como en el fix que congelaba la app.
+ * Cámara al estilo Mapbox para apps con UI propia (delivery / reparto).
+ *
+ * Docs: https://docs.mapbox.com/android/navigation/guides/ui-components/camera/
+ *
+ * - [MapboxNavigationViewportDataSource.followingPadding] reserva espacio para maniobras (arriba) y panel ETA (abajo).
+ * - Por defecto Mapbox usa focal (0.5, **1.0**) → puck **abajo** (comportamiento turn-by-turn clásico).
+ * - Para puck **centrado** en la banda útil: focal (0.5, 0.5) y desactivar
+ *   [FollowingFrameOptions.maximizeViewableGeometryWhenPitchZero] (si no, con pitch 0 la cámara
+ *   persigue la geometría de la ruta y “salta” tras giros hasta que recalcula).
  */
 object BravaMapboxCameraAnchor {
     private const val TAG = "BravaMapboxCamera"
@@ -19,7 +27,7 @@ object BravaMapboxCameraAnchor {
     private var lastTopPx = -1.0
     private var lastBottomPx = -1.0
 
-    fun applyFollowingCenter(
+    fun applyDeliveryFrame(
         navigationView: NavigationView,
         topPx: Double,
         bottomPx: Double,
@@ -32,7 +40,7 @@ object BravaMapboxCameraAnchor {
             lookupAttempted = true
             viewportDataSource = findViewportDataSource(navigationView)
             if (viewportDataSource == null) {
-                Log.w(TAG, "ViewportDataSource not found; MapView padding only")
+                Log.w(TAG, "ViewportDataSource not found")
             }
         }
         val vds = viewportDataSource ?: return
@@ -44,12 +52,17 @@ object BravaMapboxCameraAnchor {
         }
         lastTopPx = top
         lastBottomPx = bottom
-        // Simétrico solo en el viewport de cámara (centra el puck en la banda útil), no en el MapView.
-        val vertical = maxOf(top, bottom)
-        val insets = EdgeInsets(vertical, side, vertical, side)
-        vds.followingPadding = insets
-        vds.overviewPadding = EdgeInsets(top, side, bottom, side)
+
+        vds.followingPadding = EdgeInsets(top, side, bottom, side)
+        vds.overviewPadding = EdgeInsets(top * 0.9, side, bottom * 0.9, side)
+
+        vds.options.followingFrameOptions.apply {
+            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.5)
+            maximizeViewableGeometryWhenPitchZero = false
+            defaultPitch = 0.0
+        }
         vds.followingBearingPropertyOverride(null)
+
         try {
             vds.evaluate()
             navigationView.post { navigationView.api.recenterCamera() }

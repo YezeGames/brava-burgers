@@ -199,10 +199,10 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 ?: 0
         val topPad = statusTop + (maneuverTopReserveDp * density).toInt()
         val bottomPad = bottomPanel.height + (8 * density).toInt()
-        val side = (32 * density).toInt()
-        // Mapa a pantalla completa: padding real arriba/abajo (NO duplicar max en ambos lados).
-        BravaMapboxViewportPadding.applyContentInsets(topPad, bottomPad, side)
-        BravaMapboxCameraAnchor.applyFollowingCenter(
+        val side = (40 * density).toInt()
+        // Mapa edge-to-edge; la cámara usa followingPadding (Mapbox), no achicar el MapView.
+        BravaMapboxViewportPadding.applyContentInsets(0, 0, 0)
+        BravaMapboxCameraAnchor.applyDeliveryFrame(
             navigationView,
             topPx = topPad.toDouble(),
             bottomPx = bottomPad.toDouble(),
