@@ -38,7 +38,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     private var lastInsetApplyAt = 0L
 
     /** Reserva fija arriba: la cámara no salta cuando aparece/desaparece la tarjeta de maniobra. */
-    private val maneuverTopReserveDp = 88f
+    private val maneuverTopReserveDp = 118f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,14 +104,15 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
 
         wireMapInsets()
 
-        val maneuverPrimary = findViewById<TextView>(R.id.bravaManeuverPrimary)
+        val maneuverDistance = findViewById<TextView>(R.id.bravaManeuverDistance)
+        val maneuverStreet = findViewById<TextView>(R.id.bravaManeuverPrimary)
         val maneuverThen = findViewById<TextView>(R.id.bravaManeuverThen)
-        val maneuverThenRow = findViewById<LinearLayout>(R.id.bravaManeuverThenRow)
         val maneuverPrimaryIcon = findViewById<android.widget.ImageView>(R.id.bravaManeuverPrimaryIcon)
-        val maneuverThenIcon = findViewById<android.widget.ImageView>(R.id.bravaManeuverThenIcon)
 
         val address = intent.getStringExtra(EXTRA_ADDRESS).orEmpty()
         findViewById<TextView>(R.id.bravaNavAddress).text = address
+        findViewById<TextView>(R.id.bravaNavAddress).visibility =
+            if (address.isBlank()) View.GONE else View.VISIBLE
 
         val etaView = findViewById<TextView>(R.id.bravaNavEta)
         val etaClockView = findViewById<TextView>(R.id.bravaNavEtaClock)
@@ -136,13 +137,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 }
                 maneuverCard.visibility = View.VISIBLE
                 maneuverPrimaryIcon.setImageResource(m.primaryIconRes)
-                maneuverPrimary.text = m.primaryLine
+                maneuverDistance.text = m.distanceLabel
+                maneuverStreet.text = m.streetLabel
                 if (!m.thenLine.isNullOrBlank()) {
-                    maneuverThenRow.visibility = View.VISIBLE
-                    maneuverThenIcon.setImageResource(m.thenIconRes)
-                    maneuverThen.text = "Luego · ${m.thenLine}"
+                    maneuverThen.visibility = View.VISIBLE
+                    maneuverThen.text = "↑  Luego · ${m.thenLine}"
                 } else {
-                    maneuverThenRow.visibility = View.GONE
+                    maneuverThen.visibility = View.GONE
                 }
             }
         }
@@ -165,13 +166,14 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             runOnUiThread {
                 BravaMapboxCameraAnchor.invalidatePaddingCache()
                 scheduleMapInsets(force = true)
-                navigationView.postDelayed({ scheduleMapInsets(force = true) }, 400)
-                navigationView.postDelayed({ scheduleMapInsets(force = true) }, 1200)
+                refreshDidiCamera()
+                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshDidiCamera() }, 400)
+                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshDidiCamera() }, 1200)
             }
         }
         BravaMapboxNavigation.onRoutesRefreshed = {
             runOnUiThread {
-                navigationView.api.recenterCamera()
+                refreshDidiCamera()
             }
         }
 
@@ -201,6 +203,12 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         bottomExpandSection.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             scheduleMapInsets(force = true)
         }
+    }
+
+    private fun refreshDidiCamera() {
+        BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
+        BravaMapboxCameraAnchor.forceCameraRefresh(navigationView)
+        navigationView.api.recenterCamera()
     }
 
     private fun scheduleMapInsets(force: Boolean = false) {

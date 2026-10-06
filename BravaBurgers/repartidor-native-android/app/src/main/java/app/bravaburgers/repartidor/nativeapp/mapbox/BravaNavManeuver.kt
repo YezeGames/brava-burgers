@@ -3,7 +3,10 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import app.bravaburgers.repartidor.nativeapp.R
 
 data class BravaNavManeuver(
-    val primaryLine: String,
+    /** Distancia al giro, estilo DiDi: "144 m" */
+    val distanceLabel: String,
+    /** Calle / maniobra: "Rotonda", "Doctor Barreiro Aguirre", etc. */
+    val streetLabel: String,
     val thenLine: String?,
     val primaryIconRes: Int,
     val thenIconRes: Int,
@@ -18,29 +21,36 @@ object BravaNavManeuverFormat {
         modifier: String?,
     ): BravaNavManeuver? {
         val primary = primaryText?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        val locale = java.util.Locale("es", "AR")
         val dist =
             distanceMeters?.takeIf { it > 0 }?.let { m ->
                 if (m >= 1000) {
-                    String.format(java.util.Locale("es", "AR"), "%.1f km", m / 1000.0)
+                    String.format(locale, "%.1f km", m / 1000.0)
                 } else {
                     "${m.toInt()} m"
                 }
-            }
-        val main =
-            if (dist != null && !primary.contains(dist, ignoreCase = true)) {
-                "$primary · $dist"
-            } else {
-                primary
-            }
+            } ?: "—"
+        val street = streetFromPrimary(primary)
         val then = subText?.trim()?.takeIf { it.isNotEmpty() }
         val primaryIcon = iconFor(maneuverType, modifier, primary)
         val thenIcon = iconFor(null, null, then ?: primary)
         return BravaNavManeuver(
-            primaryLine = main,
+            distanceLabel = dist,
+            streetLabel = street,
             thenLine = then,
             primaryIconRes = primaryIcon,
             thenIconRes = thenIcon,
         )
+    }
+
+    private fun streetFromPrimary(primary: String): String {
+        var s =
+            primary
+                .trim()
+                .replace(Regex("""[•·]\s*\d[\d.,]*\s*(m|km)\b.*$""", RegexOption.IGNORE_CASE), "")
+                .trim()
+        s = s.substringBefore(" · ").substringBefore(" • ").trim()
+        return s.ifEmpty { primary.trim() }
     }
 
     private fun iconFor(

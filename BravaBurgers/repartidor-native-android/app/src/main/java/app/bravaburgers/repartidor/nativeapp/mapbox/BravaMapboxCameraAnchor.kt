@@ -7,19 +7,20 @@ import com.mapbox.navigation.dropin.NavigationView
 import com.mapbox.navigation.ui.maps.camera.data.FollowingFrameOptions
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 
-/**
- * Mapbox Navigation por defecto + mapa plano. [followingPadding] evita que el puck quede bajo UI Brava.
- */
+/** Mapa plano + zoom abierto tipo delivery (DiDi), padding para UI Brava. */
 object BravaMapboxCameraAnchor {
     private const val TAG = "BravaMapboxCamera"
     private const val MAX_NODES = 96
     private const val MAX_DEPTH = 6
 
+    /** Zoom abierto tipo DiDi (varias cuadras / ~800 m visibles), plano. */
+    private const val DELIVERY_FOLLOWING_ZOOM = 13.15
+
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
     private var lastTopPx = -1.0
     private var lastBottomPx = -1.0
+    private var cameraProfileApplied = false
 
-    /** @return true si se aplicó al viewport de navegación Mapbox */
     fun applyBravaOverlayPadding(
         navigationView: NavigationView,
         topPx: Double,
@@ -30,25 +31,20 @@ object BravaMapboxCameraAnchor {
         val bottom = bottomPx.coerceAtLeast(48.0)
         val side = sidePx.coerceAtLeast(32.0)
         val vds = ensureViewport(navigationView) ?: return false
-        if (
-            kotlin.math.abs(lastTopPx - top) < 2.0 &&
-            kotlin.math.abs(lastBottomPx - bottom) < 2.0
-        ) {
-            return true
-        }
-        lastTopPx = top
-        lastBottomPx = bottom
 
         vds.followingPadding = EdgeInsets(top, side, bottom, side)
         vds.overviewPadding = EdgeInsets(top * 0.85, side, bottom * 0.85, side)
-        vds.options.followingFrameOptions.apply {
-            defaultPitch = 0.0
-            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.82)
-            maximizeViewableGeometryWhenPitchZero = false
-            maxZoom = 15.4
-        }
-        vds.followingPitchPropertyOverride(0.0)
-        vds.followingBearingPropertyOverride(null)
+        applyDidiFlatProfile(vds)
+
+        val paddingChanged =
+            kotlin.math.abs(lastTopPx - top) >= 2.0 ||
+                kotlin.math.abs(lastBottomPx - bottom) >= 2.0 ||
+                !cameraProfileApplied
+        lastTopPx = top
+        lastBottomPx = bottom
+        cameraProfileApplied = true
+
+        if (!paddingChanged) return true
 
         try {
             vds.evaluate()
@@ -59,15 +55,54 @@ object BravaMapboxCameraAnchor {
         return true
     }
 
+    fun forceCameraRefresh(navigationView: NavigationView) {
+        val vds = ensureViewport(navigationView) ?: return
+        applyDidiFlatProfile(vds)
+        try {
+            vds.evaluate()
+            navigationView.post { navigationView.api.recenterCamera() }
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun applyDidiFlatProfile(vds: MapboxNavigationViewportDataSource) {
+        vds.options.followingFrameOptions.apply {
+            defaultPitch = 0.0
+            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.80)
+            maximizeViewableGeometryWhenPitchZero = false
+            maxZoom = DELIVERY_FOLLOWING_ZOOM
+            minZoom = 11.0
+        }
+        vds.followingPitchPropertyOverride(0.0)
+        vds.followingZoomPropertyOverride(DELIVERY_FOLLOWING_ZOOM)
+        vds.followingBearingPropertyOverride(null)
+    }
+
     fun invalidatePaddingCache() {
         lastTopPx = -1.0
         lastBottomPx = -1.0
+        cameraProfileApplied = false
     }
 
     fun reset() {
         viewportDataSource = null
         lastTopPx = -1.0
         lastBottomPx = -1.0
+        cameraProfileApplied = false
+    }
+
+    /** Reintenta enlazar viewport cuando el mapa ya está montado (drop-in tarda en crear el VDS). */
+    fun retryViewportBinding(navigationView: NavigationView) {
+        if (viewportDataSource != null) return
+        viewportDataSource = findViewportDataSource(navigationView)
+        if (viewportDataSource == null) {
+            MapboxNavigationApp.current()?.let { nav ->
+                viewportDataSource = findViewportDataSource(nav)
+            }
+        }
+        if (viewportDataSource != null) {
+            Log.i(TAG, "ViewportDataSource bound on retry")
+        }
     }
 
     private fun ensureViewport(navigationView: NavigationView): MapboxNavigationViewportDataSource? {
