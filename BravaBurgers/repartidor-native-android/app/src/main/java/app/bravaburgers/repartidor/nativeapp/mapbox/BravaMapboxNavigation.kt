@@ -60,19 +60,32 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     var onRoutesRefreshed: (() -> Unit)? = null
 
-    private var lastRoutesRecenterAt = 0L
+    private var lastRoutesPaddingRefreshAt = 0L
 
     private val routesObserver =
         RoutesObserver { update ->
             if (update.navigationRoutes.isEmpty()) return@RoutesObserver
             val view = boundNavigationView ?: return@RoutesObserver
             val now = SystemClock.uptimeMillis()
-            if (now - lastRoutesRecenterAt < 1200) return@RoutesObserver
-            lastRoutesRecenterAt = now
+            if (now - lastRoutesPaddingRefreshAt < 2500) return@RoutesObserver
+            lastRoutesPaddingRefreshAt = now
             view.post {
                 onRoutesRefreshed?.invoke()
             }
         }
+
+    private var defaultRouteProgressListener: ((Double?, Double?) -> Unit)? = null
+
+    fun registerDefaultRouteProgressListener(listener: (Double?, Double?) -> Unit) {
+        defaultRouteProgressListener = listener
+        if (onRouteProgress == null) {
+            onRouteProgress = listener
+        }
+    }
+
+    fun restoreDefaultRouteProgressListener() {
+        onRouteProgress = defaultRouteProgressListener
+    }
 
     private val routeProgressObserver =
         RouteProgressObserver { progress ->
@@ -148,6 +161,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     }
 
     override fun onAttached(mapboxNavigation: MapboxNavigation) {
+        BravaMapboxCameraAnchor.bindFromMapboxNavigation(mapboxNavigation)
         mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
         mapboxNavigation.registerRoutesObserver(routesObserver)
         mapboxNavigation.registerLocationObserver(locationObserver)

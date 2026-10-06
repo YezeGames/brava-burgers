@@ -104,7 +104,7 @@ class RepartidorViewModel(
         repo.sessionStore.sessionFlow.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     init {
-        BravaMapboxNavigation.onRouteProgress = { distanceM, durationSec ->
+        BravaMapboxNavigation.registerDefaultRouteProgressListener { distanceM, durationSec ->
             if (distanceM != null && durationSec != null) {
                 val summary = BravaNavTripFormat.format(distanceM, durationSec)
                 val km = distanceM / 1000.0

@@ -10,6 +10,9 @@ import com.mapbox.navigation.ui.maps.route.line.model.RouteLineResources
 import java.util.Locale
 
 object BravaMapboxDropInUi {
+    /** Ruta debajo del puck (Mapbox location indicator layer). */
+    private const val ROUTE_BELOW_LAYER = "mapbox-location-indicator-layer"
+
     private val routeOrange = Color.parseColor("#FF6B35")
     private val routeCasing = Color.parseColor("#CC4A1F")
 
@@ -17,6 +20,7 @@ object BravaMapboxDropInUi {
         val ctx = navigationView.context
         val bravaRouteLineOptions =
             MapboxRouteLineOptions.Builder(ctx)
+                .withRouteLineBelowLayerId(ROUTE_BELOW_LAYER)
                 .withRouteLineResources(
                     RouteLineResources.Builder()
                         .routeLineColorResources(

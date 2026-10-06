@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  81,
-    "version_name":  "2.0.0-alpha79",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v81/brava-repartidor-native.apk",
-    "release_notes":  "Mapa full screen edge-to-edge; NavigationCamera 3D (pitch 50) y zoom dinamico Mapbox; sin MapView.setPadding ni zoom fijo.",
-    "min_version_code":  81,
+    "version_code":  82,
+    "version_name":  "2.0.0-alpha80",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v82/brava-repartidor-native.apk",
+    "release_notes":  "Nav alpha80: insets UI seguros, ruta bajo puck, camara Mapbox 45 grados y zoom dinamico, menos recenter en giros.",
+    "min_version_code":  82,
     "force_update":  true
 }

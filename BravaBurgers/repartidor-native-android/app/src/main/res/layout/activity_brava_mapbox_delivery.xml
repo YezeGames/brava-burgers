@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/bravaNavRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0B141A">
+    android:background="#0B141A"
+    android:fitsSystemWindows="false">
 
     <com.mapbox.navigation.dropin.NavigationView
         android:id="@+id/bravaNavigationView"

@@ -18,6 +18,7 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
+import androidx.core.view.updatePadding
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.R
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
@@ -37,9 +38,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     private val insetHandler = Handler(Looper.getMainLooper())
     private var insetRunnable: Runnable? = null
     private var lastInsetApplyAt = 0L
+    private var systemBarTopPx = 0
+    private var systemBarBottomPx = 0
 
     /** Reserva fija arriba: la cámara no salta cuando aparece/desaparece la tarjeta de maniobra. */
     private val maneuverTopReserveDp = 118f
+    private val overlayExtraTopDp = 8f
+    private val overlayExtraBottomDp = 10f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,13 +97,15 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         btnExpandPanel = findViewById(R.id.bravaBtnExpandPanel)
         btnExpandPanel.setOnClickListener { setBottomPanelExpanded(!bottomPanelExpanded) }
 
+        wireSystemBarInsets()
+
         BravaMapboxDropInUi.applyBravaOptions(navigationView)
         BravaMapboxViewportPadding.register(navigationView)
         BravaMapboxViewportPadding.onMapAttached = {
             if (!isFinishing && !isDestroyed) {
                 BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
                 scheduleMapInsets(force = true)
-                refreshNavigationCamera()
+                applyNavigationCameraOnce()
             }
         }
         BravaMapboxNavigation.bindNavigationView(navigationView)
@@ -175,14 +182,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             runOnUiThread {
                 BravaMapboxCameraAnchor.invalidatePaddingCache()
                 scheduleMapInsets(force = true)
-                refreshNavigationCamera()
-                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshNavigationCamera() }, 400)
-                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshNavigationCamera() }, 1200)
+                applyNavigationCameraOnce()
+                navigationView.postDelayed({ scheduleMapInsets(force = true); applyNavigationCameraOnce() }, 500)
             }
         }
         BravaMapboxNavigation.onRoutesRefreshed = {
             runOnUiThread {
-                refreshNavigationCamera()
+                scheduleMapInsets(force = true)
             }
         }
 
@@ -214,10 +220,35 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
     }
 
+    private fun wireSystemBarInsets() {
+        val root = findViewById<View>(R.id.bravaNavRoot)
+        val density = resources.displayMetrics.density
+        val extraTop = (overlayExtraTopDp * density).toInt()
+        val extraBottom = (overlayExtraBottomDp * density).toInt()
+        ViewCompat.setOnApplyWindowInsetsListener(root) { _, windowInsets ->
+            val bars = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+            systemBarTopPx = bars.top
+            systemBarBottomPx = bars.bottom
+            maneuverCard.updatePadding(top = bars.top + extraTop)
+            bottomPanel.updatePadding(bottom = bars.bottom + extraBottom)
+            scheduleMapInsets(force = true)
+            WindowInsetsCompat.CONSUMED
+        }
+        ViewCompat.requestApplyInsets(root)
+    }
+
+    /** Un solo recentrado al enganchar guía; el resto lo hace NavigationCamera. */
+    private fun applyNavigationCameraOnce() {
+        BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
+        BravaMapboxCameraAnchor.refreshViewportProfile(navigationView)
+        if (BravaMapboxCameraAnchor.isViewportBound()) {
+            navigationView.api.recenterCamera()
+        }
+    }
+
     private fun refreshNavigationCamera() {
         BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
-        BravaMapboxCameraAnchor.forceCameraRefresh(navigationView)
-        navigationView.api.recenterCamera()
+        BravaMapboxCameraAnchor.refreshViewportProfile(navigationView)
     }
 
     private fun scheduleMapInsets(force: Boolean = false) {
@@ -237,15 +268,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         lastInsetApplyAt = now
 
         val density = resources.displayMetrics.density
-        val insets = ViewCompat.getRootWindowInsets(navigationView)
-        val statusTop = insets?.getInsets(WindowInsetsCompat.Type.statusBars())?.top ?: 0
-        val navBarBottom = insets?.getInsets(WindowInsetsCompat.Type.navigationBars())?.bottom ?: 0
+        val statusTop = systemBarTopPx
+        val navBarBottom = systemBarBottomPx
         val topPad = statusTop + (maneuverTopReserveDp * density).toInt()
-        // Panel Brava + barra gestos + margen para que el puck (focal abajo) no quede tapado.
         val bottomPad =
             bottomPanel.height +
                 navBarBottom +
-                (28 * density).toInt()
+                (36 * density).toInt()
         val side = (40 * density).toInt()
 
         BravaMapboxViewportPadding.clearMapPadding()
@@ -297,12 +326,12 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        BravaMapboxNavigation.onRouteProgress = null
         BravaMapboxNavigation.onManeuver = null
         BravaMapboxNavigation.onDrivingSpeedKmh = null
         BravaMapboxNavigation.onRouteFailure = null
         BravaMapboxNavigation.onActiveGuidanceStarted = null
         BravaMapboxNavigation.onRoutesRefreshed = null
+        BravaMapboxNavigation.restoreDefaultRouteProgressListener()
         insetRunnable?.let { insetHandler.removeCallbacks(it) }
         BravaMapboxCameraAnchor.reset()
         if (::navigationView.isInitialized) {

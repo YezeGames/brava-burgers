@@ -16,6 +16,7 @@ object BravaMapboxControls {
     ) {
         recenter.setOnClickListener {
             refreshCamera()
+            BravaMapboxCameraAnchor.refreshViewportProfile(navigationView)
             navigationView.api.recenterCamera()
         }
         volume.setOnClickListener {
