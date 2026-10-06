@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  80,
-    "version_name":  "2.0.0-alpha78",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v80/brava-repartidor-native.apk",
-    "release_notes":  "Navegacion estilo DiDi: banner distancia+calle, barra ETA con direccion y chevron izquierdo, zoom abierto y camara plana con puck visible.",
-    "min_version_code":  80,
+    "version_code":  81,
+    "version_name":  "2.0.0-alpha79",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v81/brava-repartidor-native.apk",
+    "release_notes":  "Mapa full screen edge-to-edge; NavigationCamera 3D (pitch 50) y zoom dinamico Mapbox; sin MapView.setPadding ni zoom fijo.",
+    "min_version_code":  81,
     "force_update":  true
 }

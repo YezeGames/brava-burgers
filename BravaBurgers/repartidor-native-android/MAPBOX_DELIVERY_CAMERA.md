@@ -1,25 +1,16 @@
-# Mapbox + UI Brava (repartidor) — perfil cámara tipo DiDi (plano)
+# Mapbox delivery — pantalla completa + NavigationCamera 3D
 
-## Producto
+## Layout
 
-- **NavigationView** a pantalla completa; maniobras, ETA, swipe y FABs Brava **flotan encima** (no recortan el `MapView` salvo fallback).
-- **Mapa oscuro** Mapbox; ruta naranja Brava (`BravaMapboxDropInUi`).
+- `NavigationView` `match_parent` edge-to-edge (`decorFitsSystemWindows = false`).
+- Banner y barra Brava en `FrameLayout` **encima** del mapa; no se usa `MapView.setPadding` para UI.
 
-## Objetivo vs captura DiDi (referencia)
+## Cámara (Mapbox NavigationCamera / ViewportDataSource)
 
-| Objetivo | Cómo en Brava (`BravaMapboxCameraAnchor`) |
-|----------|-------------------------------------------|
-| Ver mucho camino adelante (~800 m), no zoom en la esquina | `maximizeViewableGeometryWhenPitchZero = false`, `maxZoom` + `followingZoomPropertyOverride` ≈ **13.15** |
-| Flecha (puck) abajo-centro, no tapada por panel | `focalPoint (0.5, 0.80)` + `followingPadding` inferior = alto panel + nav bar + margen |
-| Heading-up / ruta “hacia arriba” | Modo following Mapbox; `followingBearingPropertyOverride(null)` |
-| Plano tipo DiDi 2D (sin 3D fuerte) | `defaultPitch = 0`, `followingPitchPropertyOverride(0)` |
-| UI respeta zona segura | `BravaMapboxDeliveryActivity.applyMapContentInsets` → padding top (banner) y bottom (barra) |
+- `followingPadding` / `overviewPadding` = altura real banner + panel Brava.
+- `defaultPitch` ≈ **50°** (3D navegación).
+- `focalPoint (0.5, 0.78)` — puck en tercio inferior del área útil.
+- **Sin** `followingZoomPropertyOverride` — zoom dinámico del SDK (velocidad + ruta).
+- `maxZoom` 17.5 como techo; `maximizeViewableGeometryWhenPitchZero = false`.
 
-Si el **ViewportDataSource** no enlaza (log `ViewportDataSource not ready`), solo aplica padding de `MapView` y **no** el tope de zoom — por eso `retryViewportBinding` + refresh al iniciar ruta.
-
-## No hacemos
-
-- Pitch 30–45° “Google 3D” (rompió sensación y encuadre en pruebas previas).
-- `startTripSession` manual mezclado con drop-in.
-
-Guía Mapbox: [Navigation camera](https://docs.mapbox.com/android/navigation/guides/ui-components/camera/)
+Si logcat muestra `ViewportDataSource not ready`, reintentar tras `onMapAttached` (map observer).

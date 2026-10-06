@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
 import androidx.core.view.updateLayoutParams
@@ -80,6 +81,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             },
         )
 
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_brava_mapbox_delivery)
         navigationView = findViewById(R.id.bravaNavigationView)
         bottomPanel = findViewById(R.id.bravaBottomPanel)
@@ -92,6 +94,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
 
         BravaMapboxDropInUi.applyBravaOptions(navigationView)
         BravaMapboxViewportPadding.register(navigationView)
+        BravaMapboxViewportPadding.onMapAttached = {
+            if (!isFinishing && !isDestroyed) {
+                BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
+                scheduleMapInsets(force = true)
+                refreshNavigationCamera()
+            }
+        }
         BravaMapboxNavigation.bindNavigationView(navigationView)
 
         BravaMapboxControls.wire(
@@ -166,14 +175,14 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             runOnUiThread {
                 BravaMapboxCameraAnchor.invalidatePaddingCache()
                 scheduleMapInsets(force = true)
-                refreshDidiCamera()
-                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshDidiCamera() }, 400)
-                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshDidiCamera() }, 1200)
+                refreshNavigationCamera()
+                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshNavigationCamera() }, 400)
+                navigationView.postDelayed({ scheduleMapInsets(force = true); refreshNavigationCamera() }, 1200)
             }
         }
         BravaMapboxNavigation.onRoutesRefreshed = {
             runOnUiThread {
-                refreshDidiCamera()
+                refreshNavigationCamera()
             }
         }
 
@@ -205,7 +214,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
     }
 
-    private fun refreshDidiCamera() {
+    private fun refreshNavigationCamera() {
         BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
         BravaMapboxCameraAnchor.forceCameraRefresh(navigationView)
         navigationView.api.recenterCamera()
@@ -239,18 +248,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 (28 * density).toInt()
         val side = (40 * density).toInt()
 
-        val applied =
-            BravaMapboxCameraAnchor.applyBravaOverlayPadding(
-                navigationView,
-                topPx = topPad.toDouble(),
-                bottomPx = bottomPad.toDouble(),
-                sidePx = side.toDouble(),
-            )
-        if (!applied) {
-            BravaMapboxViewportPadding.applyContentInsets(topPad, bottomPad, side)
-        } else {
-            BravaMapboxViewportPadding.applyContentInsets(0, 0, 0)
-        }
+        BravaMapboxViewportPadding.clearMapPadding()
+        BravaMapboxCameraAnchor.applyBravaOverlayPadding(
+            navigationView,
+            topPx = topPad.toDouble(),
+            bottomPx = bottomPad.toDouble(),
+            sidePx = side.toDouble(),
+        )
 
         val floatAbovePanel = bottomPanel.height + navBarBottom + (12 * density).toInt()
         speedOrb.updateLayoutParams<android.widget.FrameLayout.LayoutParams> {
