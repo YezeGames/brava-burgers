@@ -237,18 +237,13 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         ViewCompat.requestApplyInsets(root)
     }
 
-    /** Un solo recentrado al enganchar guía; el resto lo hace NavigationCamera. */
+    /** Padding Brava + un recentrado; pitch/zoom los maneja Mapbox. */
     private fun applyNavigationCameraOnce() {
         BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
-        BravaMapboxCameraAnchor.refreshViewportProfile(navigationView)
+        scheduleMapInsets(force = true)
         if (BravaMapboxCameraAnchor.isViewportBound()) {
             navigationView.api.recenterCamera()
         }
-    }
-
-    private fun refreshNavigationCamera() {
-        BravaMapboxCameraAnchor.retryViewportBinding(navigationView)
-        BravaMapboxCameraAnchor.refreshViewportProfile(navigationView)
     }
 
     private fun scheduleMapInsets(force: Boolean = false) {

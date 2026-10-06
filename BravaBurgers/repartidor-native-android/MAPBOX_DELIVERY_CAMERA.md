@@ -1,17 +1,14 @@
-# Mapbox delivery — full screen + NavigationCamera
+# Mapbox delivery — UI Brava + cámara Mapbox default
 
-## Layout
-- `NavigationView` edge-to-edge; overlays con `WindowInsets` (status + nav bar).
-- Sin `MapView.setPadding` para UI Brava.
+## UI Brava
+- Drop-in con paneles Mapbox ocultos; banner, ETA, swipe, FABs propios.
+- `WindowInsets` en overlays; mapa edge-to-edge.
 
 ## Cámara
-- `followingPadding` según banner + panel + system bars.
-- Perfil Mapbox: pitch 45°, focal (0.5, 0.68), zoom dinámico (sin override fijo).
-- `recenterCamera()` solo al iniciar guía y botón recentrar.
+- **Sin** tocar `FollowingFrameOptions` (pitch, focal, zoom = SDK).
+- Solo `followingPadding` / `overviewPadding` según altura banner + panel + system bars.
+- Limpieza de overrides viejos (`followingZoomPropertyOverride(null)`, etc.).
+- Ruta bajo puck: `mapbox-location-indicator-layer`.
 
-## Ruta
-- `withRouteLineBelowLayerId("mapbox-location-indicator-layer")` — puck sobre la línea.
-
-## Viewport
-- Enlace desde `MapboxNavigation.onAttached` + retry en map ready.
-- Log: `ViewportDataSource bound from MapboxNavigation`.
+## Si el viewport no enlaza
+Log `ViewportDataSource not ready` → padding no aplicado; cámara 100% default pero puck puede quedar bajo UI Brava.
