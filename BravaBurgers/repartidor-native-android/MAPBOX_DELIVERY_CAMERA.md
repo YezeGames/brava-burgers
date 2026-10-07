@@ -1,5 +1,7 @@
 # Navegación Brava — mapa plano + iconos de giro
 
+> Referencia completa (arquitectura, archivos, cámara, troubleshooting): **[MAPBOX_NAVIGACION_Y_CAMARA.md](./MAPBOX_NAVIGACION_Y_CAMARA.md)**.
+
 ## Cámara
 - Pitch **0** (vista desde arriba), sin inclinar en maniobras.
 - `maximizeViewableGeometryWhenPitchZero = false` (no zoom raro al doblar).
