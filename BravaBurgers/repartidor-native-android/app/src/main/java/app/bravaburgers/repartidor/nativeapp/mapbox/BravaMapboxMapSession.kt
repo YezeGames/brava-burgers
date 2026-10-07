@@ -64,8 +64,8 @@ object BravaMapboxMapSession {
         mapView.getMapboxMap().loadStyleUri(NavigationStyles.NAVIGATION_NIGHT_STYLE) { style ->
             mapStyle = style
             styleReady = true
-            mapView.location.apply {
-                setLocationProvider(navigationLocationProvider)
+            mapView.location.setLocationProvider(navigationLocationProvider)
+            mapView.location.updateSettings {
                 enabled = true
                 pulsingEnabled = false
             }

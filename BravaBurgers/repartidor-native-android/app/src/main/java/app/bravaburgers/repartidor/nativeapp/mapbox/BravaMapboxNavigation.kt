@@ -136,18 +136,15 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     private val locationObserver =
         object : LocationObserver {
             override fun onNewRawLocation(rawLocation: android.location.Location) {
-                publishSpeedKmh(rawLocation.speed)
+                // No actualizar puck ni velocidad con GPS crudo (evita drift y punto gris duplicado).
             }
 
             override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
                 val enhanced = locationMatcherResult.enhancedLocation
-                publishSpeedKmh(enhanced.speed)
+                publishSpeedKmh(enhanced.speed, enhanced.accuracy)
                 lastEnhancedLocationPoint =
                     Point.fromLngLat(enhanced.longitude, enhanced.latitude)
-                BravaMapboxMapSession.updateEnhancedLocation(
-                    enhanced,
-                    locationMatcherResult.keyPoints,
-                )
+                BravaMapboxMapSession.updateEnhancedLocation(enhanced)
                 BravaMapboxCameraAnchor.onEnhancedLocation(enhanced)
             }
         }
@@ -162,14 +159,21 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
             }
         }
 
-    private fun publishSpeedKmh(speedMps: Float?) {
-        val kmh =
-            if (speedMps != null && speedMps >= 0f) {
-                (speedMps * 3.6f).roundToInt().coerceIn(0, 199)
-            } else {
-                null
-            }
-        onDrivingSpeedKmh?.invoke(kmh)
+    /** Umbral anti-ruido GPS: quieto → 0 km/h (no picos fantasma). */
+    private fun publishSpeedKmh(
+        speedMps: Float?,
+        accuracyMeters: Float,
+    ) {
+        if (!accuracyMeters.isFinite() || accuracyMeters <= 0f || accuracyMeters > 25f) {
+            onDrivingSpeedKmh?.invoke(0)
+            return
+        }
+        if (speedMps == null || speedMps < 0f || speedMps < 0.6f) {
+            onDrivingSpeedKmh?.invoke(0)
+            return
+        }
+        val kmh = (speedMps * 3.6f).roundToInt().coerceIn(0, 199)
+        onDrivingSpeedKmh?.invoke(if (kmh < 2) 0 else kmh)
     }
 
     fun ensureRegistered() {
@@ -273,7 +277,6 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                         nav.startTripSession()
                         BravaMapboxMapSession.drawRoutes(routes)
                         BravaMapboxCameraAnchor.onRoutesChanged(true, routes.first())
-                        BravaMapboxCameraAnchor.recenterFollowing()
                         Log.i(TAG, "Active guidance via MapboxNavigation + MapView")
                         onActiveGuidanceStarted?.invoke()
                     } catch (e: Exception) {

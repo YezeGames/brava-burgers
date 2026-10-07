@@ -23,6 +23,8 @@ import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitio
 object BravaMapboxCameraAnchor : MapboxNavigationObserver {
     private const val TAG = "BravaMapboxCamera"
     private const val FROZEN_MAP_BEARING = 0.0
+    /** Zoom de calle en modo following (evita vista overview/ciudad al iniciar). */
+    private const val FOLLOWING_ZOOM = 16.5
 
     private var mapView: MapView? = null
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
@@ -76,6 +78,7 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
         } catch (e: Exception) {
             Log.w(TAG, "evaluate failed: ${e.message}")
         }
+        recenterFollowing()
         return true
     }
 
@@ -100,7 +103,11 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
         } else {
             vds.onRouteChanged(primaryRoute)
         }
+        maintainFlatFollowing()
         vds.evaluate()
+        if (hasRoutes && primaryRoute != null) {
+            recenterFollowing()
+        }
     }
 
     fun maintainFlatFollowing() {
@@ -153,7 +160,8 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
             pitchUpdatesAllowed = false
         }
         vds.followingPitchPropertyOverride(0.0)
-        vds.followingZoomPropertyOverride(null)
+        vds.followingZoomPropertyOverride(FOLLOWING_ZOOM)
+        vds.overviewZoomPropertyOverride(FOLLOWING_ZOOM)
         vds.followingBearingPropertyOverride(FROZEN_MAP_BEARING)
     }
 }
