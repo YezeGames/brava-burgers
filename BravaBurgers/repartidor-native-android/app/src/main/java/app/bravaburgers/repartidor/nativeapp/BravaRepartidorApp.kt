@@ -9,6 +9,7 @@ import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundSer
 import app.bravaburgers.repartidor.nativeapp.session.SessionServicePrefs
 import app.bravaburgers.repartidor.nativeapp.session.InstallSessionGuard
 import app.bravaburgers.repartidor.nativeapp.session.SessionWorkScheduler
+import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxCameraAnchor
 import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigation
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
@@ -37,6 +38,7 @@ class BravaRepartidorApp : Application() {
                 )
             }
             BravaMapboxNavigation.ensureRegistered()
+            BravaMapboxCameraAnchor.ensureRegistered()
         }
         BravaNotifications.ensureChannels(this)
         repository = RepartidorRepository(this)

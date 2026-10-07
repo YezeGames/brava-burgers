@@ -16,7 +16,7 @@ object BravaMapboxControls {
     ) {
         recenter.setOnClickListener {
             refreshCamera()
-            navigationView.api.recenterCamera()
+            BravaMapboxCameraAnchor.recenterFollowing()
         }
         volume.setOnClickListener {
             val player = navigationView.api.getCurrentVoiceInstructionsPlayer()
@@ -28,7 +28,7 @@ object BravaMapboxControls {
         }
         compass.setOnClickListener {
             refreshCamera()
-            navigationView.api.recenterCamera()
+            BravaMapboxCameraAnchor.recenterFollowing()
         }
     }
 }

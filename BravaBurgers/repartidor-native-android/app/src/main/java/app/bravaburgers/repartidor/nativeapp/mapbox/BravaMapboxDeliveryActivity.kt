@@ -103,10 +103,8 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         BravaMapboxViewportPadding.register(navigationView)
         BravaMapboxViewportPadding.onMapAttached = {
             if (!isFinishing && !isDestroyed) {
-                BravaMapboxCameraAnchor.scheduleViewportBindingUntilBound(navigationView) {
-                    scheduleMapInsets(force = true)
-                    applyNavigationCameraOnce()
-                }
+                scheduleMapInsets(force = true)
+                applyNavigationCameraOnce()
             }
         }
         BravaMapboxNavigation.bindNavigationView(navigationView)
@@ -181,12 +179,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
             runOnUiThread {
-                BravaMapboxCameraAnchor.resetBinding()
                 BravaMapboxCameraAnchor.invalidatePaddingCache()
-                BravaMapboxCameraAnchor.scheduleViewportBindingUntilBound(navigationView) {
-                    scheduleMapInsets(force = true)
-                    applyNavigationCameraOnce()
-                }
+                scheduleMapInsets(force = true)
+                applyNavigationCameraOnce()
             }
         }
         BravaMapboxNavigation.onRoutesRefreshed = {
@@ -242,16 +237,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
 
     /** Padding Brava + un recentrado; pitch/zoom los maneja Mapbox. */
     private fun applyNavigationCameraOnce() {
+        scheduleMapInsets(force = true)
         if (BravaMapboxCameraAnchor.isViewportBound()) {
-            scheduleMapInsets(force = true)
-            navigationView.api.recenterCamera()
-        } else {
-            BravaMapboxCameraAnchor.scheduleViewportBindingUntilBound(navigationView) {
-                scheduleMapInsets(force = true)
-                if (BravaMapboxCameraAnchor.isViewportBound()) {
-                    navigationView.api.recenterCamera()
-                }
-            }
+            BravaMapboxCameraAnchor.recenterFollowing()
         }
     }
 
@@ -279,14 +267,10 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             bottomPanel.height +
                 navBarBottom +
                 (36 * density).toInt()
-        val side = (40 * density).toInt()
-
         BravaMapboxViewportPadding.clearMapPadding()
         BravaMapboxCameraAnchor.applyBravaOverlayPadding(
-            navigationView,
             topPx = topPad.toDouble(),
             bottomPx = bottomPad.toDouble(),
-            sidePx = side.toDouble(),
         )
 
         val floatAbovePanel = bottomPanel.height + navBarBottom + (12 * density).toInt()
@@ -337,7 +321,6 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         BravaMapboxNavigation.onRoutesRefreshed = null
         BravaMapboxNavigation.restoreDefaultRouteProgressListener()
         insetRunnable?.let { insetHandler.removeCallbacks(it) }
-        BravaMapboxCameraAnchor.cancelViewportBindingRetries()
         BravaMapboxCameraAnchor.reset()
         if (::navigationView.isInitialized) {
             try {

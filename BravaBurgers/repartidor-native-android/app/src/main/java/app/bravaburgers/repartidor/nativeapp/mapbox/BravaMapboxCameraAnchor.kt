@@ -1,59 +1,111 @@
 package app.bravaburgers.repartidor.nativeapp.mapbox
 
-import android.os.Handler
-import android.os.Looper
 import android.util.Log
 import com.mapbox.maps.EdgeInsets
+import com.mapbox.maps.MapView
+import com.mapbox.maps.plugin.animation.camera
+import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
 import com.mapbox.navigation.core.MapboxNavigation
+import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
-import com.mapbox.navigation.dropin.NavigationView
+import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
+import com.mapbox.navigation.core.trip.session.LocationObserver
+import com.mapbox.navigation.core.trip.session.LocationMatcherResult
+import com.mapbox.navigation.core.trip.session.RouteProgressObserver
+import com.mapbox.navigation.ui.maps.camera.NavigationCamera
 import com.mapbox.navigation.ui.maps.camera.data.FollowingFrameOptions
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
-import java.lang.ref.WeakReference
-import java.util.ArrayDeque
+import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
 
 /**
- * Mapa plano 2D: puck estable, bearing congelado al norte (0°), sin encuadre de geometría en giros.
- * Único ajuste sobre Mapbox: [followingPadding] para UI Brava.
+ * Cámara Brava vía APIs públicas del Navigation SDK (sin reflection):
+ * [MapboxNavigationViewportDataSource] + [NavigationCamera] sobre el [MapView] del drop-in.
  */
-object BravaMapboxCameraAnchor {
+@OptIn(ExperimentalPreviewMapboxNavigationAPI::class)
+object BravaMapboxCameraAnchor : MapboxNavigationObserver {
     private const val TAG = "BravaMapboxCamera"
-    private const val MAX_NODES = 320
-    private const val MAX_DEPTH = 18
-    private const val MAX_BIND_ATTEMPTS = 28
-    /** Mapa siempre al norte; el puck rota con la ubicación. */
     private const val FROZEN_MAP_BEARING = 0.0
 
-    private val bindHandler = Handler(Looper.getMainLooper())
-    private var bindRetryRunnable: Runnable? = null
-    private var bindAttempt = 0
-    private var pendingNavViewRef: WeakReference<NavigationView>? = null
-    private var onViewportBoundCallback: (() -> Unit)? = null
-
+    private var mapView: MapView? = null
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
+    private var navigationCamera: NavigationCamera? = null
+    private var registeredWithApp = false
+    private var navAttached = false
+
     private var lastTopPx = -1.0
     private var lastBottomPx = -1.0
 
     private val puckFramingStrategy = BravaPuckCenterFramingStrategy()
 
-    fun isViewportBound(): Boolean = viewportDataSource != null
+    private val locationObserver =
+        object : LocationObserver {
+            override fun onNewRawLocation(rawLocation: android.location.Location) {
+                onDriverLocation(rawLocation)
+            }
+
+            override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
+                onDriverLocation(locationMatcherResult.enhancedLocation)
+            }
+        }
+
+    private val routeProgressObserver =
+        RouteProgressObserver { progress ->
+            val vds = viewportDataSource ?: return@RouteProgressObserver
+            vds.onRouteProgressChanged(progress)
+            maintainFlatFollowing()
+            vds.evaluate()
+        }
+
+    private val routesObserver =
+        RoutesObserver { update ->
+            val vds = viewportDataSource ?: return@RoutesObserver
+            val routes = update.navigationRoutes
+            if (routes.isEmpty()) {
+                vds.clearRouteData()
+            } else {
+                vds.onRouteChanged(routes.first())
+            }
+            vds.evaluate()
+        }
+
+    fun isViewportBound(): Boolean = viewportDataSource != null && navigationCamera != null
+
+    fun ensureRegistered() {
+        if (registeredWithApp) return
+        MapboxNavigationApp.registerObserver(this)
+        registeredWithApp = true
+    }
+
+    /** Llamado cuando el drop-in adjunta el [MapView] (MapViewObserver). */
+    fun onMapViewAttached(mapView: MapView) {
+        if (this.mapView === mapView && viewportDataSource != null) return
+        this.mapView = mapView
+        val mapboxMap = mapView.getMapboxMap()
+        viewportDataSource = MapboxNavigationViewportDataSource(mapboxMap)
+        navigationCamera =
+            NavigationCamera(
+                mapboxMap,
+                mapView.camera,
+                viewportDataSource!!,
+            )
+        applyFlatPuckCenteredProfile()
+        Log.i(TAG, "NavigationCamera + ViewportDataSource creados (API pública)")
+        MapboxNavigationApp.current()?.let { attachToNavigation(it) }
+    }
 
     fun applyBravaOverlayPadding(
-        navigationView: NavigationView,
         topPx: Double,
         bottomPx: Double,
-        sidePx: Double,
     ): Boolean {
+        val vds = viewportDataSource ?: return false
         val top = topPx.coerceAtLeast(48.0)
         val bottom = bottomPx.coerceAtLeast(96.0)
-        val side = sidePx.coerceAtLeast(24.0)
         val vSym = kotlin.math.max(top, bottom)
-        val vds = ensureViewport(navigationView) ?: return false
 
-        applyFlatPuckCenteredProfile(vds)
+        applyFlatPuckCenteredProfile()
 
-        vds.followingPadding = EdgeInsets(vSym, side, vSym, side)
-        vds.overviewPadding = EdgeInsets(vSym * 0.9, side, vSym * 0.9, side)
+        vds.followingPadding = EdgeInsets(vSym, 0.0, vSym, 0.0)
+        vds.overviewPadding = EdgeInsets(vSym * 0.9, 0.0, vSym * 0.9, 0.0)
 
         lastTopPx = top
         lastBottomPx = bottom
@@ -66,29 +118,23 @@ object BravaMapboxCameraAnchor {
         return true
     }
 
-    /**
-     * Re-aplica pitch 0, bearing norte y perfil plano en cada tick de ruta
-     * (Mapbox a veces restaura pitch ~45 o bearing de ruta en curvas).
-     */
-    fun maintainFlatFollowing(navigationView: NavigationView) {
-        val vds = viewportDataSource ?: attemptViewportBind(navigationView) ?: return
-        applyFlatPuckCenteredProfile(vds)
+    fun maintainFlatFollowing() {
+        val vds = viewportDataSource ?: return
+        applyFlatPuckCenteredProfile()
         vds.followingBearingPropertyOverride(FROZEN_MAP_BEARING)
     }
 
-    private fun applyFlatPuckCenteredProfile(vds: MapboxNavigationViewportDataSource) {
-        vds.options.followingFrameOptions.apply {
-            defaultPitch = 0.0
-            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.5)
-            maximizeViewableGeometryWhenPitchZero = false
-            pitchNearManeuvers.enabled = false
-            frameGeometryAfterManeuver.enabled = false
-            intersectionDensityCalculation.enabled = false
-            framingStrategy = puckFramingStrategy
-        }
-        vds.followingPitchPropertyOverride(0.0)
-        vds.followingZoomPropertyOverride(null)
-        vds.followingBearingPropertyOverride(FROZEN_MAP_BEARING)
+    fun recenterFollowing() {
+        val cam = navigationCamera ?: return
+        maintainFlatFollowing()
+        viewportDataSource?.evaluate()
+        cam.requestNavigationCameraToFollowing(
+            stateTransitionOptions =
+                NavigationCameraTransitionOptions
+                    .Builder()
+                    .maxDuration(0L)
+                    .build(),
+        )
     }
 
     fun invalidatePaddingCache() {
@@ -97,217 +143,61 @@ object BravaMapboxCameraAnchor {
     }
 
     fun reset() {
-        cancelViewportBindingRetries()
+        MapboxNavigationApp.current()?.let { detachFromNavigation(it) }
+        mapView = null
         viewportDataSource = null
+        navigationCamera = null
         lastTopPx = -1.0
         lastBottomPx = -1.0
-        onViewportBoundCallback = null
-        pendingNavViewRef = null
+        navAttached = false
     }
 
-    /** Solo al iniciar guidance: el drop-in puede recrear el viewport interno. */
-    fun resetBinding() {
-        cancelViewportBindingRetries()
-        viewportDataSource = null
+    override fun onAttached(mapboxNavigation: MapboxNavigation) {
+        attachToNavigation(mapboxNavigation)
     }
 
-    fun bindFromMapboxNavigation(mapboxNavigation: MapboxNavigation) {
-        if (viewportDataSource != null) return
-        viewportDataSource = findViewportDataSource(mapboxNavigation)
-        if (viewportDataSource != null) {
-            Log.i(TAG, "ViewportDataSource bound via MapboxNavigation")
-            onViewportBoundSuccess()
-        }
+    override fun onDetached(mapboxNavigation: MapboxNavigation) {
+        detachFromNavigation(mapboxNavigation)
     }
 
-    /** Un intento inmediato (sin cola de reintentos). */
-    fun retryViewportBinding(navigationView: NavigationView) {
-        if (viewportDataSource != null) return
-        attemptViewportBind(navigationView)
-        if (viewportDataSource == null) {
-            Log.w(TAG, "ViewportDataSource NOT bound (single attempt)")
-        }
+    private fun attachToNavigation(mapboxNavigation: MapboxNavigation) {
+        if (navAttached) return
+        mapboxNavigation.registerLocationObserver(locationObserver)
+        mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.registerRoutesObserver(routesObserver)
+        navAttached = true
     }
 
-    /**
-     * Reintenta hasta enlazar [MapboxNavigationViewportDataSource] o agotar intentos.
-     * [onBound] se invoca una vez en el hilo UI cuando el hook tiene éxito.
-     */
-    fun scheduleViewportBindingUntilBound(
-        navigationView: NavigationView,
-        onBound: (() -> Unit)? = null,
-    ) {
-        if (viewportDataSource != null) {
-            onBound?.invoke()
-            return
-        }
-        pendingNavViewRef = WeakReference(navigationView)
-        if (onBound != null) {
-            onViewportBoundCallback = onBound
-        }
-        cancelViewportBindingRetries()
-        bindAttempt = 0
-        scheduleNextBindAttempt(0L)
+    private fun detachFromNavigation(mapboxNavigation: MapboxNavigation) {
+        if (!navAttached) return
+        mapboxNavigation.unregisterLocationObserver(locationObserver)
+        mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
+        mapboxNavigation.unregisterRoutesObserver(routesObserver)
+        navAttached = false
     }
 
-    fun cancelViewportBindingRetries() {
-        bindRetryRunnable?.let { bindHandler.removeCallbacks(it) }
-        bindRetryRunnable = null
+    private fun onDriverLocation(location: android.location.Location) {
+        val vds = viewportDataSource ?: return
+        vds.onLocationChanged(location)
+        maintainFlatFollowing()
+        vds.evaluate()
     }
 
-    private fun scheduleNextBindAttempt(delayMs: Long) {
-        val navView = pendingNavViewRef?.get()
-        if (navView == null) {
-            Log.w(TAG, "Viewport bind retry stopped — NavigationView gone")
-            cancelViewportBindingRetries()
-            return
+    private fun applyFlatPuckCenteredProfile() {
+        val vds = viewportDataSource ?: return
+        vds.options.followingFrameOptions.apply {
+            defaultPitch = 0.0
+            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.5)
+            maximizeViewableGeometryWhenPitchZero = false
+            pitchNearManeuvers.enabled = false
+            frameGeometryAfterManeuver.enabled = false
+            intersectionDensityCalculation.enabled = false
+            framingStrategy = puckFramingStrategy
+            bearingUpdatesAllowed = false
+            pitchUpdatesAllowed = false
         }
-        bindRetryRunnable =
-            Runnable {
-                if (viewportDataSource != null) {
-                    onViewportBoundSuccess()
-                    return@Runnable
-                }
-                attemptViewportBind(navView)
-                if (viewportDataSource != null) {
-                    Log.i(TAG, "ViewportDataSource bound after ${bindAttempt + 1} attempt(s)")
-                    onViewportBoundSuccess()
-                    return@Runnable
-                }
-                bindAttempt++
-                if (bindAttempt >= MAX_BIND_ATTEMPTS) {
-                    Log.e(
-                        TAG,
-                        "ViewportDataSource bind gave up after $MAX_BIND_ATTEMPTS attempts — cámara Mapbox default",
-                    )
-                    cancelViewportBindingRetries()
-                    return@Runnable
-                }
-                val nextDelay =
-                    when (bindAttempt) {
-                        in 0..5 -> 80L * bindAttempt.coerceAtLeast(1)
-                        in 6..12 -> 250L
-                        in 13..20 -> 500L
-                        else -> 1000L
-                    }
-                scheduleNextBindAttempt(nextDelay)
-            }
-        bindHandler.postDelayed(bindRetryRunnable!!, delayMs)
-    }
-
-    private fun onViewportBoundSuccess() {
-        cancelViewportBindingRetries()
-        val cb = onViewportBoundCallback
-        onViewportBoundCallback = null
-        cb?.invoke()
-    }
-
-    /** Prueba MapboxNavigation y NavigationView (orden alternado en reintentos). */
-    private fun attemptViewportBind(navigationView: NavigationView): MapboxNavigationViewportDataSource? {
-        if (viewportDataSource != null) return viewportDataSource
-
-        val tryNavFirst = bindAttempt % 2 == 0
-        if (tryNavFirst) {
-            MapboxNavigationApp.current()?.let { bindFromMapboxNavigation(it) }
-            if (viewportDataSource == null) {
-                viewportDataSource = findViewportDataSource(navigationView)
-            }
-        } else {
-            viewportDataSource = findViewportDataSource(navigationView)
-            if (viewportDataSource == null) {
-                MapboxNavigationApp.current()?.let { bindFromMapboxNavigation(it) }
-            }
-        }
-
-        if (viewportDataSource != null && bindAttempt == 0) {
-            Log.i(TAG, "ViewportDataSource bound — flat 2D, puck-centered, bearing north")
-        }
-        return viewportDataSource
-    }
-
-    private fun ensureViewport(navigationView: NavigationView): MapboxNavigationViewportDataSource? {
-        if (viewportDataSource == null) {
-            attemptViewportBind(navigationView)
-        }
-        if (viewportDataSource == null) {
-            scheduleViewportBindingUntilBound(navigationView)
-            Log.w(TAG, "ViewportDataSource not ready — scheduled bind retries")
-        }
-        return viewportDataSource
-    }
-
-    private fun findViewportDataSource(root: Any): MapboxNavigationViewportDataSource? {
-        val queue = ArrayDeque<Pair<Any, Int>>()
-        val seen = mutableSetOf<Int>()
-        queue.add(root to 0)
-        var nodes = 0
-
-        while (queue.isNotEmpty() && nodes < MAX_NODES) {
-            val (obj, depth) = queue.removeFirst()
-            val id = System.identityHashCode(obj)
-            if (!seen.add(id)) continue
-            nodes++
-
-            if (obj is MapboxNavigationViewportDataSource) return obj
-
-            if (depth >= MAX_DEPTH) continue
-
-            when (obj) {
-                is Array<*> -> {
-                    for (item in obj) {
-                        if (item != null) enqueueGraphChild(queue, item, depth + 1)
-                    }
-                }
-                is Collection<*> -> {
-                    for (item in obj) {
-                        if (item != null) enqueueGraphChild(queue, item, depth + 1)
-                    }
-                }
-                else -> {
-                    for (field in declaredFieldsIncludingSuperclasses(obj.javaClass)) {
-                        try {
-                            field.isAccessible = true
-                            val child = field.get(obj) ?: continue
-                            if (child is MapboxNavigationViewportDataSource) return child
-                            enqueueGraphChild(queue, child, depth + 1)
-                        } catch (_: Exception) {
-                        }
-                    }
-                }
-            }
-        }
-        return null
-    }
-
-    private fun enqueueGraphChild(
-        queue: ArrayDeque<Pair<Any, Int>>,
-        child: Any,
-        depth: Int,
-    ) {
-        if (child is MapboxNavigationViewportDataSource) {
-            queue.addFirst(child to depth)
-            return
-        }
-        val name = child.javaClass.name
-        if (
-            name.startsWith("com.mapbox.") ||
-            name.startsWith("android.view.") ||
-            name.startsWith("androidx.") ||
-            name.startsWith("com.google.android.material.")
-        ) {
-            queue.add(child to depth)
-        }
-    }
-
-    private fun declaredFieldsIncludingSuperclasses(clazz: Class<*>): List<java.lang.reflect.Field> {
-        val out = ArrayList<java.lang.reflect.Field>()
-        var c: Class<*>? = clazz
-        var levels = 0
-        while (c != null && c != Any::class.java && levels < 6) {
-            out.addAll(c.declaredFields)
-            c = c.superclass
-            levels++
-        }
-        return out
+        vds.followingPitchPropertyOverride(0.0)
+        vds.followingZoomPropertyOverride(null)
+        vds.followingBearingPropertyOverride(FROZEN_MAP_BEARING)
     }
 }

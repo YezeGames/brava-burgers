@@ -123,9 +123,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                     subModifier = subBanner?.modifier(),
                 )
             onManeuver?.invoke(maneuver)
-            boundNavigationView?.let { view ->
-                BravaMapboxCameraAnchor.maintainFlatFollowing(view)
-            }
+            BravaMapboxCameraAnchor.maintainFlatFollowing()
         }
 
     private val locationObserver =
@@ -182,7 +180,6 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     }
 
     override fun onAttached(mapboxNavigation: MapboxNavigation) {
-        BravaMapboxCameraAnchor.bindFromMapboxNavigation(mapboxNavigation)
         mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
         mapboxNavigation.registerRoutesObserver(routesObserver)
         mapboxNavigation.registerLocationObserver(locationObserver)
