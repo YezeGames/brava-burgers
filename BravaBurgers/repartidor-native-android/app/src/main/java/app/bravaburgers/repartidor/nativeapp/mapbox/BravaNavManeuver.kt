@@ -3,9 +3,7 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import app.bravaburgers.repartidor.nativeapp.R
 
 data class BravaNavManeuver(
-    /** Distancia al giro, estilo DiDi: "144 m" */
     val distanceLabel: String,
-    /** Calle / maniobra: "Rotonda", "Doctor Barreiro Aguirre", etc. */
     val streetLabel: String,
     val thenLine: String?,
     val primaryIconRes: Int,
@@ -17,8 +15,10 @@ object BravaNavManeuverFormat {
         primaryText: String?,
         subText: String?,
         distanceMeters: Double?,
-        maneuverType: String?,
-        modifier: String?,
+        primaryManeuverType: String?,
+        primaryModifier: String?,
+        subManeuverType: String?,
+        subModifier: String?,
     ): BravaNavManeuver? {
         val primary = primaryText?.trim()?.takeIf { it.isNotEmpty() } ?: return null
         val locale = java.util.Locale("es", "AR")
@@ -32,8 +32,13 @@ object BravaNavManeuverFormat {
             } ?: "—"
         val street = streetFromPrimary(primary)
         val then = subText?.trim()?.takeIf { it.isNotEmpty() }
-        val primaryIcon = iconFor(maneuverType, modifier, primary)
-        val thenIcon = iconFor(null, null, then ?: primary)
+        val primaryIcon = iconFor(primaryManeuverType, primaryModifier, primary)
+        val thenIcon =
+            iconFor(
+                subManeuverType,
+                subModifier,
+                then ?: primary,
+            )
         return BravaNavManeuver(
             distanceLabel = dist,
             streetLabel = street,
@@ -53,37 +58,54 @@ object BravaNavManeuverFormat {
         return s.ifEmpty { primary.trim() }
     }
 
+    private fun norm(value: String?): String =
+        value?.lowercase()?.replace('_', ' ')?.trim().orEmpty()
+
     private fun iconFor(
         type: String?,
         modifier: String?,
         fallbackText: String,
     ): Int {
-        val t = type?.lowercase()?.replace('_', ' ')?.trim().orEmpty()
-        val mod = modifier?.lowercase()?.replace('_', ' ')?.trim().orEmpty()
+        val t = norm(type)
+        val mod = norm(modifier)
         val blob = "$t $mod ${fallbackText.lowercase()}"
 
         if (t.contains("roundabout") || t.contains("rotary") || blob.contains("rotonda")) {
             return R.drawable.ic_brava_maneuver_roundabout
         }
-        if (mod.contains("uturn") || mod.contains("u turn") || blob.contains("u-turn")) {
+
+        when (mod) {
+            "uturn", "u turn" -> return R.drawable.ic_brava_maneuver_uturn
+            "sharp left" -> return R.drawable.ic_brava_maneuver_sharp_left
+            "sharp right" -> return R.drawable.ic_brava_maneuver_sharp_right
+            "slight left" -> return R.drawable.ic_brava_maneuver_slight_left
+            "slight right" -> return R.drawable.ic_brava_maneuver_slight_right
+            "left" -> return R.drawable.ic_brava_maneuver_turn_left
+            "right" -> return R.drawable.ic_brava_maneuver_turn_right
+            "straight" -> return R.drawable.ic_brava_maneuver_straight
+        }
+
+        if (mod.contains("uturn") || blob.contains("u-turn") || blob.contains("media vuelta")) {
             return R.drawable.ic_brava_maneuver_uturn
         }
-        when {
-            mod.contains("sharp left") || (blob.contains("cerrada") && blob.contains("izquierda")) ->
-                return R.drawable.ic_brava_maneuver_sharp_left
-            mod.contains("sharp right") || (blob.contains("cerrada") && blob.contains("derecha")) ->
-                return R.drawable.ic_brava_maneuver_sharp_right
-            mod.contains("slight left") || mod == "left" && t.contains("fork") ->
-                return R.drawable.ic_brava_maneuver_slight_left
-            mod.contains("slight right") || mod == "right" && t.contains("fork") ->
-                return R.drawable.ic_brava_maneuver_slight_right
-            mod.contains("left") || blob.contains("izquierda") ->
-                return R.drawable.ic_brava_maneuver_turn_left
-            mod.contains("right") || blob.contains("derecha") ->
-                return R.drawable.ic_brava_maneuver_turn_right
-            mod.contains("straight") || t.contains("merge") || t.contains("continue") ->
-                return R.drawable.ic_brava_maneuver_straight
+        if (mod.contains("sharp left") || (blob.contains("cerrada") && blob.contains("izquierda"))) {
+            return R.drawable.ic_brava_maneuver_sharp_left
         }
+        if (mod.contains("sharp right") || (blob.contains("cerrada") && blob.contains("derecha"))) {
+            return R.drawable.ic_brava_maneuver_sharp_right
+        }
+        if (mod.contains("slight left")) return R.drawable.ic_brava_maneuver_slight_left
+        if (mod.contains("slight right")) return R.drawable.ic_brava_maneuver_slight_right
+        if (mod.contains("left") || blob.contains("izquierda")) {
+            return R.drawable.ic_brava_maneuver_turn_left
+        }
+        if (mod.contains("right") || blob.contains("derecha")) {
+            return R.drawable.ic_brava_maneuver_turn_right
+        }
+        if (mod.contains("straight") || t.contains("merge") || t.contains("continue") || t == "depart") {
+            return R.drawable.ic_brava_maneuver_straight
+        }
+
         return when {
             blob.contains("izquierda") -> R.drawable.ic_brava_maneuver_turn_left
             blob.contains("derecha") -> R.drawable.ic_brava_maneuver_turn_right
@@ -91,3 +113,4 @@ object BravaNavManeuverFormat {
         }
     }
 }
+

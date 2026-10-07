@@ -100,14 +100,26 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                     ?.distanceRemaining
                     ?.toDouble()
             val step = progress.currentLegProgress?.currentStepProgress?.step
-            val maneuverStep = step?.maneuver()
+            val stepManeuver = step?.maneuver()
+            val upcomingStep = progress.currentLegProgress?.upcomingStep
+            val upcomingManeuver = upcomingStep?.maneuver()
+            val primaryBanner = banner?.primary()
+            val subBanner = banner?.sub()
             val maneuver =
                 BravaNavManeuverFormat.fromBanner(
-                    primaryText = banner?.primary()?.text(),
-                    subText = banner?.sub()?.text(),
+                    primaryText = primaryBanner?.text(),
+                    subText = subBanner?.text(),
                     distanceMeters = stepDist,
-                    maneuverType = maneuverStep?.type(),
-                    modifier = maneuverStep?.modifier(),
+                    primaryManeuverType =
+                        primaryBanner?.type()
+                            ?: upcomingManeuver?.type()
+                            ?: stepManeuver?.type(),
+                    primaryModifier =
+                        primaryBanner?.modifier()
+                            ?: upcomingManeuver?.modifier()
+                            ?: stepManeuver?.modifier(),
+                    subManeuverType = subBanner?.type(),
+                    subModifier = subBanner?.modifier(),
                 )
             onManeuver?.invoke(maneuver)
         }

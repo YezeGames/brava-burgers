@@ -1,14 +1,11 @@
-# Mapbox delivery — UI Brava + cámara Mapbox default
-
-## UI Brava
-- Drop-in con paneles Mapbox ocultos; banner, ETA, swipe, FABs propios.
-- `WindowInsets` en overlays; mapa edge-to-edge.
+# Navegación Brava — mapa plano + iconos de giro
 
 ## Cámara
-- **Sin** tocar `FollowingFrameOptions` (pitch, focal, zoom = SDK).
-- Solo `followingPadding` / `overviewPadding` según altura banner + panel + system bars.
-- Limpieza de overrides viejos (`followingZoomPropertyOverride(null)`, etc.).
-- Ruta bajo puck: `mapbox-location-indicator-layer`.
+- Pitch **0** (vista desde arriba), sin inclinar en maniobras.
+- `maximizeViewableGeometryWhenPitchZero = false` (no zoom raro al doblar).
+- Zoom dinámico Mapbox (sin override fijo).
+- `followingPadding` = banner + panel Brava + system bars.
 
-## Si el viewport no enlaza
-Log `ViewportDataSource not ready` → padding no aplicado; cámara 100% default pero puck puede quedar bajo UI Brava.
+## Maniobras (banner)
+- Icono desde **banner Mapbox** (`primary.type` / `primary.modifier`), luego `upcomingStep`, luego step actual.
+- Flecha izquierda/derecha/recto según modifier Mapbox (`left`, `right`, `straight`, etc.).

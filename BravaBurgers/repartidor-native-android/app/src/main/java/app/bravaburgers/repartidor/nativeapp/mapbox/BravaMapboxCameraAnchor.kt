@@ -5,10 +5,11 @@ import com.mapbox.maps.EdgeInsets
 import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.dropin.NavigationView
+import com.mapbox.navigation.ui.maps.camera.data.FollowingFrameOptions
 import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSource
 
 /**
- * Solo [followingPadding] para UI Brava. Pitch, zoom, bearing y encuadre = defaults Mapbox NavigationCamera.
+ * Vista plana (desde arriba) + padding UI Brava. Zoom dinámico Mapbox; sin encuadre agresivo en giros.
  */
 object BravaMapboxCameraAnchor {
     private const val TAG = "BravaMapboxCamera"
@@ -18,7 +19,7 @@ object BravaMapboxCameraAnchor {
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
     private var lastTopPx = -1.0
     private var lastBottomPx = -1.0
-    private var overridesCleared = false
+    private var flatProfileApplied = false
 
     fun isViewportBound(): Boolean = viewportDataSource != null
 
@@ -33,16 +34,18 @@ object BravaMapboxCameraAnchor {
         val side = sidePx.coerceAtLeast(24.0)
         val vds = ensureViewport(navigationView) ?: return false
 
-        clearLegacyOverridesIfNeeded(vds)
+        applyFlatFollowingProfile(vds)
 
         vds.followingPadding = EdgeInsets(top, side, bottom, side)
         vds.overviewPadding = EdgeInsets(top * 0.9, side, bottom * 0.9, side)
 
         val paddingChanged =
             kotlin.math.abs(lastTopPx - top) >= 2.0 ||
-                kotlin.math.abs(lastBottomPx - bottom) >= 2.0
+                kotlin.math.abs(lastBottomPx - bottom) >= 2.0 ||
+                !flatProfileApplied
         lastTopPx = top
         lastBottomPx = bottom
+        flatProfileApplied = true
 
         if (!paddingChanged) return true
 
@@ -54,32 +57,35 @@ object BravaMapboxCameraAnchor {
         return true
     }
 
-    /** Quita overrides viejos de Brava para que rija el perfil default del SDK. */
-    private fun clearLegacyOverridesIfNeeded(vds: MapboxNavigationViewportDataSource) {
-        if (overridesCleared) return
-        vds.followingPitchPropertyOverride(null)
+    private fun applyFlatFollowingProfile(vds: MapboxNavigationViewportDataSource) {
+        vds.options.followingFrameOptions.apply {
+            defaultPitch = 0.0
+            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.68)
+            maximizeViewableGeometryWhenPitchZero = false
+        }
+        vds.followingPitchPropertyOverride(0.0)
         vds.followingZoomPropertyOverride(null)
         vds.followingBearingPropertyOverride(null)
-        overridesCleared = true
     }
 
     fun invalidatePaddingCache() {
         lastTopPx = -1.0
         lastBottomPx = -1.0
+        flatProfileApplied = false
     }
 
     fun reset() {
         viewportDataSource = null
         lastTopPx = -1.0
         lastBottomPx = -1.0
-        overridesCleared = false
+        flatProfileApplied = false
     }
 
     fun bindFromMapboxNavigation(mapboxNavigation: MapboxNavigation) {
         if (viewportDataSource != null) return
         viewportDataSource = findViewportDataSource(mapboxNavigation)
         if (viewportDataSource != null) {
-            Log.i(TAG, "ViewportDataSource bound from MapboxNavigation (Mapbox default camera)")
+            Log.i(TAG, "ViewportDataSource bound (flat 2D + Brava padding)")
         }
     }
 
@@ -88,7 +94,7 @@ object BravaMapboxCameraAnchor {
         viewportDataSource = findViewportDataSource(navigationView)
         MapboxNavigationApp.current()?.let { bindFromMapboxNavigation(it) }
         if (viewportDataSource == null) {
-            Log.w(TAG, "ViewportDataSource not bound — Brava UI without camera padding")
+            Log.w(TAG, "ViewportDataSource not bound")
         }
     }
 
