@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  96,
-    "version_name":  "2.0.0-alpha94",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v96/brava-repartidor-native.apk",
-    "release_notes":  "UI repartidor Brava: header, bottom nav (Pedidos/Mapa/Historial), paleta #12171E, mapa en card, flecha 2D Mapbox, alpha94",
-    "min_version_code":  96,
+    "version_code":  97,
+    "version_name":  "2.0.0-alpha95",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v97/brava-repartidor-native.apk",
+    "release_notes":  "UI: empty pedidos centrado con fuego, mapa 1:1 sin escala + puck, tarjetas borde naranja (BravaOrderCard)",
+    "min_version_code":  97,
     "force_update":  true
 }

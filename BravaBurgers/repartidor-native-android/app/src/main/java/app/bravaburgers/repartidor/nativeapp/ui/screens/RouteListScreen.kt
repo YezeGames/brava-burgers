@@ -35,18 +35,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.ui.components.BravaDriverBottomBar
 import app.bravaburgers.repartidor.nativeapp.ui.components.BravaDriverShell
+import app.bravaburgers.repartidor.nativeapp.ui.components.BravaOrderCard
 import app.bravaburgers.repartidor.nativeapp.ui.components.DriverHomeTab
-import app.bravaburgers.repartidor.nativeapp.ui.components.PaymentBadge
-import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
+import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
 import app.bravaburgers.repartidor.nativeapp.ui.theme.OkGreen
 import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
@@ -136,11 +137,6 @@ fun RouteListScreen(
                             HomeMapCardScreen(
                                 driver = homeMapDriver,
                                 waitingGps = homeMapWaitingGps,
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f)
-                                        .padding(bottom = 8.dp),
                             )
                         }
                     }
@@ -204,96 +200,39 @@ private fun PedidosTabContent(
     onRefresh: () -> Unit,
 ) {
     PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            if (activeDelivery) {
-                item {
-                    Text(
-                        "Entrega en curso",
-                        color = TextPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        modifier = Modifier.padding(bottom = 4.dp),
-                    )
+        when {
+            loading && stops.isEmpty() -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    LoadingPedidos()
                 }
             }
-            if (loading && stops.isEmpty()) {
-                item { LoadingPedidos() }
-            } else if (stops.isEmpty() && !loading) {
-                item { EmptyPedidos() }
-            } else {
-                itemsIndexed(stops) { index, stop ->
-                    ActiveStopCard(stop = stop, isNext = index == nextIndex)
+            stops.isEmpty() && !loading -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    EmptyPedidos()
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ActiveStopCard(stop: RouteStop, isNext: Boolean) {
-    val pay = payUiFor(stop)
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(SurfaceDark)
-                .border(1.dp, LineDark, RoundedCornerShape(16.dp))
-                .padding(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(22.dp)
-                            .background(BravaOrange.copy(alpha = 0.2f), RoundedCornerShape(4.dp)),
-                    contentAlignment = Alignment.Center,
+            else -> {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        "${stop.parada ?: "?"}",
-                        color = BravaOrange,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp,
-                    )
+                    if (activeDelivery) {
+                        item {
+                            Text(
+                                "Entrega en curso",
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(bottom = 4.dp, start = 4.dp),
+                            )
+                        }
+                    }
+                    itemsIndexed(stops) { index, stop ->
+                        BravaOrderCard(stop = stop, isNext = index == nextIndex)
+                    }
                 }
-                PaymentBadge(pay.kind)
-            }
-            if (isNext) {
-                Text(
-                    "Siguiente parada",
-                    color = OkGreen,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 12.sp,
-                )
             }
         }
-        Text(
-            "CLIENTE",
-            color = TextMuted,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 12.dp),
-        )
-        Text(
-            listOfNotNull(stop.direccion, stop.piso?.let { "Piso $it" }).joinToString(" · "),
-            color = TextPrimary,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        Text(
-            "${stop.cliente.orEmpty()} · ${pay.metaLine}",
-            color = TextMuted,
-            fontSize = 13.sp,
-            modifier = Modifier.padding(top = 6.dp),
-        )
     }
 }
 
@@ -315,11 +254,27 @@ private fun EmptyPedidos() {
         modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("No hay pedidos pendientes", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Text(
+            "No hay pedidos pendientes 🔥",
+            color = TextPrimary,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 16.sp,
+            textAlign = TextAlign.Center,
+        )
         Spacer(modifier = Modifier.height(8.dp))
-        Text("Cuando entre uno nuevo, te avisamos.", color = TextMuted, fontSize = 14.sp)
+        Text(
+            "Cuando entre uno nuevo, te avisamos.",
+            color = TextMuted,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+        )
         Spacer(modifier = Modifier.height(12.dp))
-        Text("Deslizá hacia abajo para actualizar.", color = TextMuted, fontSize = 12.sp)
+        Text(
+            "Deslizá hacia abajo para actualizar.",
+            color = TextMuted,
+            fontSize = 12.sp,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

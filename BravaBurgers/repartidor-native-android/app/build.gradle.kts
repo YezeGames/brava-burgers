@@ -34,8 +34,8 @@ android {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 96
-        versionName = "2.0.0-alpha94"
+        versionCode = 97
+        versionName = "2.0.0-alpha95"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxAccessToken\"")
         buildConfigField("Boolean", "ROUTE_SIMULATION_UI", routeSimulationUi.toString())

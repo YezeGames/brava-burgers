@@ -1,7 +1,5 @@
 package app.bravaburgers.repartidor.nativeapp.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,11 +16,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.bravaburgers.repartidor.nativeapp.ui.components.PaymentBadge
-import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
-import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
+import app.bravaburgers.repartidor.nativeapp.ui.components.BravaOrderCard
 import app.bravaburgers.repartidor.nativeapp.ui.theme.OkGreen
-import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
 
@@ -61,47 +56,20 @@ fun HistorialScreen(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         items(items, key = { it.orden }) { row ->
-            HistorialRow(row)
+            BravaOrderCard(
+                stop = row.stop,
+                isNext = false,
+                trailingTop = {
+                    Text(row.hora, color = TextMuted, fontSize = 12.sp)
+                },
+            )
+            Text(
+                "Entregado · ${row.monto}",
+                color = OkGreen,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(start = 4.dp, top = 4.dp, bottom = 4.dp),
+            )
         }
-    }
-}
-
-@Composable
-private fun HistorialRow(item: HistorialEntregaUi) {
-    val pay = payUiFor(item.stop)
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .background(SurfaceDark, RoundedCornerShape(16.dp))
-                .border(1.dp, LineDark, RoundedCornerShape(16.dp))
-                .padding(14.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("#${item.orden}", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                PaymentBadge(pay.kind)
-            }
-            Text(item.hora, color = TextMuted, fontSize = 12.sp)
-        }
-        Text(
-            "Entregado",
-            color = OkGreen,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Text(
-            item.direccion,
-            color = TextPrimary,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 14.sp,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        Text(item.monto, color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
     }
 }

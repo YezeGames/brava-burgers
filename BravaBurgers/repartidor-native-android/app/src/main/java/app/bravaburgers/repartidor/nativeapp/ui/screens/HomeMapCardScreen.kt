@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,18 +21,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.mapbox.geojson.Point
 import com.mapbox.maps.CameraOptions
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
+import com.mapbox.maps.plugin.locationcomponent.location
+import com.mapbox.maps.plugin.scalebar.scalebar
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
@@ -46,9 +48,9 @@ fun HomeMapCardScreen(
     waitingGps: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapViewHolder = remember { MapViewHolder() }
+    val locationProvider = remember { PreviewMapLocationProvider() }
 
     DisposableEffect(lifecycle) {
         val observer =
@@ -71,6 +73,7 @@ fun HomeMapCardScreen(
         modifier =
             modifier
                 .fillMaxWidth()
+                .aspectRatio(1f)
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .border(1.dp, LineDark, RoundedCornerShape(16.dp))
@@ -86,41 +89,30 @@ fun HomeMapCardScreen(
                 factory = { ctx ->
                     MapView(ctx).also { mv ->
                         mapViewHolder.bind(mv)
+                        mv.scalebar.enabled = false
+                        mv.location.setLocationProvider(locationProvider)
+                        mv.location.updateSettings {
+                            enabled = true
+                            pulsingEnabled = false
+                        }
                         mv.getMapboxMap().loadStyleUri(Style.MAPBOX_STREETS) {
                             driver?.let { (lat, lng) ->
-                                mv.getMapboxMap().setCamera(
-                                    CameraOptions.Builder()
-                                        .center(Point.fromLngLat(lng, lat))
-                                        .zoom(PREVIEW_ZOOM)
-                                        .pitch(0.0)
-                                        .bearing(0.0)
-                                        .build(),
-                                )
+                                locationProvider.push(lat, lng)
+                                centerCamera(mv, lat, lng)
                             }
                         }
                     }
                 },
                 update = { mv ->
                     val (lat, lng) = driver ?: return@AndroidView
-                    mv.getMapboxMap().setCamera(
-                        CameraOptions.Builder()
-                            .center(Point.fromLngLat(lng, lat))
-                            .zoom(PREVIEW_ZOOM)
-                            .pitch(0.0)
-                            .build(),
-                    )
+                    locationProvider.push(lat, lng)
+                    centerCamera(mv, lat, lng)
                 },
             )
             FloatingActionButton(
                 onClick = {
                     val (lat, lng) = driver ?: return@FloatingActionButton
-                    mapViewHolder.mapView?.getMapboxMap()?.setCamera(
-                        CameraOptions.Builder()
-                            .center(Point.fromLngLat(lng, lat))
-                            .zoom(PREVIEW_ZOOM)
-                            .pitch(0.0)
-                            .build(),
-                    )
+                    mapViewHolder.mapView?.let { centerCamera(it, lat, lng) }
                 },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(14.dp),
                 containerColor = BravaOrange,
@@ -131,17 +123,28 @@ fun HomeMapCardScreen(
     }
 }
 
+private fun centerCamera(mv: MapView, lat: Double, lng: Double) {
+    mv.getMapboxMap().setCamera(
+        CameraOptions.Builder()
+            .center(Point.fromLngLat(lng, lat))
+            .zoom(PREVIEW_ZOOM)
+            .pitch(0.0)
+            .bearing(0.0)
+            .build(),
+    )
+}
+
 @Composable
 private fun ColumnLoadingGps() {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-    CircularProgressIndicator(color = BravaOrange, strokeWidth = 2.dp)
-    Text(
-        "Obteniendo GPS…",
-        color = TextMuted,
-        fontSize = 14.sp,
-        textAlign = TextAlign.Center,
-        modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp),
-    )
+        CircularProgressIndicator(color = BravaOrange, strokeWidth = 2.dp)
+        Text(
+            "Obteniendo GPS…",
+            color = TextMuted,
+            fontSize = 14.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 12.dp, start = 24.dp, end = 24.dp),
+        )
     }
 }
 
@@ -155,5 +158,25 @@ private class MapViewHolder {
     fun destroy() {
         mapView?.onDestroy()
         mapView = null
+    }
+}
+
+/** Ubicación del repartidor en el mapa preview (puck azul Mapbox). */
+private class PreviewMapLocationProvider : com.mapbox.maps.plugin.locationcomponent.LocationProvider {
+    private val consumers =
+        mutableSetOf<com.mapbox.maps.plugin.locationcomponent.LocationConsumer>()
+
+    fun push(lat: Double, lng: Double) {
+        if (!lat.isFinite() || !lng.isFinite() || (lat == 0.0 && lng == 0.0)) return
+        val point = Point.fromLngLat(lng, lat)
+        consumers.forEach { it.onLocationUpdated(point) { } }
+    }
+
+    override fun registerLocationConsumer(consumer: com.mapbox.maps.plugin.locationcomponent.LocationConsumer) {
+        consumers.add(consumer)
+    }
+
+    override fun unRegisterLocationConsumer(consumer: com.mapbox.maps.plugin.locationcomponent.LocationConsumer) {
+        consumers.remove(consumer)
     }
 }
