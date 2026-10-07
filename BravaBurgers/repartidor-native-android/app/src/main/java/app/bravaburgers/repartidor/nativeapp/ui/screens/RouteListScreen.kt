@@ -14,44 +14,46 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
-import app.bravaburgers.repartidor.nativeapp.ui.BravaRidersLogo
-import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeBottom
-import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
-import app.bravaburgers.repartidor.nativeapp.ui.PayKind
+import app.bravaburgers.repartidor.nativeapp.ui.components.BravaDriverBottomBar
+import app.bravaburgers.repartidor.nativeapp.ui.components.BravaDriverShell
+import app.bravaburgers.repartidor.nativeapp.ui.components.DriverHomeTab
+import app.bravaburgers.repartidor.nativeapp.ui.components.PaymentBadge
 import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BgDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
-import app.bravaburgers.repartidor.nativeapp.ui.theme.EfYellow
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
-import app.bravaburgers.repartidor.nativeapp.ui.theme.MpBlue
 import app.bravaburgers.repartidor.nativeapp.ui.theme.OkGreen
 import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,6 +64,9 @@ fun RouteListScreen(
     refreshing: Boolean,
     tripStarted: Boolean,
     loading: Boolean,
+    deliveryHistory: List<HistorialEntregaUi>,
+    homeMapDriver: Pair<Double, Double>?,
+    homeMapWaitingGps: Boolean,
     onRefresh: () -> Unit,
     onLogout: () -> Unit,
     onIniciarRecorrido: () -> Unit,
@@ -69,248 +74,263 @@ fun RouteListScreen(
     onStartHomeMapPreview: () -> Unit = {},
     onStopHomeMapPreview: () -> Unit = {},
 ) {
-    var homeTab by rememberSaveable { mutableStateOf(0) }
+    var homeTab by rememberSaveable { mutableStateOf(DriverHomeTab.Pedidos.name) }
+    var driverOnline by rememberSaveable { mutableStateOf(true) }
+
+    val selectedTab =
+        runCatching { DriverHomeTab.valueOf(homeTab) }.getOrDefault(DriverHomeTab.Pedidos)
+
     val hasPending =
         stops.any { s ->
             s.estado.equals("en_camino", true) || s.estado.equals("en_preparacion", true)
         }
+    val activeDelivery = tripStarted && hasPending
+    val showMapTab = !activeDelivery
+
+    LaunchedEffect(activeDelivery) {
+        if (!showMapTab && selectedTab == DriverHomeTab.Mapa) {
+            homeTab = DriverHomeTab.Pedidos.name
+            onStopHomeMapPreview()
+        }
+    }
+
     val nextIndex =
         stops.indexOfFirst { s ->
-            s.estado.equals("en_camino", true) ||
-                s.estado.equals("en_preparacion", true)
+            s.estado.equals("en_camino", true) || s.estado.equals("en_preparacion", true)
         }.let { if (it >= 0) it else 0 }
 
-    Column(modifier = Modifier.fillMaxSize().background(BgDark)) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .background(SurfaceDark)
-                    .bravaSafeTop()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            BravaRidersLogo(size = 40.dp, cornerRadius = 10.dp)
-            Column(modifier = Modifier.weight(1f)) {
-                Text(session.nombre.ifBlank { session.login }, fontWeight = FontWeight.Bold, color = TextPrimary)
-                Text(
-                    when {
-                        stops.isEmpty() && !loading -> "Sin pedidos pendientes"
-                        stops.size == 1 -> "1 Orden · Activa"
-                        else -> "${stops.size} Órdenes · Activas"
-                    },
-                    fontSize = 12.sp,
-                    color = TextMuted,
-                )
-            }
-            TextButton(onClick = onLogout) {
-                Text("Cerrar sesión", color = TextMuted, fontSize = 13.sp)
-            }
-        }
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .background(SurfaceDark)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(8.dp)
-                        .background(if (connected) OkGreen else TextMuted, CircleShape),
-            )
-            Text(
-                text = if (connected) "Conectado" else "Sin conexión",
-                color = if (connected) OkGreen else TextMuted,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-        TabRow(
-            selectedTabIndex = homeTab,
-            containerColor = SurfaceDark,
-            contentColor = BravaOrange,
-        ) {
-            Tab(
-                selected = homeTab == 0,
-                onClick = {
-                    if (homeTab == 1) onStopHomeMapPreview()
-                    homeTab = 0
-                },
-                text = { Text("Paradas") },
-            )
-            Tab(
-                selected = homeTab == 1,
-                onClick = { homeTab = 1 },
-                text = { Text("Mapa") },
-            )
-        }
-        if (homeTab == 1) {
-            DisposableEffect(Unit) {
-                onStartHomeMapPreview()
-                onDispose { onStopHomeMapPreview() }
-            }
-            DriverMapTabScreen(
-                modifier = Modifier.weight(1f),
-            )
-        } else {
-        PullToRefreshBox(
-            isRefreshing = refreshing,
-            onRefresh = onRefresh,
-            modifier = Modifier.weight(1f),
-        ) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                if (loading && stops.isEmpty()) {
-                    item {
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 48.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                color = BravaOrange,
-                                strokeWidth = 2.dp,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text("Cargando paradas…", color = TextMuted, fontSize = 14.sp)
+    BravaDriverShell(
+        driverName = session.nombre.ifBlank { session.login },
+        connected = connected,
+        online = driverOnline,
+        onOnlineChange = { driverOnline = it },
+        activeOrders = if (hasPending) stops.count { !it.estado.equals("entregado", true) } else 0,
+        onLogout = onLogout,
+        modifier = Modifier.fillMaxSize().background(BgDark),
+    ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.weight(1f)) {
+                when (selectedTab) {
+                    DriverHomeTab.Pedidos ->
+                        PedidosTabContent(
+                            stops = stops,
+                            loading = loading,
+                            refreshing = refreshing,
+                            activeDelivery = activeDelivery,
+                            nextIndex = nextIndex,
+                            onRefresh = onRefresh,
+                        )
+                    DriverHomeTab.Mapa -> {
+                        DisposableEffect(Unit) {
+                            onStartHomeMapPreview()
+                            onDispose { onStopHomeMapPreview() }
                         }
-                    }
-                } else if (stops.isEmpty() && !loading) {
-                    item {
-                        Column(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 48.dp, horizontal = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
+                        Column(modifier = Modifier.fillMaxSize()) {
                             Text(
-                                "No hay pedidos pendientes",
+                                "Tu posición",
                                 color = TextPrimary,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                "Cuando entre uno nuevo, te avisamos 🔥",
-                                color = TextMuted,
-                                fontSize = 14.sp,
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                "Deslizá hacia abajo para actualizar.",
-                                color = TextMuted,
-                                fontSize = 12.sp,
+                            HomeMapCardScreen(
+                                driver = homeMapDriver,
+                                waitingGps = homeMapWaitingGps,
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f)
+                                        .padding(bottom = 8.dp),
                             )
                         }
                     }
-                } else {
-                    itemsIndexed(stops) { index, stop ->
-                        StopCard(stop = stop, isNext = index == nextIndex && stops.isNotEmpty())
-                    }
+                    DriverHomeTab.Historial ->
+                        HistorialScreen(
+                            items = deliveryHistory,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                 }
             }
-        }
-        if (hasPending && stops.isNotEmpty()) {
-            Button(
-                onClick = { if (tripStarted) onContinuar() else onIniciarRecorrido() },
-                enabled = !loading,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp)
-                        .bravaSafeBottom()
-                        .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
-            ) {
-                Text(
-                    if (tripStarted) "Continuar entrega" else "Iniciar recorrido",
-                    fontWeight = FontWeight.Bold,
-                )
+
+            if (selectedTab == DriverHomeTab.Pedidos && hasPending && stops.isNotEmpty()) {
+                Button(
+                    onClick = { if (tripStarted) onContinuar() else onIniciarRecorrido() },
+                    enabled = !loading && driverOnline,
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BravaOrange),
+                ) {
+                    Text(
+                        if (tripStarted) "Continuar entrega" else "Iniciar recorrido",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                    )
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
+                }
             }
+
+            BravaDriverBottomBar(
+                selected = selectedTab,
+                onSelect = { tab ->
+                    if (tab == DriverHomeTab.Mapa && !showMapTab) return@BravaDriverBottomBar
+                    if (selectedTab == DriverHomeTab.Mapa && tab != DriverHomeTab.Mapa) {
+                        onStopHomeMapPreview()
+                    }
+                    if (tab == DriverHomeTab.Mapa) onStartHomeMapPreview()
+                    homeTab = tab.name
+                },
+                showMapTab = showMapTab,
+            )
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PedidosTabContent(
+    stops: List<RouteStop>,
+    loading: Boolean,
+    refreshing: Boolean,
+    activeDelivery: Boolean,
+    nextIndex: Int,
+    onRefresh: () -> Unit,
+) {
+    PullToRefreshBox(isRefreshing = refreshing, onRefresh = onRefresh, modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            if (activeDelivery) {
+                item {
+                    Text(
+                        "Entrega en curso",
+                        color = TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(bottom = 4.dp),
+                    )
+                }
+            }
+            if (loading && stops.isEmpty()) {
+                item { LoadingPedidos() }
+            } else if (stops.isEmpty() && !loading) {
+                item { EmptyPedidos() }
+            } else {
+                itemsIndexed(stops) { index, stop ->
+                    ActiveStopCard(stop = stop, isNext = index == nextIndex)
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun StopCard(stop: RouteStop, isNext: Boolean) {
+private fun ActiveStopCard(stop: RouteStop, isNext: Boolean) {
     val pay = payUiFor(stop)
-    val alpha = if (isNext) 1f else 0.72f
     Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .alpha(alpha)
-                .background(SurfaceDark, RoundedCornerShape(14.dp))
-                .border(
-                    width = 1.dp,
-                    color = if (isNext) BravaOrange.copy(alpha = 0.5f) else LineDark,
-                    shape = RoundedCornerShape(14.dp),
-                )
-                .padding(12.dp),
+                .clip(RoundedCornerShape(16.dp))
+                .background(SurfaceDark)
+                .border(1.dp, LineDark, RoundedCornerShape(16.dp))
+                .padding(16.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "${stop.parada ?: "?"}",
-                color = BravaOrange,
-                fontWeight = FontWeight.Bold,
-            )
-            PayChip(pay.kind)
-            if (isNext) {
-                Text(
-                    "Siguiente",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = BravaOrange,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
                     modifier =
                         Modifier
-                            .background(BravaOrange.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                            .size(22.dp)
+                            .background(BravaOrange.copy(alpha = 0.2f), RoundedCornerShape(4.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "${stop.parada ?: "?"}",
+                        color = BravaOrange,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp,
+                    )
+                }
+                PaymentBadge(pay.kind)
+            }
+            if (isNext) {
+                Text(
+                    "Siguiente parada",
+                    color = OkGreen,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp,
                 )
             }
         }
         Text(
-            text = listOfNotNull(stop.direccion, stop.piso?.let { "Piso $it" }).joinToString(" · "),
-            fontWeight = FontWeight.SemiBold,
-            color = TextPrimary,
-            modifier = Modifier.padding(top = 6.dp),
+            "CLIENTE",
+            color = TextMuted,
+            fontSize = 12.sp,
+            modifier = Modifier.padding(top = 12.dp),
         )
         Text(
-            text = "${stop.cliente.orEmpty()} · ${pay.metaLine}",
-            fontSize = 12.sp,
-            color = TextMuted,
+            listOfNotNull(stop.direccion, stop.piso?.let { "Piso $it" }).joinToString(" · "),
+            color = TextPrimary,
+            fontWeight = FontWeight.Bold,
+            fontSize = 16.sp,
             modifier = Modifier.padding(top = 4.dp),
+        )
+        Text(
+            "${stop.cliente.orEmpty()} · ${pay.metaLine}",
+            color = TextMuted,
+            fontSize = 13.sp,
+            modifier = Modifier.padding(top = 6.dp),
         )
     }
 }
 
 @Composable
-private fun PayChip(kind: PayKind) {
-    val (label, color) =
-        when (kind) {
-            PayKind.EFECTIVO -> "EF" to EfYellow
-            PayKind.MERCADO_PAGO -> "MP" to MpBlue
-            PayKind.OTRO -> "—" to TextMuted
-        }
-    Text(
-        label,
-        fontSize = 11.sp,
-        fontWeight = FontWeight.Bold,
-        color = color,
-        modifier =
-            Modifier
-                .background(color.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
-                .padding(horizontal = 7.dp, vertical = 3.dp),
+private fun LoadingPedidos() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator(color = BravaOrange, strokeWidth = 2.dp)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text("Cargando pedidos…", color = TextMuted, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun EmptyPedidos() {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp, horizontal = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("No hay pedidos pendientes", color = TextPrimary, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text("Cuando entre uno nuevo, te avisamos.", color = TextMuted, fontSize = 14.sp)
+        Spacer(modifier = Modifier.height(12.dp))
+        Text("Deslizá hacia abajo para actualizar.", color = TextMuted, fontSize = 12.sp)
+    }
+}
+
+fun historialFromStop(stop: RouteStop, deliveredAtMs: Long = System.currentTimeMillis()): HistorialEntregaUi {
+    val pay = payUiFor(stop)
+    val hora = SimpleDateFormat("HH:mm", Locale("es", "AR")).format(Date(deliveredAtMs))
+    return HistorialEntregaUi(
+        orden = stop.orn.takeLast(6).ifBlank { stop.parada?.toString() ?: "—" },
+        hora = hora,
+        direccion = stop.direccion.orEmpty(),
+        monto = pay.metaLine,
+        stop = stop,
     )
 }

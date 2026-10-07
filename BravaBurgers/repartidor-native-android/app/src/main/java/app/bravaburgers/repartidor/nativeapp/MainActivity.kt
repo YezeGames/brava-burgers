@@ -382,6 +382,9 @@ class MainActivity : ComponentActivity() {
                             refreshing = ui.refreshing,
                             tripStarted = ui.tripStarted,
                             loading = ui.loading,
+                            deliveryHistory = ui.deliveryHistory,
+                            homeMapDriver = ui.homeMapDriver,
+                            homeMapWaitingGps = ui.homeMapWaitingGps,
                             onRefresh = { vm.refreshRoute(pull = true) },
                             onLogout = { vm.logout() },
                             onIniciarRecorrido = {

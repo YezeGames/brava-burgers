@@ -83,8 +83,11 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             this,
             object : OnBackPressedCallback(true) {
                 override fun handleOnBackPressed() {
-                    setResult(RESULT_CANCELED)
-                    finish()
+                    Toast.makeText(
+                        this@BravaMapboxDeliveryActivity,
+                        "Seguí la entrega en curso. Usá «Llegué» al destino.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
                 }
             },
         )

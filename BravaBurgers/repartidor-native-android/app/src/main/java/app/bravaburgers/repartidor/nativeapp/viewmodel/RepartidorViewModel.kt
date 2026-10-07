@@ -14,6 +14,8 @@ import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
 import app.bravaburgers.repartidor.nativeapp.location.LocationHelper
 import app.bravaburgers.repartidor.nativeapp.mapbox.BravaMapboxNavigation
 import app.bravaburgers.repartidor.nativeapp.mapbox.BravaNavTripFormat
+import app.bravaburgers.repartidor.nativeapp.ui.screens.HistorialEntregaUi
+import app.bravaburgers.repartidor.nativeapp.ui.screens.historialFromStop
 import kotlin.math.roundToInt
 import app.bravaburgers.repartidor.nativeapp.push.RouteLocalNotifier
 import app.bravaburgers.repartidor.nativeapp.push.PushRegistrar
@@ -69,6 +71,7 @@ data class RepartidorUiState(
     val homeMapBearing: Float? = null,
     val homeMapSpeedKmh: Int = 0,
     val homeMapWaitingGps: Boolean = false,
+    val deliveryHistory: List<HistorialEntregaUi> = emptyList(),
 )
 
 @OptIn(FlowPreview::class)
@@ -636,12 +639,20 @@ class RepartidorViewModel(
      */
     fun markEntregada(orn: String, onDone: (RouteStop?) -> Unit) {
         val token = _ui.value.session?.token ?: return
+        val deliveredSnapshot = stopFor(orn)
         viewModelScope.launch {
             withActionRefreshGuard {
                 _ui.value = _ui.value.copy(loading = true, error = null)
                 repo.markEntregada(token, orn)
             }.onSuccess { pedidos ->
                 pendingEntregaRemovedOrn = orn
+                deliveredSnapshot?.let { snap ->
+                    val row = historialFromStop(snap)
+                    _ui.value =
+                        _ui.value.copy(
+                            deliveryHistory = listOf(row) + _ui.value.deliveryHistory,
+                        )
+                }
                 if (!pedidos.isNullOrEmpty()) {
                     applyStopsFromServer(token, pedidos, expectedRemovedOrns = setOf(orn))
                     val next = pickNextStop(pedidos)

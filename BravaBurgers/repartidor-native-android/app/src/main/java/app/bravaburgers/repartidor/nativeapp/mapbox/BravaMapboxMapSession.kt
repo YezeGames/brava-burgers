@@ -4,12 +4,16 @@ import android.content.Context
 import android.graphics.Color
 import android.location.Location
 import com.mapbox.geojson.Point
+import androidx.core.content.ContextCompat
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
+import com.mapbox.maps.plugin.LocationPuck2D
+import com.mapbox.maps.plugin.PuckBearingSource
 import com.mapbox.maps.plugin.compass.compass
+import com.mapbox.maps.plugin.locationcomponent.LocationComponentPlugin2
 import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
-import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
+import app.bravaburgers.repartidor.nativeapp.R
 import com.mapbox.navigation.base.route.NavigationRoute
 import com.mapbox.navigation.base.trip.model.RouteProgress
 import com.mapbox.navigation.ui.maps.NavigationStyles
@@ -68,6 +72,7 @@ object BravaMapboxMapSession {
         mapView.getMapboxMap().loadStyleUri(NavigationStyles.NAVIGATION_NIGHT_STYLE) { style ->
             mapStyle = style
             styleReady = true
+            // Solo enhanced location (NavigationLocationProvider); sin GPS crudo del sistema.
             mapView.location.setLocationProvider(navigationLocationProvider)
             wireNavigationLocationPuck(mapView, context)
             wireVanishingRouteLineListener(mapView)
@@ -81,11 +86,8 @@ object BravaMapboxMapSession {
 
     fun isMapReady(): Boolean = styleReady && mapView != null
 
-    fun updateEnhancedLocation(
-        location: Location,
-        keyPoints: List<Location> = emptyList(),
-    ) {
-        navigationLocationProvider.changePosition(location, keyPoints)
+    fun updateEnhancedLocation(location: Location) {
+        navigationLocationProvider.changePosition(location, emptyList())
     }
 
     fun drawRoutes(routes: List<NavigationRoute>) {
@@ -180,12 +182,26 @@ object BravaMapboxMapSession {
         mapView: MapView,
         context: Context,
     ) {
+        val arrow =
+            ContextCompat.getDrawable(context, R.drawable.ic_navigation_arrow_blue)
+                ?: return
         mapView.location.apply {
-            locationPuck = createDefault2DPuck(context, withBearing = true)
             updateSettings {
                 enabled = true
                 pulsingEnabled = false
+                // Maps 10.18: LocationPuck2D usa Drawable (no ImageHolder). Solo flecha, sin círculo topImage.
+                locationPuck =
+                    LocationPuck2D(
+                        topImage = null,
+                        bearingImage = arrow,
+                        shadowImage = null,
+                    )
             }
+        }
+        (mapView.location as? LocationComponentPlugin2)?.apply {
+            showAccuracyRing = false
+            puckBearingEnabled = true
+            puckBearingSource = PuckBearingSource.COURSE
         }
     }
 

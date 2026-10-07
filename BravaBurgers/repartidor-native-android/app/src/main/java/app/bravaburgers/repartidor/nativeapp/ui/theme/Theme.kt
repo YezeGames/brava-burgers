@@ -5,15 +5,18 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-val BravaOrange = Color(0xFFFF6B35)
-val BgDark = Color(0xFF0B141A)
-val SurfaceDark = Color(0xFF152028)
-val LineDark = Color(0xFF243038)
-val TextPrimary = Color(0xFFE8EEF2)
-val TextMuted = Color(0xFF8FA3B0)
-val OkGreen = Color(0xFF43A047)
-val EfYellow = Color(0xFFFFB300)
-val MpBlue = Color(0xFF29B6F6)
+/** Paleta Brava Repartidor (spec UI 2025). */
+val BravaOrange = Color(0xFFFF5722)
+val BgDark = Color(0xFF12171E)
+val SurfaceDark = Color(0xFF1E232A)
+val LineDark = Color(0xFF2D343F)
+val TextPrimary = Color(0xFFFFFFFF)
+val TextMuted = Color(0xFFA0A0A0)
+val OkGreen = Color(0xFF4CAF50)
+val EfYellow = Color(0xFFD4A359)
+val EfBadgeBg = Color(0xFF3A3223)
+val MpBlue = Color(0xFF00A8E8)
+val MpBadgeBg = Color(0xFF1C384A)
 
 private val scheme =
     darkColorScheme(

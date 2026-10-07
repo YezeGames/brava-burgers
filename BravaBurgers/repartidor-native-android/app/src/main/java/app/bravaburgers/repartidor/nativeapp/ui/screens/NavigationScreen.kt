@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
@@ -119,9 +118,13 @@ fun NavigationScreen(
                     modifier = Modifier.padding(24.dp, 8.dp, 24.dp, 0.dp),
                 )
             }
-            TextButton(onClick = onBack, modifier = Modifier.padding(top = 12.dp)) {
-                Text("Cancelar", color = TextMuted)
-            }
+            Text(
+                "Navegación GPS a pantalla completa…",
+                color = TextMuted,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(24.dp, 12.dp, 24.dp, 0.dp),
+            )
         }
     }
 }
