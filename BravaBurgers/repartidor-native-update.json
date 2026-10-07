@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  94,
-    "version_name":  "2.0.0-alpha92",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v94/brava-repartidor-native.apk",
-    "release_notes":  "Fix cámara continente: seed en origen + snap GPS 16.5 antes de following; recenter sin 0,0.",
-    "min_version_code":  94,
+    "version_code":  95,
+    "version_name":  "2.0.0-alpha93",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v95/brava-repartidor-native.apk",
+    "release_notes":  "Vanishing route line + puck flecha Mapbox (bearing); línea recorrida transparente.",
+    "min_version_code":  95,
     "force_update":  true
 }

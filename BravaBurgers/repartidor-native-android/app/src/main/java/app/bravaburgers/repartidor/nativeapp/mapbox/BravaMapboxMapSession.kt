@@ -3,9 +3,12 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import android.content.Context
 import android.graphics.Color
 import android.location.Location
+import com.mapbox.geojson.Point
 import com.mapbox.maps.MapView
 import com.mapbox.maps.Style
 import com.mapbox.maps.plugin.compass.compass
+import com.mapbox.maps.plugin.locationcomponent.OnIndicatorPositionChangedListener
+import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.base.route.NavigationRoute
 import com.mapbox.navigation.base.trip.model.RouteProgress
@@ -41,6 +44,7 @@ object BravaMapboxMapSession {
     private var speechApi: MapboxSpeechApi? = null
     private var voicePlayer: MapboxVoiceInstructionsPlayer? = null
     private var voiceMuted = false
+    private var indicatorPositionListener: OnIndicatorPositionChangedListener? = null
 
     fun attach(
         mapView: MapView,
@@ -65,10 +69,8 @@ object BravaMapboxMapSession {
             mapStyle = style
             styleReady = true
             mapView.location.setLocationProvider(navigationLocationProvider)
-            mapView.location.updateSettings {
-                enabled = true
-                pulsingEnabled = false
-            }
+            wireNavigationLocationPuck(mapView, context)
+            wireVanishingRouteLineListener(mapView)
             pendingRoutes?.let { drawRoutes(it) }
             pendingRoutes = null
             BravaMapboxCameraAnchor.onMapViewAttached(mapView)
@@ -133,6 +135,10 @@ object BravaMapboxMapSession {
     fun voicePlayerOrNull(): MapboxVoiceInstructionsPlayer? = voicePlayer
 
     fun reset() {
+        indicatorPositionListener?.let { listener ->
+            mapView?.location?.removeOnIndicatorPositionChangedListener(listener)
+        }
+        indicatorPositionListener = null
         routeLineApi?.cancel()
         routeLineView?.cancel()
         voicePlayer?.shutdown()
@@ -149,6 +155,7 @@ object BravaMapboxMapSession {
     private fun buildRouteLineOptions(context: Context): MapboxRouteLineOptions =
         MapboxRouteLineOptions
             .Builder(context)
+            .withVanishingRouteLineEnabled(true)
             .withRouteLineBelowLayerId(ROUTE_BELOW_LAYER)
             .withRouteLineResources(
                 RouteLineResources
@@ -163,7 +170,40 @@ object BravaMapboxMapSession {
                             .routeSevereCongestionColor(routeOrange)
                             .routeUnknownCongestionColor(routeOrange)
                             .routeCasingColor(routeCasing)
+                            .routeLineTraveledColor(Color.TRANSPARENT)
+                            .routeLineTraveledCasingColor(Color.TRANSPARENT)
                             .build(),
                     ).build(),
             ).build()
+
+    private fun wireNavigationLocationPuck(
+        mapView: MapView,
+        context: Context,
+    ) {
+        mapView.location.apply {
+            locationPuck = createDefault2DPuck(context, withBearing = true)
+            updateSettings {
+                enabled = true
+                pulsingEnabled = false
+            }
+        }
+    }
+
+    private fun wireVanishingRouteLineListener(mapView: MapView) {
+        indicatorPositionListener?.let { mapView.location.removeOnIndicatorPositionChangedListener(it) }
+        val listener =
+            OnIndicatorPositionChangedListener { point ->
+                updateTraveledRouteLine(point)
+            }
+        indicatorPositionListener = listener
+        mapView.location.addOnIndicatorPositionChangedListener(listener)
+    }
+
+    private fun updateTraveledRouteLine(point: Point) {
+        val api = routeLineApi ?: return
+        val view = routeLineView ?: return
+        val style = mapStyle ?: return
+        val result = api.updateTraveledRouteLine(point)
+        view.renderRouteLineUpdate(style, result)
+    }
 }
