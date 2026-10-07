@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  85,
-    "version_name":  "2.0.0-alpha83",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v85/brava-repartidor-native.apk",
-    "release_notes":  "Camara 2D fija: pitch 0 siempre, puck centrado, sin encuadre de giro. Icono maniobra desde upcoming si banner dice recto.",
-    "min_version_code":  85,
+    "version_code":  86,
+    "version_name":  "2.0.0-alpha84",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v86/brava-repartidor-native.apk",
+    "release_notes":  "Camara 2D puck centrado sin encuadre de giros",
+    "min_version_code":  86,
     "force_update":  true
 }

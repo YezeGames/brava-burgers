@@ -42,7 +42,7 @@ object BravaMapboxCameraAnchor {
 
     private var lastBottomPx = -1.0
 
-
+    private val puckFramingStrategy = BravaPuckCenterFramingStrategy()
 
     fun isViewportBound(): Boolean = viewportDataSource != null
 
@@ -65,18 +65,13 @@ object BravaMapboxCameraAnchor {
         val bottom = bottomPx.coerceAtLeast(96.0)
 
         val side = sidePx.coerceAtLeast(24.0)
-
+        val vSym = kotlin.math.max(top, bottom)
         val vds = ensureViewport(navigationView) ?: return false
-
-
 
         applyFlatPuckCenteredProfile(vds)
 
-
-
-        vds.followingPadding = EdgeInsets(top, side, bottom, side)
-
-        vds.overviewPadding = EdgeInsets(top * 0.9, side, bottom * 0.9, side)
+        vds.followingPadding = EdgeInsets(vSym, side, vSym, side)
+        vds.overviewPadding = EdgeInsets(vSym * 0.9, side, vSym * 0.9, side)
 
 
 
@@ -123,17 +118,13 @@ object BravaMapboxCameraAnchor {
     private fun applyFlatPuckCenteredProfile(vds: MapboxNavigationViewportDataSource) {
 
         vds.options.followingFrameOptions.apply {
-
             defaultPitch = 0.0
-
-            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.55)
-
+            focalPoint = FollowingFrameOptions.FocalPoint(0.5, 0.5)
             maximizeViewableGeometryWhenPitchZero = false
-
             pitchNearManeuvers.enabled = false
-
             frameGeometryAfterManeuver.enabled = false
-
+            intersectionDensityCalculation.enabled = false
+            framingStrategy = puckFramingStrategy
         }
 
         vds.followingPitchPropertyOverride(0.0)

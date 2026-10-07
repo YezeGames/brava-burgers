@@ -35,6 +35,10 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     @Volatile
     private var mapSurfaceReady = false
 
+    @Volatile
+    var lastEnhancedLocationPoint: Point? = null
+        private set
+
     private data class PendingRoute(val origin: Point, val dest: Point)
     private var pending: PendingRoute? = null
     private var registered = false
@@ -44,6 +48,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         pending = null
         routeRequestInFlight = false
         mapSurfaceReady = false
+        lastEnhancedLocationPoint = null
     }
 
     fun isMapReady(): Boolean = mapSurfaceReady
@@ -131,6 +136,11 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
             override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
                 publishSpeedKmh(locationMatcherResult.enhancedLocation.speed)
+                lastEnhancedLocationPoint =
+                    Point.fromLngLat(
+                        locationMatcherResult.enhancedLocation.longitude,
+                        locationMatcherResult.enhancedLocation.latitude,
+                    )
             }
         }
 
