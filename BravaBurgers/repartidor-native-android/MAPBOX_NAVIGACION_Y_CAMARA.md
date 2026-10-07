@@ -181,8 +181,9 @@ vds.options.followingFrameOptions.apply {
     framingStrategy = puckFramingStrategy  // BravaPuckCenterFramingStrategy
 }
 vds.followingPitchPropertyOverride(0.0)
-vds.followingZoomPropertyOverride(null)
-vds.followingBearingPropertyOverride(0.0)  // norte fijo; reaplicado en maintainFlatFollowing
+vds.followingZoomPropertyOverride(16.5)
+vds.followingBearingPropertyOverride(null)  // course-up: bearing del puck / GPS
+// bearingSmoothing.enabled = false, bearingUpdatesAllowed = true, padding lateral 0
 ```
 
 `maintainFlatFollowing()` vuelve a llamar `applyFlatPuckCenteredProfile` en **cada** `RouteProgressObserver` tick (por si Mapbox restaura pitch u options).

@@ -12,7 +12,7 @@ import com.mapbox.navigation.ui.maps.camera.data.FollowingFrameOptions
 
 
 
-/** Solo la posición del conductor — la cámara no persigue geometría del giro. */
+/** Solo la posición del conductor — sin encuadre lateral por geometría de curva/ruta. */
 
 class BravaPuckCenterFramingStrategy : FollowingCameraFramingStrategy {
 

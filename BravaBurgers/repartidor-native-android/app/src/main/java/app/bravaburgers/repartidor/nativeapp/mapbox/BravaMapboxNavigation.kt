@@ -308,9 +308,17 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         )
     }
 
+    fun startRouteSimulationForCameraTest(): Boolean =
+        BravaMapboxRouteSimulation.startOrRestartSimulation()
+
+    fun stopRouteSimulation() {
+        BravaMapboxRouteSimulation.stopSimulation()
+    }
+
     fun stopActiveGuidance() {
         pending = null
         routeRequestInFlight = false
+        BravaMapboxRouteSimulation.stopSimulation()
         MapboxNavigationApp.current()?.let { nav ->
             try {
                 nav.setNavigationRoutes(emptyList())

@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  90,
-    "version_name":  "2.0.0-alpha88",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v90/brava-repartidor-native.apk",
-    "release_notes":  "Zoom following 16.5, filtro velocidad 0 km/h con GPS quieto, puck solo enhanced (sin keyPoints crudos).",
-    "min_version_code":  90,
+    "version_code":  91,
+    "version_name":  "2.0.0-alpha89",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v91/brava-repartidor-native.apk",
+    "release_notes":  "Course-up 2D, botón Simular ruta (Mapbox replay) para probar cámara.",
+    "min_version_code":  91,
     "force_update":  true
 }

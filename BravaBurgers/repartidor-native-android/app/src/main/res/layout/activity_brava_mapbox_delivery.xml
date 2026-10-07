@@ -13,6 +13,23 @@
         android:layout_height="match_parent"
         android:fitsSystemWindows="false" />
 
+    <TextView
+        android:id="@+id/bravaBtnSimulateRoute"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="12dp"
+        android:background="@drawable/brava_nav_orb_bg"
+        android:elevation="14dp"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:text="@string/brava_simulate_route"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
     <LinearLayout
         android:id="@+id/bravaManeuverCard"
         android:layout_width="match_parent"

@@ -16,13 +16,12 @@ import com.mapbox.navigation.ui.maps.camera.data.MapboxNavigationViewportDataSou
 import com.mapbox.navigation.ui.maps.camera.transition.NavigationCameraTransitionOptions
 
 /**
- * Cámara 2D / norte arriba sobre [MapView] nativo.
- * Padding asimétrico: reserva inferior = panel Brava (+ margen) para que el puck no quede tapado.
+ * Cámara 2D course-up (rumbo hacia arriba) sobre [MapView] nativo.
+ * Puck centrado en X; padding solo arriba/abajo (panel Brava).
  */
 @OptIn(ExperimentalPreviewMapboxNavigationAPI::class)
 object BravaMapboxCameraAnchor : MapboxNavigationObserver {
     private const val TAG = "BravaMapboxCamera"
-    private const val FROZEN_MAP_BEARING = 0.0
     /** Zoom de calle en modo following (evita vista overview/ciudad al iniciar). */
     private const val FOLLOWING_ZOOM = 16.5
 
@@ -110,10 +109,10 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
         }
     }
 
+    /** Reaplica perfil 2D course-up + puck centrado (Mapbox puede resetear options en ticks de ruta). */
     fun maintainFlatFollowing() {
-        val vds = viewportDataSource ?: return
+        if (viewportDataSource == null) return
         applyFlatPuckCenteredProfile()
-        vds.followingBearingPropertyOverride(FROZEN_MAP_BEARING)
     }
 
     fun recenterFollowing() {
@@ -156,12 +155,15 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
             frameGeometryAfterManeuver.enabled = false
             intersectionDensityCalculation.enabled = false
             framingStrategy = puckFramingStrategy
-            bearingUpdatesAllowed = false
+            bearingSmoothing.enabled = false
+            bearingUpdatesAllowed = true
             pitchUpdatesAllowed = false
+            zoomUpdatesAllowed = false
+            paddingUpdatesAllowed = false
         }
         vds.followingPitchPropertyOverride(0.0)
         vds.followingZoomPropertyOverride(FOLLOWING_ZOOM)
         vds.overviewZoomPropertyOverride(FOLLOWING_ZOOM)
-        vds.followingBearingPropertyOverride(FROZEN_MAP_BEARING)
+        vds.followingBearingPropertyOverride(null)
     }
 }

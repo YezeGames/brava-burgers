@@ -117,6 +117,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         )
 
         wireMapInsets()
+        wireRouteSimulationDebugButton()
 
         val maneuverDistance = findViewById<TextView>(R.id.bravaManeuverDistance)
         val maneuverStreet = findViewById<TextView>(R.id.bravaManeuverPrimary)
@@ -195,6 +196,40 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
 
         startGuidanceWhenReady(originLat, originLng, destLat, destLng)
+    }
+
+    private fun wireRouteSimulationDebugButton() {
+        val btn = findViewById<TextView>(R.id.bravaBtnSimulateRoute)
+        if (!BuildConfig.ROUTE_SIMULATION_UI) {
+            btn.visibility = View.GONE
+            return
+        }
+        btn.visibility = View.VISIBLE
+        fun refreshLabel() {
+            btn.text =
+                if (BravaMapboxRouteSimulation.isSimulating) {
+                    getString(R.string.brava_simulate_route_gps)
+                } else {
+                    getString(R.string.brava_simulate_route)
+                }
+        }
+        refreshLabel()
+        btn.setOnClickListener {
+            if (BravaMapboxRouteSimulation.isSimulating) {
+                BravaMapboxNavigation.stopRouteSimulation()
+                Toast.makeText(this, R.string.brava_simulate_route_stopped, Toast.LENGTH_SHORT).show()
+            } else {
+                val ok = BravaMapboxNavigation.startRouteSimulationForCameraTest()
+                if (ok) {
+                    scheduleMapInsets(force = true)
+                    BravaMapboxCameraAnchor.recenterFollowing()
+                    Toast.makeText(this, R.string.brava_simulate_route_started, Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, R.string.brava_simulate_route_wait, Toast.LENGTH_LONG).show()
+                }
+            }
+            refreshLabel()
+        }
     }
 
     private fun setBottomPanelExpanded(expanded: Boolean) {
