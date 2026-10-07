@@ -110,18 +110,17 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                     primaryText = primaryBanner?.text(),
                     subText = subBanner?.text(),
                     distanceMeters = stepDist,
-                    primaryManeuverType =
-                        primaryBanner?.type()
-                            ?: upcomingManeuver?.type()
-                            ?: stepManeuver?.type(),
-                    primaryModifier =
-                        primaryBanner?.modifier()
-                            ?: upcomingManeuver?.modifier()
-                            ?: stepManeuver?.modifier(),
+                    primaryManeuverType = primaryBanner?.type() ?: stepManeuver?.type(),
+                    primaryModifier = primaryBanner?.modifier() ?: stepManeuver?.modifier(),
+                    upcomingManeuverType = upcomingManeuver?.type(),
+                    upcomingModifier = upcomingManeuver?.modifier(),
                     subManeuverType = subBanner?.type(),
                     subModifier = subBanner?.modifier(),
                 )
             onManeuver?.invoke(maneuver)
+            boundNavigationView?.let { view ->
+                BravaMapboxCameraAnchor.maintainFlatFollowing(view)
+            }
         }
 
     private val locationObserver =

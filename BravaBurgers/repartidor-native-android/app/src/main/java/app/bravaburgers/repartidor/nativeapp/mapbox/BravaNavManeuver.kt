@@ -17,6 +17,8 @@ object BravaNavManeuverFormat {
         distanceMeters: Double?,
         primaryManeuverType: String?,
         primaryModifier: String?,
+        upcomingManeuverType: String?,
+        upcomingModifier: String?,
         subManeuverType: String?,
         subModifier: String?,
     ): BravaNavManeuver? {
@@ -32,7 +34,16 @@ object BravaNavManeuverFormat {
             } ?: "—"
         val street = streetFromPrimary(primary)
         val then = subText?.trim()?.takeIf { it.isNotEmpty() }
-        val primaryIcon = iconFor(primaryManeuverType, primaryModifier, primary)
+        val (iconType, iconModifier) =
+            resolveIconManeuver(
+                primaryManeuverType,
+                primaryModifier,
+                upcomingManeuverType,
+                upcomingModifier,
+                subManeuverType,
+                subModifier,
+            )
+        val primaryIcon = iconFor(iconType, iconModifier, primary)
         val thenIcon =
             iconFor(
                 subManeuverType,
@@ -60,6 +71,49 @@ object BravaNavManeuverFormat {
 
     private fun norm(value: String?): String =
         value?.lowercase()?.replace('_', ' ')?.trim().orEmpty()
+
+    private fun isTurnModifier(modifier: String?): Boolean {
+        when (norm(modifier)) {
+            "left",
+            "right",
+            "sharp left",
+            "sharp right",
+            "slight left",
+            "slight right",
+            "uturn",
+            "u turn",
+            -> return true
+        }
+        val m = norm(modifier)
+        if (m.contains("left") || m.contains("right")) return true
+        return false
+    }
+
+    private fun isNonTurnModifier(modifier: String?): Boolean {
+        val m = norm(modifier)
+        return m.isEmpty() || m == "straight" || m == "continue"
+    }
+
+    /** Icono = giro real; si el banner solo nombra calle ("recto"), usar upcoming/sub. */
+    private fun resolveIconManeuver(
+        primaryType: String?,
+        primaryMod: String?,
+        upcomingType: String?,
+        upcomingMod: String?,
+        subType: String?,
+        subMod: String?,
+    ): Pair<String?, String?> {
+        if (isTurnModifier(primaryMod) && !isNonTurnModifier(primaryMod)) {
+            return primaryType to primaryMod
+        }
+        if (isTurnModifier(upcomingMod)) {
+            return upcomingType to upcomingMod
+        }
+        if (isTurnModifier(subMod)) {
+            return subType to subMod
+        }
+        return primaryType to primaryMod
+    }
 
     private fun iconFor(
         type: String?,
@@ -113,4 +167,4 @@ object BravaNavManeuverFormat {
         }
     }
 }
-
+

@@ -180,10 +180,20 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         }
         BravaMapboxNavigation.onActiveGuidanceStarted = {
             runOnUiThread {
+                BravaMapboxCameraAnchor.resetBinding()
                 BravaMapboxCameraAnchor.invalidatePaddingCache()
                 scheduleMapInsets(force = true)
                 applyNavigationCameraOnce()
-                navigationView.postDelayed({ scheduleMapInsets(force = true); applyNavigationCameraOnce() }, 500)
+                navigationView.postDelayed({
+                    BravaMapboxCameraAnchor.resetBinding()
+                    scheduleMapInsets(force = true)
+                    applyNavigationCameraOnce()
+                }, 500)
+                navigationView.postDelayed({
+                    BravaMapboxCameraAnchor.resetBinding()
+                    scheduleMapInsets(force = true)
+                    applyNavigationCameraOnce()
+                }, 2000)
             }
         }
         BravaMapboxNavigation.onRoutesRefreshed = {
