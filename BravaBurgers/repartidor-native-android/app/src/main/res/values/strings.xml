@@ -2,7 +2,9 @@
 <resources>
     <string name="app_name">Brava Repartidor</string>
     <string name="brava_simulate_route">Simular ruta</string>
+    <string name="brava_simulate_route_short">Sim</string>
     <string name="brava_simulate_route_gps">Volver a GPS</string>
+    <string name="brava_simulate_route_gps_short">GPS</string>
     <string name="brava_simulate_route_started">Simulación iniciada (Mapbox replay)</string>
     <string name="brava_simulate_route_stopped">GPS real activo</string>
     <string name="brava_simulate_route_wait">Esperá a que cargue la ruta y probá de nuevo.</string>

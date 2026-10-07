@@ -208,9 +208,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         fun refreshLabel() {
             btn.text =
                 if (BravaMapboxRouteSimulation.isSimulating) {
-                    getString(R.string.brava_simulate_route_gps)
+                    getString(R.string.brava_simulate_route_gps_short)
                 } else {
-                    getString(R.string.brava_simulate_route)
+                    getString(R.string.brava_simulate_route_short)
                 }
         }
         refreshLabel()

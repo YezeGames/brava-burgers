@@ -20,10 +20,11 @@ val mapboxAccessToken =
         ?: System.getenv("MAPBOX_ACCESS_TOKEN")?.trim()
         ?: ""
 
-/** Botón «Simular ruta» en navegación: local.properties → BRAVA_ROUTE_SIM_UI=true */
-val routeSimulationUi =
-    localProperties.getProperty("BRAVA_ROUTE_SIM_UI")?.trim()?.equals("true", ignoreCase = true) == true ||
-        System.getenv("BRAVA_ROUTE_SIM_UI")?.trim()?.equals("true", ignoreCase = true) == true
+/** Simular ruta: ON por defecto en alpha; desactivar con BRAVA_ROUTE_SIM_UI=false */
+val routeSimUiProperty =
+    localProperties.getProperty("BRAVA_ROUTE_SIM_UI")?.trim()?.lowercase()
+        ?: System.getenv("BRAVA_ROUTE_SIM_UI")?.trim()?.lowercase()
+val routeSimulationUi = routeSimUiProperty != "false"
 
 android {
     namespace = "app.bravaburgers.repartidor.nativeapp"
@@ -33,8 +34,8 @@ android {
         applicationId = "app.bravaburgers.repartidor.nativeapp"
         minSdk = 26
         targetSdk = 35
-        versionCode = 91
-        versionName = "2.0.0-alpha89"
+        versionCode = 92
+        versionName = "2.0.0-alpha90"
         buildConfigField("String", "API_BASE", "\"https://www.bravaburgers.com.ar/api/pedido\"")
         buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxAccessToken\"")
         buildConfigField("Boolean", "ROUTE_SIMULATION_UI", routeSimulationUi.toString())
