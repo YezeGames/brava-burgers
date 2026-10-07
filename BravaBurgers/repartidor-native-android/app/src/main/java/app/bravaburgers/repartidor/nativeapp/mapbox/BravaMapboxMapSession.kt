@@ -96,7 +96,6 @@ object BravaMapboxMapSession {
         }
         api.setNavigationRoutes(routes) { value ->
             view.renderRouteDrawData(style, value)
-            mapView?.post { BravaMapboxCameraAnchor.recenterFollowing() }
         }
     }
 

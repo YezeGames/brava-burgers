@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  93,
-    "version_name":  "2.0.0-alpha91",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v93/brava-repartidor-native.apk",
-    "release_notes":  "Voz e instrucciones en es/métrico, zoom calle 16.5 al iniciar, pantalla siempre encendida en navegación.",
-    "min_version_code":  93,
+    "version_code":  94,
+    "version_name":  "2.0.0-alpha92",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v94/brava-repartidor-native.apk",
+    "release_notes":  "Fix cámara continente: seed en origen + snap GPS 16.5 antes de following; recenter sin 0,0.",
+    "min_version_code":  94,
     "force_update":  true
 }

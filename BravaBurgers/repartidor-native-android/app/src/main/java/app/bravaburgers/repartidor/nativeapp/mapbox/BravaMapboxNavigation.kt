@@ -279,9 +279,10 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                         nav.startTripSession()
                         BravaMapboxMapSession.drawRoutes(routes)
                         BravaMapboxCameraAnchor.onRoutesChanged(true, routes.first())
-                        boundMapView?.post {
-                            BravaMapboxCameraAnchor.recenterFollowing()
-                        }
+                        BravaMapboxCameraAnchor.seedStreetCameraAt(
+                            latitude = trip.origin.latitude(),
+                            longitude = trip.origin.longitude(),
+                        )
                         Log.i(TAG, "Active guidance via MapboxNavigation + MapView")
                         onActiveGuidanceStarted?.invoke()
                     } catch (e: Exception) {
