@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  88,
-    "version_name":  "2.0.0-alpha86",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v88/brava-repartidor-native.apk",
-    "release_notes":  "Camara API publica Mapbox: pitch 0 bearing norte, padding horizontal 0, sin reflection. alpha86.",
-    "min_version_code":  88,
+    "version_code":  89,
+    "version_name":  "2.0.0-alpha87",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v89/brava-repartidor-native.apk",
+    "release_notes":  "MapView nativo: padding camara panel Brava, puck enhanced, pitch 0 bearing norte. alpha87.",
+    "min_version_code":  89,
     "force_update":  true
 }

@@ -5,6 +5,7 @@ import android.os.SystemClock
 import android.util.Log
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.geojson.Point
+import com.mapbox.maps.MapView
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.route.NavigationRoute
@@ -12,25 +13,23 @@ import com.mapbox.navigation.base.route.NavigationRouterCallback
 import com.mapbox.navigation.base.route.RouterFailure
 import com.mapbox.navigation.base.route.RouterOrigin
 import com.mapbox.navigation.core.MapboxNavigation
+import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
-import android.location.Location
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
 import com.mapbox.navigation.core.trip.session.LocationObserver
 import com.mapbox.navigation.core.trip.session.RouteProgressObserver
-import com.mapbox.navigation.core.directions.session.RoutesObserver
-import com.mapbox.navigation.dropin.NavigationView
+import com.mapbox.navigation.core.trip.session.VoiceInstructionsObserver
 import kotlin.math.roundToInt
 
 /**
- * Rutas con Mapbox drop-in: [NavigationView.api.startActiveGuidance] (no [MapboxNavigation.startTripSession] manual).
- * Mezclar ambos rompe el state machine del drop-in y crashea la app.
+ * Navegación activa con [MapView] nativo: rutas + [MapboxNavigation.startTripSession].
  */
 object BravaMapboxNavigation : MapboxNavigationObserver {
     private const val TAG = "BravaMapboxNav"
 
     @Volatile
-    private var boundNavigationView: NavigationView? = null
+    private var boundMapView: MapView? = null
 
     @Volatile
     private var mapSurfaceReady = false
@@ -51,7 +50,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         lastEnhancedLocationPoint = null
     }
 
-    fun isMapReady(): Boolean = mapSurfaceReady
+    fun isMapReady(): Boolean = mapSurfaceReady && BravaMapboxMapSession.isMapReady()
 
     var onRouteProgress: ((distanceRemainingM: Double?, durationRemainingSec: Double?) -> Unit)? = null
 
@@ -69,14 +68,19 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     private val routesObserver =
         RoutesObserver { update ->
-            if (update.navigationRoutes.isEmpty()) return@RoutesObserver
-            val view = boundNavigationView ?: return@RoutesObserver
+            val routes = update.navigationRoutes
+            if (routes.isNotEmpty()) {
+                BravaMapboxMapSession.drawRoutes(routes)
+                BravaMapboxCameraAnchor.onRoutesChanged(true, routes.first())
+            } else {
+                BravaMapboxMapSession.clearRoutes()
+                BravaMapboxCameraAnchor.onRoutesChanged(false, null)
+            }
+            val view = boundMapView ?: return@RoutesObserver
             val now = SystemClock.uptimeMillis()
             if (now - lastRoutesPaddingRefreshAt < 2500) return@RoutesObserver
             lastRoutesPaddingRefreshAt = now
-            view.post {
-                onRoutesRefreshed?.invoke()
-            }
+            view.post { onRoutesRefreshed?.invoke() }
         }
 
     private var defaultRouteProgressListener: ((Double?, Double?) -> Unit)? = null
@@ -98,6 +102,9 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                 progress.distanceRemaining.toDouble(),
                 progress.durationRemaining.toDouble(),
             )
+            BravaMapboxMapSession.updateRouteProgress(progress)
+            BravaMapboxCameraAnchor.onRouteProgressChanged(progress)
+
             val banner = progress.bannerInstructions
             val stepDist =
                 progress.currentLegProgress
@@ -128,17 +135,30 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
 
     private val locationObserver =
         object : LocationObserver {
-            override fun onNewRawLocation(rawLocation: Location) {
+            override fun onNewRawLocation(rawLocation: android.location.Location) {
                 publishSpeedKmh(rawLocation.speed)
             }
 
             override fun onNewLocationMatcherResult(locationMatcherResult: LocationMatcherResult) {
-                publishSpeedKmh(locationMatcherResult.enhancedLocation.speed)
+                val enhanced = locationMatcherResult.enhancedLocation
+                publishSpeedKmh(enhanced.speed)
                 lastEnhancedLocationPoint =
-                    Point.fromLngLat(
-                        locationMatcherResult.enhancedLocation.longitude,
-                        locationMatcherResult.enhancedLocation.latitude,
-                    )
+                    Point.fromLngLat(enhanced.longitude, enhanced.latitude)
+                BravaMapboxMapSession.updateEnhancedLocation(
+                    enhanced,
+                    locationMatcherResult.keyPoints,
+                )
+                BravaMapboxCameraAnchor.onEnhancedLocation(enhanced)
+            }
+        }
+
+    private val voiceInstructionsObserver =
+        VoiceInstructionsObserver { voiceInstructions ->
+            val speechApi = BravaMapboxMapSession.speechApiOrNull() ?: return@VoiceInstructionsObserver
+            val player = BravaMapboxMapSession.voicePlayerOrNull() ?: return@VoiceInstructionsObserver
+            speechApi.generate(voiceInstructions) { expected ->
+                val value = expected.value ?: return@generate
+                player.play(value.announcement) { _ -> }
             }
         }
 
@@ -158,8 +178,8 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         registered = true
     }
 
-    fun bindNavigationView(view: NavigationView) {
-        boundNavigationView = view
+    fun bindMapView(view: MapView) {
+        boundMapView = view
         flushPendingRoute()
     }
 
@@ -172,9 +192,9 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         mapSurfaceReady = false
     }
 
-    fun unbindNavigationView(view: NavigationView) {
-        if (boundNavigationView === view) {
-            boundNavigationView = null
+    fun unbindMapView(view: MapView) {
+        if (boundMapView === view) {
+            boundMapView = null
             mapSurfaceReady = false
         }
     }
@@ -183,6 +203,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         mapboxNavigation.registerRouteProgressObserver(routeProgressObserver)
         mapboxNavigation.registerRoutesObserver(routesObserver)
         mapboxNavigation.registerLocationObserver(locationObserver)
+        mapboxNavigation.registerVoiceInstructionsObserver(voiceInstructionsObserver)
         flushPendingRoute()
     }
 
@@ -190,6 +211,7 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         mapboxNavigation.unregisterRouteProgressObserver(routeProgressObserver)
         mapboxNavigation.unregisterRoutesObserver(routesObserver)
         mapboxNavigation.unregisterLocationObserver(locationObserver)
+        mapboxNavigation.unregisterVoiceInstructionsObserver(voiceInstructionsObserver)
     }
 
     fun requestActiveGuidance(
@@ -208,19 +230,19 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
     private fun flushPendingRoute(context: Context? = null) {
         val trip = pending ?: return
         if (routeRequestInFlight) return
-        if (boundNavigationView == null) {
-            Log.i(TAG, "NavigationView not bound yet; route queued")
+        if (boundMapView == null) {
+            Log.i(TAG, "MapView not bound yet; route queued")
             return
         }
-        if (!mapSurfaceReady) {
-            Log.i(TAG, "Map surface not ready; route queued")
+        if (!isMapReady()) {
+            Log.i(TAG, "Map/style not ready; route queued")
             return
         }
         val nav = MapboxNavigationApp.current() ?: run {
             Log.i(TAG, "MapboxNavigation not ready; route queued")
             return
         }
-        val appContext = context ?: boundNavigationView?.context?.applicationContext ?: return
+        val appContext = context ?: boundMapView?.context?.applicationContext ?: return
         routeRequestInFlight = true
         nav.requestRoutes(
             RouteOptions
@@ -241,21 +263,23 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                         onRouteFailure?.invoke("Mapbox no devolvió ruta.")
                         return
                     }
-                    val view = boundNavigationView
-                    if (view == null) {
+                    if (boundMapView == null) {
                         pending = trip
                         return
                     }
                     pending = null
-                    val result = view.api.startActiveGuidance(routes)
-                    result.onError { err ->
-                        Log.e(TAG, "startActiveGuidance failed: $err")
-                        pending = trip
-                        onRouteFailure?.invoke(err.toString())
-                    }
-                    result.onValue {
-                        Log.i(TAG, "Active guidance via NavigationView.api")
+                    try {
+                        nav.setNavigationRoutes(routes)
+                        nav.startTripSession()
+                        BravaMapboxMapSession.drawRoutes(routes)
+                        BravaMapboxCameraAnchor.onRoutesChanged(true, routes.first())
+                        BravaMapboxCameraAnchor.recenterFollowing()
+                        Log.i(TAG, "Active guidance via MapboxNavigation + MapView")
                         onActiveGuidanceStarted?.invoke()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "startTripSession failed", e)
+                        pending = trip
+                        onRouteFailure?.invoke(e.message ?: "No se pudo iniciar la guía.")
                     }
                 }
 
@@ -281,9 +305,17 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
         )
     }
 
-    /** Cierra la guía sin pasar a “navegación libre” (solo sesión Mapbox en [BravaMapboxDeliveryActivity]). */
     fun stopActiveGuidance() {
         pending = null
         routeRequestInFlight = false
+        MapboxNavigationApp.current()?.let { nav ->
+            try {
+                nav.setNavigationRoutes(emptyList())
+                nav.stopTripSession()
+            } catch (_: Exception) {
+            }
+        }
+        BravaMapboxMapSession.clearRoutes()
+        BravaMapboxCameraAnchor.onRoutesChanged(false, null)
     }
 }

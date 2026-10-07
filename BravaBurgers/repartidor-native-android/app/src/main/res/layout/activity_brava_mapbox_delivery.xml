@@ -7,12 +7,11 @@
     android:background="#0B141A"
     android:fitsSystemWindows="false">
 
-    <com.mapbox.navigation.dropin.NavigationView
-        android:id="@+id/bravaNavigationView"
+    <com.mapbox.maps.MapView
+        android:id="@+id/bravaMapView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:fitsSystemWindows="false"
-        app:accessToken="@string/mapbox_access_token" />
+        android:fitsSystemWindows="false" />
 
     <LinearLayout
         android:id="@+id/bravaManeuverCard"

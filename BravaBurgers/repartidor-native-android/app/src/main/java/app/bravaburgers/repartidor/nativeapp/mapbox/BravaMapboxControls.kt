@@ -1,14 +1,9 @@
 package app.bravaburgers.repartidor.nativeapp.mapbox
 
 import android.widget.ImageButton
-import com.mapbox.navigation.dropin.NavigationView
-import com.mapbox.navigation.ui.voice.model.SpeechVolume
 
 object BravaMapboxControls {
-    private var voiceMuted = false
-
     fun wire(
-        navigationView: NavigationView,
         compass: ImageButton,
         volume: ImageButton,
         recenter: ImageButton,
@@ -19,12 +14,8 @@ object BravaMapboxControls {
             BravaMapboxCameraAnchor.recenterFollowing()
         }
         volume.setOnClickListener {
-            val player = navigationView.api.getCurrentVoiceInstructionsPlayer()
-            if (player != null) {
-                voiceMuted = !voiceMuted
-                player.volume(SpeechVolume(if (voiceMuted) 0f else 1f))
-                volume.alpha = if (voiceMuted) 0.45f else 1f
-            }
+            val muted = BravaMapboxMapSession.toggleVoiceMute()
+            volume.alpha = if (muted) 0.45f else 1f
         }
         compass.setOnClickListener {
             refreshCamera()

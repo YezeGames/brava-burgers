@@ -21,11 +21,11 @@ import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import app.bravaburgers.repartidor.nativeapp.BuildConfig
 import app.bravaburgers.repartidor.nativeapp.R
+import com.mapbox.maps.MapView
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
-import com.mapbox.navigation.dropin.NavigationView
 
 class BravaMapboxDeliveryActivity : AppCompatActivity() {
-    private lateinit var navigationView: NavigationView
+    private lateinit var mapView: MapView
     private lateinit var bottomPanel: View
     private lateinit var maneuverCard: LinearLayout
     private lateinit var mapControls: LinearLayout
@@ -45,6 +45,8 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     private val maneuverTopReserveDp = 118f
     private val overlayExtraTopDp = 8f
     private val overlayExtraBottomDp = 10f
+    /** Margen extra en padding de cámara bajo el panel Brava. */
+    private val cameraBottomSafeMarginDp = 28f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -88,7 +90,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_brava_mapbox_delivery)
-        navigationView = findViewById(R.id.bravaNavigationView)
+        mapView = findViewById(R.id.bravaMapView)
         bottomPanel = findViewById(R.id.bravaBottomPanel)
         maneuverCard = findViewById(R.id.bravaManeuverCard)
         mapControls = findViewById(R.id.bravaMapControls)
@@ -99,18 +101,15 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
 
         wireSystemBarInsets()
 
-        BravaMapboxDropInUi.applyBravaOptions(navigationView)
-        BravaMapboxViewportPadding.register(navigationView)
-        BravaMapboxViewportPadding.onMapAttached = {
+        BravaMapboxNavigation.bindMapView(mapView)
+        BravaMapboxMapSession.attach(mapView, this) {
             if (!isFinishing && !isDestroyed) {
                 scheduleMapInsets(force = true)
                 applyNavigationCameraOnce()
             }
         }
-        BravaMapboxNavigation.bindNavigationView(navigationView)
 
         BravaMapboxControls.wire(
-            navigationView,
             findViewById(R.id.bravaBtnCompass),
             findViewById(R.id.bravaBtnVolume),
             findViewById<ImageButton>(R.id.bravaBtnRecenter),
@@ -254,7 +253,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
     }
 
     private fun applyMapContentInsets(force: Boolean = false) {
-        if (!::navigationView.isInitialized) return
+        if (!::mapView.isInitialized) return
         val now = SystemClock.uptimeMillis()
         if (!force && now - lastInsetApplyAt < 100) return
         lastInsetApplyAt = now
@@ -267,10 +266,12 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
             bottomPanel.height +
                 navBarBottom +
                 (36 * density).toInt()
-        BravaMapboxViewportPadding.clearMapPadding()
+        mapView.setPadding(0, 0, 0, 0)
+        val bottomMarginPx = (cameraBottomSafeMarginDp * density).toDouble()
         BravaMapboxCameraAnchor.applyBravaOverlayPadding(
             topPx = topPad.toDouble(),
             bottomPx = bottomPad.toDouble(),
+            bottomMarginPx = bottomMarginPx,
         )
 
         val floatAbovePanel = bottomPanel.height + navBarBottom + (12 * density).toInt()
@@ -308,9 +309,9 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
                 finish()
                 return
             }
-            navigationView.postDelayed({ tick() }, 50)
+            mapView.postDelayed({ tick() }, 50)
         }
-        navigationView.postDelayed({ tick() }, 350)
+        mapView.postDelayed({ tick() }, 350)
     }
 
     override fun onDestroy() {
@@ -322,15 +323,12 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         BravaMapboxNavigation.restoreDefaultRouteProgressListener()
         insetRunnable?.let { insetHandler.removeCallbacks(it) }
         BravaMapboxCameraAnchor.reset()
-        if (::navigationView.isInitialized) {
-            try {
-                navigationView.api.startFreeDrive()
-            } catch (_: Exception) {
-            }
-            BravaMapboxViewportPadding.unregister(navigationView)
-            BravaMapboxNavigation.unbindNavigationView(navigationView)
+        if (::mapView.isInitialized) {
+            BravaMapboxNavigation.unbindMapView(mapView)
+            BravaMapboxNavigation.notifyMapSurfaceDetached()
         }
         BravaMapboxNavigation.stopActiveGuidance()
+        BravaMapboxMapSession.reset()
         MapboxNavigationApp.detach(this)
         super.onDestroy()
     }
