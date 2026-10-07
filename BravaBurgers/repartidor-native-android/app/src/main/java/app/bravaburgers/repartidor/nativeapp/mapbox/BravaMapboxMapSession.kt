@@ -56,8 +56,8 @@ object BravaMapboxMapSession {
         routeLineApi = MapboxRouteLineApi(routeOpts)
         routeLineView = MapboxRouteLineView(routeOpts)
 
+        val language = BravaMapboxLocale.NAV_LANGUAGE
         val token = BuildConfig.MAPBOX_ACCESS_TOKEN
-        val language = "es-AR"
         speechApi = MapboxSpeechApi(context, token, language)
         voicePlayer = MapboxVoiceInstructionsPlayer(context, token, language)
 
@@ -96,6 +96,7 @@ object BravaMapboxMapSession {
         }
         api.setNavigationRoutes(routes) { value ->
             view.renderRouteDrawData(style, value)
+            mapView?.post { BravaMapboxCameraAnchor.recenterFollowing() }
         }
     }
 

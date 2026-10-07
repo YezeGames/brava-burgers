@@ -29,6 +29,7 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
     private var viewportDataSource: MapboxNavigationViewportDataSource? = null
     private var navigationCamera: NavigationCamera? = null
     private var registeredWithApp = false
+    private var pendingInitialFollowingRecenter = false
 
     private val puckFramingStrategy = BravaPuckCenterFramingStrategy()
 
@@ -86,6 +87,10 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
         vds.onLocationChanged(location)
         maintainFlatFollowing()
         vds.evaluate()
+        if (pendingInitialFollowingRecenter) {
+            pendingInitialFollowingRecenter = false
+            recenterFollowing()
+        }
     }
 
     fun onRouteProgressChanged(routeProgress: RouteProgress) {
@@ -105,7 +110,10 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
         maintainFlatFollowing()
         vds.evaluate()
         if (hasRoutes && primaryRoute != null) {
+            pendingInitialFollowingRecenter = true
             recenterFollowing()
+        } else {
+            pendingInitialFollowingRecenter = false
         }
     }
 
@@ -136,6 +144,7 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
         mapView = null
         viewportDataSource = null
         navigationCamera = null
+        pendingInitialFollowingRecenter = false
     }
 
     override fun onAttached(mapboxNavigation: MapboxNavigation) {
@@ -160,6 +169,8 @@ object BravaMapboxCameraAnchor : MapboxNavigationObserver {
             pitchUpdatesAllowed = false
             zoomUpdatesAllowed = false
             paddingUpdatesAllowed = false
+            minZoom = FOLLOWING_ZOOM
+            maxZoom = FOLLOWING_ZOOM
         }
         vds.followingPitchPropertyOverride(0.0)
         vds.followingZoomPropertyOverride(FOLLOWING_ZOOM)

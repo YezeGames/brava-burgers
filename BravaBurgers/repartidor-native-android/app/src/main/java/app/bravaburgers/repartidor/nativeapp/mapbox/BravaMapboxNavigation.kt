@@ -3,11 +3,11 @@ package app.bravaburgers.repartidor.nativeapp.mapbox
 import android.content.Context
 import android.os.SystemClock
 import android.util.Log
+import com.mapbox.api.directions.v5.DirectionsCriteria
 import com.mapbox.api.directions.v5.models.RouteOptions
 import com.mapbox.geojson.Point
 import com.mapbox.maps.MapView
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
-import com.mapbox.navigation.base.extensions.applyLanguageAndVoiceUnitOptions
 import com.mapbox.navigation.base.route.NavigationRoute
 import com.mapbox.navigation.base.route.NavigationRouterCallback
 import com.mapbox.navigation.base.route.RouterFailure
@@ -246,13 +246,15 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
             Log.i(TAG, "MapboxNavigation not ready; route queued")
             return
         }
-        val appContext = context ?: boundMapView?.context?.applicationContext ?: return
         routeRequestInFlight = true
         nav.requestRoutes(
             RouteOptions
                 .builder()
                 .applyDefaultNavigationOptions()
-                .applyLanguageAndVoiceUnitOptions(appContext)
+                .language(BravaMapboxLocale.NAV_LANGUAGE)
+                .steps(true)
+                .voiceInstructions(true)
+                .voiceUnits(DirectionsCriteria.METRIC)
                 .coordinatesList(listOf(trip.origin, trip.dest))
                 .alternatives(false)
                 .build(),
@@ -277,6 +279,9 @@ object BravaMapboxNavigation : MapboxNavigationObserver {
                         nav.startTripSession()
                         BravaMapboxMapSession.drawRoutes(routes)
                         BravaMapboxCameraAnchor.onRoutesChanged(true, routes.first())
+                        boundMapView?.post {
+                            BravaMapboxCameraAnchor.recenterFollowing()
+                        }
                         Log.i(TAG, "Active guidance via MapboxNavigation + MapView")
                         onActiveGuidanceStarted?.invoke()
                     } catch (e: Exception) {

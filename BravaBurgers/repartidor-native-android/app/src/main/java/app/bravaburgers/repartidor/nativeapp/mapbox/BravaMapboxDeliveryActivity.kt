@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.View
+import android.view.WindowManager
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -89,6 +90,7 @@ class BravaMapboxDeliveryActivity : AppCompatActivity() {
         )
 
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         setContentView(R.layout.activity_brava_mapbox_delivery)
         mapView = findViewById(R.id.bravaMapView)
         bottomPanel = findViewById(R.id.bravaBottomPanel)

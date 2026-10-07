@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  92,
-    "version_name":  "2.0.0-alpha90",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v92/brava-repartidor-native.apk",
-    "release_notes":  "Simular ruta: botón Sim en columna FAB (visible), flag ON por defecto.",
-    "min_version_code":  92,
+    "version_code":  93,
+    "version_name":  "2.0.0-alpha91",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v93/brava-repartidor-native.apk",
+    "release_notes":  "Voz e instrucciones en es/métrico, zoom calle 16.5 al iniciar, pantalla siempre encendida en navegación.",
+    "min_version_code":  93,
     "force_update":  true
 }
