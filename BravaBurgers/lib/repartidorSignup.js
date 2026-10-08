@@ -1,6 +1,6 @@
 const { restSelect, restInsert, restPatch } = require('./supabaseServer');
 const { telNorm } = require('./bravaCoupons');
-const { normalizeLogin, hashPassword } = require('./repartidorAuth');
+const { normalizeLogin, hashPassword, verifyPassword } = require('./repartidorAuth');
 
 async function getRepartidorUserByLogin(login) {
   const id = normalizeLogin(login);
@@ -109,6 +109,35 @@ async function listRepartidorSignupRequests(status) {
   };
 }
 
+/** Login fallido: si hay solicitud pending con misma clave, devolver datos para la app. */
+async function repartidorPendingSignupLogin(login, password) {
+  const id = normalizeLogin(login);
+  if (!id || !password) return null;
+  const r = await restSelect(
+    'repartidor_signup_requests',
+    'select=nombre,apellido,telefono,login_requested,password_hash,status&login_requested=eq.' +
+      encodeURIComponent(id) +
+      '&status=eq.pending&limit=1'
+  );
+  if (!r.ok) {
+    if (isMissingTable(r)) return null;
+    return null;
+  }
+  const row = r.data && r.data[0];
+  if (!row || !row.password_hash) return null;
+  if (!verifyPassword(password, row.password_hash)) return null;
+  return {
+    ok: false,
+    error: 'signup_pending',
+    signup_pending: {
+      nombre: String(row.nombre || '').trim(),
+      apellido: String(row.apellido || '').trim(),
+      telefono: telNorm(row.telefono),
+      login: String(row.login_requested || id).trim(),
+    },
+  };
+}
+
 async function rejectRepartidorSignup(id) {
   const rid = String(id || '').trim();
   if (!rid) return { ok: false, error: 'missing_id' };
@@ -169,4 +198,5 @@ module.exports = {
   approveRepartidorSignup,
   rejectRepartidorSignup,
   proposeLogin,
+  repartidorPendingSignupLogin,
 };

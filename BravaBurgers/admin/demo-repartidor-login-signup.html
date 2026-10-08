@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <title>Demo — Brava Riders · Login + crear cuenta</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
+  <style>
+    :root {
+      --page-bg: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #21262d;
+      --input-bg: #0d1117;
+      --input-border: #30363d;
+      --text: #ffffff;
+      --muted: #8b949e;
+      --orange: #ff6b35;
+      --orange-btn: #ff5522;
+      --safe-b: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      min-height: 100dvh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background: #050608;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 10px 16px;
+    }
+    .demo-banner {
+      width: 100%;
+      max-width: 390px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      border-radius: 10px;
+      background: rgba(255, 107, 53, 0.1);
+      border: 1px solid rgba(255, 107, 53, 0.3);
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .demo-banner strong { color: var(--orange); }
+    .demo-banner code { font-size: 0.68rem; background: var(--card-bg); padding: 1px 5px; border-radius: 4px; }
+
+    .phone-shell {
+      width: 100%;
+      max-width: 390px;
+      min-height: min(100dvh - 90px, 844px);
+      background: var(--page-bg);
+      border-radius: 28px;
+      border: 2px solid #21262d;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .status-bar {
+      flex-shrink: 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px 4px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .viewport {
+      flex: 1;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .screen {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    .screen.is-active { display: block; }
+
+    /* —— Login card (spec SVG) —— */
+    .login-scroll {
+      padding: 12px 16px calc(16px + var(--safe-b));
+    }
+    .login-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 24px;
+      padding: 28px 20px 24px;
+      max-width: 350px;
+      margin: 0 auto;
+    }
+    .logo-wrap {
+      width: 120px;
+      height: 120px;
+      margin: 0 auto 20px;
+      border-radius: 24px;
+      filter: drop-shadow(0 4px 8px rgba(255, 107, 53, 0.35));
+      overflow: hidden;
+    }
+    .logo-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .logo-fallback { width: 100%; height: 100%; }
+    .login-head {
+      text-align: center;
+      margin-bottom: 35px;
+    }
+    .login-head h1 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .login-head p {
+      margin: 8px 0 0;
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .field-block { margin-bottom: 22px; }
+    .field-label {
+      display: block;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .input-shell {
+      position: relative;
+      height: 54px;
+    }
+    .input-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--orange);
+      font-size: 15px;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .input-shell input {
+      width: 100%;
+      height: 54px;
+      border-radius: 14px;
+      border: 1px solid var(--input-border);
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 500;
+      text-align: center;
+      padding: 0 44px;
+      font-family: inherit;
+    }
+    .input-shell input:focus {
+      outline: none;
+      border-color: var(--orange);
+      box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.2);
+    }
+    .input-shell input::placeholder { color: #484f58; font-weight: 400; }
+    .btn-eye {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 36px;
+      height: 36px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(22, 27, 34, 0.85);
+      color: var(--muted);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+    }
+    .btn-eye .pupil { color: var(--orange); font-size: 8px; }
+    .forgot {
+      display: block;
+      text-align: center;
+      margin: 4px 0 18px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      background: none;
+      border: none;
+      width: 100%;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .forgot:hover { color: var(--orange); }
+    .btn-enter {
+      width: 100%;
+      height: 54px;
+      border: none;
+      border-radius: 14px;
+      background: var(--orange-btn);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      filter: drop-shadow(0 4px 8px rgba(255, 85, 34, 0.35));
+      font-family: inherit;
+    }
+    .btn-enter:disabled { opacity: 0.5; cursor: not-allowed; }
+    .sep-or {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 22px 0 16px;
+    }
+    .sep-or line, .sep-or .line {
+      flex: 1;
+      height: 1px;
+      background: var(--card-border);
+    }
+    .sep-or span {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+    .btn-create {
+      width: 100%;
+      height: 54px;
+      border-radius: 14px;
+      border: 1.5px solid var(--orange);
+      background: var(--input-bg);
+      color: var(--orange);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .login-err {
+      text-align: center;
+      font-size: 12px;
+      color: var(--orange-btn);
+      min-height: 1.2em;
+      margin: 0 0 10px;
+    }
+    /* Pending */
+    .pending-wrap {
+      padding: 40px 20px;
+      text-align: center;
+      max-width: 350px;
+      margin: 0 auto;
+    }
+    .pending-wrap h2 { font-size: 20px; margin: 16px 0 8px; }
+    .pending-wrap p { color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .pending-card {
+      margin-top: 20px;
+      padding: 14px;
+      border-radius: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      text-align: left;
+      font-size: 13px;
+    }
+    .pending-card dt { font-size: 10px; text-transform: uppercase; color: var(--muted); margin-top: 8px; }
+    .pending-card dt:first-child { margin-top: 0; }
+    .pending-card dd { margin: 2px 0 0; font-weight: 600; }
+    .btn-text {
+      margin-top: 24px;
+      background: none;
+      border: none;
+      color: var(--orange);
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    /* Sheet signup */
+    .sheet-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease;
+      z-index: 40;
+    }
+    .sheet-backdrop.is-open { opacity: 1; pointer-events: auto; }
+    .sheet {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 50;
+      background: var(--card-bg);
+      border-radius: 20px 20px 0 0;
+      border-top: 1px solid var(--card-border);
+      padding: 8px 20px calc(18px + var(--safe-b));
+      transform: translateY(102%);
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      max-height: 90%;
+      overflow-y: auto;
+    }
+    .sheet.is-open { transform: translateY(0); }
+    .sheet-handle {
+      width: 40px;
+      height: 4px;
+      background: #30363d;
+      border-radius: 999px;
+      margin: 6px auto 16px;
+    }
+    .sheet h2 { margin: 0 0 4px; font-size: 20px; font-weight: 800; color: var(--text); }
+    .sheet-sub { margin: 0 0 16px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+    /* Campos signup = misma base que app nativa (OutlinedTextField apilados) */
+    .sheet-field { margin-bottom: 10px; }
+    .sheet-outlined {
+      position: relative;
+      border: 1px solid var(--input-border);
+      border-radius: 12px;
+      background: var(--input-bg);
+      padding: 14px 14px 10px;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .sheet-outlined:focus-within {
+      border-color: var(--orange);
+      box-shadow: 0 0 0 2px rgba(255, 107, 53, 0.18);
+    }
+    .sheet-outlined label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .sheet-outlined input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      padding: 0;
+      outline: none;
+    }
+    .sheet-outlined input::placeholder { color: #484f58; }
+    .sheet-outlined--pw {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 4px;
+      padding-bottom: 8px;
+    }
+    .sheet-outlined--pw .pw-main { min-width: 0; }
+    .sheet-outlined--pw .btn-eye {
+      position: static;
+      transform: none;
+      width: 36px;
+      height: 36px;
+      margin-bottom: 2px;
+    }
+    .field-hint {
+      margin: 4px 0 12px;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: left;
+    }
+    .sheet-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .sheet-actions button {
+      width: 100%;
+      height: 52px;
+      border-radius: 14px;
+      font-family: inherit;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .sheet-create {
+      border: none;
+      background: var(--orange-btn);
+      color: #fff;
+      filter: drop-shadow(0 4px 8px rgba(255, 85, 34, 0.3));
+    }
+    .sheet-create:disabled { opacity: 0.55; cursor: not-allowed; }
+    .sheet-cancel {
+      border: 1px solid var(--input-border);
+      background: transparent;
+      color: var(--text);
+      height: 48px !important;
+      font-weight: 600;
+    }
+    .nav-bar {
+      flex-shrink: 0;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      opacity: 0.65;
+      padding-bottom: var(--safe-b);
+    }
+  </style>
+</head>
+<body>
+  <div class="demo-banner">
+    <strong>Demo UI</strong> — Login + crear cuenta (paridad app <strong>2.0.0-alpha97</strong>).
+    Signup → pendiente → probá aprobación en <code>demo-admin-reparto-cuentas-aprobacion.html</code>.
+    Soporte solo en entrega. <code>demo-repartidor-login-signup.html</code>
+  </div>
+
+  <div class="phone-shell">
+    <div class="status-bar" aria-hidden="true">
+      <span>9:47</span>
+      <span style="font-size:12px">48%</span>
+    </div>
+    <div class="viewport">
+      <section class="screen is-active" id="screen-login">
+        <div class="login-scroll">
+          <div class="login-card">
+            <div class="logo-wrap" aria-hidden="true">
+              <img src="../design/brava-riders-kit/brava_login_logo.jpg" alt="Brava Burgers" width="120" height="120"
+                onerror="this.replaceWith(document.getElementById('logo-svg-clone').content.cloneNode(true))" />
+            </div>
+
+            <header class="login-head">
+              <h1>¡Hola, Rider! 🔥</h1>
+              <p>Ingresá con tu usuario para iniciar jornada</p>
+            </header>
+
+            <form id="login-form" onsubmit="return false;">
+              <div class="field-block">
+                <label class="field-label" for="login-user">Usuario</label>
+                <div class="input-shell">
+                  <span class="input-icon" aria-hidden="true"><i class="fas fa-user"></i></span>
+                  <input type="text" id="login-user" autocomplete="username" autocapitalize="none" placeholder="Ezequiel" />
+                </div>
+              </div>
+              <div class="field-block">
+                <label class="field-label" for="login-pass">Contraseña</label>
+                <div class="input-shell">
+                  <span class="input-icon" aria-hidden="true"><i class="fas fa-lock"></i></span>
+                  <input type="password" id="login-pass" autocomplete="current-password" placeholder="••••••••" />
+                  <button type="button" class="btn-eye" id="btn-toggle-pass" aria-label="Mostrar contraseña">
+                    <i class="far fa-eye" aria-hidden="true"></i>
+                  </button>
+                </div>
+              </div>
+              <button type="button" class="forgot" id="btn-forgot">¿Olvidaste tu contraseña?</button>
+              <p class="login-err" id="login-err" aria-live="polite"></p>
+              <button type="button" class="btn-enter" id="btn-login">Entrar</button>
+              <div class="sep-or">
+                <div class="line"></div>
+                <span>ó</span>
+                <div class="line"></div>
+              </div>
+              <button type="button" class="btn-create" id="btn-open-signup">Crear cuenta</button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="screen-pending">
+        <div class="pending-wrap">
+          <div class="logo-wrap" style="margin-bottom:0;width:72px;height:72px;border-radius:18px">
+            <i class="fas fa-clock" style="font-size:28px;color:var(--orange)"></i>
+          </div>
+          <h2>Solicitud enviada</h2>
+          <p>Cocina debe aprobar tu cuenta antes de que puedas entrar. Si aprueban, usás tu usuario y la <strong>contraseña que elegiste</strong>.</p>
+          <dl class="pending-card" id="pending-summary"></dl>
+          <button type="button" class="btn-text" id="btn-back-login">Volver al login</button>
+        </div>
+      </section>
+
+      <div class="sheet-backdrop" id="sheet-backdrop"></div>
+      <aside class="sheet" id="signup-sheet" role="dialog" aria-labelledby="sheet-title" aria-modal="true">
+        <div class="sheet-handle"></div>
+        <h2 id="sheet-title">Crear cuenta</h2>
+        <p class="sheet-sub">Completá tus datos y elegí tu contraseña. Cocina aprueba o rechaza desde el panel.</p>
+        <div class="sheet-field">
+          <div class="sheet-outlined">
+            <label for="signup-nombre">Nombre</label>
+            <input type="text" id="signup-nombre" autocomplete="given-name" placeholder="Sebastian" />
+          </div>
+        </div>
+        <div class="sheet-field">
+          <div class="sheet-outlined">
+            <label for="signup-apellido">Apellido</label>
+            <input type="text" id="signup-apellido" autocomplete="family-name" placeholder="Negro" />
+          </div>
+        </div>
+        <div class="sheet-field">
+          <div class="sheet-outlined">
+            <label for="signup-tel">Teléfono</label>
+            <input type="tel" id="signup-tel" inputmode="tel" autocomplete="tel" placeholder="1122334455" />
+          </div>
+        </div>
+        <div class="sheet-field">
+          <div class="sheet-outlined sheet-outlined--pw">
+            <div class="pw-main">
+              <label for="signup-pass">Contraseña</label>
+              <input type="password" id="signup-pass" autocomplete="new-password" placeholder="La que vas a usar para entrar" />
+            </div>
+            <button type="button" class="btn-eye" id="btn-toggle-signup-pass" aria-label="Mostrar contraseña">
+              <i class="far fa-eye"></i>
+            </button>
+          </div>
+          <p class="field-hint">Mínimo 6 caracteres</p>
+        </div>
+        <div class="sheet-field">
+          <div class="sheet-outlined sheet-outlined--pw">
+            <div class="pw-main">
+              <label for="signup-pass2">Confirmar contraseña</label>
+              <input type="password" id="signup-pass2" autocomplete="new-password" placeholder="Repetí la contraseña" />
+            </div>
+            <button type="button" class="btn-eye" id="btn-toggle-signup-pass2" aria-label="Mostrar contraseña">
+              <i class="far fa-eye"></i>
+            </button>
+          </div>
+        </div>
+        <p class="login-err" id="signup-err"></p>
+        <div class="sheet-actions">
+          <button type="button" class="sheet-create" id="btn-sheet-create">Enviar solicitud</button>
+          <button type="button" class="sheet-cancel" id="btn-sheet-cancel">Cancelar</button>
+        </div>
+      </aside>
+    </div>
+    <div class="nav-bar" aria-hidden="true">
+      <i class="fas fa-bars" style="font-size:14px;color:#fff"></i>
+      <i class="far fa-circle" style="font-size:18px;color:#fff"></i>
+      <i class="fas fa-chevron-left" style="font-size:14px;color:#fff"></i>
+    </div>
+  </div>
+
+  <template id="logo-svg-clone">
+    <svg class="logo-fallback" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M60 25 C50 35, 45 42, 50 52 C52 56, 56 58, 60 58 C64 58, 68 56, 70 52 C75 42, 70 35, 60 25 Z" fill="#FF5522"/>
+      <path d="M42 64 H78 A6 6 0 0 1 84 70 V72 A4 4 0 0 1 80 76 H40 A4 4 0 0 1 36 72 V70 A6 6 0 0 1 42 64 Z" fill="#D4A359"/>
+      <rect x="38" y="79" width="44" height="6" rx="3" fill="#FF5522"/>
+      <text x="60" y="98" fill="#ffffff" font-size="11" font-weight="900" text-anchor="middle">BRAVA</text>
+      <text x="60" y="108" fill="#8b949e" font-size="7" font-weight="700" text-anchor="middle">RIDERS</text>
+    </svg>
+  </template>
+
+  <script>
+    (function () {
+      var sheet = document.getElementById('signup-sheet');
+      var backdrop = document.getElementById('sheet-backdrop');
+      var passInput = document.getElementById('login-pass');
+      var passVisible = false;
+
+      function bindPassToggle(btnId, inputId) {
+        var btn = document.getElementById(btnId);
+        var input = document.getElementById(inputId);
+        if (!btn || !input) return;
+        btn.onclick = function () {
+          var show = input.type === 'password';
+          input.type = show ? 'text' : 'password';
+          btn.innerHTML = show ? '<i class="far fa-eye-slash"></i>' : '<i class="far fa-eye"></i>';
+        };
+      }
+
+      function openSheet() {
+        sheet.classList.add('is-open');
+        backdrop.classList.add('is-open');
+        document.getElementById('signup-err').textContent = '';
+        syncSignupSubmitEnabled();
+      }
+      function closeSheet() {
+        sheet.classList.remove('is-open');
+        backdrop.classList.remove('is-open');
+      }
+      function showScreen(id) {
+        document.getElementById('screen-login').classList.toggle('is-active', id === 'login');
+        document.getElementById('screen-pending').classList.toggle('is-active', id === 'pending');
+      }
+      function digitsOnly(s) { return String(s || '').replace(/\D/g, ''); }
+
+      document.getElementById('btn-open-signup').onclick = openSheet;
+      document.getElementById('btn-sheet-cancel').onclick = closeSheet;
+      backdrop.onclick = closeSheet;
+
+      document.getElementById('btn-toggle-pass').onclick = function () {
+        passVisible = !passVisible;
+        passInput.type = passVisible ? 'text' : 'password';
+        this.innerHTML = passVisible
+          ? '<i class="far fa-eye-slash"></i>'
+          : '<i class="far fa-eye"></i>';
+      };
+
+      document.getElementById('btn-forgot').onclick = function () {
+        document.getElementById('login-err').textContent =
+          'Pedí una nueva clave a cocina desde el local.';
+      };
+
+      function syncSignupSubmitEnabled() {
+        var btn = document.getElementById('btn-sheet-create');
+        if (!btn) return;
+        var nombre = document.getElementById('signup-nombre').value.trim();
+        var apellido = document.getElementById('signup-apellido').value.trim();
+        var tel = digitsOnly(document.getElementById('signup-tel').value);
+        btn.disabled = !(nombre && apellido && tel.length >= 8);
+      }
+      ['signup-nombre', 'signup-apellido', 'signup-tel'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener('input', syncSignupSubmitEnabled);
+      });
+
+      document.getElementById('btn-sheet-create').onclick = function () {
+        var btn = this;
+        var nombre = document.getElementById('signup-nombre').value.trim();
+        var apellido = document.getElementById('signup-apellido').value.trim();
+        var tel = digitsOnly(document.getElementById('signup-tel').value);
+        var pass = document.getElementById('signup-pass').value;
+        var pass2 = document.getElementById('signup-pass2').value;
+        var errEl = document.getElementById('signup-err');
+        if (!nombre || !apellido) {
+          errEl.textContent = 'Completá nombre y apellido.';
+          return;
+        }
+        if (tel.length < 8) {
+          errEl.textContent = 'Revisá el número de teléfono.';
+          return;
+        }
+        if (pass.length < 6) {
+          errEl.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+          return;
+        }
+        if (pass !== pass2) {
+          errEl.textContent = 'Las contraseñas no coinciden.';
+          return;
+        }
+        errEl.textContent = '';
+        btn.disabled = true;
+        btn.textContent = 'Enviando…';
+        setTimeout(function () {
+          btn.disabled = false;
+          btn.textContent = 'Enviar solicitud';
+          closeSheet();
+
+        var loginRaw = apellido.replace(/[^a-zA-Z0-9]/g, '') || 'rider';
+        var loginDisplay = '@' + loginRaw;
+        document.getElementById('pending-summary').innerHTML =
+          '<dt>Nombre</dt><dd>' + nombre + ' ' + apellido + '</dd>' +
+          '<dt>Teléfono</dt><dd>' + tel + '</dd>' +
+          '<dt>Contraseña</dt><dd>Elegida por vos (se activa al aprobar)</dd>' +
+          '<dt>Estado</dt><dd style="color:#ff5522">Pendiente</dd>' +
+          '<dt>Usuario propuesto</dt><dd>' + loginDisplay + '</dd>';
+
+        try {
+          sessionStorage.setItem('brava_demo_signup_pending', JSON.stringify({
+            nombre: nombre,
+            apellido: apellido,
+            telefono: tel,
+            login: loginRaw,
+            selfPassword: true,
+          }));
+        } catch (e) {}
+
+          showScreen('pending');
+        }, 450);
+      };
+
+      syncSignupSubmitEnabled();
+
+      bindPassToggle('btn-toggle-signup-pass', 'signup-pass');
+      bindPassToggle('btn-toggle-signup-pass2', 'signup-pass2');
+
+      document.getElementById('btn-back-login').onclick = function () { showScreen('login'); };
+      document.getElementById('btn-login').onclick = function () {
+        document.getElementById('login-err').textContent =
+          'Demo: probá «Crear cuenta» para enviar solicitud a cocina.';
+      };
+    })();
+  </script>
+</body>
+</html>

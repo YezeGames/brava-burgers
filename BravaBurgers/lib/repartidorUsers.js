@@ -1,4 +1,5 @@
 const { restSelect, restInsert, restPatch, restDelete } = require('./supabaseServer');
+const { repartidorPendingSignupLogin } = require('./repartidorSignup');
 const { telNorm } = require('./bravaCoupons');
 const {
   normalizeLogin,
@@ -67,7 +68,11 @@ async function repartidorLogin(login, password) {
   if (!id || !password) return { ok: false, error: 'missing_credentials' };
   const got = await getRepartidorUserByLogin(id);
   if (!got.ok) return got;
-  if (!got.user) return { ok: false, error: 'invalid_credentials' };
+  if (!got.user) {
+    const pending = await repartidorPendingSignupLogin(id, password);
+    if (pending) return pending;
+    return { ok: false, error: 'invalid_credentials' };
+  }
   if (!got.user.activo) return { ok: false, error: 'user_inactive' };
   if (!verifyPassword(password, got.user.password_hash)) {
     return { ok: false, error: 'invalid_credentials' };
