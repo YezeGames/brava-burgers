@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -60,6 +61,7 @@ import app.bravaburgers.repartidor.nativeapp.ui.BravaRidersLogoHero
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeScreen
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextMuted
 import app.bravaburgers.repartidor.nativeapp.ui.theme.TextPrimary
+import app.bravaburgers.repartidor.nativeapp.viewmodel.SignupPendingUi
 
 private val PageBg = Color(0xFF0D1117)
 private val CardBg = Color(0xFF161B22)
@@ -76,10 +78,16 @@ private val Placeholder = Color(0xFF484F58)
 fun LoginScreen(
     loading: Boolean,
     error: String?,
-    signupMessage: String?,
+    signupPending: SignupPendingUi?,
+    onClearSignupPending: () -> Unit,
     onLogin: (String, String) -> Unit,
     onSignup: (String, String, String, String, String) -> Unit,
 ) {
+    if (signupPending != null) {
+        SignupPendingScreen(pending = signupPending, onBackToLogin = onClearSignupPending)
+        return
+    }
+
     var login by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var showPass by rememberSaveable { mutableStateOf(false) }
@@ -205,16 +213,6 @@ fun LoginScreen(
                         modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     )
                 }
-                if (!signupMessage.isNullOrBlank()) {
-                    Text(
-                        text = signupMessage,
-                        color = TextPrimary,
-                        fontSize = 12.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                    )
-                }
-
                 Button(
                     onClick = { onLogin(login.trim(), password) },
                     enabled = !loading && login.isNotBlank() && password.isNotBlank(),
@@ -268,6 +266,7 @@ fun LoginScreen(
         ) {
             SignupSheetContent(
                 loading = loading,
+                error = error,
                 onSubmit = { n, a, t, p, p2 ->
                     onSignup(n, a, t, p, p2)
                 },
@@ -275,6 +274,98 @@ fun LoginScreen(
             )
         }
     }
+}
+
+@Composable
+private fun SignupPendingScreen(
+    pending: SignupPendingUi,
+    onBackToLogin: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .background(PageBg)
+                .bravaSafeScreen()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(72.dp)
+                    .shadow(8.dp, RoundedCornerShape(18.dp), spotColor = Color(0x59FF6B35))
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(PageBg)
+                    .border(2.dp, Orange, RoundedCornerShape(18.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Outlined.Schedule,
+                contentDescription = null,
+                tint = Orange,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+
+        Text(
+            text = "Solicitud enviada",
+            color = TextPrimary,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(top = 16.dp),
+        )
+        Text(
+            text = "Cocina debe aprobar tu cuenta antes de que puedas entrar. Si aprueban, usás tu usuario y la contraseña que elegiste.",
+            color = Muted,
+            fontSize = 13.sp,
+            lineHeight = 19.sp,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(top = 8.dp, bottom = 20.dp),
+        )
+
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(CardBg)
+                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                    .padding(14.dp),
+        ) {
+            PendingRow(label = "Nombre", value = pending.displayName())
+            PendingRow(label = "Teléfono", value = pending.telefono)
+            PendingRow(label = "Contraseña", value = "Elegida por vos (se activa al aprobar)")
+            PendingRow(label = "Estado", value = "Pendiente", valueColor = OrangeBtn)
+            PendingRow(label = "Usuario propuesto", value = "@${pending.login}")
+        }
+
+        TextButton(onClick = onBackToLogin, modifier = Modifier.padding(top = 24.dp)) {
+            Text("Volver al login", color = Orange, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+        }
+    }
+}
+
+@Composable
+private fun PendingRow(
+    label: String,
+    value: String,
+    valueColor: Color = TextPrimary,
+) {
+    Text(
+        text = label.uppercase(),
+        color = Muted,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(top = 8.dp),
+    )
+    Text(
+        text = value,
+        color = valueColor,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
 }
 
 @Composable
@@ -359,6 +450,7 @@ private fun LoginInputShell(
 @Composable
 private fun SignupSheetContent(
     loading: Boolean,
+    error: String?,
     onSubmit: (String, String, String, String, String) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -436,7 +528,15 @@ private fun SignupSheetContent(
             visualTransformation = PasswordVisualTransformation(),
             colors = fieldColors,
         )
-        Spacer(modifier = Modifier.height(20.dp))
+        if (!error.isNullOrBlank()) {
+            Text(
+                text = error,
+                color = OrangeBtn,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(bottom = 8.dp),
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
         Button(
             onClick = { onSubmit(nombre.trim(), apellido.trim(), tel.trim(), pass, pass2) },
             enabled = !loading && nombre.isNotBlank() && apellido.isNotBlank() && tel.isNotBlank(),

@@ -29,13 +29,13 @@ fun BravaRidersLogo(
     cornerRadius: Dp = 10.dp,
 ) {
     Image(
-        painter = painterResource(R.drawable.ic_launcher_brava_riders),
-        contentDescription = "Brava Riders",
+        painter = painterResource(R.drawable.brava_login_logo),
+        contentDescription = "Brava Burgers",
         modifier =
             modifier
                 .size(size)
                 .clip(RoundedCornerShape(cornerRadius)),
-        contentScale = ContentScale.Crop,
+        contentScale = ContentScale.Fit,
     )
 }
 
@@ -63,8 +63,8 @@ fun BravaRidersLogoHero(
         contentAlignment = androidx.compose.ui.Alignment.Center,
     ) {
         Image(
-            painter = painterResource(R.drawable.ic_launcher_brava_riders),
-            contentDescription = "Brava Riders",
+            painter = painterResource(R.drawable.brava_login_logo),
+            contentDescription = "Brava Burgers",
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Fit,
         )

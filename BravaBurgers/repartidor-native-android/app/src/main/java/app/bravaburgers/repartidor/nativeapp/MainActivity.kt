@@ -371,7 +371,8 @@ class MainActivity : ComponentActivity() {
                         LoginScreen(
                             loading = ui.loading,
                             error = ui.error,
-                            signupMessage = ui.signupMessage,
+                            signupPending = ui.signupPending,
+                            onClearSignupPending = vm::clearSignupPending,
                             onLogin = vm::login,
                             onSignup = vm::signup,
                         )

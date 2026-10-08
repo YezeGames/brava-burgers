@@ -73,6 +73,7 @@ data class RepartidorUiState(
     val homeMapWaitingGps: Boolean = false,
     val deliveryHistory: List<HistorialEntregaUi> = emptyList(),
     val signupMessage: String? = null,
+    val signupPending: SignupPendingUi? = null,
     val supportOrn: String? = null,
     val supportSheetOpen: Boolean = false,
     val supportStepChat: Boolean = false,
@@ -89,6 +90,16 @@ data class SupportChatLine(
     val sender: String,
     val body: String,
 )
+
+/** Tras enviar solicitud de cuenta (pantalla «Solicitud enviada», demo). */
+data class SignupPendingUi(
+    val nombre: String,
+    val apellido: String,
+    val telefono: String,
+    val login: String,
+) {
+    fun displayName(): String = "$nombre $apellido".trim()
+}
 
 @OptIn(FlowPreview::class)
 class RepartidorViewModel(
@@ -230,15 +241,21 @@ class RepartidorViewModel(
             return
         }
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(loading = true, error = null, signupMessage = null)
+            _ui.value = _ui.value.copy(loading = true, error = null, signupMessage = null, signupPending = null)
             repo.signup(nombre, apellido, telefono, password)
                 .onSuccess {
                     _ui.value =
                         _ui.value.copy(
                             loading = false,
                             error = null,
-                            signupMessage =
-                                "Solicitud enviada. Cocina debe aprobar tu cuenta antes de que puedas entrar.",
+                            signupMessage = null,
+                            signupPending =
+                                SignupPendingUi(
+                                    nombre = nombre.trim(),
+                                    apellido = apellido.trim(),
+                                    telefono = telefono.trim(),
+                                    login = proposeSignupLogin(apellido, nombre),
+                                ),
                         )
                 }
                 .onFailure {
@@ -246,9 +263,22 @@ class RepartidorViewModel(
                         _ui.value.copy(
                             loading = false,
                             error = signupErrorMessage(it.message),
+                            signupPending = null,
                         )
                 }
         }
+    }
+
+    fun clearSignupPending() {
+        _ui.value = _ui.value.copy(signupPending = null, error = null)
+    }
+
+    private fun proposeSignupLogin(apellido: String, nombre: String): String {
+        val fromAp = apellido.replace(Regex("[^a-zA-Z0-9]"), "").lowercase()
+        if (fromAp.length >= 2) return fromAp
+        val fromNom = nombre.replace(Regex("[^a-zA-Z0-9]"), "").lowercase()
+        if (fromNom.length >= 2) return fromNom
+        return "rider"
     }
 
     private fun signupErrorMessage(code: String?): String =
