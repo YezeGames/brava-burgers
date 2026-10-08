@@ -5,6 +5,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import retrofit2.http.Body
@@ -13,7 +14,7 @@ import java.util.concurrent.TimeUnit
 
 interface RepartidorApiService {
     @POST(".")
-    suspend fun post(@Body body: Map<String, @JvmSuppressWildcards Any?>): Map<String, Any?>
+    suspend fun post(@Body body: Map<String, @JvmSuppressWildcards Any?>): Response<Map<String, Any?>>
 }
 
 class RepartidorApi {
@@ -47,6 +48,7 @@ class RepartidorApi {
 
     private val service = retrofit.create(RepartidorApiService::class.java)
 
+    private val mapAdapter = moshi.adapter(Map::class.java)
     private val loginAdapter = moshi.adapter(LoginResponse::class.java)
     private val listAdapter = moshi.adapter(ListRutaResponse::class.java)
     private val simpleAdapter = moshi.adapter(SimpleActionResponse::class.java)
@@ -70,7 +72,7 @@ class RepartidorApi {
                 "password" to password,
             )
         if (!apiKey.isNullOrBlank()) body["key"] = apiKey.trim()
-        return parse(service.post(body), signupAdapter)
+        return parse(postRaw(body), signupAdapter)
     }
 
     suspend fun login(login: String, password: String, apiKey: String?): LoginResponse {
@@ -80,7 +82,7 @@ class RepartidorApi {
             "password" to password,
         )
         if (!apiKey.isNullOrBlank()) body["key"] = apiKey.trim()
-        return parse(service.post(body), loginAdapter)
+        return parse(postRaw(body), loginAdapter)
     }
 
     suspend fun listRuta(
@@ -92,36 +94,36 @@ class RepartidorApi {
         val body = authBody(token, apiKey, "listRuta")
         if (!includeItems) body["includeItems"] = false
         if (!orn.isNullOrBlank()) body["orn"] = orn.trim()
-        return parse(service.post(body), listAdapter)
+        return parse(postRaw(body), listAdapter)
     }
 
     suspend fun iniciarRecorrido(token: String, apiKey: String?): SimpleActionResponse {
         val body = authBody(token, apiKey, "iniciarRecorrido")
-        return parse(service.post(body), simpleAdapter)
+        return parse(postRaw(body), simpleAdapter)
     }
 
     suspend fun confirmarLlegada(token: String, apiKey: String?, orn: String): SimpleActionResponse {
         val body = authBody(token, apiKey, "confirmarLlegada")
         body["orn"] = orn
-        return parse(service.post(body), simpleAdapter)
+        return parse(postRaw(body), simpleAdapter)
     }
 
     suspend fun markEntregada(token: String, apiKey: String?, orn: String): SimpleActionResponse {
         val body = authBody(token, apiKey, "markEntregada")
         body["orn"] = orn
-        return parse(service.post(body), simpleAdapter)
+        return parse(postRaw(body), simpleAdapter)
     }
 
     suspend fun repartidorRealtimeSession(token: String, apiKey: String?): RealtimeSessionResponse {
         val body = authBody(token, apiKey, "repartidorRealtimeSession")
-        return parse(service.post(body), realtimeAdapter)
+        return parse(postRaw(body), realtimeAdapter)
     }
 
     suspend fun savePushToken(token: String, fcmToken: String, apiKey: String?): SimpleActionResponse {
         val body = authBody(token, apiKey, "savePushToken")
         body["fcm_token"] = fcmToken
         body["platform"] = "android_native"
-        return parse(service.post(body), simpleAdapter)
+        return parse(postRaw(body), simpleAdapter)
     }
 
     suspend fun reportTrack(
@@ -135,13 +137,13 @@ class RepartidorApi {
         body["orn"] = orn
         body["lat"] = lat
         body["lng"] = lng
-        return parse(service.post(body), simpleAdapter)
+        return parse(postRaw(body), simpleAdapter)
     }
 
     suspend fun supportGetState(token: String, apiKey: String?, orn: String): SupportStateResponse {
         val body = authBody(token, apiKey, "supportGetState")
         body["orn"] = orn
-        return parse(service.post(body), supportAdapter)
+        return parse(postRaw(body), supportAdapter)
     }
 
     suspend fun supportOpenThread(
@@ -155,7 +157,7 @@ class RepartidorApi {
         body["orn"] = orn
         body["topic"] = topic
         if (parada != null) body["parada"] = parada
-        return parse(service.post(body), supportAdapter)
+        return parse(postRaw(body), supportAdapter)
     }
 
     suspend fun supportSendMessage(
@@ -167,7 +169,7 @@ class RepartidorApi {
         val body = authBody(token, apiKey, "supportSendMessage")
         body["thread_id"] = threadId
         body["message"] = message
-        return parse(service.post(body), supportAdapter)
+        return parse(postRaw(body), supportAdapter)
     }
 
     suspend fun supportCloseThread(
@@ -177,7 +179,7 @@ class RepartidorApi {
     ): SupportStateResponse {
         val body = authBody(token, apiKey, "supportCloseThread")
         body["thread_id"] = threadId
-        return parse(service.post(body), supportAdapter)
+        return parse(postRaw(body), supportAdapter)
     }
 
     private fun authBody(token: String, apiKey: String?, action: String): MutableMap<String, Any?> {
@@ -190,8 +192,21 @@ class RepartidorApi {
         return body
     }
 
+    /** Login/signup devuelven 401 con JSON; hay que leer errorBody (Retrofit no lo hace solo). */
+    private suspend fun postRaw(body: Map<String, Any?>): Map<String, Any?> {
+        val resp = service.post(body)
+        resp.body()?.let { return it }
+        val errJson = resp.errorBody()?.string()
+        if (!errJson.isNullOrBlank()) {
+            @Suppress("UNCHECKED_CAST")
+            val parsed = mapAdapter.fromJson(errJson) as? Map<String, Any?>
+            if (parsed != null) return parsed
+        }
+        return mapOf("ok" to false, "error" to "http_${resp.code()}")
+    }
+
     private fun <T> parse(raw: Map<String, Any?>, adapter: com.squareup.moshi.JsonAdapter<T>): T {
-        val json = moshi.adapter(Map::class.java).toJson(raw)
+        val json = mapAdapter.toJson(raw)
         return adapter.fromJson(json) ?: throw IllegalStateException("empty_response")
     }
 

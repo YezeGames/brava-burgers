@@ -23,19 +23,22 @@ class RepartidorRepository(context: Context) {
     )
 
     suspend fun login(login: String, password: String): Result<LoginBundle> {
-        val out = api.login(login, password, apiKey)
+        val out =
+            try {
+                api.login(login, password, apiKey)
+            } catch (e: Exception) {
+                return Result.failure(e)
+            }
         if (out.error == "signup_pending") {
             val p = out.signupPending
-            if (p != null) {
-                return Result.failure(
-                    SignupPendingLoginException(
-                        nombre = p.nombre.orEmpty(),
-                        apellido = p.apellido.orEmpty(),
-                        telefono = p.telefono.orEmpty(),
-                        login = p.login.orEmpty().ifBlank { login.trim() },
-                    ),
-                )
-            }
+            return Result.failure(
+                SignupPendingLoginException(
+                    nombre = p?.nombre.orEmpty(),
+                    apellido = p?.apellido.orEmpty(),
+                    telefono = p?.telefono.orEmpty(),
+                    login = p?.login.orEmpty().ifBlank { login.trim() },
+                ),
+            )
         }
         if (!out.ok || out.token.isNullOrBlank()) {
             return Result.failure(Exception(out.error ?: "login_failed"))

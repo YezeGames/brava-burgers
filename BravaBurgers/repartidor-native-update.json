@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  101,
-    "version_name":  "2.0.0-alpha99",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v101/brava-repartidor-native.apk",
-    "release_notes":  "Logo login a tamaño completo. Login con solicitud pendiente muestra pantalla Solicitud enviada (API signup_pending).",
-    "min_version_code":  101,
+    "version_code":  102,
+    "version_name":  "2.0.0-alpha100",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v102/brava-repartidor-native.apk",
+    "release_notes":  "Fix: login cuenta pendiente ya no crashea; muestra Solicitud enviada (parse 401 + signup_pending).",
+    "min_version_code":  102,
     "force_update":  true
 }
