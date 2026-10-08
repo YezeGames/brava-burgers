@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  97,
-    "version_name":  "2.0.0-alpha95",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v97/brava-repartidor-native.apk",
-    "release_notes":  "UI: empty pedidos centrado con fuego, mapa 1:1 sin escala + puck, tarjetas borde naranja (BravaOrderCard)",
-    "min_version_code":  97,
+    "version_code":  98,
+    "version_name":  "2.0.0-alpha96",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v98/brava-repartidor-native.apk",
+    "release_notes":  "Signup + aprobacion cocina, soporte chat en entrega, panel Admin Soporte.",
+    "min_version_code":  98,
     "force_update":  true
 }
