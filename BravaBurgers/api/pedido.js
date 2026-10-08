@@ -77,6 +77,9 @@ async function handleRepartidor(body, req, res) {
     if (out.ok && isRepartidorRealtimeConfigured()) {
       out.realtime = createRepartidorSupabaseRealtimeSession(out.telefono);
     }
+    if (out.error === 'signup_pending') {
+      return res.status(200).json(out);
+    }
     return res.status(out.ok ? 200 : 401).json(out);
   }
   if (action === 'repartidorSignup') {
