@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import app.bravaburgers.repartidor.nativeapp.BravaConstants
 import app.bravaburgers.repartidor.nativeapp.data.GeocodeClient
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
+import app.bravaburgers.repartidor.nativeapp.data.SignupPendingLoginException
 import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.data.Session
 import app.bravaburgers.repartidor.nativeapp.data.RealtimeConfigDto
@@ -216,10 +217,34 @@ class RepartidorViewModel(
             repo.login(login, password)
                 .onSuccess { bundle ->
                     loginRealtime = bundle.realtime
-                    _ui.value = _ui.value.copy(loading = false, error = null)
+                    _ui.value =
+                        _ui.value.copy(
+                            loading = false,
+                            error = null,
+                            signupPending = null,
+                        )
                 }
-                .onFailure {
-                    _ui.value = _ui.value.copy(loading = false, error = it.message ?: "Error")
+                .onFailure { err ->
+                    if (err is SignupPendingLoginException) {
+                        _ui.value =
+                            _ui.value.copy(
+                                loading = false,
+                                error = null,
+                                signupPending =
+                                    SignupPendingUi(
+                                        nombre = err.nombre,
+                                        apellido = err.apellido,
+                                        telefono = err.telefono,
+                                        login = err.login,
+                                    ),
+                            )
+                    } else {
+                        _ui.value =
+                            _ui.value.copy(
+                                loading = false,
+                                error = loginErrorMessage(err.message),
+                            )
+                    }
                 }
         }
     }
@@ -280,6 +305,15 @@ class RepartidorViewModel(
         if (fromNom.length >= 2) return fromNom
         return "rider"
     }
+
+    private fun loginErrorMessage(code: String?): String =
+        when (code) {
+            "invalid_credentials" -> "Usuario o contraseña incorrectos."
+            "user_inactive" -> "Tu cuenta está desactivada. Pedí ayuda a cocina."
+            "missing_credentials" -> "Completá usuario y contraseña."
+            "auth_not_configured" -> "Login no disponible. Avisá a cocina."
+            else -> code?.takeIf { it.isNotBlank() } ?: "No se pudo iniciar sesión."
+        }
 
     private fun signupErrorMessage(code: String?): String =
         when (code) {

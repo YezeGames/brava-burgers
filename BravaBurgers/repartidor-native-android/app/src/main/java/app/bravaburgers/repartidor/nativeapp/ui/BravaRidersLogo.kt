@@ -1,11 +1,6 @@
 package app.bravaburgers.repartidor.nativeapp.ui
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -18,9 +13,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.bravaburgers.repartidor.nativeapp.R
-
-private val LoginOrange = Color(0xFFFF6B35)
-private val LoginPageBg = Color(0xFF0D1117)
 
 @Composable
 fun BravaRidersLogo(
@@ -35,18 +27,20 @@ fun BravaRidersLogo(
             modifier
                 .size(size)
                 .clip(RoundedCornerShape(cornerRadius)),
-        contentScale = ContentScale.Fit,
+        contentScale = ContentScale.Crop,
     )
 }
 
-/** Logo login (spec demo): borde naranja + sombra. */
+/** Logo login: la imagen ya trae marco naranja; llena el cuadrado con sombra. */
 @Composable
 fun BravaRidersLogoHero(
     modifier: Modifier = Modifier,
     size: Dp = 120.dp,
 ) {
     val shape = RoundedCornerShape(24.dp)
-    Box(
+    Image(
+        painter = painterResource(R.drawable.brava_login_logo),
+        contentDescription = "Brava Burgers",
         modifier =
             modifier
                 .size(size)
@@ -56,17 +50,7 @@ fun BravaRidersLogoHero(
                     spotColor = Color(0x59FF6B35),
                     ambientColor = Color(0x33FF6B35),
                 )
-                .clip(shape)
-                .background(LoginPageBg)
-                .border(2.dp, LoginOrange, shape)
-                .padding(8.dp),
-        contentAlignment = androidx.compose.ui.Alignment.Center,
-    ) {
-        Image(
-            painter = painterResource(R.drawable.brava_login_logo),
-            contentDescription = "Brava Burgers",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Fit,
-        )
-    }
+                .clip(shape),
+        contentScale = ContentScale.Crop,
+    )
 }

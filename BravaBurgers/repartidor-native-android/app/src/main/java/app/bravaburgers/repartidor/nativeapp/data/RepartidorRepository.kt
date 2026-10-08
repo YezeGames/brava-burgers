@@ -2,6 +2,13 @@ package app.bravaburgers.repartidor.nativeapp.data
 
 import android.content.Context
 
+class SignupPendingLoginException(
+    val nombre: String,
+    val apellido: String,
+    val telefono: String,
+    val login: String,
+) : Exception("signup_pending")
+
 class RepartidorRepository(context: Context) {
     val api = RepartidorApi()
     val appContext = context.applicationContext
@@ -17,6 +24,19 @@ class RepartidorRepository(context: Context) {
 
     suspend fun login(login: String, password: String): Result<LoginBundle> {
         val out = api.login(login, password, apiKey)
+        if (out.error == "signup_pending") {
+            val p = out.signupPending
+            if (p != null) {
+                return Result.failure(
+                    SignupPendingLoginException(
+                        nombre = p.nombre.orEmpty(),
+                        apellido = p.apellido.orEmpty(),
+                        telefono = p.telefono.orEmpty(),
+                        login = p.login.orEmpty().ifBlank { login.trim() },
+                    ),
+                )
+            }
+        }
         if (!out.ok || out.token.isNullOrBlank()) {
             return Result.failure(Exception(out.error ?: "login_failed"))
         }

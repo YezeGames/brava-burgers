@@ -12,6 +12,14 @@ data class ApiEnvelope(
 )
 
 @JsonClass(generateAdapter = true)
+data class SignupPendingDto(
+    val nombre: String? = null,
+    val apellido: String? = null,
+    val telefono: String? = null,
+    val login: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
 data class LoginResponse(
     val ok: Boolean = false,
     val error: String? = null,
@@ -20,6 +28,7 @@ data class LoginResponse(
     val nombre: String? = null,
     val telefono: String? = null,
     val realtime: RealtimeConfigDto? = null,
+    @Json(name = "signup_pending") val signupPending: SignupPendingDto? = null,
 )
 
 @JsonClass(generateAdapter = true)
