@@ -1,4 +1,4 @@
-const { restSelect, restInsert, restPatch } = require('./supabaseServer');
+const { restSelect, restInsert, restPatch, restDelete } = require('./supabaseServer');
 const { telNorm } = require('./bravaCoupons');
 const {
   normalizeLogin,
@@ -143,10 +143,22 @@ async function setRepartidorUserActive(login, activo) {
   return { ok: true, login: id, activo: !!activo };
 }
 
+async function deleteRepartidorUser(login) {
+  const id = normalizeLogin(login);
+  if (!id) return { ok: false, error: 'invalid_login' };
+  const got = await getRepartidorUserByLogin(id);
+  if (!got.ok) return got;
+  if (!got.user) return { ok: false, error: 'user_not_found' };
+  const r = await restDelete('repartidor_users', 'login=eq.' + encodeURIComponent(id));
+  if (!r.ok) return { ok: false, error: r.error || 'delete_failed', detail: r.detail };
+  return { ok: true, login: id };
+}
+
 module.exports = {
   listRepartidorUsers,
   repartidorLogin,
   createRepartidorUser,
   resetRepartidorUserPassword,
   setRepartidorUserActive,
+  deleteRepartidorUser,
 };

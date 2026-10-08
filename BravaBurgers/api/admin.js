@@ -51,6 +51,7 @@ const {
   createRepartidorUser,
   resetRepartidorUserPassword,
   setRepartidorUserActive,
+  deleteRepartidorUser,
 } = require('../lib/repartidorUsers');
 const {
   listRepartidorSignupRequests,
@@ -333,6 +334,10 @@ async function handleSupabaseAdmin(body) {
 
   if (action === 'setRepartidorUserActive') {
     return setRepartidorUserActive(body.login, body.activo);
+  }
+
+  if (action === 'deleteRepartidorUser') {
+    return deleteRepartidorUser(body.login);
   }
 
   if (action === 'assignRepartidorRuta') {

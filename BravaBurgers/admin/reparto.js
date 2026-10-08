@@ -794,11 +794,46 @@
           '<div class="cuenta-actions">' +
           '<button type="button" class="btn-sm btn-accent reparto-reset-pw" data-login="' +
           u.login +
-          '">Nueva clave</button></div></li>'
+          '">Nueva clave</button>' +
+          '<button type="button" class="btn-sm reparto-delete-cuenta" data-login="' +
+          u.login +
+          '" title="Eliminar cuenta"><i class="fas fa-trash-can" aria-hidden="true"></i></button>' +
+          '</div></li>'
         );
       })
       .join('');
     ul.innerHTML = html;
+    ul.querySelectorAll('.reparto-delete-cuenta').forEach(function (btn) {
+      btn.onclick = function () {
+        var login = btn.getAttribute('data-login');
+        if (!login || !window.getAdminToken) return;
+        if (
+          !confirm(
+            '¿Eliminar la cuenta @' +
+              login +
+              '?\n\nEl repartidor no podrá entrar a la app. Podés volver a aprobar una solicitud o crear cuenta manual.'
+          )
+        ) {
+          return;
+        }
+        fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'deleteRepartidorUser',
+            token: window.getAdminToken(),
+            login: login,
+          }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (!data.ok) alert('No se pudo eliminar: ' + (data.error || 'error'));
+            loadRepartidorUsersUi();
+          });
+      };
+    });
     ul.querySelectorAll('.reparto-reset-pw').forEach(function (btn) {
       btn.onclick = function () {
         var login = btn.getAttribute('data-login');

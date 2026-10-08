@@ -1492,6 +1492,18 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	background: #388e3c;
 }
 
+#view-reparto.reparto-layout-c .reparto-delete-cuenta {
+	color: #f85149;
+	border-color: rgba(248, 81, 73, 0.45);
+	background: rgba(248, 81, 73, 0.12);
+	min-width: 36px;
+	padding: 6px 10px;
+}
+
+#view-reparto.reparto-layout-c .reparto-delete-cuenta:hover {
+	background: rgba(248, 81, 73, 0.22);
+}
+
 #view-reparto.reparto-layout-c .reparto-actions {
 	display: flex;
 	flex-wrap: wrap;
