@@ -1413,6 +1413,85 @@ html:not([data-theme="dark"]) #app-view .caja-estado.abierta {
 	padding: 6px 12px 0;
 }
 
+#view-reparto.reparto-layout-c .reparto-cuentas-intro {
+	font-size: 0.72rem;
+	color: var(--text-muted);
+	margin: 0 0 10px;
+	padding: 0 12px;
+	line-height: 1.4;
+}
+
+#view-reparto.reparto-layout-c .reparto-cuentas-list {
+	list-style: none;
+	margin: 0 0 12px;
+	padding: 0 12px;
+}
+
+#view-reparto.reparto-layout-c .reparto-cuentas-list li {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px 12px;
+	padding: 10px 8px;
+	border-bottom: 1px solid var(--border);
+	font-size: 0.78rem;
+}
+
+#view-reparto.reparto-layout-c .reparto-cuentas-list li:last-child {
+	border-bottom: none;
+}
+
+#view-reparto.reparto-layout-c .cuenta-main {
+	flex: 1;
+	min-width: 180px;
+}
+
+#view-reparto.reparto-layout-c .cuenta-meta {
+	color: var(--text-muted);
+}
+
+#view-reparto.reparto-layout-c .badge-pending {
+	display: inline-block;
+	font-size: 0.58rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	padding: 2px 6px;
+	border-radius: 5px;
+	background: rgba(255, 152, 0, 0.2);
+	color: #ffb74d;
+	margin-left: 6px;
+	vertical-align: middle;
+}
+
+#view-reparto.reparto-layout-c .cuenta-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-shrink: 0;
+}
+
+#view-reparto.reparto-layout-c .btn-decision {
+	width: 40px;
+	height: 40px;
+	border: none;
+	border-radius: 10px;
+	display: grid;
+	place-items: center;
+	cursor: pointer;
+	font-size: 1rem;
+	color: #fff;
+	flex-shrink: 0;
+}
+
+#view-reparto.reparto-layout-c .btn-decision--reject {
+	background: #d32f2f;
+}
+
+#view-reparto.reparto-layout-c .btn-decision--accept {
+	background: #388e3c;
+}
+
 #view-reparto.reparto-layout-c .reparto-actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -1928,6 +2007,32 @@ html[data-theme="dark"] .wa-chat-body { background-color: #0b141a; }
 	white-space: pre-wrap;
 	word-break: break-word;
 	box-shadow: 0 1px 0.5px rgba(0,0,0,.08);
+}
+.wa-msg--sys {
+	align-self: center;
+	max-width: 96%;
+	text-align: center;
+	font-size: 0.68rem;
+	color: var(--text-muted);
+	background: transparent;
+	box-shadow: none;
+	padding: 4px 8px;
+}
+.wa-inbox-item .channel-pill {
+	font-size: 0.58rem;
+	font-weight: 800;
+	text-transform: uppercase;
+	padding: 2px 5px;
+	border-radius: 4px;
+	margin-right: 4px;
+	vertical-align: middle;
+}
+.channel-pill--app { background: rgba(255, 107, 53, 0.25); color: #ff8a50; }
+.channel-pill--wa { background: rgba(37, 211, 102, 0.2); color: #25d366; }
+.wa-chat-foot.is-support-closed .wa-compose,
+.wa-chat-foot.is-support-closed #wa-send {
+	opacity: 0.45;
+	pointer-events: none;
 }
 .wa-msg-img {
 	display: block;

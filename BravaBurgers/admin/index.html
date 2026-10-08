@@ -1629,7 +1629,7 @@
 							<p class="reparto-route-status" id="reparto-route-status" aria-live="polite"></p>
 							<details class="reparto-cuentas" id="reparto-cuentas-wrap">
 								<summary>Cuentas app repartidor</summary>
-								<p class="reparto-route-status">Creá usuario y contraseña. Cocina asigna la ruta al repartidor elegido arriba (usa su teléfono interno).</p>
+								<p class="reparto-cuentas-intro">Las solicitudes nuevas llegan desde la app. Aprobá para activar la cuenta; rechazá para descartar. También podés crear una cuenta manual abajo.</p>
 								<ul id="reparto-cuentas-list" class="reparto-cuentas-list"></ul>
 								<div class="reparto-fields-row reparto-cuenta-form">
 									<div class="reparto-field">
@@ -1719,10 +1719,10 @@
 							<button type="button" class="wa-inbox-tab is-active" data-wa-tab="pedidos" data-wa-tab-label="Pedidos activos" role="tab" aria-selected="true">Pedidos<span class="wa-inbox-tab-badge hidden" aria-hidden="true"></span></button>
 							<button type="button" class="wa-inbox-tab" data-wa-tab="consultas" data-wa-tab-label="Consultas" role="tab" aria-selected="false">Consultas<span class="wa-inbox-tab-badge hidden" aria-hidden="true"></span></button>
 							<button type="button" class="wa-inbox-tab wa-inbox-tab--reclamos" data-wa-tab="reclamos" data-wa-tab-label="Reclamos" role="tab" aria-selected="false">Reclamos<span class="wa-inbox-tab-badge hidden" aria-hidden="true"></span></button>
-							<button type="button" class="wa-inbox-tab" data-wa-tab="repartidores" data-wa-tab-label="Repartidor" role="tab" aria-selected="false">Repartidor<span class="wa-inbox-tab-badge hidden" aria-hidden="true"></span></button>
+							<button type="button" class="wa-inbox-tab" data-wa-tab="repartidores" data-wa-tab-label="Soporte" role="tab" aria-selected="false">Soporte<span class="wa-inbox-tab-badge hidden" aria-hidden="true"></span></button>
 						</div>
 						<div class="wa-inbox-list" id="wa-thread-list" role="list"></div>
-						<p class="wa-inbox-hint" id="wa-inbox-hint">Pedidos: clientes con ORN activo. Consultas: sin pedido. Reclamos: bot post-entrega (foto + descripción). Repartidor: número en Reparto.</p>
+						<p class="wa-inbox-hint" id="wa-inbox-hint">Pedidos: clientes con ORN activo. Consultas: sin pedido. Reclamos: bot post-entrega (foto + descripción). Soporte: chat app repartidor + WA opcional en Reparto.</p>
 					</div>
 					<div class="wa-panel hidden" id="wa-chat-panel">
 						<div class="wa-order-chip hidden" id="wa-order-chip"></div>
@@ -2317,7 +2317,8 @@
 	<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 	<script>window.mapboxgl = window.maplibregl;</script>
 	<script src="/admin/reparto.js?v=19"></script>
-	<script src="/admin/wa-panel.js?v=30"></script>
+	<script src="/admin/wa-panel.js?v=31"></script>
+	<script src="/admin/wa-support-app.js?v=1"></script>
 	<script src="/admin/compensaciones.js?v=7"></script>
 	<script src="/admin/pedido-manual.js?v=5"></script>
 	<script src="/admin/admin.js?v=145"></script>

@@ -39,6 +39,8 @@ const {
   migrateRepartidorUsersSchema,
   migrateRepartidorPushTokensSchema,
   migrateRepartidorRealtimeEventsSchema,
+  migrateRepartidorSignupSchema,
+  migrateRepartidorSupportSchema,
 } = require('../lib/dbMigrate');
 const {
   notifyRepartidorRouteAssigned,
@@ -50,6 +52,17 @@ const {
   resetRepartidorUserPassword,
   setRepartidorUserActive,
 } = require('../lib/repartidorUsers');
+const {
+  listRepartidorSignupRequests,
+  approveRepartidorSignup,
+  rejectRepartidorSignup,
+} = require('../lib/repartidorSignup');
+const {
+  listSupportThreadsAdmin,
+  adminGetSupportThread,
+  adminSendSupportMessage,
+  closeSupportThread,
+} = require('../lib/repartidorSupport');
 const {
   getStoreMenuDraft,
   saveStoreMenuDraft,
@@ -229,8 +242,85 @@ async function handleSupabaseAdmin(body) {
     return migrateRepartidorRealtimeEventsSchema();
   }
 
+  if (action === 'migrateRepartidorSignup') {
+    return migrateRepartidorSignupSchema();
+  }
+
+  if (action === 'migrateRepartidorSupport') {
+    return migrateRepartidorSupportSchema();
+  }
+
   if (action === 'listRepartidorUsers') {
     return listRepartidorUsers();
+  }
+
+  if (action === 'listRepartidorSignupRequests') {
+    let out = await listRepartidorSignupRequests(body.status || 'pending');
+    if (!out.ok && out.error === 'signup_schema_missing') {
+      const mig = await migrateRepartidorSignupSchema();
+      if (mig.ok) out = await listRepartidorSignupRequests(body.status || 'pending');
+      else out.migrate = mig;
+    }
+    return out;
+  }
+
+  if (action === 'approveRepartidorSignup') {
+    let out = await approveRepartidorSignup(body.id || body.requestId);
+    if (!out.ok && out.error === 'signup_schema_missing') {
+      const mig = await migrateRepartidorSignupSchema();
+      if (mig.ok) out = await approveRepartidorSignup(body.id || body.requestId);
+    }
+    return out;
+  }
+
+  if (action === 'rejectRepartidorSignup') {
+    let out = await rejectRepartidorSignup(body.id || body.requestId);
+    if (!out.ok && out.error === 'signup_schema_missing') {
+      const mig = await migrateRepartidorSignupSchema();
+      if (mig.ok) out = await rejectRepartidorSignup(body.id || body.requestId);
+    }
+    return out;
+  }
+
+  if (action === 'listRepartidorSupportThreads') {
+    let out = await listSupportThreadsAdmin({ status: body.status });
+    if (!out.ok && out.error === 'support_schema_missing') {
+      const mig = await migrateRepartidorSupportSchema();
+      if (mig.ok) out = await listSupportThreadsAdmin({ status: body.status });
+      else out.migrate = mig;
+    }
+    return out;
+  }
+
+  if (action === 'getRepartidorSupportThread') {
+    let out = await adminGetSupportThread(body.thread_id || body.threadId);
+    if (!out.ok && out.error === 'support_schema_missing') {
+      const mig = await migrateRepartidorSupportSchema();
+      if (mig.ok) out = await adminGetSupportThread(body.thread_id || body.threadId);
+    }
+    return out;
+  }
+
+  if (action === 'sendRepartidorSupportMessage') {
+    let out = await adminSendSupportMessage(body.thread_id || body.threadId, body.message || body.text);
+    if (!out.ok && out.error === 'support_schema_missing') {
+      const mig = await migrateRepartidorSupportSchema();
+      if (mig.ok) {
+        out = await adminSendSupportMessage(body.thread_id || body.threadId, body.message || body.text);
+      }
+    }
+    return out;
+  }
+
+  if (action === 'closeRepartidorSupportThread') {
+    let out = await closeSupportThread(null, { thread_id: body.thread_id || body.threadId }, 'cocina');
+    if (!out.ok && out.error === 'support_schema_missing') {
+      const mig = await migrateRepartidorSupportSchema();
+      if (mig.ok) {
+        out = await closeSupportThread(null, { thread_id: body.thread_id || body.threadId }, 'cocina');
+      }
+    }
+    return out;
   }
 
   if (action === 'createRepartidorUser') {

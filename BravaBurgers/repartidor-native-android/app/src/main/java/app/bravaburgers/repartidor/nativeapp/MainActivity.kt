@@ -37,6 +37,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.bravaburgers.repartidor.nativeapp.ui.screens.AppUpdateGateScreen
 import app.bravaburgers.repartidor.nativeapp.ui.screens.HandoffScreen
+import app.bravaburgers.repartidor.nativeapp.ui.screens.HandoffSupportOverlay
 import app.bravaburgers.repartidor.nativeapp.ui.screens.LoginScreen
 import app.bravaburgers.repartidor.nativeapp.ui.screens.NavigationScreen
 import app.bravaburgers.repartidor.nativeapp.ui.screens.RouteListScreen
@@ -370,7 +371,9 @@ class MainActivity : ComponentActivity() {
                         LoginScreen(
                             loading = ui.loading,
                             error = ui.error,
+                            signupMessage = ui.signupMessage,
                             onLogin = vm::login,
+                            onSignup = vm::signup,
                         )
                     }
                     composable("route") {
@@ -455,6 +458,31 @@ class MainActivity : ComponentActivity() {
                             onEntregado = {
                                 vm.markEntregada(orn) { next ->
                                     afterEntrega(vm, nav, ctx, next)
+                                }
+                            },
+                            supportContent = {
+                                if (ui.supportOrn == null || ui.supportOrn == orn) {
+                                    HandoffSupportOverlay(
+                                        stop = stop,
+                                        sheetOpen = ui.supportSheetOpen && ui.supportOrn == orn,
+                                        stepChat = ui.supportStepChat,
+                                        loading = ui.supportLoading,
+                                        error = ui.supportError,
+                                        threadClosed = ui.supportStatus == "closed",
+                                        topic = ui.supportTopic,
+                                        messages = ui.supportMessages,
+                                        confirmClose = ui.supportConfirmClose,
+                                        onBackdrop = { vm.minimizeSupportSheet() },
+                                        onFabClick = { vm.openSupportSheet(orn) },
+                                        onSelectTopic = { t ->
+                                            vm.openSupportTopic(orn, stop.parada, t)
+                                        },
+                                        onMinimize = { vm.minimizeSupportSheet() },
+                                        onRequestClose = { vm.showSupportCloseConfirm(true) },
+                                        onDismissCloseConfirm = { vm.showSupportCloseConfirm(false) },
+                                        onConfirmClose = { vm.confirmCloseSupport() },
+                                        onSend = { vm.sendSupportMessage(it) },
+                                    )
                                 }
                             },
                         )

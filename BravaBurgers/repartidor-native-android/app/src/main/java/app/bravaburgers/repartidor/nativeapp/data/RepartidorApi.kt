@@ -51,6 +51,27 @@ class RepartidorApi {
     private val listAdapter = moshi.adapter(ListRutaResponse::class.java)
     private val simpleAdapter = moshi.adapter(SimpleActionResponse::class.java)
     private val realtimeAdapter = moshi.adapter(RealtimeSessionResponse::class.java)
+    private val signupAdapter = moshi.adapter(SignupResponse::class.java)
+    private val supportAdapter = moshi.adapter(SupportStateResponse::class.java)
+
+    suspend fun signup(
+        nombre: String,
+        apellido: String,
+        telefono: String,
+        password: String,
+        apiKey: String?,
+    ): SignupResponse {
+        val body =
+            mutableMapOf<String, Any?>(
+                "action" to "repartidorSignup",
+                "nombre" to nombre.trim(),
+                "apellido" to apellido.trim(),
+                "telefono" to telefono.trim(),
+                "password" to password,
+            )
+        if (!apiKey.isNullOrBlank()) body["key"] = apiKey.trim()
+        return parse(service.post(body), signupAdapter)
+    }
 
     suspend fun login(login: String, password: String, apiKey: String?): LoginResponse {
         val body = mutableMapOf<String, Any?>(
@@ -115,6 +136,48 @@ class RepartidorApi {
         body["lat"] = lat
         body["lng"] = lng
         return parse(service.post(body), simpleAdapter)
+    }
+
+    suspend fun supportGetState(token: String, apiKey: String?, orn: String): SupportStateResponse {
+        val body = authBody(token, apiKey, "supportGetState")
+        body["orn"] = orn
+        return parse(service.post(body), supportAdapter)
+    }
+
+    suspend fun supportOpenThread(
+        token: String,
+        apiKey: String?,
+        orn: String,
+        parada: Int?,
+        topic: String,
+    ): SupportStateResponse {
+        val body = authBody(token, apiKey, "supportOpenThread")
+        body["orn"] = orn
+        body["topic"] = topic
+        if (parada != null) body["parada"] = parada
+        return parse(service.post(body), supportAdapter)
+    }
+
+    suspend fun supportSendMessage(
+        token: String,
+        apiKey: String?,
+        threadId: String,
+        message: String,
+    ): SupportStateResponse {
+        val body = authBody(token, apiKey, "supportSendMessage")
+        body["thread_id"] = threadId
+        body["message"] = message
+        return parse(service.post(body), supportAdapter)
+    }
+
+    suspend fun supportCloseThread(
+        token: String,
+        apiKey: String?,
+        threadId: String,
+    ): SupportStateResponse {
+        val body = authBody(token, apiKey, "supportCloseThread")
+        body["thread_id"] = threadId
+        return parse(service.post(body), supportAdapter)
     }
 
     private fun authBody(token: String, apiKey: String?, action: String): MutableMap<String, Any?> {

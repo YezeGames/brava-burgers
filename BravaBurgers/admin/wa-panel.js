@@ -243,6 +243,21 @@
     return telWa(tel) === waRepartidorTel;
   }
 
+  var APP_SUPPORT_PREFIX = 'appsupport:';
+
+  function threadIsAppSupport(tel) {
+    return String(tel || '').indexOf(APP_SUPPORT_PREFIX) === 0;
+  }
+
+  function appSupportThreadId(tel) {
+    if (!threadIsAppSupport(tel)) return '';
+    return String(tel).slice(APP_SUPPORT_PREFIX.length);
+  }
+
+  function appSupportTelFromId(id) {
+    return APP_SUPPORT_PREFIX + String(id || '');
+  }
+
   function loadRepartidorTel() {
     try {
       var raw = sessionStorage.getItem(REPARTIDOR_TEL_KEY) || '';
@@ -284,6 +299,7 @@
   function threadMatchesTab(tel, tab) {
     var th = threads[tel];
     if (!th) return false;
+    if (threadIsAppSupport(tel)) return tab === 'repartidores';
     if (threadIsRepartidor(tel)) return tab === 'repartidores';
     if (threadHasOpenReclamo(tel)) return tab === 'reclamos';
     if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(th)) return false;
@@ -345,9 +361,8 @@
         hint.textContent =
           'Reclamos confirmados por el bot (motivo + descripción + foto). Resolvé acá o usá Gratificar en Entregados.';
       } else if (waInboxTab === 'repartidores') {
-        hint.textContent = waRepartidorTel
-          ? 'Repartidor asignado en Reparto. Rutas y mensajes del delivery van acá.'
-          : 'Cargá el WhatsApp del repartidor en Reparto para asignarlo acá.';
+        hint.textContent =
+          'Soporte app: chats por pedido desde la app repartidor. Opcional: WhatsApp del repartidor en Reparto.';
       } else {
         hint.textContent =
           'Consultas: sin pedido activo. Podés eliminar chats (🗑) o Vaciar la pestaña.';
@@ -358,6 +373,7 @@
   }
 
   function waTabForTel(tel) {
+    if (threadIsAppSupport(tel)) return 'repartidores';
     if (threadIsRepartidor(tel)) return 'repartidores';
     if (threadHasOpenReclamo(tel)) return 'reclamos';
     if (threads[tel] && threadHasActiveOrder(threads[tel])) return 'pedidos';
@@ -489,7 +505,7 @@
   }
 
   function ensureThread(tel, defaults) {
-    tel = telWa(tel);
+    if (!threadIsAppSupport(tel)) tel = telWa(tel);
     defaults = defaults || {};
     if (!threads[tel]) {
       threads[tel] = {
@@ -939,8 +955,71 @@
     }
     if (delBtn) {
       var canDel = waActiveTel && threadIsConsultaDeletable(waActiveTel);
-      delBtn.classList.toggle('hidden', !canDel);
+      var canCloseApp =
+        waActiveTel &&
+        threadIsAppSupport(waActiveTel) &&
+        threads[waActiveTel] &&
+        threads[waActiveTel].supportStatus === 'open';
+      delBtn.classList.toggle('hidden', !canDel && !canCloseApp);
+      if (canCloseApp) {
+        delBtn.title = 'Cerrar soporte de este pedido';
+        delBtn.setAttribute('aria-label', 'Cerrar soporte');
+      } else {
+        delBtn.title = 'Eliminar chat';
+        delBtn.setAttribute('aria-label', 'Eliminar chat');
+      }
     }
+  }
+
+  function closeAppSupportChat(tel) {
+    if (!threadIsAppSupport(tel) || !window.BravaWaSupportApp) return Promise.resolve(false);
+    var th = threads[tel];
+    var label = (th && th.orn) || 'soporte';
+    if (
+      !confirm(
+        '¿Cerrar el soporte de ' +
+          label +
+          '?\n\nEl repartidor verá el chat cerrado y no podrá escribir más en este pedido.'
+      )
+    ) {
+      return Promise.resolve(false);
+    }
+    return BravaWaSupportApp.closeThread(appSupportThreadId(tel)).then(function (res) {
+      if (res && res.ok === false) {
+        alert('No se pudo cerrar: ' + (res.error || 'error'));
+        return false;
+      }
+      renderWaMessages();
+      renderWaThreads();
+      updateWaDeleteChrome();
+      return true;
+    });
+  }
+
+  function upsertAppSupportThread(meta, messages) {
+    if (!meta || !meta.id) return;
+    var tel = appSupportTelFromId(meta.id);
+    var th = ensureThread(tel, {
+      name: meta.riderName || 'Repartidor',
+      orn: meta.orn || '',
+      phone: meta.repartidor_tel || '',
+      orderLine: meta.topic || 'Soporte app',
+    });
+    th.isAppSupport = true;
+    th.appSupportId = meta.id;
+    th.supportStatus = meta.status || 'open';
+    th.topic = meta.topic || '';
+    th.parada = meta.parada;
+    th.closedBy = meta.closed_by || null;
+    if (messages && messages.length) th.msgs = messages;
+    else if (meta.preview && (!th.msgs || !th.msgs.length)) {
+      th.msgs = [{ dir: 'sys', text: meta.preview, t: '' }];
+    }
+    if (meta.unread) th.unread = true;
+    waPinnedTels[tel] = true;
+    renderWaThreads();
+    if (waActiveTel === tel) renderWaMessages();
+    updateWaTabBadges();
   }
 
   function deleteWaThread(tel, opts) {
@@ -1019,9 +1098,8 @@
         emptyMsg =
           'Sin reclamos abiertos. Aparecen cuando el bot confirma reclamo (descripción + foto) post-entrega.';
       } else if (waInboxTab === 'repartidores') {
-        emptyMsg = waRepartidorTel
-          ? 'Repartidor asignado — aparece acá cuando haya mensajes o envíes una ruta.'
-          : 'Cargá el WhatsApp del repartidor en la pantalla Reparto.';
+        emptyMsg =
+          'Sin soporte activo. Aparece cuando un repartidor abre chat desde la app en una entrega.';
       } else {
         emptyMsg =
           'Sin consultas por ahora. Mensajes de clientes sin pedido en este turno van acá.';
@@ -1051,6 +1129,11 @@
         '<span class="wa-inbox-main">' +
         '<span class="wa-inbox-top">' +
         '<span class="wa-inbox-name">' +
+        (threadIsAppSupport(tel)
+          ? '<span class="channel-pill channel-pill--app">App</span>'
+          : threadIsRepartidor(tel)
+            ? '<span class="channel-pill channel-pill--wa">WA</span>'
+            : '') +
         escapeHtml(th.name) +
         '</span>' +
         '<span class="wa-inbox-time">' +
@@ -1120,13 +1203,27 @@
       '<span><div class="wa-toolbar-name">' +
       escapeHtml(th.name) +
       '</div><div class="wa-toolbar-meta">' +
-      (threadIsRepartidor(waActiveTel)
-        ? escapeHtml(th.phone)
-        : escapeHtml(th.orn) + ' · ' + escapeHtml(th.phone)) +
+      (threadIsAppSupport(waActiveTel)
+        ? escapeHtml(th.orn || '') + ' · ' + escapeHtml(th.topic || 'Soporte app')
+        : threadIsRepartidor(waActiveTel)
+          ? escapeHtml(th.phone)
+          : escapeHtml(th.orn) + ' · ' + escapeHtml(th.phone)) +
       '</div></span>';
 
     chip.classList.remove('hidden');
-    if (threadHasOpenReclamo(waActiveTel)) {
+    if (threadIsAppSupport(waActiveTel)) {
+      var stLine =
+        th.supportStatus === 'closed'
+          ? 'Chat cerrado' + (th.closedBy ? ' · ' + th.closedBy : '')
+          : 'Soporte app · pedido en curso';
+      chip.innerHTML =
+        '<span class="wa-chip-note">' +
+        escapeHtml(stLine) +
+        '</span><br><span class="orn">' +
+        escapeHtml(th.orn || '') +
+        '</span>' +
+        (th.parada != null ? ' · Parada ' + escapeHtml(String(th.parada)) : '');
+    } else if (threadHasOpenReclamo(waActiveTel)) {
       var rec = getReclamoRecord(waActiveTel) || {};
       var parts = ['<span class="wa-chip-reclamo">Reclamo abierto</span>'];
       if (rec.reclamoId) parts.push('<strong>ID:</strong> ' + escapeHtml(rec.reclamoId));
@@ -1158,6 +1255,13 @@
 
     body.innerHTML = '';
     th.msgs.forEach(function (m) {
+      if (m.dir === 'sys') {
+        var sys = document.createElement('div');
+        sys.className = 'wa-msg wa-msg--sys';
+        sys.textContent = m.text;
+        body.appendChild(sys);
+        return;
+      }
       var el = document.createElement('div');
       el.className = 'wa-msg ' + (m.dir === 'out' ? 'out' : 'in');
       appendWaMessageContent(el, m);
@@ -1168,6 +1272,12 @@
       body.appendChild(el);
     });
     body.scrollTop = body.scrollHeight;
+    var composeFoot = document.querySelector('.wa-chat-foot');
+    var attachBtn = $('wa-attach-image');
+    var closedApp =
+      threadIsAppSupport(waActiveTel) && th.supportStatus === 'closed';
+    if (composeFoot) composeFoot.classList.toggle('is-support-closed', closedApp);
+    if (attachBtn) attachBtn.classList.toggle('hidden', threadIsAppSupport(waActiveTel));
     highlightOrderCards();
     renderWaThreads();
     updateWaDeleteChrome();
@@ -1210,7 +1320,14 @@
       var input = $('wa-input');
       if (input) input.value = '';
     }
-    renderWaMessages();
+    if (threadIsAppSupport(tel) && window.BravaWaSupportApp) {
+      var tid = appSupportThreadId(tel);
+      BravaWaSupportApp.onOpenChat(tid).then(function () {
+        renderWaMessages();
+      });
+    } else {
+      renderWaMessages();
+    }
     updateWaDeleteChrome();
   }
 
@@ -1254,6 +1371,33 @@
     var hasImage = !!(waPendingImage && waPendingImage.base64);
     if (!text && !hasImage) return;
     var th = threads[waActiveTel];
+
+    if (threadIsAppSupport(waActiveTel)) {
+      if (th.supportStatus === 'closed') {
+        showWaSendError('Este chat de soporte está cerrado.');
+        return;
+      }
+      if (!text || !window.BravaWaSupportApp) return;
+      waSending = true;
+      var sendBtnApp = $('wa-send');
+      if (sendBtnApp) sendBtnApp.disabled = true;
+      BravaWaSupportApp.sendAdminMessage(appSupportThreadId(waActiveTel), text)
+        .then(function (res) {
+          if (res && res.ok === false) {
+            showWaSendError(res.error || 'No se pudo enviar');
+            return;
+          }
+          if (input) input.value = '';
+          hideWaAutoHint();
+          renderWaMessages();
+        })
+        .finally(function () {
+          waSending = false;
+          if (sendBtnApp) sendBtnApp.disabled = false;
+        });
+      return;
+    }
+
     var sendBtn = $('wa-send');
 
     function pushOutAndClear(outMsg) {
@@ -1553,7 +1697,9 @@
     if ($('wa-back')) $('wa-back').addEventListener('click', closeChat);
     if ($('wa-delete-chat')) {
       $('wa-delete-chat').addEventListener('click', function () {
-        if (waActiveTel) deleteWaThread(waActiveTel);
+        if (!waActiveTel) return;
+        if (threadIsAppSupport(waActiveTel)) closeAppSupportChat(waActiveTel);
+        else deleteWaThread(waActiveTel);
       });
     }
     if ($('wa-clear-consultas')) {
@@ -1621,5 +1767,7 @@
     attachSupabaseRealtime: attachSupabaseRealtime,
     detachSupabaseRealtime: detachSupabaseRealtime,
     refreshInbox: pollWaInbox,
+    upsertAppSupportThread: upsertAppSupportThread,
+    threadIsAppSupport: threadIsAppSupport,
   };
 })();

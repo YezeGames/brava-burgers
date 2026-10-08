@@ -633,20 +633,31 @@
 
   function loadRepartidorUsersUi() {
     if (!window.getAdminToken) return;
-    fetch('/api/admin', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'listRepartidorUsers', token: window.getAdminToken() }),
-    })
-      .then(function (r) {
+    var token = window.getAdminToken();
+    Promise.all([
+      fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'listRepartidorUsers', token: token }),
+      }).then(function (r) {
         return r.json();
-      })
-      .then(function (data) {
+      }),
+      fetch('/api/admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'listRepartidorSignupRequests', token: token, status: 'pending' }),
+      }).then(function (r) {
+        return r.json();
+      }),
+    ])
+      .then(function (pair) {
+        var data = pair[0];
+        var pendingData = pair[1];
         if (!data.ok && data.error === 'repartidor_users_schema_missing') {
           fetch('/api/admin', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'migrateRepartidorUsers', token: window.getAdminToken() }),
+            body: JSON.stringify({ action: 'migrateRepartidorUsers', token: token }),
           })
             .then(function () {
               loadRepartidorUsersUi();
@@ -655,8 +666,9 @@
           return;
         }
         if (!data.ok) return;
+        var pending = pendingData.ok ? pendingData.requests || [] : [];
         renderRepartidorUsersSelect(data.users || []);
-        renderRepartidorCuentasList(data.users || []);
+        renderRepartidorCuentasList(data.users || [], pending);
       })
       .catch(function () {});
   }
@@ -711,30 +723,70 @@
     updateRepartoAppButton();
   }
 
-  function renderRepartidorCuentasList(users) {
+  function renderRepartidorCuentasList(users, pending) {
     var ul = $('reparto-cuentas-list');
     if (!ul) return;
-    if (!users || !users.length) {
-      ul.innerHTML = '<li class="reparto-cuentas-empty">Todavía no hay cuentas. Creá una abajo.</li>';
+    users = users || [];
+    pending = pending || [];
+    if (!users.length && !pending.length) {
+      ul.innerHTML =
+        '<li class="reparto-cuentas-empty">Todavía no hay cuentas ni solicitudes. Los repartidores piden acceso desde la app o creá una manual abajo.</li>';
       return;
     }
-    ul.innerHTML = users
+    var html = pending
+      .map(function (req) {
+        var display =
+          (req.nombre || '') + (req.apellido ? ' ' + req.apellido : '');
+        display = display.trim() || 'Repartidor';
+        return (
+          '<li class="cuenta-row cuenta-row--pending" data-signup-id="' +
+          req.id +
+          '">' +
+          '<div class="cuenta-main">' +
+          '<strong>' +
+          display +
+          '</strong>' +
+          '<span class="cuenta-meta"> @' +
+          req.login +
+          ' · ' +
+          req.telefono +
+          '</span>' +
+          '<span class="badge-pending">Pendiente</span>' +
+          '</div>' +
+          '<div class="cuenta-actions">' +
+          '<button type="button" class="btn-decision btn-decision--reject reparto-signup-reject" data-id="' +
+          req.id +
+          '" title="Rechazar solicitud" aria-label="Rechazar"><i class="fas fa-times" aria-hidden="true"></i></button>' +
+          '<button type="button" class="btn-decision btn-decision--accept reparto-signup-accept" data-id="' +
+          req.id +
+          '" title="Aprobar cuenta" aria-label="Aprobar"><i class="fas fa-check" aria-hidden="true"></i></button>' +
+          '</div></li>'
+        );
+      })
+      .join('');
+    html += users
       .map(function (u) {
         var off = u.activo === false ? ' · <em>inactivo</em>' : '';
         return (
-          '<li><strong>' +
+          '<li class="cuenta-row cuenta-row--active">' +
+          '<div class="cuenta-main">' +
+          '<strong>' +
           (u.nombre || u.login) +
-          '</strong> @' +
+          '</strong>' +
+          '<span class="cuenta-meta"> @' +
           u.login +
           ' · ' +
           u.telefono +
           off +
-          ' <button type="button" class="btn-sm reparto-reset-pw" data-login="' +
+          '</span></div>' +
+          '<div class="cuenta-actions">' +
+          '<button type="button" class="btn-sm btn-accent reparto-reset-pw" data-login="' +
           u.login +
-          '">Nueva clave</button></li>'
+          '">Nueva clave</button></div></li>'
         );
       })
       .join('');
+    ul.innerHTML = html;
     ul.querySelectorAll('.reparto-reset-pw').forEach(function (btn) {
       btn.onclick = function () {
         var login = btn.getAttribute('data-login');
@@ -758,6 +810,63 @@
             } else {
               alert('No se pudo resetear: ' + (data.error || 'error'));
             }
+          });
+      };
+    });
+    ul.querySelectorAll('.reparto-signup-reject').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute('data-id');
+        if (!id || !window.getAdminToken) return;
+        if (!confirm('¿Rechazar esta solicitud? El repartidor puede volver a enviar «Crear cuenta» desde la app.')) return;
+        fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'rejectRepartidorSignup',
+            token: window.getAdminToken(),
+            id: id,
+          }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (!data.ok) alert('No se pudo rechazar: ' + (data.error || 'error'));
+            loadRepartidorUsersUi();
+          });
+      };
+    });
+    ul.querySelectorAll('.reparto-signup-accept').forEach(function (btn) {
+      btn.onclick = function () {
+        var id = btn.getAttribute('data-id');
+        if (!id || !window.getAdminToken) return;
+        fetch('/api/admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'approveRepartidorSignup',
+            token: window.getAdminToken(),
+            id: id,
+          }),
+        })
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            if (!data.ok) {
+              alert('No se pudo aprobar: ' + (data.error || 'error'));
+              return;
+            }
+            if (data.selfPassword) {
+              alert(
+                'Cuenta aprobada.\n\nUsuario: @' +
+                  data.user.login +
+                  '\n\nEl repartidor entra con la contraseña que eligió al registrarse.'
+              );
+            } else {
+              alert('Cuenta aprobada para @' + data.user.login);
+            }
+            loadRepartidorUsersUi();
           });
       };
     });

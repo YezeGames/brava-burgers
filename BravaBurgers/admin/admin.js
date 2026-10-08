@@ -4036,6 +4036,9 @@
         });
       }
       if (typeof BravaWaPanel.init === 'function') BravaWaPanel.init();
+      if (window.BravaWaSupportApp && typeof BravaWaSupportApp.init === 'function') {
+        BravaWaSupportApp.init();
+      }
       syncWaPanelOrders();
     }
 

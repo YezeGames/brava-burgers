@@ -86,3 +86,48 @@ data class SimpleActionResponse(
     @Json(name = "llegada_at") val llegadaAt: String? = null,
     val orn: String? = null,
 )
+
+@JsonClass(generateAdapter = true)
+data class SignupRequestDto(
+    val id: String? = null,
+    val login: String? = null,
+    val nombre: String? = null,
+    val telefono: String? = null,
+    val status: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class SignupResponse(
+    val ok: Boolean = false,
+    val error: String? = null,
+    val request: SignupRequestDto? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class SupportThreadDto(
+    val id: String? = null,
+    @Json(name = "repartidor_tel") val repartidorTel: String? = null,
+    val orn: String? = null,
+    val parada: Int? = null,
+    val topic: String? = null,
+    val status: String? = null,
+    @Json(name = "closed_by") val closedBy: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class SupportMessageDto(
+    val id: String? = null,
+    @Json(name = "thread_id") val threadId: String? = null,
+    val sender: String? = null,
+    val body: String? = null,
+    @Json(name = "creado_at") val creadoAt: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class SupportStateResponse(
+    val ok: Boolean = false,
+    val error: String? = null,
+    val thread: SupportThreadDto? = null,
+    val messages: List<SupportMessageDto>? = null,
+    @Json(name = "thread_id") val threadId: String? = null,
+)

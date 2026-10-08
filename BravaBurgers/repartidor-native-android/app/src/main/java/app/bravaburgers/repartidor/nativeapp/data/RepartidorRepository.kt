@@ -76,4 +76,48 @@ class RepartidorRepository(context: Context) {
         } catch (_: Exception) {
         }
     }
+
+    suspend fun signup(
+        nombre: String,
+        apellido: String,
+        telefono: String,
+        password: String,
+    ): Result<Unit> {
+        val out = api.signup(nombre, apellido, telefono, password, apiKey)
+        if (!out.ok) return Result.failure(Exception(out.error ?: "signup_failed"))
+        return Result.success(Unit)
+    }
+
+    suspend fun supportGetState(token: String, orn: String): Result<SupportStateResponse> {
+        val out = api.supportGetState(token, apiKey, orn)
+        if (!out.ok) return Result.failure(Exception(out.error ?: "support_failed"))
+        return Result.success(out)
+    }
+
+    suspend fun supportOpenThread(
+        token: String,
+        orn: String,
+        parada: Int?,
+        topic: String,
+    ): Result<SupportStateResponse> {
+        val out = api.supportOpenThread(token, apiKey, orn, parada, topic)
+        if (!out.ok) return Result.failure(Exception(out.error ?: "support_open_failed"))
+        return Result.success(out)
+    }
+
+    suspend fun supportSendMessage(
+        token: String,
+        threadId: String,
+        message: String,
+    ): Result<SupportStateResponse> {
+        val out = api.supportSendMessage(token, apiKey, threadId, message)
+        if (!out.ok) return Result.failure(Exception(out.error ?: "support_send_failed"))
+        return Result.success(out)
+    }
+
+    suspend fun supportCloseThread(token: String, threadId: String): Result<SupportStateResponse> {
+        val out = api.supportCloseThread(token, apiKey, threadId)
+        if (!out.ok) return Result.failure(Exception(out.error ?: "support_close_failed"))
+        return Result.success(out)
+    }
 }

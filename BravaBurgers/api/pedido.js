@@ -13,6 +13,15 @@ const {
 const { verifySeguimientoToken } = require('../lib/seguimientoToken');
 const { validateRepartidorToken } = require('../lib/repartidorAuth');
 const { repartidorLogin } = require('../lib/repartidorUsers');
+const { submitRepartidorSignup } = require('../lib/repartidorSignup');
+const {
+  openSupportThread,
+  getSupportState,
+  sendRiderSupportMessage,
+  closeSupportThread,
+  closeSupportByOrn,
+} = require('../lib/repartidorSupport');
+const { migrateRepartidorSignupSchema, migrateRepartidorSupportSchema } = require('../lib/dbMigrate');
 const { upsertRepartidorPushToken } = require('../lib/repartidorPushTokens');
 const { migrateRepartidorPushTokensSchema, migrateRepartidorRealtimeEventsSchema } =
   require('../lib/dbMigrate');
@@ -70,6 +79,18 @@ async function handleRepartidor(body, req, res) {
     }
     return res.status(out.ok ? 200 : 401).json(out);
   }
+  if (action === 'repartidorSignup') {
+    if (!repartidorKeyOk(body, req)) {
+      return res.status(401).json({ ok: false, error: 'invalid_key' });
+    }
+    let out = await submitRepartidorSignup(body);
+    if (!out.ok && out.error === 'signup_schema_missing') {
+      const mig = await migrateRepartidorSignupSchema();
+      if (mig.ok) out = await submitRepartidorSignup(body);
+      else out.migrate = mig;
+    }
+    return res.status(out.ok ? 200 : 400).json(out);
+  }
   if (!repartidorKeyOk(body, req)) {
     return res.status(401).json({ ok: false, error: 'invalid_key' });
   }
@@ -93,6 +114,9 @@ async function handleRepartidor(body, req, res) {
         repartidor_tel: auth.tel,
       });
       const out = await repartidorMarkEntregada(payload);
+      if (out.ok && body.orn) {
+        await closeSupportByOrn(auth.tel, body.orn, 'delivery');
+      }
       return res.status(out.ok ? 200 : 400).json(out);
     }
     if (action === 'iniciarRecorrido') {
@@ -130,6 +154,38 @@ async function handleRepartidor(body, req, res) {
         return res.status(503).json({ ok: false, error: 'realtime_session_failed' });
       }
       return res.status(200).json({ ok: true, realtime: rt });
+    }
+    if (action === 'supportGetState') {
+      let out = await getSupportState(auth.tel, body.orn);
+      if (!out.ok && out.error === 'support_schema_missing') {
+        const mig = await migrateRepartidorSupportSchema();
+        if (mig.ok) out = await getSupportState(auth.tel, body.orn);
+      }
+      return res.status(out.ok ? 200 : 400).json(out);
+    }
+    if (action === 'supportOpenThread') {
+      let out = await openSupportThread(auth.tel, body);
+      if (!out.ok && out.error === 'support_schema_missing') {
+        const mig = await migrateRepartidorSupportSchema();
+        if (mig.ok) out = await openSupportThread(auth.tel, body);
+      }
+      return res.status(out.ok ? 200 : 400).json(out);
+    }
+    if (action === 'supportSendMessage') {
+      let out = await sendRiderSupportMessage(auth.tel, body);
+      if (!out.ok && out.error === 'support_schema_missing') {
+        const mig = await migrateRepartidorSupportSchema();
+        if (mig.ok) out = await sendRiderSupportMessage(auth.tel, body);
+      }
+      return res.status(out.ok ? 200 : 400).json(out);
+    }
+    if (action === 'supportCloseThread') {
+      let out = await closeSupportThread(auth.tel, body, 'rider');
+      if (!out.ok && out.error === 'support_schema_missing') {
+        const mig = await migrateRepartidorSupportSchema();
+        if (mig.ok) out = await closeSupportThread(auth.tel, body, 'rider');
+      }
+      return res.status(out.ok ? 200 : 400).json(out);
     }
     if (action === 'savePushToken') {
       let out = await upsertRepartidorPushToken(
@@ -243,13 +299,18 @@ module.exports = async function handler(req, res) {
   }
   if (
     body.action === 'repartidorLogin' ||
+    body.action === 'repartidorSignup' ||
     body.action === 'listRuta' ||
     body.action === 'markEntregada' ||
     body.action === 'confirmarLlegada' ||
     body.action === 'iniciarRecorrido' ||
     body.action === 'reportTrack' ||
     body.action === 'savePushToken' ||
-    body.action === 'repartidorRealtimeSession'
+    body.action === 'repartidorRealtimeSession' ||
+    body.action === 'supportGetState' ||
+    body.action === 'supportOpenThread' ||
+    body.action === 'supportSendMessage' ||
+    body.action === 'supportCloseThread'
   ) {
     return handleRepartidor(body, req, res);
   }

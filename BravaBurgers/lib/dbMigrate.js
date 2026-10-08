@@ -611,6 +611,60 @@ async function migrateRepartidorRealtimeEventsSchema() {
   }
 }
 
+async function migrateRepartidorSignupSchema() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return { ok: false, error: 'no_postgres_url', hint: 'SUPABASE_DB_PASSWORD o POSTGRES_URL en Vercel.' };
+  }
+  const sqlPath = path.join(__dirname, '..', 'supabase', 'repartidor-signup-requests.sql');
+  let sql;
+  try {
+    sql = fs.readFileSync(sqlPath, 'utf8');
+  } catch (e) {
+    return { ok: false, error: 'sql_file_missing', detail: String(e.message || e) };
+  }
+  const client = createPgClient(conn);
+  try {
+    await client.connect();
+    await client.query(sql);
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
+async function migrateRepartidorSupportSchema() {
+  const conn = postgresConnectionString();
+  if (!conn) {
+    return { ok: false, error: 'no_postgres_url', hint: 'SUPABASE_DB_PASSWORD o POSTGRES_URL en Vercel.' };
+  }
+  const sqlPath = path.join(__dirname, '..', 'supabase', 'repartidor-support.sql');
+  let sql;
+  try {
+    sql = fs.readFileSync(sqlPath, 'utf8');
+  } catch (e) {
+    return { ok: false, error: 'sql_file_missing', detail: String(e.message || e) };
+  }
+  const client = createPgClient(conn);
+  try {
+    await client.connect();
+    await client.query(sql);
+    await client.query("NOTIFY pgrst, 'reload schema';");
+    return { ok: true, migrated: true };
+  } catch (e) {
+    return { ok: false, error: 'migration_failed', detail: String(e.message || e) };
+  } finally {
+    try {
+      await client.end();
+    } catch (e2) {}
+  }
+}
+
 async function migrateRepartidorAssignSchema() {
   const conn = postgresConnectionString();
   if (!conn) {
@@ -659,4 +713,6 @@ module.exports = {
   migrateRepartidorUsersSchema,
   migrateRepartidorPushTokensSchema,
   migrateRepartidorRealtimeEventsSchema,
+  migrateRepartidorSignupSchema,
+  migrateRepartidorSupportSchema,
 };

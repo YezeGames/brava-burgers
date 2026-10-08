@@ -72,6 +72,22 @@ data class RepartidorUiState(
     val homeMapSpeedKmh: Int = 0,
     val homeMapWaitingGps: Boolean = false,
     val deliveryHistory: List<HistorialEntregaUi> = emptyList(),
+    val signupMessage: String? = null,
+    val supportOrn: String? = null,
+    val supportSheetOpen: Boolean = false,
+    val supportStepChat: Boolean = false,
+    val supportThreadId: String? = null,
+    val supportTopic: String? = null,
+    val supportStatus: String? = null,
+    val supportMessages: List<SupportChatLine> = emptyList(),
+    val supportLoading: Boolean = false,
+    val supportError: String? = null,
+    val supportConfirmClose: Boolean = false,
+)
+
+data class SupportChatLine(
+    val sender: String,
+    val body: String,
 )
 
 @OptIn(FlowPreview::class)
@@ -185,7 +201,7 @@ class RepartidorViewModel(
     fun login(login: String, password: String) {
         if (shouldBlockForMandatoryUpdate()) return
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(loading = true, error = null)
+            _ui.value = _ui.value.copy(loading = true, error = null, signupMessage = null)
             repo.login(login, password)
                 .onSuccess { bundle ->
                     loginRealtime = bundle.realtime
@@ -193,6 +209,186 @@ class RepartidorViewModel(
                 }
                 .onFailure {
                     _ui.value = _ui.value.copy(loading = false, error = it.message ?: "Error")
+                }
+        }
+    }
+
+    fun signup(
+        nombre: String,
+        apellido: String,
+        telefono: String,
+        password: String,
+        password2: String,
+    ) {
+        if (shouldBlockForMandatoryUpdate()) return
+        if (password.length < 6) {
+            _ui.value = _ui.value.copy(signupMessage = null, error = "La contraseña debe tener al menos 6 caracteres.")
+            return
+        }
+        if (password != password2) {
+            _ui.value = _ui.value.copy(signupMessage = null, error = "Las contraseñas no coinciden.")
+            return
+        }
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(loading = true, error = null, signupMessage = null)
+            repo.signup(nombre, apellido, telefono, password)
+                .onSuccess {
+                    _ui.value =
+                        _ui.value.copy(
+                            loading = false,
+                            error = null,
+                            signupMessage =
+                                "Solicitud enviada. Cocina debe aprobar tu cuenta antes de que puedas entrar.",
+                        )
+                }
+                .onFailure {
+                    _ui.value =
+                        _ui.value.copy(
+                            loading = false,
+                            error = signupErrorMessage(it.message),
+                        )
+                }
+        }
+    }
+
+    private fun signupErrorMessage(code: String?): String =
+        when (code) {
+            "login_taken" -> "Ese usuario ya existe. Pedí ayuda a cocina."
+            "signup_pending_exists" -> "Ya hay una solicitud pendiente con ese usuario."
+            "weak_password" -> "La contraseña debe tener al menos 6 caracteres."
+            "invalid_telefono" -> "Revisá el número de teléfono."
+            else -> code ?: "No se pudo enviar la solicitud"
+        }
+
+    fun openSupportSheet(orn: String) {
+        _ui.value =
+            _ui.value.copy(
+                supportOrn = orn,
+                supportSheetOpen = true,
+                supportStepChat = false,
+                supportConfirmClose = false,
+                supportError = null,
+            )
+        refreshSupportState(orn)
+    }
+
+    fun minimizeSupportSheet() {
+        _ui.value = _ui.value.copy(supportSheetOpen = false, supportConfirmClose = false)
+    }
+
+    fun showSupportCloseConfirm(show: Boolean) {
+        _ui.value = _ui.value.copy(supportConfirmClose = show)
+    }
+
+    fun dismissSupportForOrn(orn: String) {
+        if (_ui.value.supportOrn != orn) return
+        _ui.value =
+            _ui.value.copy(
+                supportSheetOpen = false,
+                supportConfirmClose = false,
+            )
+    }
+
+    private fun mapSupportMessages(list: List<app.bravaburgers.repartidor.nativeapp.data.SupportMessageDto>?): List<SupportChatLine> =
+        list.orEmpty().map { m ->
+            SupportChatLine(sender = m.sender.orEmpty(), body = m.body.orEmpty())
+        }
+
+    private fun applySupportResponse(orn: String, out: app.bravaburgers.repartidor.nativeapp.data.SupportStateResponse) {
+        val thread = out.thread
+        val open = thread != null && thread.status == "open"
+        _ui.value =
+            _ui.value.copy(
+                supportOrn = orn,
+                supportThreadId = thread?.id,
+                supportTopic = thread?.topic,
+                supportStatus = thread?.status,
+                supportMessages = mapSupportMessages(out.messages),
+                supportStepChat = thread != null,
+                supportLoading = false,
+                supportError = null,
+                supportSheetOpen = if (open || thread != null) _ui.value.supportSheetOpen else _ui.value.supportSheetOpen,
+            )
+    }
+
+    fun refreshSupportState(orn: String) {
+        val token = _ui.value.session?.token ?: return
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(supportLoading = true, supportError = null)
+            repo.supportGetState(token, orn)
+                .onSuccess { applySupportResponse(orn, it) }
+                .onFailure {
+                    _ui.value =
+                        _ui.value.copy(
+                            supportLoading = false,
+                            supportError = it.message ?: "Error",
+                            supportStepChat = false,
+                        )
+                }
+        }
+    }
+
+    fun openSupportTopic(orn: String, parada: Int?, topic: String) {
+        val token = _ui.value.session?.token ?: return
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(supportLoading = true, supportError = null)
+            repo.supportOpenThread(token, orn, parada, topic)
+                .onSuccess {
+                    applySupportResponse(orn, it)
+                    _ui.value = _ui.value.copy(supportStepChat = true, supportSheetOpen = true)
+                }
+                .onFailure {
+                    _ui.value =
+                        _ui.value.copy(
+                            supportLoading = false,
+                            supportError = it.message ?: "Error",
+                        )
+                }
+        }
+    }
+
+    fun sendSupportMessage(text: String) {
+        val token = _ui.value.session?.token ?: return
+        val threadId = _ui.value.supportThreadId ?: return
+        val trimmed = text.trim()
+        if (trimmed.isEmpty()) return
+        if (_ui.value.supportStatus == "closed") return
+        viewModelScope.launch {
+            repo.supportSendMessage(token, threadId, trimmed)
+                .onSuccess { out ->
+                    _ui.value =
+                        _ui.value.copy(
+                            supportMessages = mapSupportMessages(out.messages),
+                            supportError = null,
+                        )
+                }
+                .onFailure {
+                    _ui.value = _ui.value.copy(supportError = it.message ?: "Error")
+                }
+        }
+    }
+
+    fun confirmCloseSupport() {
+        val token = _ui.value.session?.token ?: return
+        val threadId = _ui.value.supportThreadId ?: return
+        val orn = _ui.value.supportOrn ?: return
+        viewModelScope.launch {
+            _ui.value = _ui.value.copy(supportLoading = true, supportConfirmClose = false)
+            repo.supportCloseThread(token, threadId)
+                .onSuccess {
+                    refreshSupportState(orn)
+                    _ui.value =
+                        _ui.value.copy(
+                            supportSheetOpen = false,
+                            supportLoading = false,
+                        )
+                }
+                .onFailure {
+                    _ui.value =
+                        _ui.value.copy(
+                            supportLoading = false,
+                            supportError = it.message ?: "Error",
+                        )
                 }
         }
     }
