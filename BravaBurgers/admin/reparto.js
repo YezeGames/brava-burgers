@@ -666,6 +666,18 @@
           return;
         }
         if (!data.ok) return;
+        if (!pendingData.ok && pendingData.error === 'signup_schema_missing') {
+          fetch('/api/admin', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'migrateRepartidorSignup', token: token }),
+          })
+            .then(function () {
+              loadRepartidorUsersUi();
+            })
+            .catch(function () {});
+          return;
+        }
         var pending = pendingData.ok ? pendingData.requests || [] : [];
         renderRepartidorUsersSelect(data.users || []);
         renderRepartidorCuentasList(data.users || [], pending);

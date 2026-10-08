@@ -37,6 +37,25 @@ async function loadEnvFromVercel(keys) {
   const list = await (
     await fetch('https://api.vercel.com/v9/projects/' + proj.id + '/env' + listQs, { headers })
   ).json();
+  async function readEnvValue(row) {
+    if (!row) return '';
+    let val = row.value || row.legacyValue || '';
+    if (val) return val;
+    if (row.type !== 'encrypted' && row.type !== 'secret') return '';
+    const detail = await (
+      await fetch(
+        'https://api.vercel.com/v9/projects/' +
+          proj.id +
+          '/env/' +
+          encodeURIComponent(row.id) +
+          (tq ? tq + '&' : '?') +
+          'decrypt=true',
+        { headers }
+      )
+    ).json();
+    return detail.value || detail.legacyValue || '';
+  }
+
   for (const key of keys) {
     const row = (list.envs || []).find(function (e) {
       if (e.key !== key) return false;
@@ -46,7 +65,7 @@ async function loadEnvFromVercel(keys) {
       return targets === 'production';
     });
     if (!row) throw new Error('Falta en Vercel: ' + key);
-    const val = row.value || row.legacyValue;
+    const val = await readEnvValue(row);
     if (!val) throw new Error('No se pudo leer ' + key);
     process.env[key] = val;
   }
@@ -54,6 +73,13 @@ async function loadEnvFromVercel(keys) {
 
 async function main() {
   await loadEnvFromVercel(['SUPABASE_URL', 'SUPABASE_DB_PASSWORD']);
+  if (!process.env.POSTGRES_URL) {
+    try {
+      await loadEnvFromVercel(['POSTGRES_URL']);
+    } catch (e) {
+      /* optional */
+    }
+  }
   const signup = await migrateRepartidorSignupSchema();
   console.log('signup:', JSON.stringify(signup));
   const support = await migrateRepartidorSupportSchema();

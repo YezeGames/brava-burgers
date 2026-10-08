@@ -89,6 +89,12 @@
     lastPollMs = now;
 
     adminPost({ action: 'listRepartidorSupportThreads', status: 'open' }).then(function (data) {
+      if (!data.ok && data.error === 'support_schema_missing') {
+        adminPost({ action: 'migrateRepartidorSupport' }).then(function () {
+          pollSupportThreads();
+        });
+        return;
+      }
       if (!data.ok) return;
       var threads = data.threads || [];
       var seen = {};
