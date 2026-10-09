@@ -300,7 +300,7 @@
     var th = threads[tel];
     if (!th) return false;
     if (threadIsAppSupport(tel)) return tab === 'repartidores';
-    if (threadIsRepartidor(tel)) return tab === 'repartidores';
+    if (threadIsRepartidor(tel)) return tab === 'consultas';
     if (threadHasOpenReclamo(tel)) return tab === 'reclamos';
     if (threadIsTurnoOrderTel(tel) && !threadHasActiveOrder(th)) return false;
     var hasOrder = threadHasActiveOrder(th);
@@ -362,7 +362,7 @@
           'Reclamos confirmados por el bot (motivo + descripción + foto). Resolvé acá o usá Gratificar en Entregados.';
       } else if (waInboxTab === 'repartidores') {
         hint.textContent =
-          'Soporte app: chats por pedido desde la app repartidor. Opcional: WhatsApp del repartidor en Reparto.';
+          'Soporte app: chats por pedido cuando un repartidor abre soporte desde la entrega.';
       } else {
         hint.textContent =
           'Consultas: sin pedido activo. Podés eliminar chats (🗑) o Vaciar la pestaña.';
@@ -374,7 +374,7 @@
 
   function waTabForTel(tel) {
     if (threadIsAppSupport(tel)) return 'repartidores';
-    if (threadIsRepartidor(tel)) return 'repartidores';
+    if (threadIsRepartidor(tel)) return 'consultas';
     if (threadHasOpenReclamo(tel)) return 'reclamos';
     if (threads[tel] && threadHasActiveOrder(threads[tel])) return 'pedidos';
     return 'consultas';
