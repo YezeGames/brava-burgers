@@ -44,8 +44,6 @@ function getMessaging() {
 /**
  * @param {string} fcmToken
  * @param {{ title: string, body: string, data?: Record<string,string> }} msg
- */
-/**
  * @param {{ dataOnly?: boolean }} [opts] — data-only: Android siempre ejecuta onMessageReceived (alerta en loop).
  */
 async function sendFcmToToken(fcmToken, msg, opts) {
