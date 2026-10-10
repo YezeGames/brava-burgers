@@ -31,6 +31,10 @@ class BravaFcmService : FirebaseMessagingService() {
         val parsed = RoutePushNotifier.parse(message) ?: return
         val routeAlert = RoutePushNotifier.isRouteAlert(type)
         if (!routeAlert && AppForeground.isInForeground) return
+        if (OrderAssignAlertService.shouldLoopForType(type)) {
+            OrderAssignAlertService.start(this, parsed.first, parsed.second)
+            return
+        }
         showPushNotification(parsed.first, parsed.second, type)
     }
 
@@ -49,20 +53,31 @@ class BravaFcmService : FirebaseMessagingService() {
                 launch,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-        val n =
+        val assignLoop = OrderAssignAlertService.shouldLoopForType(type)
+        val builder =
             NotificationCompat.Builder(this, BravaNotifications.PUSH_CHANNEL_ID)
                 .setSmallIcon(BravaNotifications.smallIcon())
                 .setContentTitle(title)
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setCategory(NotificationCompat.CATEGORY_EVENT)
-                .setDefaults(NotificationCompat.DEFAULT_ALL)
-                .setAutoCancel(true)
+                .setPriority(
+                    if (assignLoop) NotificationCompat.PRIORITY_MAX else NotificationCompat.PRIORITY_HIGH,
+                )
+                .setCategory(
+                    if (assignLoop) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_EVENT,
+                )
+                .setAutoCancel(!assignLoop)
+                .setOngoing(assignLoop)
                 .setContentIntent(pi)
                 .setColor(0xFFFF6B35.toInt())
                 .setGroup("brava_repartidor_route")
-                .build()
+        if (assignLoop) {
+            builder.setSound(BravaNotifications.assignSoundUri(this))
+                .setVibrate(longArrayOf(0, 400, 200, 400))
+        } else {
+            builder.setDefaults(NotificationCompat.DEFAULT_ALL)
+        }
+        val n = builder.build()
         val nm = getSystemService(NotificationManager::class.java)
         nm?.notify(notificationId(type), n)
     }

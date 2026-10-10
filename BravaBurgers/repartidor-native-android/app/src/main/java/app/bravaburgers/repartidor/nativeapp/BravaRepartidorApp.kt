@@ -3,6 +3,7 @@ package app.bravaburgers.repartidor.nativeapp
 import android.app.Application
 import app.bravaburgers.repartidor.nativeapp.data.RepartidorRepository
 import app.bravaburgers.repartidor.nativeapp.push.BravaNotifications
+import app.bravaburgers.repartidor.nativeapp.push.OrderAssignAlertService
 import app.bravaburgers.repartidor.nativeapp.realtime.RepartidorRealtimeCoordinator
 import app.bravaburgers.repartidor.nativeapp.session.AppForeground
 import app.bravaburgers.repartidor.nativeapp.session.RepartoSessionForegroundService
@@ -49,6 +50,7 @@ class BravaRepartidorApp : Application() {
                 repository.apiKey,
             )
         AppForeground.onForeground = {
+            OrderAssignAlertService.stop(this)
             RepartoSessionForegroundService.ensureGpsIfNeeded(this)
             val snap = SessionServicePrefs.read(this)
             if (snap.sessionOn && snap.token.isNotEmpty()) {

@@ -80,7 +80,7 @@ async function notifyRepartidorRouteAssigned(repartidorTel, assignOut) {
   const results = [];
   for (let i = 0; i < listed.tokens.length; i++) {
     const tok = listed.tokens[i];
-    const sent = await sendFcmToToken(tok, msg);
+    const sent = await sendFcmToToken(tok, msg, { dataOnly: true });
     results.push({ token: tok.slice(0, 12) + '…', ok: sent.ok, error: sent.error });
     if (!sent.ok && sent.code === 'messaging/registration-token-not-registered') {
       await deleteInvalidPushToken(tok);
