@@ -45,7 +45,10 @@ function getMessaging() {
  * @param {string} fcmToken
  * @param {{ title: string, body: string, data?: Record<string,string> }} msg
  */
-async function sendFcmToToken(fcmToken, msg) {
+/**
+ * @param {{ dataOnly?: boolean }} [opts] — data-only: Android siempre ejecuta onMessageReceived (alerta en loop).
+ */
+async function sendFcmToToken(fcmToken, msg, opts) {
   const token = String(fcmToken || '').trim();
   if (!token) return { ok: false, error: 'missing_token' };
   const m = getMessaging();
@@ -55,28 +58,31 @@ async function sendFcmToToken(fcmToken, msg) {
   const data = Object.assign({}, msg.data || {});
   data.title = String(msg.title || 'Brava Repartidor').slice(0, 120);
   data.body = String(msg.body || '').slice(0, 240);
+  const dataOnly = !!(opts && opts.dataOnly);
   const payload = {
     token: token,
-    notification: {
-      title: data.title,
-      body: data.body,
-    },
     android: {
       priority: 'high',
       ttl: 86400000,
-      notification: {
-        channelId: 'brava_entregas',
-        sound: 'default',
-        priority: 'high',
-        defaultVibrateTimings: true,
-        visibility: 'public',
-      },
     },
     data: Object.keys(data).reduce(function (acc, k) {
       acc[k] = String(data[k]);
       return acc;
     }, {}),
   };
+  if (!dataOnly) {
+    payload.notification = {
+      title: data.title,
+      body: data.body,
+    };
+    payload.android.notification = {
+      channelId: 'brava_entregas_alert_v1',
+      sound: 'brava_rider_extended',
+      priority: 'high',
+      defaultVibrateTimings: true,
+      visibility: 'public',
+    };
+  }
   try {
     const id = await m.send(payload);
     return { ok: true, messageId: id };

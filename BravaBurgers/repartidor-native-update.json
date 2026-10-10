@@ -2,7 +2,7 @@
     "version_code":  103,
     "version_name":  "2.0.0-alpha101",
     "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v103/brava-repartidor-native.apk",
-    "release_notes":  "Nueva parada: sonido Brava en loop hasta abrir la app (sin bypass No molestar).",
+    "release_notes":  "Nueva parada: sonido Brava en loop hasta abrir la app.",
     "min_version_code":  103,
     "force_update":  true
 }

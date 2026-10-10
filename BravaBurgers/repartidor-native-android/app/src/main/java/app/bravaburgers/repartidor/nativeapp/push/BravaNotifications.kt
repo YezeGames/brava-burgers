@@ -38,7 +38,6 @@ object BravaNotifications {
                 enableVibration(true)
                 enableLights(true)
                 setSound(sound, soundAttrs)
-                setBypassDnd(false)
             }
         nm.createNotificationChannel(
             NotificationChannel(
