@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  106,
-    "version_name":  "2.0.0-alpha104",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v106/brava-repartidor-native.apk",
-    "release_notes":  "Soporte: refresco automático del chat (poll ~3,5 s) mientras está abierto.",
-    "min_version_code":  106,
+    "version_code":  107,
+    "version_name":  "2.0.0-alpha105",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v107/brava-repartidor-native.apk",
+    "release_notes":  "Soporte: badge de mensajes no leídos en auriculares; limpieza al abrir el chat.",
+    "min_version_code":  107,
     "force_update":  true
 }
