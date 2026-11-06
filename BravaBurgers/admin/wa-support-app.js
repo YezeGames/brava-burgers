@@ -6,6 +6,7 @@
   'use strict';
 
   var pollTimer = null;
+  /** thread id -> último actualizado_at visto (ISO) */
   var knownOpen = {};
   var lastPollMs = 0;
 
@@ -98,11 +99,27 @@
       if (!data.ok) return;
       var threads = data.threads || [];
       var seen = {};
+      var activeId =
+        window.BravaWaPanel && typeof BravaWaPanel.getActiveAppSupportThreadId === 'function'
+          ? BravaWaPanel.getActiveAppSupportThreadId()
+          : '';
       threads.forEach(function (th) {
         seen[th.id] = true;
-        var bump = !knownOpen[th.id];
-        knownOpen[th.id] = th.actualizado_at || true;
-        upsertFromList(th, { unread: bump });
+        var at = th.actualizado_at || '';
+        var prev = knownOpen[th.id];
+        var isNew = prev === undefined;
+        var changed = isNew || String(prev) !== String(at);
+        knownOpen[th.id] = at;
+        if (!changed) return;
+        if (activeId && th.id === activeId) {
+          loadThreadFull(th.id, true).then(function () {
+            if (window.BravaWaPanel && typeof BravaWaPanel.renderWaMessagesFresh === 'function') {
+              BravaWaPanel.renderWaMessagesFresh();
+            }
+          });
+          return;
+        }
+        upsertFromList(th, { unread: true });
       });
       Object.keys(knownOpen).forEach(function (id) {
         if (!seen[id]) delete knownOpen[id];

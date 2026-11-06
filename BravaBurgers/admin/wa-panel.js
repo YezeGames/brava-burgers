@@ -1320,6 +1320,17 @@
     updateWaDeleteChrome();
   }
 
+  /** ID del hilo appsupport abierto (UUID), o vacío. */
+  function getActiveAppSupportThreadId() {
+    if (!waActiveTel || !threadIsAppSupport(waActiveTel)) return '';
+    return appSupportThreadId(waActiveTel);
+  }
+
+  /** Tras cargar mensajes desde API (poll / Realtime) sin reentrada al chat. */
+  function renderWaMessagesFresh() {
+    renderWaMessages();
+  }
+
   /** Al cerrar turno/caja: sacar chats de pedidos; quedan solo consultas del turno. */
   function clearTurnoChats() {
     Object.keys(waTurnoPurgaTels).forEach(function (tel) {
@@ -1804,6 +1815,8 @@
     attachSupabaseRealtime: attachSupabaseRealtime,
     detachSupabaseRealtime: detachSupabaseRealtime,
     refreshInbox: pollWaInbox,
+    getActiveAppSupportThreadId: getActiveAppSupportThreadId,
+    renderWaMessagesFresh: renderWaMessagesFresh,
     upsertAppSupportThread: upsertAppSupportThread,
     threadIsAppSupport: threadIsAppSupport,
   };
