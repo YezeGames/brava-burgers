@@ -433,7 +433,6 @@ class MainActivity : ComponentActivity() {
                                     popUpTo("route") { inclusive = false }
                                     launchSingleTop = true
                                 }
-                                vm.confirmarLlegada(orn) { }
                             },
                         )
                     }
@@ -441,6 +440,7 @@ class MainActivity : ComponentActivity() {
                         val orn = entry.arguments?.getString("orn").orEmpty()
                         LaunchedEffect(orn) {
                             vm.ensureStopDetail(orn)
+                            vm.confirmarLlegada(orn) { }
                         }
                         val stop = vm.stopFor(orn)
                         if (stop == null) {
@@ -454,13 +454,15 @@ class MainActivity : ComponentActivity() {
                         }
                         HandoffScreen(
                             stop = stop,
-                            whatsappSent = !stop.llegadaAt.isNullOrBlank(),
+                            showArrivalNotice = ui.showArrivalNoticeForOrn == orn,
+                            onArrivalNoticeDismissed = vm::consumeArrivalNotice,
                             onBack = { nav.popBackStack() },
                             onEntregado = {
                                 vm.markEntregada(orn) { next ->
                                     afterEntrega(vm, nav, ctx, next)
                                 }
                             },
+                            onSupport = { vm.openSupportSheet(orn) },
                             supportContent = {
                                 if (ui.supportOrn == null || ui.supportOrn == orn) {
                                     HandoffSupportOverlay(
@@ -474,7 +476,6 @@ class MainActivity : ComponentActivity() {
                                         messages = ui.supportMessages,
                                         confirmClose = ui.supportConfirmClose,
                                         onBackdrop = { vm.minimizeSupportSheet() },
-                                        onFabClick = { vm.openSupportSheet(orn) },
                                         onSelectTopic = { t ->
                                             vm.openSupportTopic(orn, stop.parada, t)
                                         },

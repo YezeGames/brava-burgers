@@ -17,7 +17,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -66,7 +65,6 @@ fun HandoffSupportOverlay(
     messages: List<SupportChatLine>,
     confirmClose: Boolean,
     onBackdrop: () -> Unit,
-    onFabClick: () -> Unit,
     onSelectTopic: (String) -> Unit,
     onMinimize: () -> Unit,
     onRequestClose: () -> Unit,
@@ -74,27 +72,6 @@ fun HandoffSupportOverlay(
     onConfirmClose: () -> Unit,
     onSend: (String) -> Unit,
 ) {
-    if (!sheetOpen && !confirmClose) {
-        Box(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-            contentAlignment = Alignment.BottomEnd,
-        ) {
-            IconButton(
-                onClick = onFabClick,
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(Orange)
-                        .padding(4.dp),
-            ) {
-                Icon(Icons.Outlined.HeadsetMic, contentDescription = "Soporte", tint = Color.White)
-            }
-        }
-    }
-
     if (!sheetOpen) {
         if (confirmClose) {
             AlertDialog(

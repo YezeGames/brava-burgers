@@ -93,6 +93,8 @@ data class SimpleActionResponse(
     val error: String? = null,
     val pedidos: List<RouteStop>? = null,
     @Json(name = "llegada_at") val llegadaAt: String? = null,
+    /** true cuando la llegada ya estaba registrada (no reenvía WA). */
+    val already: Boolean? = null,
     val orn: String? = null,
 )
 

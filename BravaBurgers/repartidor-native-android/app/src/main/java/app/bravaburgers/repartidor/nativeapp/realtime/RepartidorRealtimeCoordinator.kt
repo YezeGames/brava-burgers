@@ -89,6 +89,21 @@ class RepartidorRealtimeCoordinator(
             }.onEach {
                 RouteEvents.requestRefresh("realtime")
             }.launchIn(scope)
+        // Cada mensaje toca actualizado_at en el hilo; INSERT/UPDATE del hilo = chat vivo sin salir.
+        channel
+            .postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+                table = "repartidor_support_threads"
+                filter = "repartidor_tel=eq.$tel"
+            }.onEach {
+                RouteEvents.requestSoftRefresh("support_realtime")
+            }.launchIn(scope)
+        channel
+            .postgresChangeFlow<PostgresAction.Update>(schema = "public") {
+                table = "repartidor_support_threads"
+                filter = "repartidor_tel=eq.$tel"
+            }.onEach {
+                RouteEvents.requestSoftRefresh("support_realtime")
+            }.launchIn(scope)
         channel.subscribe()
         connectedToken = repartidorToken
     }

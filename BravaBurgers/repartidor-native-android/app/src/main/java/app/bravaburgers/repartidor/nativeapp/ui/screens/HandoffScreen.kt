@@ -38,6 +38,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.data.OrderItem
@@ -45,7 +46,7 @@ import app.bravaburgers.repartidor.nativeapp.data.RouteStop
 import app.bravaburgers.repartidor.nativeapp.ui.PayKind
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeBottom
 import app.bravaburgers.repartidor.nativeapp.ui.bravaSafeTop
-import app.bravaburgers.repartidor.nativeapp.ui.components.StageAlertOverlay
+import app.bravaburgers.repartidor.nativeapp.ui.components.ArrivalNoticeOverlay
 import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
 
 /** Paleta pantalla handoff (mock SVG). */
@@ -58,7 +59,6 @@ private val HandoffPayInner = Color(0xFF0D1117)
 private val HandoffOrange = Color(0xFFFF6B35)
 private val HandoffOrangeAccent = Color(0xFFFF5522)
 private val HandoffOrangeSoft = Color(0xFFF0883E)
-private val HandoffAmountBlue = Color(0xFF388BFD)
 private val HandoffEfBadgeBg = Color(0xFF2D2618)
 private val HandoffEfBadgeFg = Color(0xFFD29922)
 private val HandoffCobrarBg = Color(0xFF382914)
@@ -68,15 +68,16 @@ private val HandoffWhite = Color(0xFFFFFFFF)
 @Composable
 fun HandoffScreen(
     stop: RouteStop,
-    whatsappSent: Boolean,
+    showArrivalNotice: Boolean,
+    onArrivalNoticeDismissed: () -> Unit,
     onBack: () -> Unit,
     onEntregado: () -> Unit,
+    onSupport: () -> Unit = {},
     supportContent: @Composable () -> Unit = {},
 ) {
     val context = LocalContext.current
     val pay = payUiFor(stop)
     val items = stop.items.orEmpty()
-    var showStageAlert by remember(stop.orn, whatsappSent) { mutableStateOf(whatsappSent) }
 
     Box(modifier = Modifier.fillMaxSize().background(HandoffBg)) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -92,7 +93,7 @@ fun HandoffScreen(
                 HandoffHeaderBar(
                     title = "Parada ${stop.parada ?: "?"}",
                     onBack = onBack,
-                    onSupport = { /* FAB en supportContent */ },
+                    onSupport = onSupport,
                 )
 
                 Text(
@@ -207,12 +208,9 @@ fun HandoffScreen(
             }
         }
 
-        StageAlertOverlay(
-            visible = showStageAlert,
-            title = "Cliente avisado",
-            message = "Le notificamos que llegaste. Podés entregar el pedido.",
-            modifier = Modifier.align(Alignment.TopCenter),
-            onDismiss = { showStageAlert = false },
+        ArrivalNoticeOverlay(
+            visible = showArrivalNotice,
+            onDismiss = onArrivalNoticeDismissed,
         )
         supportContent()
     }
@@ -250,13 +248,20 @@ private fun HandoffHeaderBar(
                 modifier = Modifier.size(22.dp),
             )
         }
-        Text(
-            title,
-            modifier = Modifier.weight(1f).padding(start = 10.dp),
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            color = HandoffWhite,
-        )
+        Box(
+            modifier = Modifier.weight(1f),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = HandoffWhite,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+            )
+        }
         Box(
             modifier =
                 Modifier
@@ -306,7 +311,7 @@ private fun HandoffPaySubcard(pay: app.bravaburgers.repartidor.nativeapp.ui.PayU
                     it,
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 18.sp,
-                    color = HandoffAmountBlue,
+                    color = Color(0xFFFFFFFF),
                     modifier = Modifier.weight(1f),
                 )
             }

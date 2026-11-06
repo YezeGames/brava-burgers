@@ -80,10 +80,20 @@ class RepartidorRepository(context: Context) {
         return Result.success(list)
     }
 
-    suspend fun confirmarLlegada(token: String, orn: String): Result<String?> {
+    data class ConfirmarLlegadaResult(
+        val llegadaAt: String?,
+        val already: Boolean,
+    )
+
+    suspend fun confirmarLlegada(token: String, orn: String): Result<ConfirmarLlegadaResult> {
         val out = api.confirmarLlegada(token, apiKey, orn)
         if (!out.ok) return Result.failure(Exception(out.error ?: "llegada_failed"))
-        return Result.success(out.llegadaAt)
+        return Result.success(
+            ConfirmarLlegadaResult(
+                llegadaAt = out.llegadaAt,
+                already = out.already == true,
+            ),
+        )
     }
 
     suspend fun markEntregada(token: String, orn: String): Result<List<RouteStop>?> {

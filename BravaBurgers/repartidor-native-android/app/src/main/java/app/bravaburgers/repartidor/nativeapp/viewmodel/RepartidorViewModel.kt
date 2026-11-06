@@ -85,6 +85,8 @@ data class RepartidorUiState(
     val supportLoading: Boolean = false,
     val supportError: String? = null,
     val supportConfirmClose: Boolean = false,
+    /** ORN para mostrar una sola vez el modal «Aviso enviado» tras confirmar llegada nueva. */
+    val showArrivalNoticeForOrn: String? = null,
 )
 
 data class SupportChatLine(
@@ -206,6 +208,22 @@ class RepartidorViewModel(
                         lastForegroundRefreshMs = now
                     }
                     refreshRoute(pull = false)
+                }
+        }
+        viewModelScope.launch {
+            RouteEvents.softRefresh
+                .debounce(350)
+                .collect {
+                    val orn = _ui.value.supportOrn
+                    if (
+                        orn.isNullOrBlank() ||
+                        !_ui.value.supportSheetOpen ||
+                        !_ui.value.supportStepChat ||
+                        _ui.value.supportThreadId == null
+                    ) {
+                        return@collect
+                    }
+                    refreshSupportState(orn, showLoading = false)
                 }
         }
     }
@@ -375,10 +393,14 @@ class RepartidorViewModel(
             )
     }
 
-    fun refreshSupportState(orn: String) {
+    fun refreshSupportState(orn: String, showLoading: Boolean = true) {
         val token = _ui.value.session?.token ?: return
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(supportLoading = true, supportError = null)
+            _ui.value =
+                _ui.value.copy(
+                    supportLoading = showLoading,
+                    supportError = null,
+                )
             repo.supportGetState(token, orn)
                 .onSuccess { applySupportResponse(orn, it) }
                 .onFailure {
@@ -871,8 +893,9 @@ class RepartidorViewModel(
             withActionRefreshGuard {
                 _ui.value = _ui.value.copy(loading = true, error = null)
                 repo.confirmarLlegada(token, orn)
-            }.onSuccess { llegadaAt ->
-                val at = llegadaAt.orEmpty().ifBlank { java.time.Instant.now().toString() }
+            }.onSuccess { result ->
+                val at = result.llegadaAt.orEmpty().ifBlank { java.time.Instant.now().toString() }
+                val freshNotice = !result.already
                 _ui.value =
                     _ui.value.copy(
                         stops =
@@ -880,18 +903,25 @@ class RepartidorViewModel(
                                 if (s.orn == orn) s.copy(llegadaAt = at) else s
                             },
                         loading = false,
+                        showArrivalNoticeForOrn = if (freshNotice) orn else _ui.value.showArrivalNoticeForOrn,
                     )
-                RouteLocalNotifier.show(
-                    repo.appContext,
-                    title = "Cliente avisado",
-                    body = "Le avisamos por WhatsApp que llegaste. Revisá el pedido y marcá entregado.",
-                    type = "cliente_avisado",
-                )
+                if (freshNotice) {
+                    RouteLocalNotifier.show(
+                        repo.appContext,
+                        title = "Cliente avisado",
+                        body = "Le avisamos por WhatsApp que llegaste. Revisá el pedido y marcá entregado.",
+                        type = "cliente_avisado",
+                    )
+                }
                 onDone()
             }.onFailure {
                 _ui.value = _ui.value.copy(loading = false, error = it.message)
             }
         }
+    }
+
+    fun consumeArrivalNotice() {
+        _ui.value = _ui.value.copy(showArrivalNoticeForOrn = null)
     }
 
     /**

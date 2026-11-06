@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  104,
-    "version_name":  "2.0.0-alpha102",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v104/brava-repartidor-native.apk",
-    "release_notes":  "Llegada duplicada: modal y aviso al cliente solo la primera vez (respuesta already).",
-    "min_version_code":  104,
+    "version_code":  105,
+    "version_name":  "2.0.0-alpha103",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v105/brava-repartidor-native.apk",
+    "release_notes":  "Soporte: chat actualizado en vivo (Supabase Realtime).",
+    "min_version_code":  105,
     "force_update":  true
 }
