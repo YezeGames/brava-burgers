@@ -36,8 +36,11 @@ import app.bravaburgers.repartidor.nativeapp.session.RouteSyncEvent
 import app.bravaburgers.repartidor.nativeapp.update.AppUpdateChecker
 import app.bravaburgers.repartidor.nativeapp.update.AppUpdateOffer
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -130,6 +133,9 @@ class RepartidorViewModel(
     /** Parada recién entregada: no avisar "Pedido cancelado" al sacarla de la ruta. */
     private var pendingEntregaRemovedOrn: String? = null
 
+    /** Respaldo si Realtime no emite (p. ej. tablas sin publicar en Supabase). */
+    private var supportChatPollJob: Job? = null
+
     private val _routeSyncEvents = MutableSharedFlow<RouteSyncEvent>(extraBufferCapacity = 4)
     val routeSyncEvents = _routeSyncEvents.asSharedFlow()
 
@@ -182,6 +188,7 @@ class RepartidorViewModel(
                     }
                 } else if (bootstrappedToken != null) {
                     bootstrappedToken = null
+                    stopSupportChatPolling()
                     launch(Dispatchers.Default) {
                         realtime?.stop()
                         SessionWorkScheduler.cancel(ctx)
@@ -355,6 +362,7 @@ class RepartidorViewModel(
     }
 
     fun minimizeSupportSheet() {
+        stopSupportChatPolling()
         _ui.value = _ui.value.copy(supportSheetOpen = false, supportConfirmClose = false)
     }
 
@@ -364,6 +372,7 @@ class RepartidorViewModel(
 
     fun dismissSupportForOrn(orn: String) {
         if (_ui.value.supportOrn != orn) return
+        stopSupportChatPolling()
         _ui.value =
             _ui.value.copy(
                 supportSheetOpen = false,
@@ -391,6 +400,49 @@ class RepartidorViewModel(
                 supportError = null,
                 supportSheetOpen = if (open || thread != null) _ui.value.supportSheetOpen else _ui.value.supportSheetOpen,
             )
+        syncSupportChatPolling()
+    }
+
+    private fun stopSupportChatPolling() {
+        supportChatPollJob?.cancel()
+        supportChatPollJob = null
+    }
+
+    /**
+     * Con el sheet abierto en el chat, refresca mensajes periódicamente (complemento a Realtime).
+     */
+    private fun syncSupportChatPolling() {
+        val u = _ui.value
+        val should =
+            u.session?.token != null &&
+                u.supportSheetOpen &&
+                u.supportStepChat &&
+                u.supportStatus == "open" &&
+                !u.supportOrn.isNullOrBlank()
+        if (!should) {
+            stopSupportChatPolling()
+            return
+        }
+        if (supportChatPollJob?.isActive == true) return
+        stopSupportChatPolling()
+        val orn = u.supportOrn!!
+        supportChatPollJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    delay(3500)
+                    val s = _ui.value
+                    if (
+                        !s.supportSheetOpen ||
+                        !s.supportStepChat ||
+                        s.supportStatus != "open" ||
+                        s.supportOrn != orn ||
+                        s.session?.token == null
+                    ) {
+                        break
+                    }
+                    refreshSupportState(orn, showLoading = false)
+                }
+            }
     }
 
     fun refreshSupportState(orn: String, showLoading: Boolean = true) {
@@ -422,6 +474,7 @@ class RepartidorViewModel(
                 .onSuccess {
                     applySupportResponse(orn, it)
                     _ui.value = _ui.value.copy(supportStepChat = true, supportSheetOpen = true)
+                    syncSupportChatPolling()
                 }
                 .onFailure {
                     _ui.value =
@@ -462,6 +515,7 @@ class RepartidorViewModel(
             _ui.value = _ui.value.copy(supportLoading = true, supportConfirmClose = false)
             repo.supportCloseThread(token, threadId)
                 .onSuccess {
+                    stopSupportChatPolling()
                     refreshSupportState(orn)
                     _ui.value =
                         _ui.value.copy(
@@ -632,6 +686,7 @@ class RepartidorViewModel(
     }
 
     fun logout() {
+        stopSupportChatPolling()
         authEpoch++
         suppressSessionRestore = true
         bootstrappedToken = null
