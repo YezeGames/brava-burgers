@@ -44,6 +44,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.time.Instant
+import java.time.format.DateTimeParseException
 
 data class RepartidorUiState(
     val session: Session? = null,
@@ -88,6 +90,8 @@ data class RepartidorUiState(
     val supportLoading: Boolean = false,
     val supportError: String? = null,
     val supportConfirmClose: Boolean = false,
+    /** Mensajes de cocina/admin no vistos por ORN (badge en auriculares). */
+    val supportUnreadCountByOrn: Map<String, Int> = emptyMap(),
     /** ORN para mostrar una sola vez el modal «Aviso enviado» tras confirmar llegada nueva. */
     val showArrivalNoticeForOrn: String? = null,
 )
@@ -135,6 +139,12 @@ class RepartidorViewModel(
 
     /** Respaldo si Realtime no emite (p. ej. tablas sin publicar en Supabase). */
     private var supportChatPollJob: Job? = null
+
+    /** Poll liviano con sheet minimizado para actualizar badge. */
+    private var supportPeekPollJob: Job? = null
+
+    /** Última marca de lectura por hilo (ISO `creado_at` del mensaje más reciente al abrir/ver el chat). */
+    private val supportLastSeenMsgIsoByThread = mutableMapOf<String, String>()
 
     private val _routeSyncEvents = MutableSharedFlow<RouteSyncEvent>(extraBufferCapacity = 4)
     val routeSyncEvents = _routeSyncEvents.asSharedFlow()
@@ -215,6 +225,7 @@ class RepartidorViewModel(
                         lastForegroundRefreshMs = now
                     }
                     refreshRoute(pull = false)
+                    syncSupportPeekPolling()
                 }
         }
         viewModelScope.launch {
@@ -231,6 +242,7 @@ class RepartidorViewModel(
                         return@collect
                     }
                     refreshSupportState(orn, showLoading = false)
+                    syncSupportPeekPolling()
                 }
         }
     }
@@ -357,13 +369,16 @@ class RepartidorViewModel(
                 supportStepChat = false,
                 supportConfirmClose = false,
                 supportError = null,
+                supportUnreadCountByOrn = _ui.value.supportUnreadCountByOrn - orn,
             )
+        stopSupportPeekPolling()
         refreshSupportState(orn)
     }
 
     fun minimizeSupportSheet() {
         stopSupportChatPolling()
         _ui.value = _ui.value.copy(supportSheetOpen = false, supportConfirmClose = false)
+        syncSupportPeekPolling()
     }
 
     fun showSupportCloseConfirm(show: Boolean) {
@@ -378,6 +393,56 @@ class RepartidorViewModel(
                 supportSheetOpen = false,
                 supportConfirmClose = false,
             )
+        syncSupportPeekPolling()
+    }
+
+    private operator fun <K> Map<K, Int>.minus(key: K): Map<K, Int> {
+        if (!this.containsKey(key)) return this
+        val m = this.toMutableMap()
+        m.remove(key)
+        return m
+    }
+
+    private fun parseIsoMs(iso: String?): Long? {
+        val s = iso?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+        return try {
+            Instant.parse(s).toEpochMilli()
+        } catch (_: DateTimeParseException) {
+            null
+        }
+    }
+
+    private fun countAdminUnread(
+        threadId: String?,
+        messages: List<app.bravaburgers.repartidor.nativeapp.data.SupportMessageDto>?,
+    ): Int {
+        val tid = threadId?.trim().orEmpty().ifEmpty { return 0 }
+        val watermark = supportLastSeenMsgIsoByThread[tid]?.let { parseIsoMs(it) } ?: 0L
+        return messages.orEmpty().count { m ->
+            val sender = (m.sender ?: "").trim().lowercase()
+            (sender == "admin" || sender == "system") &&
+                (parseIsoMs(m.creadoAt) ?: 0L) > watermark
+        }
+    }
+
+    /** Marca como leídos los mensajes del hilo actual (tap en auriculares / chat visible). */
+    private fun markSupportThreadReadFromMessages(
+        threadId: String?,
+        messages: List<app.bravaburgers.repartidor.nativeapp.data.SupportMessageDto>?,
+    ) {
+        val tid = threadId?.trim().orEmpty().ifEmpty { return }
+        val latestIso =
+            messages
+                ?.maxWithOrNull { a, b ->
+                    val ta = parseIsoMs(a.creadoAt) ?: 0L
+                    val tb = parseIsoMs(b.creadoAt) ?: 0L
+                    ta.compareTo(tb)
+                }
+                ?.creadoAt
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?: return
+        supportLastSeenMsgIsoByThread[tid] = latestIso
     }
 
     private fun mapSupportMessages(list: List<app.bravaburgers.repartidor.nativeapp.data.SupportMessageDto>?): List<SupportChatLine> =
@@ -385,27 +450,106 @@ class RepartidorViewModel(
             SupportChatLine(sender = m.sender.orEmpty(), body = m.body.orEmpty())
         }
 
-    private fun applySupportResponse(orn: String, out: app.bravaburgers.repartidor.nativeapp.data.SupportStateResponse) {
+    private fun applySupportResponse(
+        orn: String,
+        out: app.bravaburgers.repartidor.nativeapp.data.SupportStateResponse,
+        rawMessages: List<app.bravaburgers.repartidor.nativeapp.data.SupportMessageDto>? = null,
+    ) {
         val thread = out.thread
         val open = thread != null && thread.status == "open"
+        val messagesDto = rawMessages ?: out.messages
+        val u = _ui.value
+        val sheetOpenForThis = u.supportSheetOpen && u.supportOrn == orn
+        val chatVisible =
+            sheetOpenForThis && u.supportStepChat && thread != null && thread.status == "open"
+        val userOpenedSupport =
+            sheetOpenForThis &&
+                (thread == null || thread.status != "open" || chatVisible)
+        if (chatVisible || (sheetOpenForThis && thread != null && open)) {
+            markSupportThreadReadFromMessages(thread?.id, messagesDto)
+        }
+        var unreadMap = u.supportUnreadCountByOrn
+        if (userOpenedSupport || chatVisible) {
+            unreadMap = unreadMap - orn
+        } else {
+            val n = countAdminUnread(thread?.id, messagesDto)
+            unreadMap = if (n <= 0) unreadMap - orn else unreadMap + (orn to n)
+        }
         _ui.value =
-            _ui.value.copy(
+            u.copy(
                 supportOrn = orn,
                 supportThreadId = thread?.id,
                 supportTopic = thread?.topic,
                 supportStatus = thread?.status,
-                supportMessages = mapSupportMessages(out.messages),
+                supportMessages = mapSupportMessages(messagesDto),
                 supportStepChat = thread != null,
                 supportLoading = false,
                 supportError = null,
-                supportSheetOpen = if (open || thread != null) _ui.value.supportSheetOpen else _ui.value.supportSheetOpen,
+                supportUnreadCountByOrn = unreadMap,
+                supportSheetOpen = if (open || thread != null) u.supportSheetOpen else u.supportSheetOpen,
             )
         syncSupportChatPolling()
+        syncSupportPeekPolling()
     }
 
     private fun stopSupportChatPolling() {
         supportChatPollJob?.cancel()
         supportChatPollJob = null
+    }
+
+    private fun stopSupportPeekPolling() {
+        supportPeekPollJob?.cancel()
+        supportPeekPollJob = null
+    }
+
+    private fun syncSupportPeekPolling() {
+        val u = _ui.value
+        val orn = u.supportOrn
+        val should =
+            u.session?.token != null &&
+                orn != null &&
+                orn.isNotBlank() &&
+                !u.supportSheetOpen &&
+                u.stops.any { it.orn == orn }
+        if (!should) {
+            stopSupportPeekPolling()
+            return
+        }
+        if (supportPeekPollJob?.isActive == true) return
+        stopSupportPeekPolling()
+        val ornFix = orn!!
+        supportPeekPollJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    delay(5000)
+                    val s = _ui.value
+                    if (
+                        s.session?.token == null ||
+                            s.supportSheetOpen ||
+                            s.supportOrn != ornFix ||
+                            !s.stops.any { it.orn == ornFix }
+                    ) {
+                        break
+                    }
+                    peekSupportUnreadForOrn(ornFix)
+                }
+            }
+    }
+
+    private fun peekSupportUnreadForOrn(orn: String) {
+        val token = _ui.value.session?.token ?: return
+        viewModelScope.launch {
+            repo.supportGetState(token, orn)
+                .onSuccess { out ->
+                    applySupportResponse(orn, out)
+                }
+        }
+    }
+
+    /** Una vez al entrar a handoff: badge de no leídos + poll liviano si el sheet está cerrado. */
+    fun refreshSupportUnreadForHandoffOrn(orn: String) {
+        if (orn.isBlank()) return
+        peekSupportUnreadForOrn(orn)
     }
 
     /**
@@ -495,11 +639,14 @@ class RepartidorViewModel(
         viewModelScope.launch {
             repo.supportSendMessage(token, threadId, trimmed)
                 .onSuccess { out ->
+                    markSupportThreadReadFromMessages(threadId, out.messages)
                     _ui.value =
                         _ui.value.copy(
                             supportMessages = mapSupportMessages(out.messages),
                             supportError = null,
+                            supportUnreadCountByOrn = _ui.value.supportUnreadCountByOrn - (_ui.value.supportOrn ?: ""),
                         )
+                    syncSupportPeekPolling()
                 }
                 .onFailure {
                     _ui.value = _ui.value.copy(supportError = it.message ?: "Error")
@@ -516,11 +663,14 @@ class RepartidorViewModel(
             repo.supportCloseThread(token, threadId)
                 .onSuccess {
                     stopSupportChatPolling()
+                    stopSupportPeekPolling()
+                    supportLastSeenMsgIsoByThread.remove(threadId)
                     refreshSupportState(orn)
                     _ui.value =
                         _ui.value.copy(
                             supportSheetOpen = false,
                             supportLoading = false,
+                            supportUnreadCountByOrn = _ui.value.supportUnreadCountByOrn - orn,
                         )
                 }
                 .onFailure {
@@ -674,6 +824,8 @@ class RepartidorViewModel(
         RepartoSessionForegroundService.stopSession(ctx)
         SessionWorkScheduler.cancel(ctx)
         realtime?.stop()
+        stopSupportPeekPolling()
+        supportLastSeenMsgIsoByThread.clear()
         withContext(Dispatchers.IO) {
             runCatching { repo.logout() }
         }
@@ -687,6 +839,8 @@ class RepartidorViewModel(
 
     fun logout() {
         stopSupportChatPolling()
+        stopSupportPeekPolling()
+        supportLastSeenMsgIsoByThread.clear()
         authEpoch++
         suppressSessionRestore = true
         bootstrappedToken = null

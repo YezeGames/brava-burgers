@@ -438,6 +438,9 @@ class MainActivity : ComponentActivity() {
                     }
                     composable("handoff/{orn}") { entry ->
                         val orn = entry.arguments?.getString("orn").orEmpty()
+                        LaunchedEffect(orn, ui.session?.token) {
+                            vm.refreshSupportUnreadForHandoffOrn(orn)
+                        }
                         LaunchedEffect(orn) {
                             vm.ensureStopDetail(orn)
                             vm.confirmarLlegada(orn) { }
@@ -462,6 +465,7 @@ class MainActivity : ComponentActivity() {
                                     afterEntrega(vm, nav, ctx, next)
                                 }
                             },
+                            supportUnreadCount = ui.supportUnreadCountByOrn[orn] ?: 0,
                             onSupport = { vm.openSupportSheet(orn) },
                             supportContent = {
                                 if (ui.supportOrn == null || ui.supportOrn == orn) {

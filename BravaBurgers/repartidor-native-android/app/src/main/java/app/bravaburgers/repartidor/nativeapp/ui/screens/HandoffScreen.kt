@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -72,6 +74,8 @@ fun HandoffScreen(
     onArrivalNoticeDismissed: () -> Unit,
     onBack: () -> Unit,
     onEntregado: () -> Unit,
+    /** >0: badge en auriculares (mensajes admin/sistema no vistos). */
+    supportUnreadCount: Int = 0,
     onSupport: () -> Unit = {},
     supportContent: @Composable () -> Unit = {},
 ) {
@@ -94,6 +98,7 @@ fun HandoffScreen(
                     title = "Parada ${stop.parada ?: "?"}",
                     onBack = onBack,
                     onSupport = onSupport,
+                    supportUnreadCount = supportUnreadCount,
                 )
 
                 Text(
@@ -221,6 +226,7 @@ private fun HandoffHeaderBar(
     title: String,
     onBack: () -> Unit,
     onSupport: () -> Unit,
+    supportUnreadCount: Int = 0,
 ) {
     Row(
         modifier =
@@ -275,14 +281,37 @@ private fun HandoffHeaderBar(
                     .clip(CircleShape)
                     .background(HandoffOrange)
                     .clickable(onClick = onSupport),
-            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Outlined.HeadsetMic,
                 contentDescription = "Soporte",
                 tint = HandoffWhite,
-                modifier = Modifier.size(26.dp),
+                modifier = Modifier.align(Alignment.Center).size(26.dp),
             )
+            if (supportUnreadCount > 0) {
+                val label = if (supportUnreadCount > 9) "9+" else supportUnreadCount.toString()
+                Box(
+                    modifier =
+                        Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 4.dp, y = (-3).dp)
+                            .height(18.dp)
+                            .widthIn(min = 18.dp)
+                            .padding(horizontal = if (label.length > 1) 4.dp else 0.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE5532A))
+                            .border(2.dp, HandoffBg, CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = label,
+                        color = HandoffWhite,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                    )
+                }
+            }
         }
     }
 }
