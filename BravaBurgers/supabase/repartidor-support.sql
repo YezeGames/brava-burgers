@@ -26,3 +26,53 @@ CREATE TABLE IF NOT EXISTS repartidor_support_messages (
 );
 
 CREATE INDEX IF NOT EXISTS repartidor_support_messages_thread_idx ON repartidor_support_messages (thread_id, creado_at ASC);
+
+-- Realtime (admin + app repartidor): publicar tablas y RLS para JWT admin/repartidor.
+ALTER TABLE repartidor_support_threads REPLICA IDENTITY FULL;
+ALTER TABLE repartidor_support_messages REPLICA IDENTITY FULL;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE repartidor_support_threads;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$
+BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE repartidor_support_messages;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE repartidor_support_threads ENABLE ROW LEVEL SECURITY;
+ALTER TABLE repartidor_support_messages ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "admin_all_repartidor_support_threads" ON repartidor_support_threads;
+CREATE POLICY "admin_all_repartidor_support_threads" ON repartidor_support_threads
+  FOR ALL TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "admin_all_repartidor_support_messages" ON repartidor_support_messages;
+CREATE POLICY "admin_all_repartidor_support_messages" ON repartidor_support_messages
+  FOR ALL TO authenticated
+  USING (true)
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "repartidor_select_own_support_threads" ON repartidor_support_threads;
+CREATE POLICY "repartidor_select_own_support_threads" ON repartidor_support_threads
+  FOR SELECT TO authenticated
+  USING (repartidor_tel = coalesce(auth.jwt() ->> 'repartidor_tel', ''));
+
+DROP POLICY IF EXISTS "repartidor_select_own_support_messages" ON repartidor_support_messages;
+CREATE POLICY "repartidor_select_own_support_messages" ON repartidor_support_messages
+  FOR SELECT TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM repartidor_support_threads t
+      WHERE t.id = repartidor_support_messages.thread_id
+        AND t.repartidor_tel = coalesce(auth.jwt() ->> 'repartidor_tel', '')
+    )
+  );
+
+GRANT SELECT ON TABLE repartidor_support_threads TO authenticated;
+GRANT SELECT ON TABLE repartidor_support_messages TO authenticated;

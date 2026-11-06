@@ -724,6 +724,38 @@
           if (payload && payload.new) ingestInboxRows(payload.new);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'repartidor_support_threads' },
+        function () {
+          if (window.BravaWaSupportApp && typeof BravaWaSupportApp.poll === 'function') {
+            BravaWaSupportApp.poll();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'repartidor_support_threads' },
+        function (payload) {
+          var row = payload && payload.new ? payload.new : null;
+          var tid = row && row.id;
+          if (
+            tid &&
+            waActiveTel &&
+            threadIsAppSupport(waActiveTel) &&
+            threads[waActiveTel] &&
+            threads[waActiveTel].appSupportId === tid &&
+            window.BravaWaSupportApp &&
+            typeof BravaWaSupportApp.loadThread === 'function'
+          ) {
+            BravaWaSupportApp.loadThread(tid, true).then(function () {
+              renderWaMessages();
+            });
+          } else if (window.BravaWaSupportApp && typeof BravaWaSupportApp.poll === 'function') {
+            BravaWaSupportApp.poll();
+          }
+        }
+      )
       .subscribe(function (status) {
         if (status === 'SUBSCRIBED') {
           setWaInboxRealtimeLive(true);
@@ -1011,8 +1043,13 @@
     th.topic = meta.topic || '';
     th.parada = meta.parada;
     th.closedBy = meta.closed_by || null;
-    if (messages && messages.length) th.msgs = messages;
-    else if (meta.preview && (!th.msgs || !th.msgs.length)) {
+    if (messages && messages.length) {
+      th.msgs = messages;
+    } else if (
+      meta.preview &&
+      (!th.msgs || !th.msgs.length) &&
+      waActiveTel !== tel
+    ) {
       th.msgs = [{ dir: 'sys', text: meta.preview, t: '' }];
     }
     if (meta.unread) th.unread = true;
