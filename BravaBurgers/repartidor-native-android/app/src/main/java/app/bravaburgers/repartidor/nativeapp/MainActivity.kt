@@ -444,6 +444,7 @@ class MainActivity : ComponentActivity() {
                         LaunchedEffect(orn) {
                             vm.ensureStopDetail(orn)
                             vm.confirmarLlegada(orn) { }
+                            vm.presentArrivalNoticeForHandoff(orn)
                         }
                         val stop = vm.stopFor(orn)
                         if (stop == null) {
@@ -473,6 +474,7 @@ class MainActivity : ComponentActivity() {
                                         stop = stop,
                                         sheetOpen = ui.supportSheetOpen && ui.supportOrn == orn,
                                         stepChat = ui.supportStepChat,
+                                        stepConnecting = ui.supportStepConnecting,
                                         loading = ui.supportLoading,
                                         error = ui.supportError,
                                         threadClosed = ui.supportStatus == "closed",

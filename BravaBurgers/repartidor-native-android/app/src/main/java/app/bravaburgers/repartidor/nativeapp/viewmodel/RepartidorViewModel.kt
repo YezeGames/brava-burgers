@@ -83,6 +83,7 @@ data class RepartidorUiState(
     val supportOrn: String? = null,
     val supportSheetOpen: Boolean = false,
     val supportStepChat: Boolean = false,
+    val supportStepConnecting: Boolean = false,
     val supportThreadId: String? = null,
     val supportTopic: String? = null,
     val supportStatus: String? = null,
@@ -361,12 +362,27 @@ class RepartidorViewModel(
             else -> code ?: "No se pudo enviar la solicitud"
         }
 
+    private fun supportErrorMessage(code: String?): String =
+        when (code?.trim()?.lowercase()) {
+            "support_schema_missing" ->
+                "Soporte no está activo en el servidor. Avisá a cocina para cargar las tablas de chat."
+            "create_failed", "support_open_failed" -> "No se pudo abrir el chat. Reintentá en unos segundos."
+            "missing_fields" -> "Faltan datos del pedido para abrir soporte."
+            else -> code?.takeIf { it.isNotBlank() } ?: "No se pudo conectar con soporte."
+        }
+
+    fun presentArrivalNoticeForHandoff(orn: String) {
+        if (orn.isBlank()) return
+        _ui.value = _ui.value.copy(showArrivalNoticeForOrn = orn)
+    }
+
     fun openSupportSheet(orn: String) {
         _ui.value =
             _ui.value.copy(
                 supportOrn = orn,
                 supportSheetOpen = true,
                 supportStepChat = false,
+                supportStepConnecting = false,
                 supportConfirmClose = false,
                 supportError = null,
                 supportUnreadCountByOrn = _ui.value.supportUnreadCountByOrn - orn,
@@ -483,6 +499,7 @@ class RepartidorViewModel(
                 supportStatus = thread?.status,
                 supportMessages = mapSupportMessages(messagesDto),
                 supportStepChat = thread != null,
+                supportStepConnecting = false,
                 supportLoading = false,
                 supportError = null,
                 supportUnreadCountByOrn = unreadMap,
@@ -603,8 +620,9 @@ class RepartidorViewModel(
                     _ui.value =
                         _ui.value.copy(
                             supportLoading = false,
-                            supportError = it.message ?: "Error",
+                            supportError = supportErrorMessage(it.message),
                             supportStepChat = false,
+                            supportStepConnecting = false,
                         )
                 }
         }
@@ -613,18 +631,33 @@ class RepartidorViewModel(
     fun openSupportTopic(orn: String, parada: Int?, topic: String) {
         val token = _ui.value.session?.token ?: return
         viewModelScope.launch {
-            _ui.value = _ui.value.copy(supportLoading = true, supportError = null)
+            _ui.value =
+                _ui.value.copy(
+                    supportLoading = true,
+                    supportError = null,
+                    supportTopic = topic,
+                    supportStepConnecting = true,
+                    supportStepChat = false,
+                )
             repo.supportOpenThread(token, orn, parada, topic)
                 .onSuccess {
                     applySupportResponse(orn, it)
-                    _ui.value = _ui.value.copy(supportStepChat = true, supportSheetOpen = true)
+                    _ui.value =
+                        _ui.value.copy(
+                            supportStepChat = true,
+                            supportStepConnecting = false,
+                            supportSheetOpen = true,
+                            supportLoading = false,
+                        )
                     syncSupportChatPolling()
                 }
                 .onFailure {
                     _ui.value =
                         _ui.value.copy(
                             supportLoading = false,
-                            supportError = it.message ?: "Error",
+                            supportStepConnecting = false,
+                            supportStepChat = false,
+                            supportError = supportErrorMessage(it.message),
                         )
                 }
         }

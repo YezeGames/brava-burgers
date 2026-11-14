@@ -4,6 +4,7 @@ const { telNorm } = require('./bravaCoupons');
 const TOPIC_SEEDS = {
   'Cliente no atiende':
     'Estoy en la puerta y no me atienden (timbre/teléfono). ¿Les avisan ustedes?',
+  'Inconveniente con el cobro': 'Tengo un problema con el cobro o el monto del pedido. ¿Qué hago?',
   'Dirección / GPS': 'No encuentro bien la dirección / el GPS no coincide. ¿Me confirman?',
   'Pago / cobro': 'Tengo un problema con el cobro o el monto del pedido. ¿Qué hago?',
   'Producto / pedido': 'El pedido no coincide (falta/sobra). Necesito indicaciones.',

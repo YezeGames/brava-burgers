@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  107,
-    "version_name":  "2.0.0-alpha105",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v107/brava-repartidor-native.apk",
-    "release_notes":  "Soporte: badge de mensajes no leídos en auriculares; limpieza al abrir el chat.",
-    "min_version_code":  107,
+    "version_code":  108,
+    "version_name":  "2.0.0-alpha106",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v108/brava-repartidor-native.apk",
+    "release_notes":  "UI entrega, soporte bottom sheet, historial compacto y mapa dark-v11 (alpha106)",
+    "min_version_code":  108,
     "force_update":  true
 }

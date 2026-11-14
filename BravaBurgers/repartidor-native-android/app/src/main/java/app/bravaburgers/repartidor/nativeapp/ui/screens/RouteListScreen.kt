@@ -126,19 +126,11 @@ fun RouteListScreen(
                             onStartHomeMapPreview()
                             onDispose { onStopHomeMapPreview() }
                         }
-                        Column(modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                "Tu posición",
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp),
-                            )
-                            HomeMapCardScreen(
-                                driver = homeMapDriver,
-                                waitingGps = homeMapWaitingGps,
-                            )
-                        }
+                        HomeMapCardScreen(
+                            driver = homeMapDriver,
+                            waitingGps = homeMapWaitingGps,
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
                     DriverHomeTab.Historial ->
                         HistorialScreen(

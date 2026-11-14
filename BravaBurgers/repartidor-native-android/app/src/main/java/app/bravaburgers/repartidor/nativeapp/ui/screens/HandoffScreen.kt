@@ -268,45 +268,49 @@ private fun HandoffHeaderBar(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             )
         }
+        // El badge va fuera del clip del círculo naranja (si no, queda cortado en la esquina).
         Box(
-            modifier =
-                Modifier
-                    .size(48.dp)
-                    .shadow(
-                        elevation = 10.dp,
-                        shape = CircleShape,
-                        spotColor = HandoffOrange.copy(alpha = 0.45f),
-                        ambientColor = HandoffOrange.copy(alpha = 0.25f),
-                    )
-                    .clip(CircleShape)
-                    .background(HandoffOrange)
-                    .clickable(onClick = onSupport),
+            modifier = Modifier.size(48.dp).clickable(onClick = onSupport),
         ) {
-            Icon(
-                Icons.Outlined.HeadsetMic,
-                contentDescription = "Soporte",
-                tint = HandoffWhite,
-                modifier = Modifier.align(Alignment.Center).size(26.dp),
-            )
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = CircleShape,
+                            spotColor = HandoffOrange.copy(alpha = 0.45f),
+                            ambientColor = HandoffOrange.copy(alpha = 0.25f),
+                        )
+                        .clip(CircleShape)
+                        .background(HandoffOrange),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Outlined.HeadsetMic,
+                    contentDescription = "Soporte",
+                    tint = HandoffWhite,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
             if (supportUnreadCount > 0) {
                 val label = if (supportUnreadCount > 9) "9+" else supportUnreadCount.toString()
+                val badgeRing = HandoffBg
                 Box(
                     modifier =
                         Modifier
                             .align(Alignment.TopEnd)
-                            .offset(x = 4.dp, y = (-3).dp)
-                            .height(18.dp)
-                            .widthIn(min = 18.dp)
-                            .padding(horizontal = if (label.length > 1) 4.dp else 0.dp)
+                            .offset(x = 3.dp, y = (-3).dp)
+                            .size(16.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE5532A))
-                            .border(2.dp, HandoffBg, CircleShape),
+                            .background(HandoffWhite)
+                            .border(1.5.dp, badgeRing, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         text = label,
-                        color = HandoffWhite,
-                        fontSize = 10.sp,
+                        color = badgeRing,
+                        fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
                     )
