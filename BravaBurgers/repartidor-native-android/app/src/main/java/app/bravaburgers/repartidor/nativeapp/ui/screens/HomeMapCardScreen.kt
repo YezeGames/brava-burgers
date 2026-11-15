@@ -5,7 +5,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,6 +51,7 @@ fun HomeMapCardScreen(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val mapViewHolder = remember { MapViewHolder() }
     val locationProvider = remember { PreviewMapLocationProvider() }
+    val cameraFollowed = remember { mutableStateOf(false) }
 
     DisposableEffect(lifecycle) {
         val observer =
@@ -66,14 +67,14 @@ fun HomeMapCardScreen(
         onDispose {
             lifecycle.removeObserver(observer)
             mapViewHolder.destroy()
+            cameraFollowed.value = false
         }
     }
 
-    val gpsReady = driver != null
     val pillLabel =
         when {
-            waitingGps && !gpsReady -> "Buscando GPS…"
-            gpsReady -> "GPS en vivo"
+            driver != null -> "GPS en vivo"
+            waitingGps -> "Buscando GPS…"
             else -> "Sin señal GPS"
         }
 
@@ -83,60 +84,75 @@ fun HomeMapCardScreen(
                 .fillMaxSize()
                 .background(SurfaceDark),
     ) {
-        if (driver == null && waitingGps) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                ColumnLoadingGps()
-            }
-        } else {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    MapView(ctx).also { mv ->
-                        mapViewHolder.bind(mv)
-                        mv.scalebar.enabled = false
-                        mv.location.setLocationProvider(locationProvider)
+        AndroidView(
+            modifier = Modifier.fillMaxSize(),
+            factory = { ctx ->
+                MapView(ctx).also { mv ->
+                    mapViewHolder.bind(mv)
+                    mv.scalebar.enabled = false
+                    mv.location.setLocationProvider(locationProvider)
+                    mv.getMapboxMap().loadStyleUri(MAPBOX_DARK) {
                         mv.location.updateSettings {
                             enabled = true
                             pulsingEnabled = true
                         }
-                        mv.getMapboxMap().loadStyleUri(MAPBOX_DARK) {
-                            driver?.let { (lat, lng) ->
-                                locationProvider.push(lat, lng)
+                        driver?.let { (lat, lng) ->
+                            locationProvider.push(lat, lng)
+                            if (!cameraFollowed.value) {
                                 centerCamera(mv, lat, lng)
+                                cameraFollowed.value = true
                             }
                         }
                     }
-                },
-                update = { mv ->
-                    val (lat, lng) = driver ?: return@AndroidView
-                    locationProvider.push(lat, lng)
+                }
+            },
+            update = { mv ->
+                mv.location.updateSettings {
+                    enabled = true
+                    pulsingEnabled = true
+                }
+                val (lat, lng) = driver ?: return@AndroidView
+                locationProvider.push(lat, lng)
+                if (!cameraFollowed.value) {
                     centerCamera(mv, lat, lng)
-                },
-            )
-            Text(
-                pillLabel,
-                color = TextPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
+                    cameraFollowed.value = true
+                }
+            },
+        )
+        if (driver == null && waitingGps) {
+            Box(
                 modifier =
                     Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 14.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(TextPrimary.copy(alpha = 0.12f))
-                        .border(1.dp, LineDark, RoundedCornerShape(20.dp))
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-            )
-            FloatingActionButton(
-                onClick = {
-                    val (lat, lng) = driver ?: return@FloatingActionButton
-                    mapViewHolder.mapView?.let { centerCamera(it, lat, lng) }
-                },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(18.dp),
-                containerColor = BravaOrange,
+                        .fillMaxSize()
+                        .background(SurfaceDark.copy(alpha = 0.35f)),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(Icons.Default.MyLocation, contentDescription = "Recentrar", tint = TextPrimary)
+                ColumnLoadingGps()
             }
+        }
+        Text(
+            pillLabel,
+            color = TextPrimary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier =
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 14.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(TextPrimary.copy(alpha = 0.12f))
+                    .border(1.dp, LineDark, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 14.dp, vertical = 8.dp),
+        )
+        FloatingActionButton(
+            onClick = {
+                val (lat, lng) = driver ?: return@FloatingActionButton
+                mapViewHolder.mapView?.let { centerCamera(it, lat, lng) }
+            },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(18.dp),
+            containerColor = BravaOrange,
+        ) {
+            Icon(Icons.Default.MyLocation, contentDescription = "Recentrar", tint = TextPrimary)
         }
     }
 }
@@ -183,15 +199,25 @@ private class MapViewHolder {
 private class PreviewMapLocationProvider : com.mapbox.maps.plugin.locationcomponent.LocationProvider {
     private val consumers =
         mutableSetOf<com.mapbox.maps.plugin.locationcomponent.LocationConsumer>()
+    private var lastLat: Double? = null
+    private var lastLng: Double? = null
 
     fun push(lat: Double, lng: Double) {
         if (!lat.isFinite() || !lng.isFinite() || (lat == 0.0 && lng == 0.0)) return
+        lastLat = lat
+        lastLng = lng
         val point = Point.fromLngLat(lng, lat)
         consumers.forEach { it.onLocationUpdated(point) { } }
     }
 
     override fun registerLocationConsumer(consumer: com.mapbox.maps.plugin.locationcomponent.LocationConsumer) {
         consumers.add(consumer)
+        val lat = lastLat
+        val lng = lastLng
+        if (lat != null && lng != null) {
+            val point = Point.fromLngLat(lng, lat)
+            consumer.onLocationUpdated(point) { }
+        }
     }
 
     override fun unRegisterLocationConsumer(consumer: com.mapbox.maps.plugin.locationcomponent.LocationConsumer) {

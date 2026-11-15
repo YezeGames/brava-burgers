@@ -18,12 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.bravaburgers.repartidor.nativeapp.ui.PayKind
 import app.bravaburgers.repartidor.nativeapp.ui.payUiFor
+import app.bravaburgers.repartidor.nativeapp.ui.theme.BravaOrange
 import app.bravaburgers.repartidor.nativeapp.ui.theme.LineDark
 import app.bravaburgers.repartidor.nativeapp.ui.theme.OkGreen
 import app.bravaburgers.repartidor.nativeapp.ui.theme.SurfaceDark
@@ -39,6 +42,16 @@ data class HistorialEntregaUi(
     val monto: String,
     val stop: app.bravaburgers.repartidor.nativeapp.data.RouteStop,
 )
+
+/** Ej. ORN-DEL-0131 → #0131 */
+fun historialOrnShort(orn: String): String {
+    val digits = Regex("\\d+").findAll(orn.trim()).lastOrNull()?.value
+    if (!digits.isNullOrBlank()) {
+        return "#${digits.takeLast(4).padStart(4, '0')}"
+    }
+    val tail = orn.trim().takeLast(4)
+    return if (tail.startsWith("#")) tail else "#$tail"
+}
 
 @Composable
 fun HistorialScreen(
@@ -77,7 +90,7 @@ fun HistorialScreen(
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 HistorialSummaryCard(
@@ -125,12 +138,15 @@ private fun HistorialCompactRow(row: HistorialEntregaUi) {
         when (pay.kind) {
             PayKind.EFECTIVO -> "Efectivo"
             PayKind.MERCADO_PAGO -> "Mercado Pago"
-            PayKind.OTRO -> pay.metaLine
+            PayKind.OTRO -> pay.metaLine.ifBlank { "Pago" }
         }
     val monto =
         row.stop.total?.let {
             if (it > 0) NumberFormat.getCurrencyInstance(Locale("es", "AR")).format(it) else row.monto
         } ?: row.monto
+    val ordenCorta = historialOrnShort(row.stop.orn)
+    val estadoLinea = "$payLabel · ✓ Entregado · ${row.hora}"
+
     Column(
         modifier =
             Modifier
@@ -138,19 +154,18 @@ private fun HistorialCompactRow(row: HistorialEntregaUi) {
                 .clip(RoundedCornerShape(12.dp))
                 .background(SurfaceDark)
                 .border(1.dp, LineDark, RoundedCornerShape(12.dp))
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                "ORN ${row.stop.orn}",
-                color = TextPrimary,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 12.sp,
+                ordenCorta,
+                color = BravaOrange,
+                fontWeight = FontWeight.Bold,
+                fontSize = 13.sp,
                 maxLines = 1,
             )
             Text(
@@ -159,30 +174,36 @@ private fun HistorialCompactRow(row: HistorialEntregaUi) {
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).padding(horizontal = 8.dp),
             )
-            Text(monto, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp, maxLines = 1)
+            Text(
+                monto,
+                color = Color(0xFFFFFFFF),
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp,
+                maxLines = 1,
+                textAlign = TextAlign.End,
+            )
         }
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                row.stop.cliente.orEmpty(),
+                row.stop.cliente.orEmpty().lowercase(),
                 color = TextMuted,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            Text(payLabel, color = TextMuted, fontSize = 11.sp, maxLines = 1)
             Text(
-                "✓ Entregado · ${row.hora}",
+                estadoLinea,
                 color = OkGreen,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 11.sp,
                 maxLines = 1,
+                textAlign = TextAlign.End,
             )
         }
     }

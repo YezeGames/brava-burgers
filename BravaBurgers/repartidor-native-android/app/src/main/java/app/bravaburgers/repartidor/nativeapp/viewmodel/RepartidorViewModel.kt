@@ -135,6 +135,7 @@ class RepartidorViewModel(
     private var navGeneration = 0
     private var routeListReady = false
     private var homeMapPreviewActive = false
+    private var homeMapPreviewJob: Job? = null
     /** Parada recién entregada: no avisar "Pedido cancelado" al sacarla de la ruta. */
     private var pendingEntregaRemovedOrn: String? = null
 
@@ -1235,33 +1236,40 @@ class RepartidorViewModel(
     fun startHomeMapPreview() {
         if (_ui.value.trackingOrn != null) return
         homeMapPreviewActive = true
+        val cached = lastKnownDriverLatLng
         _ui.value =
             _ui.value.copy(
-                homeMapWaitingGps = true,
-                homeMapDriver = lastKnownDriverLatLng,
+                homeMapWaitingGps = cached == null,
+                homeMapDriver = cached,
             )
-        viewModelScope.launch {
-            val loc =
-                lastKnownDriverLatLng
-                    ?: withContext(Dispatchers.IO) {
-                        LocationHelper.lastLatLng(repo.appContext)
+        homeMapPreviewJob?.cancel()
+        homeMapPreviewJob =
+            viewModelScope.launch {
+                while (isActive && homeMapPreviewActive && _ui.value.trackingOrn == null) {
+                    val loc =
+                        withContext(Dispatchers.IO) {
+                            LocationHelper.lastLatLng(repo.appContext)
+                        }
+                    if (!homeMapPreviewActive || _ui.value.trackingOrn != null) break
+                    if (loc != null) {
+                        lastKnownDriverLatLng = loc
+                        _ui.value =
+                            _ui.value.copy(
+                                homeMapDriver = loc,
+                                homeMapWaitingGps = false,
+                            )
+                    } else if (_ui.value.homeMapDriver == null) {
+                        _ui.value = _ui.value.copy(homeMapWaitingGps = true)
                     }
-            if (!homeMapPreviewActive || _ui.value.trackingOrn != null) return@launch
-            if (loc != null) {
-                lastKnownDriverLatLng = loc
-                _ui.value =
-                    _ui.value.copy(
-                        homeMapDriver = loc,
-                        homeMapWaitingGps = false,
-                    )
-            } else {
-                _ui.value = _ui.value.copy(homeMapWaitingGps = false)
+                    delay(2500)
+                }
             }
-        }
     }
 
     fun stopHomeMapPreview() {
         homeMapPreviewActive = false
+        homeMapPreviewJob?.cancel()
+        homeMapPreviewJob = null
         _ui.value = _ui.value.copy(homeMapWaitingGps = false)
     }
 
