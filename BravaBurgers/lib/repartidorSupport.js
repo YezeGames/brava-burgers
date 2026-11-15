@@ -51,6 +51,25 @@ async function getOpenThread(repartidorTel, orn) {
   return { ok: true, thread: rowToThread(r.data && r.data[0]) };
 }
 
+async function getPendingThread(repartidorTel, orn) {
+  const tel = telNorm(repartidorTel);
+  const o = String(orn || '').trim();
+  if (!tel || !o) return { ok: true, thread: null };
+  const r = await restSelect(
+    'repartidor_support_threads',
+    'select=*&repartidor_tel=eq.' +
+      encodeURIComponent(tel) +
+      '&orn=eq.' +
+      encodeURIComponent(o) +
+      '&status=eq.pending&order=actualizado_at.desc&limit=1'
+  );
+  if (!r.ok) {
+    if (isMissingSupport(r)) return { ok: false, error: 'support_schema_missing' };
+    return { ok: false, error: r.error || 'lookup_failed', detail: r.detail };
+  }
+  return { ok: true, thread: rowToThread(r.data && r.data[0]) };
+}
+
 async function listThreadMessages(threadId) {
   const id = String(threadId || '').trim();
   if (!id) return { ok: false, error: 'missing_thread' };
@@ -95,12 +114,18 @@ async function openSupportThread(repartidorTel, body) {
     return { ok: true, thread: open.thread, messages: msgs.messages, reopened: false };
   }
 
+  let pending = await getPendingThread(tel, orn);
+  if (!pending.ok) return pending;
+  if (pending.thread) {
+    return { ok: true, thread: pending.thread, messages: [], reopened: false, pending: true };
+  }
+
   const ins = await restInsert('repartidor_support_threads', {
     repartidor_tel: tel,
     orn: orn,
     parada: Number.isFinite(parada) ? parada : null,
     topic: topic,
-    status: 'open',
+    status: 'pending',
   });
   if (!ins.ok) {
     if (isMissingSupport(ins)) return { ok: false, error: 'support_schema_missing' };
@@ -109,22 +134,69 @@ async function openSupportThread(repartidorTel, body) {
   const thread = rowToThread(ins.data && ins.data[0]);
   if (!thread) return { ok: false, error: 'create_failed' };
 
-  await insertMessage(thread.id, 'system', 'Chat abierto · cocina responde desde Admin → Soporte');
+  return { ok: true, thread: thread, messages: [], reopened: true, pending: true };
+}
+
+async function acceptSupportThread(threadId) {
+  const id = String(threadId || '').trim();
+  if (!id) return { ok: false, error: 'missing_thread' };
+  const th = await restSelect(
+    'repartidor_support_threads',
+    'select=*&id=eq.' + encodeURIComponent(id) + '&limit=1'
+  );
+  if (!th.ok) return { ok: false, error: th.error || 'lookup_failed' };
+  const row = th.data && th.data[0];
+  if (!row) return { ok: false, error: 'not_found' };
+  if (row.status === 'open') {
+    const msgs = await listThreadMessages(id);
+    if (!msgs.ok) return msgs;
+    return { ok: true, thread: rowToThread(row), messages: msgs.messages, already: true };
+  }
+  if (row.status !== 'pending') return { ok: false, error: 'thread_not_pending' };
+
+  const topic = String(row.topic || '').trim();
+  const orn = String(row.orn || '').trim();
+  const parada = row.parada;
+
+  const patch = await restPatch('repartidor_support_threads', 'id=eq.' + encodeURIComponent(id), {
+    status: 'open',
+    actualizado_at: new Date().toISOString(),
+  });
+  if (!patch.ok) return { ok: false, error: patch.error || 'accept_failed', detail: patch.detail };
+
+  await insertMessage(id, 'system', 'Chat abierto · cocina responde desde Admin → Soporte');
   const seed =
-    String(body.message || '').trim() ||
     TOPIC_SEEDS[topic] ||
     'Tema: ' + topic + ' · ' + orn + (parada != null ? ' · Parada ' + parada : '');
-  const riderMsg = await insertMessage(thread.id, 'rider', seed);
-  if (!riderMsg.ok) return riderMsg;
+  await insertMessage(id, 'rider', seed);
+  await insertMessage(
+    id,
+    'system',
+    'Cocina aceptó tu solicitud. Ya podés escribir en este chat.'
+  );
 
-  const msgs = await listThreadMessages(thread.id);
-  return { ok: true, thread: thread, messages: msgs.ok ? msgs.messages : [], reopened: true };
+  const thread = rowToThread(Object.assign({}, row, { status: 'open' }));
+  const msgs = await listThreadMessages(id);
+  if (!msgs.ok) return msgs;
+  return { ok: true, thread: thread, messages: msgs.messages };
 }
 
 async function getSupportState(repartidorTel, orn) {
   const tel = telNorm(repartidorTel);
   const o = String(orn || '').trim();
   if (!tel || !o) return { ok: false, error: 'missing_fields' };
+  const open = await getOpenThread(tel, o);
+  if (!open.ok) return open;
+  if (open.thread) {
+    const msgs = await listThreadMessages(open.thread.id);
+    if (!msgs.ok) return msgs;
+    return { ok: true, thread: open.thread, messages: msgs.messages };
+  }
+  const pending = await getPendingThread(tel, o);
+  if (!pending.ok) return pending;
+  if (pending.thread) {
+    return { ok: true, thread: pending.thread, messages: [], pending: true };
+  }
   const r = await restSelect(
     'repartidor_support_threads',
     'select=*&repartidor_tel=eq.' +
@@ -139,6 +211,9 @@ async function getSupportState(repartidorTel, orn) {
   }
   const thread = rowToThread(r.data && r.data[0]);
   if (!thread) return { ok: true, thread: null, messages: [] };
+  if (thread.status === 'pending') {
+    return { ok: true, thread: thread, messages: [], pending: true };
+  }
   const msgs = await listThreadMessages(thread.id);
   if (!msgs.ok) return msgs;
   return { ok: true, thread: thread, messages: msgs.messages };
@@ -158,6 +233,7 @@ async function sendRiderSupportMessage(repartidorTel, body) {
   const row = th.data && th.data[0];
   if (!row) return { ok: false, error: 'thread_not_found' };
   if (telNorm(row.repartidor_tel) !== tel) return { ok: false, error: 'forbidden' };
+  if (row.status === 'pending') return { ok: false, error: 'thread_pending' };
   if (row.status !== 'open') return { ok: false, error: 'thread_closed' };
 
   const sent = await insertMessage(threadId, 'rider', text);
@@ -200,16 +276,37 @@ async function closeSupportThread(repartidorTel, body, closedBy) {
 
 async function closeSupportByOrn(repartidorTel, orn, closedBy) {
   const open = await getOpenThread(repartidorTel, orn);
-  if (!open.ok || !open.thread) return open.ok ? { ok: true, skipped: true } : open;
-  return closeSupportThread(repartidorTel, { thread_id: open.thread.id }, closedBy || 'delivery');
+  if (!open.ok) return open;
+  if (open.thread) {
+    return closeSupportThread(repartidorTel, { thread_id: open.thread.id }, closedBy || 'delivery');
+  }
+  const pending = await getPendingThread(repartidorTel, orn);
+  if (!pending.ok) return pending;
+  if (pending.thread) {
+    const patch = await restPatch(
+      'repartidor_support_threads',
+      'id=eq.' + encodeURIComponent(pending.thread.id),
+      {
+        status: 'closed',
+        closed_by: closedBy || 'delivery',
+        cerrado_at: new Date().toISOString(),
+        actualizado_at: new Date().toISOString(),
+      }
+    );
+    if (!patch.ok) return { ok: false, error: patch.error || 'close_failed', detail: patch.detail };
+    return { ok: true };
+  }
+  return { ok: true, skipped: true };
 }
 
 async function listSupportThreadsAdmin(opts) {
   const status = opts && opts.status ? String(opts.status) : '';
   let q = 'select=*&order=actualizado_at.desc&limit=80';
-  if (status === 'open' || status === 'closed') {
+  if (status === 'open' || status === 'closed' || status === 'pending') {
     q =
       'select=*&status=eq.' + encodeURIComponent(status) + '&order=actualizado_at.desc&limit=80';
+  } else if (status === 'active' || status === 'inbox') {
+    q = 'select=*&status=in.(pending,open)&order=actualizado_at.desc&limit=80';
   }
   const r = await restSelect('repartidor_support_threads', q);
   if (!r.ok) {
@@ -246,6 +343,8 @@ async function adminSendSupportMessage(threadId, text) {
   if (!th.ok) return { ok: false, error: th.error || 'lookup_failed' };
   const row = th.data && th.data[0];
   if (!row) return { ok: false, error: 'not_found' };
+  if (row.status === 'pending') return { ok: false, error: 'thread_pending' };
+  if (row.status === 'pending') return { ok: false, error: 'thread_pending' };
   if (row.status !== 'open') return { ok: false, error: 'thread_closed' };
   const sent = await insertMessage(id, 'admin', body);
   if (!sent.ok) return sent;
@@ -255,6 +354,7 @@ async function adminSendSupportMessage(threadId, text) {
 
 module.exports = {
   openSupportThread,
+  acceptSupportThread,
   getSupportState,
   sendRiderSupportMessage,
   closeSupportThread,

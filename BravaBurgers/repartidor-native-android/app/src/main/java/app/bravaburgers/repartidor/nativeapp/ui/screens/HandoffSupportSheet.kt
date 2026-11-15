@@ -232,7 +232,7 @@ private fun ColumnScope.SupportConnectingPane(
     loading: Boolean,
     onMinimize: () -> Unit,
 ) {
-    SupportSheetHeader(title = "Conectando con Soporte", onMinimize = onMinimize)
+    SupportSheetHeader(title = "Buscando agente…", onMinimize = onMinimize)
     Box(
         modifier =
             Modifier
@@ -281,10 +281,26 @@ private fun ColumnScope.SupportConnectingPane(
             Spacer(modifier = Modifier.height(20.dp))
             CircularProgressIndicator(modifier = Modifier.size(42.dp), color = Orange, strokeWidth = 3.dp)
             Spacer(modifier = Modifier.height(16.dp))
-            Text("En fila activa", color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-            Text("Tiempo estimado ~2 min", color = Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Text(
+                if (loading) "Enviando solicitud…" else "Esperando que cocina acepte",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+            )
+            Text(
+                "Tiempo estimado ~2 min",
+                color = Muted,
+                fontSize = 13.sp,
+                modifier = Modifier.padding(top = 6.dp),
+            )
             if (!loading) {
-                Text("Abriendo chat…", color = Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
+                Text(
+                    "Podés minimizar con X y seguir repartiendo.",
+                    color = Muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(top = 10.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
             }
         }
     }

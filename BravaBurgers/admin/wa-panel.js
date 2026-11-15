@@ -1167,7 +1167,10 @@
         '<span class="wa-inbox-top">' +
         '<span class="wa-inbox-name">' +
         (threadIsAppSupport(tel)
-          ? '<span class="channel-pill channel-pill--app">App</span>'
+          ? '<span class="channel-pill channel-pill--app">App</span>' +
+            (th.supportStatus === 'pending'
+              ? '<span class="channel-pill channel-pill--pending">Pendiente</span>'
+              : '')
           : threadIsRepartidor(tel)
             ? '<span class="channel-pill channel-pill--wa">WA</span>'
             : '') +
@@ -1252,7 +1255,9 @@
       var stLine =
         th.supportStatus === 'closed'
           ? 'Chat cerrado' + (th.closedBy ? ' · ' + th.closedBy : '')
-          : 'Soporte app · pedido en curso';
+          : th.supportStatus === 'pending'
+            ? 'Solicitud pendiente · aguardá aceptar'
+            : 'Soporte app · pedido en curso';
       chip.innerHTML =
         '<span class="wa-chip-note">' +
         escapeHtml(stLine) +
@@ -1291,6 +1296,44 @@
     }
 
     body.innerHTML = '';
+    var isPendingApp =
+      threadIsAppSupport(waActiveTel) && th.supportStatus === 'pending';
+    if (isPendingApp) {
+      var pendingBox = document.createElement('div');
+      pendingBox.className = 'wa-support-pending-banner';
+      pendingBox.innerHTML =
+        '<p><strong>Solicitud de soporte</strong></p>' +
+        '<p>Tema: ' +
+        escapeHtml(th.topic || '—') +
+        ' · ' +
+        escapeHtml(th.orn || '') +
+        (th.parada != null ? ' · Parada ' + escapeHtml(String(th.parada)) : '') +
+        '</p>' +
+        '<p class="wa-muted">El repartidor espera en la app. Aceptá para abrir el chat.</p>';
+      var acceptBtn = document.createElement('button');
+      acceptBtn.type = 'button';
+      acceptBtn.className = 'btn btn--primary wa-support-accept-btn';
+      acceptBtn.textContent = 'Aceptar solicitud';
+      acceptBtn.addEventListener('click', function () {
+        acceptBtn.disabled = true;
+        var tid = appSupportThreadId(waActiveTel);
+        if (!tid || !window.BravaWaSupportApp || !BravaWaSupportApp.acceptThread) {
+          acceptBtn.disabled = false;
+          return;
+        }
+        BravaWaSupportApp.acceptThread(tid).then(function (res) {
+          if (res && res.ok === false) {
+            alert('No se pudo aceptar: ' + (res.error || 'error'));
+            acceptBtn.disabled = false;
+            return;
+          }
+          renderWaMessages();
+          renderWaThreads();
+        });
+      });
+      pendingBox.appendChild(acceptBtn);
+      body.appendChild(pendingBox);
+    }
     th.msgs.forEach(function (m) {
       if (m.dir === 'sys') {
         var sys = document.createElement('div');
@@ -1313,7 +1356,11 @@
     var attachBtn = $('wa-attach-image');
     var closedApp =
       threadIsAppSupport(waActiveTel) && th.supportStatus === 'closed';
-    if (composeFoot) composeFoot.classList.toggle('is-support-closed', closedApp);
+    var pendingApp =
+      threadIsAppSupport(waActiveTel) && th.supportStatus === 'pending';
+    if (composeFoot) {
+      composeFoot.classList.toggle('is-support-closed', closedApp || pendingApp);
+    }
     if (attachBtn) attachBtn.classList.toggle('hidden', threadIsAppSupport(waActiveTel));
     highlightOrderCards();
     renderWaThreads();

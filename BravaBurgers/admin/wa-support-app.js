@@ -58,12 +58,14 @@
 
   function upsertFromList(thread, opts) {
     if (!window.BravaWaPanel || typeof BravaWaPanel.upsertAppSupportThread !== 'function') return;
-    var preview =
-      'Tema: ' +
-      (thread.topic || 'Soporte') +
-      ' · ' +
-      (thread.orn || '') +
-      (thread.status === 'closed' ? ' · cerrado' : '');
+    var isPending = thread.status === 'pending';
+    var preview = isPending
+      ? '🟠 Solicitud: ' + (thread.topic || 'Soporte') + ' · ' + (thread.orn || '')
+      : 'Tema: ' +
+        (thread.topic || 'Soporte') +
+        ' · ' +
+        (thread.orn || '') +
+        (thread.status === 'closed' ? ' · cerrado' : '');
     BravaWaPanel.upsertAppSupportThread(
       {
         id: thread.id,
@@ -76,7 +78,7 @@
         actualizado_at: thread.actualizado_at,
         riderName: riderLabel(thread.repartidor_tel),
         preview: preview,
-        unread: !!(opts && opts.unread),
+        unread: !!(opts && opts.unread) || isPending,
       },
       null
     );
@@ -89,7 +91,7 @@
     if (now - lastPollMs < 2500) return;
     lastPollMs = now;
 
-    adminPost({ action: 'listRepartidorSupportThreads', status: 'open' }).then(function (data) {
+    adminPost({ action: 'listRepartidorSupportThreads', status: 'active' }).then(function (data) {
       if (!data.ok && data.error === 'support_schema_missing') {
         adminPost({ action: 'migrateRepartidorSupport' }).then(function () {
           pollSupportThreads();
@@ -110,7 +112,7 @@
         var isNew = prev === undefined;
         var changed = isNew || String(prev) !== String(at);
         knownOpen[th.id] = at;
-        if (!changed) return;
+        if (!changed && th.status !== 'pending') return;
         if (activeId && th.id === activeId) {
           loadThreadFull(th.id, true).then(function () {
             if (window.BravaWaPanel && typeof BravaWaPanel.renderWaMessagesFresh === 'function') {
@@ -148,7 +150,7 @@
             preview: '',
             unread: !markRead,
           },
-          mapMessages(data.messages)
+          data.thread.status === 'pending' ? [] : mapMessages(data.messages)
         );
       }
     });
@@ -180,6 +182,15 @@
     loadThread: loadThreadFull,
     onOpenChat: function (threadId) {
       return loadThreadFull(threadId, true);
+    },
+    acceptThread: function (threadId) {
+      return adminPost({
+        action: 'acceptRepartidorSupportThread',
+        thread_id: threadId,
+      }).then(function (data) {
+        if (data.ok) return loadThreadFull(threadId, true);
+        return data;
+      });
     },
     sendAdminMessage: function (threadId, text) {
       return adminPost({

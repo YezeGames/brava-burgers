@@ -2040,6 +2040,20 @@ html[data-theme="dark"] .wa-chat-body { background-color: #0b141a; }
 	vertical-align: middle;
 }
 .channel-pill--app { background: rgba(255, 107, 53, 0.25); color: #ff8a50; }
+.channel-pill--pending { background: rgba(210, 153, 34, 0.35); color: #e3b341; }
+.wa-support-pending-banner {
+	margin: 12px 14px;
+	padding: 14px 16px;
+	border-radius: 12px;
+	background: rgba(227, 179, 65, 0.12);
+	border: 1px solid rgba(227, 179, 65, 0.35);
+	font-size: 0.82rem;
+	line-height: 1.45;
+}
+.wa-support-pending-banner .wa-support-accept-btn {
+	margin-top: 12px;
+	width: 100%;
+}
 .channel-pill--wa { background: rgba(37, 211, 102, 0.2); color: #25d366; }
 .wa-chat-foot.is-support-closed .wa-compose,
 .wa-chat-foot.is-support-closed #wa-send {

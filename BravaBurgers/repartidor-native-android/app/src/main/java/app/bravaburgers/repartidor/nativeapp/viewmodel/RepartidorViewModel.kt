@@ -145,6 +145,11 @@ class RepartidorViewModel(
     /** Poll liviano con sheet minimizado para actualizar badge. */
     private var supportPeekPollJob: Job? = null
 
+    /** Espera aceptación cocina (status pending). */
+    private var supportPendingPollJob: Job? = null
+
+    private var supportLastKnownStatus: String? = null
+
     /** Última marca de lectura por hilo (ISO `creado_at` del mensaje más reciente al abrir/ver el chat). */
     private val supportLastSeenMsgIsoByThread = mutableMapOf<String, String>()
 
@@ -234,15 +239,13 @@ class RepartidorViewModel(
             RouteEvents.softRefresh
                 .debounce(350)
                 .collect {
-                    val orn = _ui.value.supportOrn
-                    if (
-                        orn.isNullOrBlank() ||
-                        !_ui.value.supportSheetOpen ||
-                        !_ui.value.supportStepChat ||
-                        _ui.value.supportThreadId == null
-                    ) {
-                        return@collect
-                    }
+                    val orn = _ui.value.supportOrn ?: return@collect
+                    if (orn.isBlank()) return@collect
+                    val st = _ui.value.supportStatus
+                    val track =
+                        _ui.value.supportThreadId != null &&
+                            (st == "pending" || (_ui.value.supportSheetOpen && _ui.value.supportStepChat))
+                    if (!track) return@collect
                     refreshSupportState(orn, showLoading = false)
                     syncSupportPeekPolling()
                 }
@@ -368,6 +371,7 @@ class RepartidorViewModel(
             "support_schema_missing" ->
                 "Soporte no está activo en el servidor. Avisá a cocina para cargar las tablas de chat."
             "create_failed", "support_open_failed" -> "No se pudo abrir el chat. Reintentá en unos segundos."
+            "thread_pending" -> "Esperá a que cocina acepte la solicitud."
             "missing_fields" -> "Faltan datos del pedido para abrir soporte."
             else -> code?.takeIf { it.isNotBlank() } ?: "No se pudo conectar con soporte."
         }
@@ -473,41 +477,46 @@ class RepartidorViewModel(
         rawMessages: List<app.bravaburgers.repartidor.nativeapp.data.SupportMessageDto>? = null,
     ) {
         val thread = out.thread
-        val open = thread != null && thread.status == "open"
+        val status = thread?.status?.trim().orEmpty()
+        val isOpen = status == "open"
+        val isPending = status == "pending"
         val messagesDto = rawMessages ?: out.messages
         val u = _ui.value
         val sheetOpenForThis = u.supportSheetOpen && u.supportOrn == orn
-        val chatVisible =
-            sheetOpenForThis && u.supportStepChat && thread != null && thread.status == "open"
-        val userOpenedSupport =
-            sheetOpenForThis &&
-                (thread == null || thread.status != "open" || chatVisible)
-        if (chatVisible || (sheetOpenForThis && thread != null && open)) {
+        val chatVisible = sheetOpenForThis && isOpen
+        val wasPending = supportLastKnownStatus == "pending" || u.supportStatus == "pending"
+        if (chatVisible) {
             markSupportThreadReadFromMessages(thread?.id, messagesDto)
         }
         var unreadMap = u.supportUnreadCountByOrn
-        if (userOpenedSupport || chatVisible) {
+        if (sheetOpenForThis && (chatVisible || isPending)) {
             unreadMap = unreadMap - orn
-        } else {
+        } else if (isOpen && wasPending && !sheetOpenForThis) {
+            val n = countAdminUnread(thread?.id, messagesDto).coerceAtLeast(1)
+            unreadMap = unreadMap + (orn to n)
+        } else if (!sheetOpenForThis) {
             val n = countAdminUnread(thread?.id, messagesDto)
             unreadMap = if (n <= 0) unreadMap - orn else unreadMap + (orn to n)
         }
+        supportLastKnownStatus = status.ifBlank { null }
+        val stepChat = isOpen
+        val stepConnecting = isPending
         _ui.value =
             u.copy(
                 supportOrn = orn,
                 supportThreadId = thread?.id,
-                supportTopic = thread?.topic,
+                supportTopic = thread?.topic ?: u.supportTopic,
                 supportStatus = thread?.status,
-                supportMessages = mapSupportMessages(messagesDto),
-                supportStepChat = thread != null,
-                supportStepConnecting = false,
+                supportMessages = if (isOpen) mapSupportMessages(messagesDto) else emptyList(),
+                supportStepChat = stepChat,
+                supportStepConnecting = stepConnecting,
                 supportLoading = false,
                 supportError = null,
                 supportUnreadCountByOrn = unreadMap,
-                supportSheetOpen = if (open || thread != null) u.supportSheetOpen else u.supportSheetOpen,
             )
         syncSupportChatPolling()
         syncSupportPeekPolling()
+        syncSupportPendingPolling()
     }
 
     private fun stopSupportChatPolling() {
@@ -518,6 +527,46 @@ class RepartidorViewModel(
     private fun stopSupportPeekPolling() {
         supportPeekPollJob?.cancel()
         supportPeekPollJob = null
+    }
+
+    private fun stopSupportPendingPolling() {
+        supportPendingPollJob?.cancel()
+        supportPendingPollJob = null
+    }
+
+    private fun syncSupportPendingPolling() {
+        val u = _ui.value
+        val orn = u.supportOrn
+        val should =
+            u.session?.token != null &&
+                orn != null &&
+                orn.isNotBlank() &&
+                u.supportStatus == "pending" &&
+                u.supportThreadId != null &&
+                u.stops.any { it.orn == orn }
+        if (!should) {
+            stopSupportPendingPolling()
+            return
+        }
+        if (supportPendingPollJob?.isActive == true) return
+        stopSupportPendingPolling()
+        val ornFix = orn!!
+        supportPendingPollJob =
+            viewModelScope.launch {
+                while (isActive) {
+                    delay(2500)
+                    val s = _ui.value
+                    if (
+                        s.session?.token == null ||
+                            s.supportOrn != ornFix ||
+                            s.supportStatus != "pending" ||
+                            s.supportThreadId == null
+                    ) {
+                        break
+                    }
+                    refreshSupportState(ornFix, showLoading = false)
+                }
+            }
     }
 
     private fun syncSupportPeekPolling() {
@@ -643,14 +692,7 @@ class RepartidorViewModel(
             repo.supportOpenThread(token, orn, parada, topic)
                 .onSuccess {
                     applySupportResponse(orn, it)
-                    _ui.value =
-                        _ui.value.copy(
-                            supportStepChat = true,
-                            supportStepConnecting = false,
-                            supportSheetOpen = true,
-                            supportLoading = false,
-                        )
-                    syncSupportChatPolling()
+                    _ui.value = _ui.value.copy(supportSheetOpen = true)
                 }
                 .onFailure {
                     _ui.value =
@@ -669,7 +711,7 @@ class RepartidorViewModel(
         val threadId = _ui.value.supportThreadId ?: return
         val trimmed = text.trim()
         if (trimmed.isEmpty()) return
-        if (_ui.value.supportStatus == "closed") return
+        if (_ui.value.supportStatus == "closed" || _ui.value.supportStatus == "pending") return
         viewModelScope.launch {
             repo.supportSendMessage(token, threadId, trimmed)
                 .onSuccess { out ->

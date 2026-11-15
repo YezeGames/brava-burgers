@@ -62,6 +62,7 @@ const {
   listSupportThreadsAdmin,
   adminGetSupportThread,
   adminSendSupportMessage,
+  acceptSupportThread,
   closeSupportThread,
 } = require('../lib/repartidorSupport');
 const {
@@ -308,6 +309,17 @@ async function handleSupabaseAdmin(body) {
       const mig = await migrateRepartidorSupportSchema();
       if (mig.ok) {
         out = await adminSendSupportMessage(body.thread_id || body.threadId, body.message || body.text);
+      }
+    }
+    return out;
+  }
+
+  if (action === 'acceptRepartidorSupportThread') {
+    let out = await acceptSupportThread(body.thread_id || body.threadId);
+    if (!out.ok && out.error === 'support_schema_missing') {
+      const mig = await migrateRepartidorSupportSchema();
+      if (mig.ok) {
+        out = await acceptSupportThread(body.thread_id || body.threadId);
       }
     }
     return out;

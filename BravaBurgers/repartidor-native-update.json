@@ -1,8 +1,8 @@
 ﻿{
-    "version_code":  109,
-    "version_name":  "2.0.0-alpha107",
-    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v109/brava-repartidor-native.apk",
-    "release_notes":  "Historial 2 líneas (#orden) y puck GPS en pestaña Mapa sin ruta activa (alpha107)",
-    "min_version_code":  109,
+    "version_code":  110,
+    "version_name":  "2.0.0-alpha108",
+    "apk_url":  "https://github.com/YezeGames/brava-burgers/releases/download/repartidor-native-v110/brava-repartidor-native.apk",
+    "release_notes":  "Soporte: cola pending, aceptación manual cocina y espera real en app (alpha108)",
+    "min_version_code":  110,
     "force_update":  true
 }
