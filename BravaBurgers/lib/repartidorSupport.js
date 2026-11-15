@@ -1,4 +1,4 @@
-const { restSelect, restInsert, restPatch } = require('./supabaseServer');
+const { restSelect, restInsert, restPatch, restDelete } = require('./supabaseServer');
 const { telNorm } = require('./bravaCoupons');
 
 const TOPIC_SEEDS = {
@@ -49,6 +49,63 @@ async function getOpenThread(repartidorTel, orn) {
     return { ok: false, error: r.error || 'lookup_failed', detail: r.detail };
   }
   return { ok: true, thread: rowToThread(r.data && r.data[0]) };
+}
+
+async function getClosedThread(repartidorTel, orn) {
+  const tel = telNorm(repartidorTel);
+  const o = String(orn || '').trim();
+  if (!tel || !o) return { ok: true, thread: null };
+  const r = await restSelect(
+    'repartidor_support_threads',
+    'select=*&repartidor_tel=eq.' +
+      encodeURIComponent(tel) +
+      '&orn=eq.' +
+      encodeURIComponent(o) +
+      '&status=eq.closed&order=actualizado_at.desc&limit=1'
+  );
+  if (!r.ok) {
+    if (isMissingSupport(r)) return { ok: false, error: 'support_schema_missing' };
+    return { ok: false, error: r.error || 'lookup_failed', detail: r.detail };
+  }
+  return { ok: true, thread: rowToThread(r.data && r.data[0]) };
+}
+
+async function clearThreadMessages(threadId) {
+  const id = String(threadId || '').trim();
+  if (!id) return { ok: true };
+  const del = await restDelete(
+    'repartidor_support_messages',
+    'thread_id=eq.' + encodeURIComponent(id)
+  );
+  if (!del.ok) return del;
+  return { ok: true };
+}
+
+async function requeueClosedAsPending(threadRow, topic, parada) {
+  const id = threadRow.id;
+  const cleared = await clearThreadMessages(id);
+  if (!cleared.ok) return cleared;
+  const patch = await restPatch('repartidor_support_threads', 'id=eq.' + encodeURIComponent(id), {
+    status: 'pending',
+    topic: topic,
+    parada: Number.isFinite(parada) ? parada : threadRow.parada,
+    closed_by: null,
+    cerrado_at: null,
+    actualizado_at: new Date().toISOString(),
+  });
+  if (!patch.ok) return { ok: false, error: patch.error || 'requeue_failed', detail: patch.detail };
+  return {
+    ok: true,
+    thread: rowToThread(
+      Object.assign({}, threadRow, {
+        status: 'pending',
+        topic: topic,
+        parada: Number.isFinite(parada) ? parada : threadRow.parada,
+        closed_by: null,
+        cerrado_at: null,
+      })
+    ),
+  };
 }
 
 async function getPendingThread(repartidorTel, orn) {
@@ -117,7 +174,23 @@ async function openSupportThread(repartidorTel, body) {
   let pending = await getPendingThread(tel, orn);
   if (!pending.ok) return pending;
   if (pending.thread) {
+    if (topic && String(pending.thread.topic || '') !== topic) {
+      await restPatch(
+        'repartidor_support_threads',
+        'id=eq.' + encodeURIComponent(pending.thread.id),
+        { topic: topic, actualizado_at: new Date().toISOString() }
+      );
+      pending.thread.topic = topic;
+    }
     return { ok: true, thread: pending.thread, messages: [], reopened: false, pending: true };
+  }
+
+  const closed = await getClosedThread(tel, orn);
+  if (!closed.ok) return closed;
+  if (closed.thread) {
+    const rq = await requeueClosedAsPending(closed.thread, topic, parada);
+    if (!rq.ok) return rq;
+    return { ok: true, thread: rq.thread, messages: [], reopened: true, pending: true };
   }
 
   const ins = await restInsert('repartidor_support_threads', {
@@ -213,6 +286,9 @@ async function getSupportState(repartidorTel, orn) {
   if (!thread) return { ok: true, thread: null, messages: [] };
   if (thread.status === 'pending') {
     return { ok: true, thread: thread, messages: [], pending: true };
+  }
+  if (thread.status === 'closed') {
+    return { ok: true, thread: null, messages: [], previous_closed: true };
   }
   const msgs = await listThreadMessages(thread.id);
   if (!msgs.ok) return msgs;

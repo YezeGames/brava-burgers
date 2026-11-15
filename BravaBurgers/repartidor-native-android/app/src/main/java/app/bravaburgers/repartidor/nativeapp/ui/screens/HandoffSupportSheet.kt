@@ -2,6 +2,7 @@ package app.bravaburgers.repartidor.nativeapp.ui.screens
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -184,7 +185,7 @@ private fun ColumnScope.SupportTopicsPane(
 ) {
     SupportSheetHeader(title = "Soporte Brava", onMinimize = onMinimize)
     Text(
-        "Elegí el motivo. Se abre un chat con cocina para este pedido.",
+        "Elegí el motivo. Cocina debe aceptar la solicitud antes del chat.",
         color = Muted,
         fontSize = 13.sp,
         modifier = Modifier.padding(top = 4.dp, bottom = 10.dp),
@@ -232,7 +233,37 @@ private fun ColumnScope.SupportConnectingPane(
     loading: Boolean,
     onMinimize: () -> Unit,
 ) {
-    SupportSheetHeader(title = "Buscando agente…", onMinimize = onMinimize)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(modifier = Modifier.weight(1f))
+        IconButton(onClick = onMinimize) {
+            Icon(Icons.Default.Close, contentDescription = "Minimizar", tint = Color.White)
+        }
+    }
+    val motivo = topic.orEmpty().ifBlank { "Soporte" }
+    Text(
+        text = "Motivo: $motivo",
+        color = Orange,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 13.sp,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xFF0D1117))
+                .border(1.dp, Color(0xFF30363D), RoundedCornerShape(20.dp))
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+    )
+    Text(
+        text = if (loading) "Enviando solicitud…" else "Aguardando asignación de operador",
+        color = Color.White,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
+        modifier = Modifier.padding(bottom = 16.dp),
+    )
     Box(
         modifier =
             Modifier
@@ -267,41 +298,21 @@ private fun ColumnScope.SupportConnectingPane(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                topic.orEmpty().ifBlank { "Soporte" },
-                color = Orange,
-                fontWeight = FontWeight.Bold,
-                fontSize = 14.sp,
-                modifier =
-                    Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFF21262D))
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-            )
-            Spacer(modifier = Modifier.height(20.dp))
             CircularProgressIndicator(modifier = Modifier.size(42.dp), color = Orange, strokeWidth = 3.dp)
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                if (loading) "Enviando solicitud…" else "Esperando que cocina acepte",
-                color = Color.White,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
-            )
             Text(
                 "Tiempo estimado ~2 min",
                 color = Muted,
                 fontSize = 13.sp,
-                modifier = Modifier.padding(top = 6.dp),
+                modifier = Modifier.padding(top = 16.dp),
             )
-            if (!loading) {
-                Text(
-                    "Podés minimizar con X y seguir repartiendo.",
-                    color = Muted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 10.dp),
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-            }
+            Text(
+                "Podés minimizar con la X y seguir operando. Te avisamos en el ícono de soporte cuando cocina acepte.",
+                color = Muted,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.padding(top = 12.dp, start = 8.dp, end = 8.dp),
+            )
         }
     }
 }

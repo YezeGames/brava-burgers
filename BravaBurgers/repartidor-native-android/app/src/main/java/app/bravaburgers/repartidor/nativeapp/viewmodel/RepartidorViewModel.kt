@@ -501,12 +501,13 @@ class RepartidorViewModel(
         supportLastKnownStatus = status.ifBlank { null }
         val stepChat = isOpen
         val stepConnecting = isPending
+        val closedInactive = status == "closed" && sheetOpenForThis
         _ui.value =
             u.copy(
                 supportOrn = orn,
-                supportThreadId = thread?.id,
-                supportTopic = thread?.topic ?: u.supportTopic,
-                supportStatus = thread?.status,
+                supportThreadId = if (closedInactive) null else thread?.id,
+                supportTopic = if (closedInactive) u.supportTopic else (thread?.topic ?: u.supportTopic),
+                supportStatus = if (closedInactive) null else thread?.status,
                 supportMessages = if (isOpen) mapSupportMessages(messagesDto) else emptyList(),
                 supportStepChat = stepChat,
                 supportStepConnecting = stepConnecting,
